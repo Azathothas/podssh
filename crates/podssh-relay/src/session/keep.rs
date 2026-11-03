@@ -323,7 +323,7 @@ where
                     Some(Slot::Live { watch, done, state, admitted }) => {
                         watch.stop.notify_one();
                         slots.insert(*id, Slot::Live { watch, done: done.clone(), state, admitted });
-                        done
+                        Some(done)
                     }
                     // The id stays until its deadline, for each resume
                     // that lost the `CLOSE` (T-586).
@@ -331,13 +331,26 @@ where
                         slots.insert(*id, closed);
                         return Err(NotTaken::Ended);
                     }
-                    None => return Err(NotTaken::Ended),
+                    None => None,
                 }
             };
+            // No slot, while the handshake still knows the session: its
+            // first link's task has not put it in yet, as while a node opens
+            // its target, which a client whose first link fell then resumes
+            // (T-600). It ended only once the handshake forgot it.
+            if stopping.is_none() && !lock(&self.sessions).contains(id) {
+                lock(&self.newest).remove(id);
+                return Err(NotTaken::Ended);
+            }
             if Instant::now() >= deadline {
                 return Err(NotTaken::Stuck);
             }
-            let _ = tokio::time::timeout(STOP_CHECK, stopping.notified()).await;
+            match stopping {
+                Some(stopping) => {
+                    let _ = tokio::time::timeout(STOP_CHECK, stopping.notified()).await;
+                }
+                None => tokio::time::sleep(STOP_CHECK).await,
+            }
         }
     }
 

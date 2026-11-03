@@ -3444,3 +3444,69 @@ Read while drafting, 2026-11-03:
 - Planted: `t586-closing-charged-whole` by `sh scripts/plant-each.sh --here`, and the two of the
   signals by hand (their SETUP is the build image's `apk`): each caught, `reverse_layered`'s first
   test, the operator's test and the OpenSSH test failing.
+
+# T-600: A resume that comes before the first link's task carries its session ends the session, as while a node opens its target
+
+**Source:** the session of 2026-11-03: `cargo test -p podssh-relay --test session_newest` failed
+once in the tests of T-597 on this cloud session's host, under a load of 24 on 4 CPUs (the loop of
+T-599 beside it): "the first link stops for B: Elapsed(())", then 3 runs of 60 of its binary
+failed the same way. Read at `38f424c`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A test that fails at random, and a defect under it. The handshake of a new session makes it
+resumable (`Sessions` holds its secret) before its first link's task puts the session's slot in
+the keeper (`Keeper::run_new`). A resume that comes between them finds no slot, and
+`Keeper::take` took that for a session that ended: the client heard `CLOSE` and gave the session
+up, then the first link's task carried it on a link that nobody used. On a node the gap is the
+dial of its target (`far::serve`, up to 10 s): a client whose first link falls then loses the
+session that it could have resumed.
+
+## Premise
+
+- Read, at `38f424c`: `crates/podssh-relay/src/session/keep.rs`, `take` returned
+  `NotTaken::Ended` for `None` from the slots; `run_new_admitted` attaches the state and inserts
+  `Slot::Live` only when it is called.
+- Read: `crates/podssh-relay/src/session/far.rs`, `serve` opens the target (`TARGET_LIMIT`, 10 s)
+  between `accept` and `run_new_admitted`; `Accepted::close` removes the session from `Sessions`.
+- Measured: with a line at the failure, B's run ended with "the session ended on its old link"
+  while the keeper held one session (the first link's, put in later).
+
+## Approach
+
+1. No slot while `Sessions` still knows the id: the first link's task has not put it in, so the
+   resume waits and looks again, each 50 ms, up to its 10 s; once `Sessions` forgot it (the
+   task's `close`), the session ended.
+2. A test of each order: a resume before the first link's task, which then stops for it; a resume
+   of a session that the first link's task closed, which ends at once.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --test session_newest
+```
+
+Three passed; 200 runs of the binary under the load that failed 3 of 60. Planted, the old
+`None => Ended`: the new test fails; planted, the check of `Sessions` skipped: the closed
+session's test fails.
+
+## Done
+
+2026-11-03.
+
+- `crates/podssh-relay/src/session/keep.rs`: `take` waits for a slot that the handshake's table
+  still knows, and says ended only once the table forgot the session (its entry of `newest` goes
+  with it).
+- `crates/podssh-relay/tests/session_newest.rs`: `a_resume_before_the_first_link_is_carried_waits_for_it`
+  and `a_resume_of_a_session_closed_before_its_first_link_ends`, beside T-270's.
+- `cargo test -p podssh-relay --test session_newest`: 3 passed. Its binary, under a load of 20
+  to 24 on 4 CPUs (T-599's loop of 12 copies beside it): 200 runs passed, then 300 more, where
+  the code before failed 3 of 60.
+- Planted, `None => return Err(NotTaken::Ended)` again: the new test and T-270's failed; planted,
+  the check of `Sessions` skipped (`&& false`): the closed session's test failed (Stuck after
+  10 s, past its 5 s).

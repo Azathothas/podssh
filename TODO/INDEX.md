@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 106 open, 4 partial, 16 blocked, 437 done.**
+**564 entries: 106 open, 4 partial, 16 blocked, 438 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 26 | 3 | 14 | 211 | 254 |
+| P2 | 26 | 3 | 14 | 212 | 255 |
 | P3 | 80 | 0 | 2 | 163 | 245 |
-| **All** | 106 | 4 | 16 | 437 | 563 |
+| **All** | 106 | 4 | 16 | 438 | 564 |
 
 ## Entries
 
@@ -639,3 +639,4 @@ repository and CI).
 | [T-597](repo.md) | P3 | S | none | chore | open | Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13 |
 | [T-598](ssh.md) | P3 | S | none | defect | open | On a cloud container's host, a peer that stops reading below SSH with `--direct` ends the session after 240 s on the keepalives, not after 60 s on the stuck write |
 | [T-599](roads.md) | P2 | M | none | defect | partial | The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random |
+| [T-600](resume.md) | P2 | S | none | defect | done | A resume that comes before the first link's task carries its session ends the session, as while a node opens its target |

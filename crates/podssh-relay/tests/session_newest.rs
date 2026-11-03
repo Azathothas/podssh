@@ -77,3 +77,80 @@ async fn an_older_resume_whose_task_starts_late_gives_way_to_the_newer() {
     assert!(!b_run.is_finished(), "B still carries the session");
     drop(opened);
 }
+
+/// A resume that comes before the first link's task carries the session, as
+/// while a node opens its target, waits for that link and takes the session
+/// from it; it used to find no slot and end the session (T-600).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_resume_before_the_first_link_is_carried_waits_for_it() {
+    let settings = Settings::default();
+    let keeper: Arc<Keeper<DuplexStream>> = Arc::new(Keeper::new(Duration::from_secs(30)));
+
+    let (target, _app) = tokio::io::duplex(PIPE);
+    let (client_link, far_link) = tokio::io::duplex(PIPE);
+    let (mut far_entropy, mut client_entropy) = (OsEntropy, OsEntropy);
+    let (accepted, opened) = tokio::join!(
+        far::accept(far_link, Role::NODE, settings, &keeper.sessions, &mut far_entropy),
+        client::start(client_link, Ask::New, settings, &mut client_entropy),
+    );
+    let (accepted, opened) = (accepted.expect("the first link's handshake"), opened.expect("the session opens"));
+    let established = opened.established().expect("the far end speaks the layer");
+    let (id, secret) = (established.id, *established.secret.bytes());
+
+    // The client's first link fell while the far end opened the target: it
+    // resumes before that link's task carries the session.
+    let (b, _client_b) = resume(&keeper, id, secret, settings).await;
+    let b_run = {
+        let keeper = keeper.clone();
+        tokio::spawn(async move { keeper.run_resumed(b).await })
+    };
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert!(!b_run.is_finished(), "the resume waits for the first link");
+
+    let first = {
+        let keeper = keeper.clone();
+        tokio::spawn(async move { keeper.run_new(accepted, target).await })
+    };
+    let stopped = tokio::time::timeout(LIMIT, first).await.expect("the first link stops for B").unwrap();
+    assert!(matches!(stopped.end, End::Stopped), "{:?}", stopped.end);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!b_run.is_finished(), "B carries the session");
+    drop(opened);
+}
+
+/// A resume of a session that its first link's task closed, as when the
+/// node could not reach its target, ends at once with the session.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_resume_of_a_session_closed_before_its_first_link_ends() {
+    let settings = Settings::default();
+    let keeper: Arc<Keeper<DuplexStream>> = Arc::new(Keeper::new(Duration::from_secs(30)));
+
+    let (client_link, far_link) = tokio::io::duplex(PIPE);
+    let (mut far_entropy, mut client_entropy) = (OsEntropy, OsEntropy);
+    let (accepted, opened) = tokio::join!(
+        far::accept(far_link, Role::NODE, settings, &keeper.sessions, &mut far_entropy),
+        client::start(client_link, Ask::New, settings, &mut client_entropy),
+    );
+    let (accepted, opened) = (accepted.expect("the first link's handshake"), opened.expect("the session opens"));
+    let established = opened.established().expect("the far end speaks the layer");
+    let (id, secret) = (established.id, *established.secret.bytes());
+
+    let (b, client_b) = resume(&keeper, id, secret, settings).await;
+    let b_run = {
+        let keeper = keeper.clone();
+        tokio::spawn(async move { keeper.run_resumed(b).await })
+    };
+    // The client reads no last word here: B's ends with its link.
+    drop(client_b);
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    // The first link's task gives up: the session is no longer known. Its
+    // last word waits for a client that reads nothing here.
+    let closer = {
+        let keeper = keeper.clone();
+        tokio::spawn(async move { accepted.close("the target refused", &keeper.sessions).await })
+    };
+    let refused = tokio::time::timeout(LIMIT, b_run).await.expect("the resume ends with the session").unwrap();
+    assert_eq!(refused.expect_err("the session is gone"), "the session ended on its old link");
+    closer.abort();
+    drop(opened);
+}
