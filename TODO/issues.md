@@ -166,10 +166,10 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #91 | `job` and `--persist` with no tmux: the command that installs it, and the dependency in the README | closed 2026-11-03, its entry done (`f093299`) | T-481 (the hint from the far host's package manager, the README's first steps, and `job --no-tmux`, whose runner alone signals its own child, so the PID reuse that T-193 set `nohup` aside for cannot kill another process) |
 | #92 | A preflight of the far host: what its server allows, before a long command needs it | closed 2026-11-03, its entry done (`a92c2dd`) | T-482 (`health --preflight`; `doctor --via` is T-439's flag, and `doctor` takes no option of `ssh`); its rows of #83 to #87 are those issues' own entries |
 | #93 | `pipe http-listen:` takes `ssh:USER@HOST`, and a worked example of CONNECT | closed 2026-11-03, its entry done (`7417676`) | T-483 |
-| #94 | `each --json` and `--result-file`: each host's status and streams in one object | open | T-484 (a record of each session, in place of the process's, which T-183's Done names) |
+| #94 | `each --json` and `--result-file`: each host's status and streams in one object | closed (8c2776b, 2026-11-03) | T-484 (a record of each session, in place of the process's, which T-183's Done names) |
 | #95 | `cp --no-clobber`, `--update` and `--backup` | closed 2026-11-03, its entry done (`7131713`) | T-473 |
 | #96 | `job log --follow` on one connection | closed 2026-11-03, its entry done (`b7080bd`) | T-485 |
-| #97 | `--result-file` for `cp`, `mv`, `run` and `sftp`, in one schema | open | T-486 (the copy's bytes are `transferred`, as `bytes` keeps the meaning of `ssh`'s), with T-484's record of a session for `run` |
+| #97 | `--result-file` for `cp`, `mv`, `run` and `sftp`, in one schema | closed (096c2c1, 2026-11-03) | T-486 (the copy's bytes are `transferred`, as `bytes` keeps the meaning of `ssh`'s), with T-484's record of a session for `run` |
 | #98 | A warning before the relay's 180 s idle cut | closed 2026-11-02, its entry done (`b39a29d`) | T-463 |
 | #99 | `doctor` says once that each TLS handshake was reset | closed 2026-11-03, its entry done (`4cd833e`) | T-487 (the kind of each failure kept, not read from the system's words; a reference handshake with `github.com`; a diagnosis after the counts) |
 | #100 | `cp` chooses `--parallel` itself for many small files | closed 2026-11-03, its entry done (`f55c61d`) | T-474 (Q23 sets the default of relay sessions; the files at once are channels of one connection: T-474's Decision) |
