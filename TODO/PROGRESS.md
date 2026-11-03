@@ -119,9 +119,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   On 2026-11-03 the third round of drafts is merged and closed, one at a time: T-475 (`535893e`),
   T-484 and T-486, OpenTunnel's road T-530 and T-531 (live run 41679059624), T-592 (`5c14126`) and
   T-596. Their worktrees and local branches are gone; their `draft/` branches on GitHub can go.
-  One draft waits: the research of the operator's relay archive, its four entries with Q89 (ruled),
-  on `draft/relay-measure` (local branch `worktree-agent-aad5d8731317daa6e`, `b57d9ad` to
-  `42fac3d`).
+  The research of the operator's relay archive followed (`09f0c0d`): its four entries, with T-605
+  partial, and `docs/research/relay-measurement.md`. No draft waits; `draft/relay-measure` can go.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478

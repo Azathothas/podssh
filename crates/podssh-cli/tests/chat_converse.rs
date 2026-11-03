@@ -90,6 +90,12 @@ impl Side {
         self.lines.as_ref().unwrap().send(line.to_string()).await.unwrap();
     }
 
+    /// Give a line to a conversation that may have ended already: whether it
+    /// took the line. Its input closes as it ends.
+    async fn offer(&self, line: &str) -> bool {
+        self.lines.as_ref().unwrap().send(line.to_string()).await.is_ok()
+    }
+
     /// Wait until a notice or stdout holds `needle`.
     async fn wait_for(&self, needle: &str) {
         wait_for(&self.notes, &self.stdout, needle).await;
@@ -201,9 +207,11 @@ async fn a_listener_whose_input_ended_says_so_as_it_leaves() {
         let (ours, theirs) = pair();
         peers.send(theirs).await.unwrap();
         // A peer that stays until the listener goes, so that the listener's
-        // end comes from its input alone.
+        // end comes from its input alone. The listener leaves as its peer
+        // comes, so the peer's conversation may have ended, and taken no
+        // line, before this one: a loaded runner of CI found it so.
         let peer = Side::start(ours, "bo", None, &here, Once::No);
-        peer.say("hello").await;
+        let _ = peer.offer("hello").await;
         let (stdout, notes) = (listener.stdout.clone(), listener.notes.clone());
         assert_eq!(listener.end().await, 0, "jsonl {jsonl}: {:?}", notes.lock().unwrap());
         if jsonl {
