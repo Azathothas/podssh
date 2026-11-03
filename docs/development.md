@@ -679,6 +679,35 @@ runner, run after run, and the first that fails ends it (T-283):
 gh workflow run conpty-repeat.yml -f runs=20
 ```
 
+`scripts/relay-measure.py` measures the relay hosts and the roads through
+podssh's own binary (T-605), adapted from the operator's archive of relay
+research (`docs/research/relay-measurement.md`): each host's leg by `ping`,
+the relay's own dial by `relay trace`, GitHub's host key through each host by
+`doctor --quick`, a road's checks by `doctor` with its flags, and a login and
+the throughput to a destination by `ping DEST`. It runs one podssh at a time,
+in rounds in a random order from a seed that the result keeps, each run within
+a limit and the whole within `--budget`, with a cache directory of its own.
+The result is one JSON file with each run, each host's summary and a rank;
+it keeps the proxy's kind alone, as podssh's own lines name the proxy that
+they went through. Its self-test runs offline against a stand-in podssh, and
+fails on two runs at once (`RELAY_MEASURE_PLANT=parallel`):
+
+```sh
+python3 -I scripts/relay-measure.py --self-test
+python3 -I scripts/relay-measure.py --podssh target/debug/podssh \
+    --stages pool,trace,forward --hosts 4 --rounds 2 --out .work/relay-measure.json
+python3 -I scripts/relay-measure.py --podssh target/debug/podssh --stages dest \
+    --destination USER@HOST --identity KEY --ping-road '--direct'
+gh workflow run relay-measure.yml --ref main -f hosts=all -f rounds=2
+```
+
+The workflow, by hand, uploads the JSON as an artifact and writes the rank in
+the step summary. Its stage `dest` reaches the operator's server when the
+repository's secrets `PODSSH_THROUGHPUT_SSH` and `PODSSH_THROUGHPUT_KEY` are
+both set, and is left out with a line otherwise; its input `roads` takes the
+flags of each road of the stage `roads`, separated by `;`, for the forwarders
+of Q56, short.
+
 `scripts/capture-close.py` captures the payload of a Close that the live
 relay sends, with a client of the Python standard library: bytes that podssh
 did not make, for a fixture of the Close parser

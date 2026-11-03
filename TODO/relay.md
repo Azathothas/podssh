@@ -2596,6 +2596,15 @@ The self-test passes, and fails with the plant on two runs that overlap. The liv
 four hosts two legs, two traces and GitHub's key, and its JSON holds no token, no proxy address and
 no credential (a search of the file for each). The workflow passes and uploads its JSON.
 
+## Correction
+
+- 2026-11-03: step 3's Premise does not hold: no workflow takes the operator's server of
+  `PODSSH_THROUGHPUT_SSH` or its key from the repository's secrets; the throughput run reads them
+  from the operator's own environment (T-157). The workflow takes them from the secrets
+  `PODSSH_THROUGHPUT_SSH` and `PODSSH_THROUGHPUT_KEY` when both are set, and leaves the stage out
+  with a line when they are not. The stage itself is measured here against a throwaway sshd on
+  the loopback by `--direct`, which needs no secret.
+
 ## Done
 
 2026-11-03, partial: step 1 and the first half of step 5. The drafting agent's harness is merged.
@@ -2622,8 +2631,22 @@ no credential (a search of the file for each). The workflow passes and uploads i
   The result holds no proxy address, no proxy URL, no JWT and no word `Bearer` (a search of the
   file for each); the run's lines hold no proxy address either.
 
-Left: step 2 and step 3 (the workflow by hand, `relay-measure.yml`, with the stage `dest`),
-step 4 (`docs/development.md`) and the workflow's run of step 5.
+Then, the same day (steps 2 to 4):
+
+- `.github/workflows/relay-measure.yml` (new), by hand: the build, the self-test, then the stages
+  of its inputs (`stages`, `hosts`, `rounds` from 1 to 20, `roads` separated by `;`), the JSON as
+  an artifact and the rank in the step summary; `dest` with the two secrets, or left out with a
+  line. Its shell, run here with its inputs set by hand: the arguments of each case, the key's
+  file at 0600, and `rounds` of `abc` or `21` refused (2).
+- The stage `dest` against a throwaway OpenSSH sshd on 127.0.0.1 with a throwaway key, by
+  `--ping-road '--direct -p PORT'`, and the stage `roads` with `--relay-host
+  tcp.ssh.relay.ajam.dev`: 3 runs of podssh, exit 0; the login 45 ms, 72.6 MiB/s down and
+  158.0 MiB/s up on the loopback; the road's 33 checks, GitHub's key through the relay among
+  them, ok but two that `--quick` leaves out (`unknown`). No proxy address in the result or the
+  lines. The sshd and both keys are deleted.
+- `docs/development.md`, "Live tests": the harness, its self-test, its stages and the workflow.
+
+Left: the workflow's run of step 5.
 
 
 # T-606: `podssh relay rank`: each relay host measured on demand, and the rank kept in the cache beside the record of failures

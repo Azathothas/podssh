@@ -1,0 +1,101 @@
+name: relay measure
+
+# The relay hosts and the roads, measured through podssh's own binary
+# (T-605): scripts/relay-measure.py, one podssh at a time, each run with a
+# limit and the whole within a budget. By hand only. The live relay is the
+# operator's own and GitHub's SSH endpoint a test target (AGENTS.md); the
+# forwarders of a --doctor-road are short and from Actions alone (Q56, Q65).
+# The stage dest reaches the operator's server of PODSSH_THROUGHPUT_SSH
+# (Q38) with the key of the secret PODSSH_THROUGHPUT_KEY, when both secrets
+# are set; else it is left out and the run says so. No token, proxy address
+# or credential is printed or kept: the harness keeps the proxy's kind
+# alone, and the result is an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      stages:
+        description: "Stages: pool, trace, forward, roads, dest"
+        default: "pool,trace,forward"
+      hosts:
+        description: "all, a number, or HOST,HOST"
+        default: "all"
+      rounds:
+        description: "Rounds of each host, 1 to 20"
+        default: "3"
+      roads:
+        description: "Roads of the stage roads, separated by ';' (e.g. --forwarder mudlet;--forwarder wisp)"
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relay-measure
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: build podssh
+        run: cargo build --locked -p podssh-cli --bin podssh
+      # The harness's own checks first: a harness that runs two podssh at
+      # once, or keeps the proxy's words, measures nothing that holds.
+      - name: the harness offline
+        run: python3 -I scripts/relay-measure.py --self-test
+      - name: measure
+        env:
+          STAGES: ${{ inputs.stages }}
+          HOSTS: ${{ inputs.hosts }}
+          ROUNDS: ${{ inputs.rounds }}
+          ROADS: ${{ inputs.roads }}
+          DEST: ${{ secrets.PODSSH_THROUGHPUT_SSH }}
+          DEST_KEY: ${{ secrets.PODSSH_THROUGHPUT_KEY }}
+        run: |
+          set -u
+          case "$ROUNDS" in
+            ''|*[!0-9]*) echo "rounds: a number from 1 to 20, not $ROUNDS"; exit 2 ;;
+          esac
+          if [ "$ROUNDS" -lt 1 ] || [ "$ROUNDS" -gt 20 ]; then
+            echo "rounds: a number from 1 to 20, not $ROUNDS"; exit 2
+          fi
+          set -- --podssh target/debug/podssh --hosts "$HOSTS" --rounds "$ROUNDS" \
+            --out "$RUNNER_TEMP/relay-measure.json" --ci
+          stages="$STAGES"
+          case ",$stages," in
+            *,dest,*)
+              if [ -n "$DEST" ] && [ -n "$DEST_KEY" ]; then
+                # The key in a file of the runner's own, read by its owner
+                # alone, and removed with the runner.
+                key="$RUNNER_TEMP/dest-key"
+                umask 077
+                printf '%s\n' "$DEST_KEY" > "$key"
+                set -- "$@" --destination "$DEST" --identity "$key"
+              else
+                echo "the stage dest is left out: the secrets PODSSH_THROUGHPUT_SSH and PODSSH_THROUGHPUT_KEY are not both set"
+                stages=$(printf '%s' ",$stages," | sed 's/,dest,/,/g; s/^,//; s/,$//')
+              fi
+              ;;
+          esac
+          if [ -n "$ROADS" ]; then
+            old_ifs=$IFS; IFS=';'
+            for road in $ROADS; do
+              [ -n "$road" ] && set -- "$@" --doctor-road "$road"
+            done
+            IFS=$old_ifs
+          fi
+          rc=0
+          timeout 2400 python3 -I scripts/relay-measure.py --stages "$stages" "$@" || rc=$?
+          echo "relay-measure exit $rc"
+          exit "$rc"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: relay-measure
+          path: ${{ runner.temp }}/relay-measure.json
+          if-no-files-found: warn
