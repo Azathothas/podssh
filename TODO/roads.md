@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-479` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-480` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114`).
 
 ## Decision
 
@@ -6444,7 +6444,7 @@ has no road.
 ## Premise
 
 - Read: a key other than the pinned one is a refusal that names the issuer
-  (`crates/podssh-warp/src/tls.rs:59`), reported as interception (`crates/podssh-warp/src/road.rs:105`)
+  (`crates/podssh-warp/src/tls.rs:59`), reported as interception (`crates/podssh-warp/src/road.rs:114`)
   and remembered for the run (`crates/podssh-warp/src/road.rs`, line 130 at `ea2bd4f`).
 - Read: the device's record is read once, at registration; no request reads it again
   (`crates/podssh-warp/src/register.rs`, 2026-11-01).
@@ -7503,7 +7503,7 @@ puts the fallback in its `ok` column without a probe.
   measure (`crates/podssh-cli/src/doctor/mod.rs:344-346`).
 - Read: the operator's rulings Q56 and Q65 (`docs/decisions.md`) let the binary try the forwarders,
   and the Wisp demo server last, "when each relay host fails", unasked (T-370, T-438); since T-438
-  there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:235-246`).
+  there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:236-247`).
   A default of off is a change of that ruling.
 - Not measured here: #106's times. Inferred from the code: with the direct road's dial refused at
   once by the tester's proxy, the 20.8 s are the forwarders' own dials of a dead address.
@@ -7653,7 +7653,7 @@ never passed a byte.
 
 - `crates/podssh-warp/src/road.rs`, line 5 at `1769d79`, said "The probe (T-352's Approach, step
   2) is the opening itself: the CONNECT"; this entry's draft rewrote that comment.
-- `crates/podssh-warp/src/road.rs:186` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
+- `crates/podssh-warp/src/road.rs:195` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
   at `1769d79` it returned once TLS and the stack were up, with no byte through the tunnel.
 
 ## Approach
@@ -7771,10 +7771,10 @@ device's record shows an endpoint that podssh chose, not the service.
 
 ## Premise
 
-- `crates/podssh-warp/src/lib.rs:66` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
-- `crates/podssh-warp/src/register.rs:218` says "[0];", the first peer of the answer alone.
-- `crates/podssh-warp/src/register.rs:276` says "let endpoint = crate::ENDPOINT_H2.parse()": the record takes the constant.
-- `crates/podssh-warp/src/device.rs:66` says "pub endpoint: SocketAddr,": one address.
+- `crates/podssh-warp/src/lib.rs:68` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
+- `crates/podssh-warp/src/register.rs:235` says "[0];", the first peer of the answer alone.
+- `crates/podssh-warp/src/register.rs:319` says "let endpoint = crate::ENDPOINT_H2.parse()": the record takes the constant.
+- `crates/podssh-warp/src/device.rs:71` says "pub endpoint: SocketAddr,": one address.
 
 ## Approach
 
@@ -7884,11 +7884,18 @@ and HTTP/2 alone.
 - Planted (`sh scripts/plant-each.sh --here t561-peers-ignored`, the peers ignored for the
   record's endpoint): caught, `a_record_of_two_peers_whose_first_refuses_reaches_the_second_and_
   keeps_it` failed.
-- Waits: the live run (Q52), `warp-live.yml` by hand, through a proxy that refuses
-  162.159.198.2:443: the banner of github.com:22 on the API's own peer, and the record keeping
-  that peer. It is dispatched after the push; its result goes in `docs/STATUS.md`'s row. If no
-  peer takes HTTP/2 on TCP 443, the step fails with a line that names each peer, and the peers
-  stay a fallback that costs a refused dial each.
+- Live (Q52), `warp-live.yml` at `c5299c2` (run 41596110186, 2026-11-03): the device registered,
+  and its record kept WARP's peers; `-v` named its endpoints, "162.159.198.2:443, then
+  [2606:4700:103::2]:443": the API gave no IPv4 peer but the endpoint itself, and one IPv6 peer.
+  Through the proxy that refuses 162.159.198.2:443 (403), the road went on to the IPv6 peer,
+  which the runner, with no IPv6, could not reach (the proxy's 502), and ended with exit 69 and
+  a line that named both endpoints in turn. So the turn works, and on this account the peers are
+  a fallback for a host with IPv6. Two repairs came of it (2026-11-03): the step assumed a second
+  IPv4 peer, and now reads the record's peers first and, with none, proves the turn and the line;
+  and a proxy's 502, 503 or 504 had the hint of a proxy that allows listed names alone, and now
+  says that the proxy's own way out failed, with "it may have no IPv6 route" for an IPv6 peer
+  (`crates/podssh-warp/src/road.rs`, `fault`; its test `a_refused_address_names_the_proxy_and_
+  the_case`). The repaired step's run is in `docs/STATUS.md`'s row.
 
 # T-562: WARP's registration dials one name of the API, with no second route
 
@@ -7897,7 +7904,7 @@ and HTTP/2 alone.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7907,7 +7914,7 @@ the API did not answer, not which name failed.
 
 ## Premise
 
-- `crates/podssh-warp/src/register.rs:26` says "pub const API_HOST", the one name `api.cloudflareclient.com`.
+- `crates/podssh-warp/src/register.rs:28` says "pub const API_HOST", the one name `api.cloudflareclient.com`.
 
 ## Approach
 
@@ -7924,6 +7931,32 @@ The second name goes in only after the live run shows it answers the same API wi
 version; else the entry keeps the variable and the line, and its Done says why. Lost: the second
 name on the issue's word alone, as a name that answers another API would register nothing.
 
+The calls of the draft (2026-11-02), each for the operator to confirm (Q86):
+
+- The draft puts the second name in (`register::API_SECOND`), with the live step that decides
+  it in `warp-live.yml`, as a drafting agent runs nothing; the main session runs that step
+  before it closes the entry, and removes the name if the step fails, as Q79 lets the
+  repository name only the hosts that podssh uses. Read through
+  <https://web.pkgforge.dev/llms.txt>'s domain service on 2026-11-02: it resolves (A
+  162.159.137.105 and 162.159.138.105, AAAA 2606:4700:7::a29f:8969 and 2606:4700:7::a29f:8a69),
+  to other addresses than `api.cloudflareclient.com`'s (2606:4700::6810:1854 and
+  2606:4700::6810:c052). Lost: a draft with the variable alone, whose second name would wait for
+  a draft of its own.
+- Only a route that does not reach the API gives way to the next: an answer, a refusal (403,
+  429) too, is the API's own, and another name of the same API would answer the same. Lost: a
+  refusal that goes on, which would send a registration that the API rate-limits to a second
+  name at once.
+- The enrolment (`PATCH`) goes by the route that registered the device (`POST`) first, so that
+  both requests of a device meet the same front; a later read (T-399's `GET`) goes by the route
+  that answered last.
+- Step 3's "tried first at the next registration" (the Correction): the route goes into the
+  device's record (`api`, `HOST[:PORT]`), and goes first for each later request of that device;
+  a new registration happens with no record, so it tries the routes in their order.
+  `PODSSH_WARP_API` goes before the record's route, as the user named it.
+- `PODSSH_WARP_API` takes `https://HOST[:PORT]`, a path of `/` at most, and no user, query or
+  fragment, as each request's path is the API's own; another value is 78, said before a record
+  is read or a device registered.
+
 ## Prove
 
 ```sh
@@ -7934,6 +7967,54 @@ cargo test -p podssh-warp --features stand-in
 A stand-in API whose first name refuses registers through the second, and the record keeps it.
 Planted: the second route dropped, and that test fails. Live (Q52): one registration through
 the second name, with a throwaway device (Q59).
+
+## Correction
+
+2026-11-02, the draft: step 3's route cannot be "tried first at the next registration", as a
+registration happens only where there is no record of a device to keep it in. The route that
+answered is kept in the record and tried first for the device's later requests to the API (the
+reads of T-399); a new registration tries `PODSSH_WARP_API`, then the API's two names, in turn.
+
+## Done
+
+2026-11-02, drafted by an agent that does not build; merged and run by the main session on
+2026-11-03.
+
+- `crates/podssh-warp/src/routes.rs` (new): a route to the API, read from `https://HOST[:PORT]`
+  or from `HOST[:PORT]` as the record writes it. `crates/podssh-warp/src/register.rs`:
+  `API_SECOND` and `API_HOSTS`; `Api::routes`, `Api::first`; each request by the routes in turn,
+  a route that is not reached giving way to the next, the failure's line naming each
+  ("WARP's API was not reached by any of its routes: ROUTE: why; then ROUTE: why"); the
+  enrolment by the route that registered; `read_record` gives the route that answered.
+- `crates/podssh-warp/src/device.rs`: `Device::api`, in the record, and `Device::by`.
+  `crates/podssh-warp/src/road.rs`: a record read again keeps its route.
+- The CLI (`crates/podssh-cli/src/ssh/cloud/warp.rs`, `crates/podssh-cli/src/ssh/cloud/warp/road.rs`):
+  `PODSSH_WARP_API`, then the record's route, then the API's names; the record in the cache keeps
+  the route; `-v` names the route that registered.
+- The manual (`PODSSH_WARP_API`, `PODSSH_WARP_ACCEPT_TERMS`, the note of `warp://`),
+  `docs/cli.md`, `docs/carriers.md` (item 4), the row of `docs/STATUS.md`; `warp-live.yml`, a
+  step that registers a throwaway device through `api.devices.cloudflare.com` alone, in a cache
+  of its own that it removes.
+- Tests: `crates/podssh-warp/src/tests/api_routes.rs` (new), a first route that is not reached
+  handing the registration and the enrolment to the second, kept in the record and taken by a
+  read again; each route that is not reached named; a refusal by the first going to no other;
+  the order of Cloudflare's names and of a route put first. `routes.rs`'s forms of a route and
+  its refusals; `device.rs`'s record with a route; `tests/api.rs` and `tests/rotated_key.rs` on
+  `Api::routes`.
+- Prove, 2026-11-03: `cargo test -p podssh-warp --features stand-in`: 68 passed in the lib, 5 in
+  `road`, 3 in the rest. `cargo test -p podssh-cli --features warp --lib`: 657 passed, and the
+  manual's `man_page` and `flag_table`: 9 and 10 passed. `cargo test -p podssh-relay --features
+  warp-stand-in --test quick_edge_warp`: 2 passed. `cargo clippy --all-targets -D warnings` of
+  `podssh-warp --features stand-in` and `podssh-cli --features warp`: clean.
+- The merge: `tests/api.rs` on `main` had gained a test that uses the stand-in's `Route` (an
+  address inside the tunnel), so the draft's route to the API is `ApiRoute` in that file.
+- Planted (`sh scripts/plant-each.sh --here t562-one-route`, the second route dropped): caught,
+  `a_first_route_that_is_not_reached_hands_the_registration_to_the_second` failed. T-560's and
+  T-561's plants, whose patches the draft moved: each caught again.
+- Waits: the live run (Q52, Q59), `warp-live.yml` by hand after the push: a throwaway device
+  registered through `api.devices.cloudflare.com` alone, its record's route that name, and
+  GitHub's banner through its tunnel. If the step fails, the second name comes out of
+  `register::API_HOSTS`, the manual and the documents, and this Done says why.
 
 # T-585: WARP's road names a proxy that re-terminates TLS on a road with no proxy
 
@@ -8088,7 +8169,7 @@ road until a measurement says otherwise.
 ## Premise
 
 - `crates/podssh-warp/src/tests/edge.rs:35` writes 1 MiB, shuts the writer and reads to the end
-  within `LIMIT * 3` (`crates/podssh-warp/src/tests/mod.rs:22`, 20 s).
+  within `LIMIT * 3` (`crates/podssh-warp/src/tests/mod.rs:23`, 20 s).
 - T-398 made the tunnel read while a packet waits and take small frames up to its whole window
   (`66044bd`); a lost wakeup between the stack's queue and the HTTP/2 stream's window would stall
   the transfer with no error, as seen.

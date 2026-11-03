@@ -8,10 +8,13 @@
 use std::time::SystemTime;
 
 use podssh_warp::register::{self, Api};
+use podssh_warp::routes::Route;
 use podssh_warp::{Device, Fault, Warp};
 use podssh_ws::{ProxyChoice, Trust};
 
-use super::{accepted, probe_kept, ACCEPT_TERMS_ENV, DEVICE_FILE, ENDPOINT_ENV, PROBE_ENV, TEAM_TOKEN_FILE_ENV};
+use super::{
+    accepted, probe_kept, ACCEPT_TERMS_ENV, API_ENV, DEVICE_FILE, ENDPOINT_ENV, PROBE_ENV, TEAM_TOKEN_FILE_ENV,
+};
 use crate::exitmap::sysexits::{EX_CONFIG, EX_NOPERM, EX_SOFTWARE, EX_UNAVAILABLE};
 
 /// The code of a run that a fault of the road ends: 77 for the device that
@@ -84,6 +87,7 @@ pub fn kept() -> Result<Option<Device>, (String, i32)> {
     // before a device is registered.
     endpoint()?;
     probe()?;
+    api_route()?;
     let Some(text) = podssh_relay::cache::load_file(DEVICE_FILE) else { return Ok(None) };
     let text = zeroize::Zeroizing::new(text);
     let device = Device::from_json(&text).map_err(|why| {
@@ -116,11 +120,13 @@ pub async fn device(
     }
     let team = team_token()?;
     say("registering a device with WARP's API, once: its record is kept in the cache");
-    let limit = podssh_relay::open::CONNECT_TIMEOUT;
-    let api = Api::cloudflare(trust.clone(), ProxyChoice::FromEnvironment, limit);
+    let api = api_for(trust, ProxyChoice::FromEnvironment, None);
     let team = team.as_ref().map(|t| t.as_str());
     let device =
         register::register(&api, team, SystemTime::now()).await.map_err(|f| (f.to_string(), register_code(&f)))?;
+    if let Some(route) = &device.api {
+        verbose(&format!("WARP's API answered at {route}"));
+    }
     // A record that is not kept costs a device at each run: said, and the
     // run goes on with this one.
     match podssh_relay::cache::store_file(DEVICE_FILE, device.to_json().as_bytes()) {
@@ -130,13 +136,39 @@ pub async fn device(
     for_run(device)
 }
 
+/// `PODSSH_WARP_API`: another route to WARP's API, `https://HOST[:PORT]`,
+/// tried first (T-562).
+fn api_route() -> Result<Option<Route>, (String, i32)> {
+    match std::env::var(API_ENV).ok().filter(|v| !v.trim().is_empty()) {
+        None => Ok(None),
+        Some(text) => Route::parse_url(&text)
+            .map(Some)
+            .map_err(|why| (format!("{API_ENV}={text}: {why}, as https://api.cloudflareclient.com"), EX_CONFIG)),
+    }
+}
+
+/// WARP's API, by its own names in turn, after the route that answered for
+/// `kept`'s device before, and after `PODSSH_WARP_API`, which goes first
+/// (T-562); [`kept`] said a setting that cannot be used before.
+fn api_for(trust: &Trust, proxy: ProxyChoice, kept: Option<&Route>) -> Api {
+    let mut api = Api::cloudflare(trust.clone(), proxy, podssh_relay::open::CONNECT_TIMEOUT);
+    if let Some(route) = kept {
+        api = api.first(route.clone());
+    }
+    if let Ok(Some(route)) = api_route() {
+        api = api.first(route);
+    }
+    api
+}
+
 /// What the road learns of a device in a run, which its record keeps: the
 /// endpoint's key that WARP's API gave (T-399), the API's peers and the
-/// endpoint that opened (T-561).
-type Learnt = (Vec<u8>, Vec<std::net::SocketAddr>, Option<std::net::SocketAddr>);
+/// endpoint that opened (T-561), and the route to the API that answered
+/// (T-562).
+type Learnt = (Vec<u8>, Vec<std::net::SocketAddr>, Option<std::net::SocketAddr>, Option<Route>);
 
 fn learnt(device: &Device) -> Learnt {
-    (device.endpoint_point.clone(), device.peers.clone(), device.reached)
+    (device.endpoint_point.clone(), device.peers.clone(), device.reached, device.api.clone())
 }
 
 /// The tunnel of `device` through the environment's proxy, at each of its
@@ -148,7 +180,7 @@ fn learnt(device: &Device) -> Learnt {
 pub async fn tunnel(device: &mut Device, trust: &Trust, verbose: &(dyn Fn(&str) + Sync)) -> Result<Warp, Fault> {
     let limit = podssh_relay::open::CONNECT_TIMEOUT;
     let proxy = ProxyChoice::FromEnvironment;
-    let api = Api::cloudflare(trust.clone(), proxy.clone(), limit);
+    let api = api_for(trust, proxy.clone(), device.api.as_ref());
     let before = learnt(device);
     if device.probe.is_none() {
         verbose(&format!("{PROBE_ENV}=no: WARP's tunnel is taken as it opens, with no packet through it proven"));
@@ -180,9 +212,10 @@ fn keep(device: &Device, verbose: &(dyn Fn(&str) + Sync)) {
     }
     record.peers = device.peers.clone();
     record.reached = device.reached;
+    record.api = device.api.clone();
     match podssh_relay::cache::store_file(DEVICE_FILE, record.to_json().as_bytes()) {
         Ok(_) if new_key => verbose("WARP's API gave its endpoint a new key, which the device's record keeps"),
-        Ok(_) => verbose("the device's record keeps WARP's peers and the endpoint that opened"),
+        Ok(_) => verbose("the device's record keeps WARP's peers, the endpoint that opened and the API's route"),
         Err(why) => verbose(&format!("the device's record was not written again ({why}): the next run asks again")),
     }
 }

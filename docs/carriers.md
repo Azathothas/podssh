@@ -141,6 +141,17 @@ The candidates, ranked:
      <https://web.pkgforge.dev/llms.txt>'s forge service), so whether a peer
      serves HTTP/2 on TCP 443 is Inferred until `warp-live.yml`'s step with a
      proxy that refuses 162.159.198.2:443 measures it.
+   - The routes to the API (T-562, drafted 2026-11-02; GitHub #109): the
+     registration dialled one name. Each request now goes by
+     `PODSSH_WARP_API` first when it is set, the route that answered for the
+     device before, then `api.cloudflareclient.com` and
+     `api.devices.cloudflare.com`; a route that is not reached gives way to
+     the next, and an answer, a refusal too, is the API's. The second name
+     resolved on 2026-11-02 to 162.159.137.105, 162.159.138.105,
+     2606:4700:7::a29f:8969 and 2606:4700:7::a29f:8a69, other addresses than
+     the first's (read through <https://web.pkgforge.dev/llms.txt>'s domain
+     service); that it is the same API, with the same version, is Inferred
+     until `warp-live.yml` registers a throwaway device through it (Q52, Q59).
 5. **Tor through Arti** (class A).
    - Who, and the account: volunteers [F17]; no account.
    - Through a proxy: Arti 2.2.0 and later dials through an HTTP CONNECT

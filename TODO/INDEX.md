@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 122 open, 1 partial, 16 blocked, 424 done.**
+**563 entries: 121 open, 1 partial, 16 blocked, 425 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
 | P2 | 36 | 0 | 14 | 204 | 254 |
-| P3 | 86 | 0 | 2 | 157 | 245 |
-| **All** | 122 | 1 | 16 | 424 | 563 |
+| P3 | 85 | 0 | 2 | 158 | 245 |
+| **All** | 121 | 1 | 16 | 425 | 563 |
 
 ## Entries
 
@@ -601,7 +601,7 @@ repository and CI).
 | [T-551](mesh.md) | P3 | M | M10 | feature | open | A copy to a node races the roads that `podssh ssh` races, not the pair's road alone |
 | [T-560](roads.md) | P2 | S | none | defect | done | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
 | [T-561](roads.md) | P2 | M | none | feature | done | WARP's road dials one constant address, not the peers that WARP's API gave |
-| [T-562](roads.md) | P3 | S | none | feature | open | WARP's registration dials one name of the API, with no second route |
+| [T-562](roads.md) | P3 | S | none | feature | done | WARP's registration dials one name of the API, with no second route |
 | [T-563](relay.md) | P2 | S | none | defect | done | The relay's record forgets a host that opens, and one road's failure moves the host on each road |
 | [T-564](robustness.md) | P3 | S | none | feature | open | podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE` |
 | [T-565](mesh.md) | P3 | M | M10 | feature | open | localhost.run as a last fallback: the relay role behind a tunnel of HTTP made by `ssh -R` |

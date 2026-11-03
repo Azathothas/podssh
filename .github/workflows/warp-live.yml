@@ -14,7 +14,9 @@ name: warp live
 # address and is named. The first run's -v says that the probe inside the
 # tunnel, a connection to 1.1.1.1:443, was answered (T-560); a proxy that
 # refuses 162.159.198.2:443 sends the road on to the peers that WARP's API
-# gave, and the record keeps the one that opened (T-561). Then 16 MiB each way inside the tunnel (T-398), with
+# gave, and the record keeps the one that opened (T-561); and a second
+# throwaway device registers through api.devices.cloudflare.com alone, in a
+# cache of its own, removed at once (T-562, Q59). Then 16 MiB each way inside the tunnel (T-398), with
 # their digests: a node of the live relay in front of an OpenSSH server on
 # the loopback, and podssh ssh to it through the box's proxy, which carries
 # each CONNECT through podssh proxy warp:// (--carry), so the client's bytes
@@ -141,6 +143,19 @@ jobs:
           echo "podssh proxy exited $rc"
           sed 's/^/proxy: /' "$RUNNER_TEMP/deny.log"
           grep -q "^403 CONNECT 162.159.198.2:443" "$RUNNER_TEMP/deny.log" || { echo "FAIL the proxy refused nothing"; exit 1; }
+          # The API's peers, as the record keeps them. On 2026-11-03 it gave no
+          # IPv4 peer but 162.159.198.2 and one IPv6 peer, which a runner with
+          # no IPv6 cannot reach (run 41596110186): the road then names each
+          # endpoint in turn, and that is what this step can prove.
+          others=$(python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("record: peers", r.get("peers"), file=sys.stderr); print(len([p for p in r.get("peers") or [] if not p.startswith("[") and p != "162.159.198.2:443"]))' \
+            "$PODSSH_CACHE_DIR/warp-device.json")
+          if [ "$others" = 0 ]; then
+            grep -q "each of WARP's [0-9]* endpoints failed, in turn" "$RUNNER_TEMP/peer.log" || { echo "FAIL the endpoints were not named in turn"; exit 1; }
+            grep -q "CONNECT \[" "$RUNNER_TEMP/deny.log" || { echo "FAIL the IPv6 peer was not dialled"; exit 1; }
+            echo "ok    the API gave no other IPv4 peer: each endpoint was tried in turn, and named"
+            pkill -f "proxy.py --listen 127.0.0.1:3131" || true
+            exit 0
+          fi
           grep -q "^200 CONNECT " "$RUNNER_TEMP/deny.log" || { echo "FAIL no peer of the API was dialled"; exit 1; }
           banner=$(head -c 64 "$RUNNER_TEMP/peer.out" | tr -d '\r' | head -n 1)
           case $banner in
@@ -151,6 +166,31 @@ jobs:
             "$PODSSH_CACHE_DIR/warp-device.json" || { echo "FAIL the record does not keep the peer that opened"; exit 1; }
           echo "ok    the record keeps the peer that opened"
           pkill -f "proxy.py --listen 127.0.0.1:3131" || true
+
+      # T-562: one throwaway device (Q59) registered through the API's second
+      # name alone, in a cache of its own, removed at the end of the step.
+      - name: a registration through api.devices.cloudflare.com, and its tunnel
+        run: |
+          second="$RUNNER_TEMP/second-cache"
+          mkdir -p "$second"
+          set +e
+          { printf 'SSH-2.0-podssh_live\r\n'; sleep 10; } | PODSSH_CACHE_DIR="$second" PODSSH_WARP_ACCEPT_TERMS=yes \
+            PODSSH_WARP_API=https://api.devices.cloudflare.com \
+            timeout 120 target/debug/podssh proxy warp://github.com:22 2>"$RUNNER_TEMP/second.log" >"$RUNNER_TEMP/second.out"
+          rc=$?
+          set -e
+          sed 's/^/podssh: /' "$RUNNER_TEMP/second.log"
+          echo "podssh proxy exited $rc"
+          grep -q "registering a device" "$RUNNER_TEMP/second.log" || { echo "FAIL no registration"; rm -rf "$second"; exit 1; }
+          api=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("api"))' "$second/warp-device.json" 2>/dev/null)
+          echo "record: api $api"
+          banner=$(head -c 64 "$RUNNER_TEMP/second.out" | tr -d '\r' | head -n 1)
+          rm -rf "$second"
+          [ "$api" = "api.devices.cloudflare.com" ] || { echo "FAIL the record's route is not the second name"; exit 1; }
+          case $banner in
+            SSH-2.0-*) echo "ok    a device registered through api.devices.cloudflare.com, and its tunnel carried GitHub's banner" ;;
+            *) echo "FAIL no SSH banner through the device of the second name"; exit 1 ;;
+          esac
 
       - name: OpenSSH's ssh to GitHub, with podssh proxy warp:// as its ProxyCommand
         run: |
@@ -263,4 +303,4 @@ jobs:
           sudo kill "$(cat "$RUNNER_TEMP/sshd.pid" 2>/dev/null)" 2>/dev/null || true
           rm -f "$RUNNER_TEMP"/user_ed25519* "$RUNNER_TEMP/blob16" "$RUNNER_TEMP/back16"
           sudo rm -f "$RUNNER_TEMP"/host_ed25519*
-          rm -rf "$PODSSH_CACHE_DIR"
+          rm -rf "$PODSSH_CACHE_DIR" "$RUNNER_TEMP/second-cache"

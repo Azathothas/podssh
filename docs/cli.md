@@ -296,13 +296,20 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   TCP inside on smoltcp, in this process, with no TUN device. HOST's name is
   asked of 1.1.1.1 inside the tunnel, over TCP, else of podssh's own
   resolver. The first run registers a device with WARP's API
-  (`api.cloudflareclient.com`, through the proxy, with the headers of "WARP
-  for Android" that the open clients send) once `PODSSH_WARP_ACCEPT_TERMS=yes`
+  (`api.cloudflareclient.com`, else `api.devices.cloudflare.com`, through the
+  proxy, with the headers of "WARP for Android" that the open clients send;
+  T-562) once `PODSSH_WARP_ACCEPT_TERMS=yes`
   accepts Cloudflare's Terms, and keeps its record, its token and its key in
   the cache (`warp-device.json`, mode 0600); with no record and no
   acceptance, the run refuses (78), naming the Terms. A team's token of a
   Cloudflare One organization, in the private file of
-  `PODSSH_WARP_TEAM_TOKEN_FILE`, enrols the device there. A proxy that
+  `PODSSH_WARP_TEAM_TOKEN_FILE`, enrols the device there. Each request to
+  the API goes by its routes in turn: `PODSSH_WARP_API=https://HOST[:PORT]`
+  first when it is set, then the route that answered for the device before
+  (its record keeps it), then the API's two names; a route that is not
+  reached gives way to the next, an answer, a refusal too, is the API's, and
+  the enrolment goes by the route that registered the device. The failure
+  names each route and why. A proxy that
   refuses the CONNECT to the address, or cuts the TLS after it, is named,
   with `podssh doctor`'s line `egress takes` for the case (69). A certificate
   of another key than the pinned one sends podssh to WARP's API for the

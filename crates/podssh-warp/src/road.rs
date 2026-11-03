@@ -97,6 +97,15 @@ fn proxy_for(ip: &str, proxy: &ProxyChoice) -> Option<String> {
 pub fn fault(opening: Opening, endpoint: SocketAddr, proxied: Option<&str>) -> Fault {
     let at = endpoint.to_string();
     match opening {
+        // A gateway's status is the proxy's own way out failing, not its
+        // policy: an IPv6 peer from a proxy with no IPv6 route gave 502.
+        Opening::Dial(DialError::ProxyRefused { proxy, status: status @ 502..=504, reason, .. }) => {
+            Fault::Unreachable(format!(
+                "the proxy {proxy} could not reach {at} ({status} {reason}): its own way out to that address \
+                 failed{}",
+                if endpoint.is_ipv6() { ", and it may have no IPv6 route" } else { "" }
+            ))
+        }
         Opening::Dial(DialError::ProxyRefused { proxy, status, reason, .. }) => Fault::Unreachable(format!(
             "the proxy {proxy} refused CONNECT {at} ({status} {reason}): WARP's road asks for an address, which a \
              proxy that allows listed names alone refuses (podssh doctor's line egress takes says which)"
@@ -276,11 +285,13 @@ impl Warp {
             Err(opening) => return Err(fault(opening, endpoint, proxied.as_deref())),
         };
         let given = match register::read_record(api, device).await {
-            Ok(record) => {
-                // The API's peers of now go with the record (T-561).
+            Ok((record, route)) => {
+                // The API's peers of now go with the record (T-561), and the
+                // route that answered (T-562).
                 if !record.peers.is_empty() {
                     device.peers = record.peers;
                 }
+                device.api = Some(route);
                 record.endpoint_key
             }
             Err(why) => {
@@ -432,6 +443,17 @@ mod tests {
         let line = fault(Opening::Dial(refused), at(), Some("http://proxy:3128")).to_string();
         assert!(line.contains("refused CONNECT 162.159.198.2:443 (403 Forbidden)"), "{line}");
         assert!(line.contains("egress takes"), "{line}");
+        // A gateway's failure is the proxy's way out, not a list of names.
+        let v6: SocketAddr = "[2606:4700:103::2]:443".parse().unwrap();
+        let gateway = DialError::ProxyRefused {
+            proxy: "http://proxy:3128".into(),
+            target: v6.to_string(),
+            status: 502,
+            reason: "Bad Gateway".into(),
+        };
+        let line = fault(Opening::Dial(gateway), v6, Some("http://proxy:3128")).to_string();
+        assert!(line.contains("could not reach [2606:4700:103::2]:443 (502 Bad Gateway)"), "{line}");
+        assert!(line.contains("no IPv6 route") && !line.contains("egress takes"), "{line}");
     }
 
     /// A cut TLS through a proxy is the proxy's; without one, the edge's.

@@ -1,0 +1,7 @@
+# T-562: each request to WARP's API goes by its first route alone, as the
+# registration dialled one name; the test of a first route that is not
+# reached and a second that registers must fail.
+ENTRY=T-562
+GROUP=resume
+EXPECT='test tests::api_routes::a_first_route_that_is_not_reached_hands_the_registration_to_the_second \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-warp --features stand-in --lib tests::api_routes'

@@ -19,6 +19,8 @@ use super::{echo, LIMIT};
 use crate::key::DeviceKey;
 use crate::register::{self, Api, Fault};
 use crate::road::Warp;
+// A route to the API, beside the stand-in's route inside the tunnel.
+use crate::routes::Route as ApiRoute;
 use crate::stand_in::{Route, StandIn};
 
 const ID: &str = "0d2a1b3c-4d5e-6f70-8192-a3b4c5d6e7f8";
@@ -87,7 +89,8 @@ pub(super) async fn api(endpoint: &DeviceKey, status: Option<u16>) -> ApiStandIn
         podssh_ws::tls::client_config(&podssh_ws::tls::TlsRoots { roots, source: "the test's CA".into(), count: 1 })
             .unwrap();
     let trust = Trust::caller(config).unwrap();
-    let api = Api { host: "127.0.0.1".into(), port: addr.port(), trust, proxy: ProxyChoice::Direct, limit: LIMIT };
+    let routes = vec![ApiRoute { host: "127.0.0.1".into(), port: addr.port() }];
+    let api = Api { routes, trust, proxy: ProxyChoice::Direct, limit: LIMIT };
     ApiStandIn { api, asked, pem }
 }
 
@@ -143,6 +146,8 @@ async fn a_registration_gives_a_device_with_the_endpoint_s_key() {
     let peers: Vec<std::net::SocketAddr> = peers.iter().map(|p| p.parse().unwrap()).collect();
     assert_eq!(device.peers, peers);
     assert_eq!(device.endpoints()[0], device.endpoint);
+    // The route that answered, which the record keeps (T-562).
+    assert_eq!(device.api, stand_in.api.routes.first().cloned());
     assert_eq!(device.address_v4, Some(Ipv4Addr::new(172, 16, 0, 2)));
     assert!(!device.team);
     let asked = stand_in.asked.lock().unwrap_or_else(PoisonError::into_inner).clone();
@@ -166,7 +171,7 @@ async fn a_registration_gives_a_device_with_the_endpoint_s_key() {
     // The record keeps it all, for the next run.
     let again = crate::Device::from_json(&device.to_json()).unwrap();
     assert_eq!(again.endpoint_point, device.endpoint_point);
-    assert_eq!(again.peers, device.peers);
+    assert_eq!((again.peers.clone(), again.api.clone()), (device.peers.clone(), device.api.clone()));
 }
 
 /// A team's token goes in its header, on the registration alone.

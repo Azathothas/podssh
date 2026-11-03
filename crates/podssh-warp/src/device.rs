@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 use crate::key::DeviceKey;
+use crate::routes::Route;
 
 /// The name of the record in the cache directory.
 pub const FILE: &str = "warp-device.json";
@@ -49,6 +50,10 @@ struct Record {
     /// The endpoint that last opened the tunnel, tried first (T-561).
     #[serde(default)]
     reached: Option<String>,
+    /// The route to WARP's API that last answered for the device,
+    /// `HOST[:PORT]`, tried first (T-562).
+    #[serde(default)]
+    api: Option<String>,
 }
 
 /// A registered device.
@@ -81,6 +86,9 @@ pub struct Device {
     /// The one endpoint of the run (`PODSSH_WARP_ENDPOINT`, a stand-in),
     /// tried alone: a setting of the run, never of the record.
     pub only: Option<SocketAddr>,
+    /// The route to WARP's API that registered the device, or answered its
+    /// last read, which the caller tries first (T-562).
+    pub api: Option<Route>,
 }
 
 impl fmt::Debug for Device {
@@ -96,6 +104,7 @@ impl fmt::Debug for Device {
             .field("peers", &self.peers)
             .field("reached", &self.reached)
             .field("only", &self.only)
+            .field("api", &self.api)
             .finish_non_exhaustive()
     }
 }
@@ -134,6 +143,7 @@ impl Device {
             peers: Vec::new(),
             reached: None,
             only: None,
+            api: None,
         };
         device.probe = crate::probe::target(&device.addresses());
         Ok(device)
@@ -166,6 +176,7 @@ impl Device {
             team: self.team,
             peers: self.peers.iter().map(SocketAddr::to_string).collect(),
             reached: self.reached.map(|at| at.to_string()),
+            api: self.api.as_ref().map(Route::to_string),
         };
         let text = serde_json::to_string_pretty(&record).unwrap_or_default();
         let Record { mut token, mut key, .. } = record;
@@ -192,6 +203,7 @@ impl Device {
             team,
             peers,
             reached,
+            api,
         } = record;
         let (token, key_text) = (Zeroizing::new(token), Zeroizing::new(key));
         if version != VERSION {
@@ -215,10 +227,22 @@ impl Device {
             .filter(|at| !at.is_empty())
             .map(|at| at.parse::<SocketAddr>().map_err(|_| format!("its reached {at:?} is not ADDRESS:PORT")))
             .transpose()?;
+        let api = api
+            .filter(|route| !route.is_empty())
+            .map(|route| Route::parse_authority(&route).map_err(|why| format!("its api {route:?}: {why}")))
+            .transpose()?;
         let mut device = Device::new(id, token.to_string(), key, &endpoint_key, endpoint, v4, v6, registered, team)?
             .with_peers(peers);
         device.reached = reached;
+        device.api = api;
         Ok(device)
+    }
+
+    /// The same device with the route to WARP's API that answered for it
+    /// (T-562).
+    pub fn by(mut self, route: Route) -> Device {
+        self.api = Some(route);
+        self
     }
 
     /// The same device with one endpoint for the run (`PODSSH_WARP_ENDPOINT`,
@@ -349,6 +373,21 @@ mod tests {
         assert_eq!((before.peers.len(), before.reached, before.endpoints()), (0, None, vec![h2]));
         record["peers"] = serde_json::json!(["not an address"]);
         assert!(Device::from_json(&record.to_string()).unwrap_err().contains("its peer"));
+    }
+
+    /// The record keeps the route to WARP's API that answered (T-562); a
+    /// record of before has none, and a route that does not read is refused
+    /// by its field.
+    #[test]
+    fn the_record_keeps_the_route_of_the_api() {
+        let route = Route { host: "api.devices.example".into(), port: 8443 };
+        let first = device().by(route.clone());
+        let again = Device::from_json(&first.to_json()).unwrap();
+        assert_eq!(again.api, Some(route));
+        assert_eq!(Device::from_json(&device().to_json()).unwrap().api, None);
+        let mut record: serde_json::Value = serde_json::from_str(&first.to_json()).unwrap();
+        record["api"] = serde_json::json!("bad host/");
+        assert!(Device::from_json(&record.to_string()).unwrap_err().contains("its api"));
     }
 
     /// The probe goes to the resolver of the device's IPv4 by default; its
