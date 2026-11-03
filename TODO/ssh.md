@@ -3998,8 +3998,9 @@ tests could not see the wait; it now reads its pty's keys and waits on at the EO
   sshd: `sudo.su_cancelled` fails). `scripts/plants/t032-sudo-at-once.patch` moved with
   `Elevated::new`. `sh scripts/plant-each.sh --here t501-no-deadline-after-end t501-no-end-keys`:
   both caught (the deaf su's test and the helper's test failed). `t501-su-interop-no-end-keys` and
-  `t032-sudo-at-once` (group `ssh-pty`, the static build of the image): through `plants.yml` on a
-  runner after the push.
+  `t032-sudo-at-once` (group `ssh-pty`, the static build of the image): `plants.yml` run 41560470075
+  at a003af3, "plant-each: 5 caught, 0 missed, 0 stale"; `t501-su-interop-no-end-keys` failed
+  `sudo.su_cancelled` (exit 255 in 30 s) and `t032-sudo-at-once` failed `sudo.nopass`.
 - The manual (`crates/podssh-cli/src/man/notes_ssh.rs`, the note of `--sudo` and `--su`) and
   `docs/cli.md` say what a password that cannot be given does. `cargo test -p podssh-cli --test
   man_page`: 10 passed.
