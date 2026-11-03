@@ -692,7 +692,7 @@ group. Four places render it: `top_level_help`
 (`crates/podssh-cli/src/help.rs`, lines 132-146), the start of the manual
 (`crates/podssh-cli/src/man/model.rs`, lines 120-126), `unknown_verb`
 (`crates/podssh-cli/src/refuse.rs:120-124`) and `no_arguments`
-(`crates/podssh-cli/src/refuse.rs:149-160`).
+(`crates/podssh-cli/src/refuse.rs:160-171`).
 
 ## Approach
 
@@ -705,7 +705,7 @@ group. Four places render it: `top_level_help`
    the availability note of each line (`crates/podssh-cli/src/help.rs:191-198`).
 3. Keep the two refusal lists flat, or raise their limit with a reason:
    `a_refusal_is_a_line_not_a_usage_dump` allows 18 lines
-   (`crates/podssh-cli/src/refuse.rs:237-238`), and the list for
+   (`crates/podssh-cli/src/refuse.rs:248-249`), and the list for
    `example.org` has 17.
 4. Update `scripts/interop-man.sh` (lines 35-36 at `3a78cff`) in the same commit. It reads the
    `SUBCOMMANDS:` block up to the first blank line, and takes the first word
@@ -2467,7 +2467,7 @@ nothing.
   `crates/podssh-cli/src/doctor/unix.rs` line 4 at `48a8744` says "needs none of these".
 - Read: `crates/podssh-cli/src/doctor/mod.rs` line 15 at `48a8744` says "The bind probes here are the only place
   podssh calls". The listener scan of `scripts/check-repo.py` allows a `bind(` in 17 files
-  (`scripts/check-repo.py:157-178`), and these listen, each when the user asks: `pipe`'s
+  (`scripts/check-repo.py:163-184`), and these listen, each when the user asks: `pipe`'s
   `tcp-listen:` and `unix-listen:` (`crates/podssh-cli/src/pipe/listen.rs:127-141`, `:168-192`),
   the control socket of `-M` (`:194-202`), `-L` and `-D` on a port or a path
   (`crates/podssh-cli/src/ssh/local_bind.rs:78-88`, `:111-128`), `podssh agent`
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:337`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:357`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2337-2340`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:337`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:357`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -3590,7 +3590,7 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
   (`crates/podssh-ssh/src/run_config.rs:69-70`), as RFC 4253 allows, and no part of the manual says
   it. Inferred: a line shaped as OpenSSH's would make OpenSSH's server apply the quirks of its own
   client's versions to podssh, so the line stays podssh's. Against the report: the README says
-  that podssh has "the options of OpenSSH" (`README.md:132`), not that it is OpenSSH.
+  that podssh has "the options of OpenSSH" (`README.md:133`), not that it is OpenSSH.
 - Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:212-213`)
   and in the notes (`crates/podssh-cli/src/man/notes.rs:137`), and in no row of `cp --help`
   (`crates/podssh-cli/src/flags/copy.rs:15-48`).
@@ -3608,7 +3608,7 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
 - Read (L-29): a bad line of the settings file or of an `ssh_config` file is 78, and the same
   keyword with `-o` is 64, by the decision of 2026-10-05; the row of 78 names the settings of the
   environment and the flag's 64 (`crates/podssh-cli/src/man/data.rs:105-114`), not the files.
-- Read (L-36): the README's `keygen -l` names the public file alone (`README.md:114`).
+- Read (L-36): the README's `keygen -l` names the public file alone (`README.md:115`).
 
 ## Approach
 

@@ -556,7 +556,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:537-540`): a proxy head that never ends stops at
+   (`docs/development.md:545-548`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:629-649`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:649-669`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
@@ -871,7 +871,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate, item 9 since T-156,
-   `docs/development.md:358-370`) and the faults table of docs/STATUS.md.
+   `docs/development.md:366-378`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 
@@ -977,7 +977,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io/msg.rs:35-42`, with `crates/podssh-ssh/src/io.rs:68-70`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:100`, `docs/STATUS.md:106`).
+  (`docs/STATUS.md:120`, `docs/STATUS.md:126`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:4168-4169` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the

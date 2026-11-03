@@ -122,7 +122,18 @@ pub fn unknown_verb(token: &str, verdict: &NoSubcommand) -> String {
         m.push_str(&format!("  {:10} {}\n", v.name, v.about));
     }
     m.push_str("Run 'podssh --help' for the same list with flags.");
+    if !matches!(verdict, NoSubcommand::Destination) {
+        m.push('\n');
+        m.push_str(&newer_release());
+    }
     m
+}
+
+/// A subcommand that a later release added is unknown here, and a binary
+/// cannot name a later release's commands: so the last line names this build
+/// and the way to a newer one (T-594). A word shaped as a host gets none.
+fn newer_release() -> String {
+    format!("This is {}; a newer release may have it: podssh update --check", crate::version::line())
 }
 
 /// The refusal for a subcommand that parses but has no behaviour yet. It must
@@ -248,6 +259,27 @@ mod tests {
         for v in VERBS {
             assert!(m.contains(v.name), "the list omits {}", v.name);
         }
+    }
+
+    /// **An unknown subcommand names this build and the way to a newer one**
+    /// (T-594): a tester of 1.0.0 planned on `podssh exit` from the page of
+    /// `main`, and the refusal named no version. A word shaped as a host is a
+    /// subcommand of no release, so it gets no such line.
+    #[test]
+    fn an_unknown_subcommand_names_the_version_and_a_newer_release() {
+        let version = crate::version::line();
+        assert!(version.contains(env!("CARGO_PKG_VERSION")), "{version}");
+        for token in ["exit", "sttaus", "nonsense"] {
+            let m = unknown_verb(token, &crate::suggest::diagnose_no_subcommand(token));
+            let last = m.lines().last().unwrap_or_default();
+            assert_eq!(
+                last,
+                format!("This is {version}; a newer release may have it: podssh update --check"),
+                "{token}: {m}"
+            );
+        }
+        let host = unknown_verb("example.org", &NoSubcommand::Destination);
+        assert!(!host.contains("update --check"), "{host}");
     }
 
     /// **`podssh` with no arguments says it will not guess a destination**, which

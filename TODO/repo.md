@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:783-896`): the
+5. docs/development.md, "Release builds" (`docs/development.md:791-904`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -539,8 +539,8 @@ credential that a later commit removed, is not found.
 
 Read:
 
-- `scripts/check-repo.py:68-81` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:177-198` scans the tracked
+- `scripts/check-repo.py:74-87` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:183-204` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -686,7 +686,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (`:61-62`) and in the
+2. Tell the user how to check, in `README.md` (`:62-63`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -872,7 +872,7 @@ Read:
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:61-62` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:62-63` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -919,7 +919,7 @@ Each command exits 0. Planted defect: change one hex digit in a copy of
 
 ## Correction
 
-2026-10-30: the Premise's "`README.md:61-62` gives no step to check a
+2026-10-30: the Premise's "`README.md:62-63` gives no step to check a
 download" no longer holds: the README's first step now checks a download of
 a beta against `SHA256SUMS` (T-309). The signatures of this entry are still
 missing; that step gains their check when they exist.
@@ -1154,14 +1154,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:309-323`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:329-343`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:275-278`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-332` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:148-153` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:316`).
+  in a required property (17 properties, `docs/STATUS.md:336`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:156`) and a mask on
@@ -1183,12 +1183,12 @@ Read:
 4. Pin the images of the box with the build image (T-206).
 5. Credentials: the box mints a token and never prints it
    (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
-   first log with the token pattern of `scripts/check-repo.py:72`.
+   first log with the token pattern of `scripts/check-repo.py:78`.
 6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:346`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:366`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1206,7 +1206,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:317`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:337`,
 and the job must fail.
 
 ## Blocker
@@ -1253,7 +1253,7 @@ Read:
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
   run by hand.
-  `docs/STATUS.md:110`: `scripts/interop-conpty.py` passes 14 of 14 against a
+  `docs/STATUS.md:130`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:219-275` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq`, `sed` and `/tmp`.
@@ -1271,7 +1271,7 @@ Read:
    deletes (see Decision). Run the script with `--direct`; 14 of 14 must pass.
 3. With T-199: score the output with the Windows part of the baseline.
 4. The plant: a podssh that does not restore the mode of the console must
-   fail the three restore checks (as measured by hand, `docs/STATUS.md:110`).
+   fail the three restore checks (as measured by hand, `docs/STATUS.md:130`).
    Run it once in CI, and record it.
 5. docs/STATUS.md cites the CI run for the rows of Windows;
    docs/development.md names the job.
@@ -2025,8 +2025,8 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:309-311` states the rule with `CXX`, and
-  `docs/STATUS.md:754` records the measurement. Rule 4 of
+- `docs/development.md:317-319` states the rule with `CXX`, and
+  `docs/STATUS.md:774` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:754`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:774`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2086,7 +2086,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:116`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:122`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -2450,7 +2450,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:337`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:357`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -4196,7 +4196,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
 
 ## Premise
 
-- Read: `README.md:85-88` says "the release workflow also proves where each binary comes from".
+- Read: `README.md:86-89` says "the release workflow also proves where each binary comes from".
 - Read: the job `publish` needs each build job (`.github/workflows/release.yml` at `1a3e7b6`, lines 393-394) and holds
   `contents: write`, `id-token: write` and `attestations: write` (lines 396-399). After it downloads
   the binaries (line 405), it runs `taiki-e/install-action@v2` for cargo-about (lines 412-414), then
@@ -4216,7 +4216,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
   (https://github.com/docker/setup-qemu-action/blob/v4/action.yml): the action's `image` defaults
   to `docker.io/tonistiigi/binfmt:latest`. The riscv64 job runs it each time, and the armv7 job
   when the runner does not run 32-bit ARM (`.github/workflows/release.yml` lines 166-177 at `1a3e7b6`). No file of
-  `images/` names the image, so the check of images (`scripts/check-repo.py:211-236`) does not
+  `images/` names the image, so the check of images (`scripts/check-repo.py:217-242`) does not
   see it, and its pull gets none of the mirrors of `scripts/pull-image.sh:9-13`.
 - Read: T-210 found the commit of each action, and `TODO/repo.md:786-787` says "whether to pin
   them by commit is a choice of this entry's session"; no entry took it. `setup-nasm` declares
@@ -4892,8 +4892,8 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   `docs/design.md` gave "A reverse node and operator" first of what podssh "does not yet have",
   and said that "the real sandbox is not run yet"; `docs/irc.md` said "No command uses the IRC
   client yet", with T-097 and T-098 as its known defects; `docs/STATUS.md` said "Over IRC too
-  (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:69`, `:77`), two runs
-  in real sandboxes (T-001; `docs/STATUS.md:328-337`), and `podssh chat --irc` (T-252, done, as
+  (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:89`, `:97`), two runs
+  in real sandboxes (T-001; `docs/STATUS.md:348-357`), and `podssh chat --irc` (T-252, done, as
   T-097 and T-098 are). Of the same kind: `docs/design.md`'s summary and the head of its section
   4, and the row of `podssh-terminal` in `docs/architecture.md`. The triage's commit corrected
   each in place.
@@ -4920,7 +4920,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
    do (`TODO/RULES.md:145-150`): "T-099, partial" of 2026-10-10 is such a reading
-   (`docs/STATUS.md:716`).
+   (`docs/STATUS.md:736`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 
 ## Decision
@@ -5092,7 +5092,7 @@ unknown subcommand. Read at `3bb42ea`.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5102,10 +5102,10 @@ names no version and no way to a newer release. Docs.
 
 ## Premise
 
-- Read: the page's head says that it "gives the measured state of podssh" (`docs/STATUS.md:3`),
-  with no word of `main` or of a release; the README sends a reader to it for the measured state
-  (`README.md:24-25`).
-- Read: the exit's row (`docs/STATUS.md:72`) says "drafted and merged 2026-11-02" and **Works**.
+- Read: the page's head says that it "gives the measured state of podssh" (line 3 of
+  `docs/STATUS.md` at `38f424c`), with no word of `main` or of a release; the README sends a
+  reader to it for the measured state (lines 24-25 of `README.md` at `38f424c`).
+- Read: the exit's row (`docs/STATUS.md:92`) says "drafted and merged 2026-11-02" and **Works**.
   Measured: its commit `0b07025` is not in `v1.0.0` (`git merge-base --is-ancestor 0b07025
   35a0d19` exits 1). The notes of `v1.0.1` (T-584, partial) say that it carries the work of M10
   that `main` holds since `v1.0.0` (`docs/releases/v1.0.1.md:5-6`).
@@ -5140,6 +5140,22 @@ session could not update in each commit, as rule 6 of `AGENTS.md` asks; the rele
 read by `git tag --contains` at each check, which a shallow checkout cannot answer; and a mark by
 hand with no check, which goes stale as the claims of "yet" did (T-362).
 
+The form of the mark and the reach of the check (2026-11-03, the draft): the mark is a label at
+the head of the row's first cell, `` `v1.0.1`: `` or `` `unreleased`: ``, which a reader of a table
+sees first and which leaves a quote of the row's text whole; a row with no mark is in `v1.0.0`.
+The check holds each row whose first cell is dated 2026-11-02 or later, the first day after
+`v1.0.0`'s commit, not only those of the newest release's date, so that the rows of `v1.0.1` and
+`v1.1.0-beta.1` keep their marks; it fails a row that says `unreleased` with a date before the
+newest release's, as the release step left it; and a mark must name a release that has its notes
+in `docs/releases/`. A row with no date in its first cell (a command that `v1.0.0` holds, whose
+later sentences have their own dates) needs no mark, and the head says that a sentence dated
+after a release can tell of work that it lacks. Lost: the mark at the end of the first cell, which
+a long cell buries; each date of a row read, which would mark a row of an old command
+`unreleased` for one new sentence; and the head's own list of each release with its date, as the
+notes of `docs/releases/` give the names and the head gives the newest one's date. An unknown
+subcommand's last line names the build; a word shaped as a host, which no release would take as a
+subcommand, gets none.
+
 ## Prove
 
 ```sh
@@ -5152,6 +5168,50 @@ The check passes on the page with its marks. The words of an unknown subcommand 
 version and `podssh update --check` (the lib's tests of `refuse`). Planted: `t594-unmarked-row`
 (a row of a date after the newest release, with no mark, in the page): the check fails, and names
 the row's line.
+
+## Correction
+
+Read at `38f424c` (2026-11-03): since the entry was written, `v1.0.1` (`6ece1f9`) and
+`v1.1.0-beta.1` (`5d95e5f`, published at 08:31 UTC) are out, and each holds the exit:
+`git merge-base --is-ancestor 0b07025 6ece1f9` exits 0. The tester's case is now answered by an
+update; the page still said nothing of `main` or of the releases, and T-584 is done. The words
+that list the subcommands are at `crates/podssh-cli/src/refuse.rs:120-124`; the premise's lines are
+the arm of an unknown word with no close subcommand. The build image has no Python, so the plant
+installs it first (SETUP), as T-430's plant does.
+
+## Done
+
+Drafted 2026-11-03 (built nothing; the main session merges and measures it):
+
+- `docs/STATUS.md`: the head says that the page reads `main`, names the newest release
+  (`v1.1.0-beta.1`, 2026-11-03, at `5d95e5f`) and the newest that is not a beta (`v1.0.1`), the
+  rule of the marks, `podssh --version` and `podssh update --check`, and that the release binaries
+  build `iroh` and `warp`, not `ts` or `tor`; the summary names `v1.1.0-beta.1`. Each of the 49
+  rows of work dated after `v1.0.0` begins with its first release, read from git (the commit that
+  added the row, `git log --reverse -S`, then `git merge-base --is-ancestor` against `35a0d19`,
+  `6ece1f9` and `5d95e5f`): 30 `v1.0.1`, 3 `v1.1.0-beta.1` (T-593, T-588, T-586), 16
+  `unreleased` (T-595, T-561, T-562, T-489, T-483, T-488, T-590, T-474, T-472, T-481, T-485,
+  T-587, T-589, T-591, T-564, and this entry's row). No row dated before 2026-11-02 came after
+  `35a0d19`.
+- `scripts/repo_status.py` (new) and `scripts/check-repo.py` (its check 11): the scan of the marks,
+  with its floor of 100 rows and three planted rows in its own page (a row after the release with
+  no mark, a stale `unreleased`, the mark of a release with no notes); `scripts/plants/t594-unmarked-row.patch`
+  and `.plant`, a row dated 2026-11-04 with no mark at the end of the table of commands.
+- `crates/podssh-cli/src/refuse.rs`: the refusal of an unknown subcommand ends with "This is podssh
+  VERSION (COMMIT); a newer release may have it: podssh update --check", but for a word shaped as
+  a host; the test `an_unknown_subcommand_names_the_version_and_a_newer_release`.
+- `README.md`: its pointer says that the page is of `main` and that a row names its release.
+- `docs/development.md`: the check in "Checks" and its floor; step 4 of "Release builds", the
+  marks moved in the commit after a tag.
+- `docs/ROADMAP.md`: M5's first line says that the operator holds its entries (Q32), and that no
+  release has `podssh serve`.
+
+Measured here, 2026-11-03: `python3 scripts/check-repo.py` passed (536 rows read, 52 marked,
+three planted rows found); `--plant-empty` exited 1, each of the 11 checks failing on an empty
+tree; with the plant's patch applied, the check failed and named the planted row's line, and the
+patch reverted. `cargo test -p podssh-cli --lib refuse`: UNVERIFIED. `sh scripts/plant-each.sh
+--here t594-unmarked-row` and the plant in the build image (`plants.yml`, group `record`):
+UNVERIFIED (Q88). GitHub #121's comment and close wait for the merge.
 
 # T-597: Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13
 
