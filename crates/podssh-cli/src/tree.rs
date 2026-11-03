@@ -389,7 +389,10 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     if verb.name == "detached" {
         let subcommand = matches.get_one::<String>("subcommand").cloned();
         let args = matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default();
-        return Parsed::Detached(Box::new(crate::detach::control::DetachedArgs { subcommand, args, refused }));
+        let json = matches.try_get_one::<bool>("json").ok().flatten().copied().unwrap_or(false);
+        let quiet = matches.try_get_one::<u8>("quiet").ok().flatten().is_some_and(|n| *n > 0);
+        let detached = crate::detach::control::DetachedArgs { subcommand, args, json, quiet, refused };
+        return Parsed::Detached(Box::new(detached));
     }
 
     if verb.name == "run" {

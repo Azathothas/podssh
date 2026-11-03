@@ -65,21 +65,48 @@ pub(super) fn new_in(dirs: &[PathBuf], name: &str) -> Result<String, String> {
     Err(format!("{}; give --socket PATH", why.join("; ")))
 }
 
-/// Each session of the cache's directories, by name: its name and its
-/// socket, once each name, sorted.
-pub fn all() -> Vec<(String, String)> {
-    let mut found: Vec<(String, String)> = Vec::new();
-    for dir in dirs() {
-        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+/// What a look in the cache's directories found (T-506).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Found {
+    /// Each session by name: its name and its socket, once each name,
+    /// sorted.
+    pub sessions: Vec<(String, String)>,
+    /// Each directory of the sessions, in the cache's order.
+    pub looked: Vec<String>,
+    /// Those that are there and were read.
+    pub read: Vec<String>,
+    /// Those that are there and could not be read, each with why.
+    pub unreadable: Vec<(String, String)>,
+}
+
+/// Each session of the cache's directories. A directory that is not there
+/// holds none, as no session started there yet.
+pub fn all() -> Found {
+    all_in(&dirs())
+}
+
+/// [`all`] in `dirs`.
+pub(super) fn all_in(dirs: &[PathBuf]) -> Found {
+    let mut found = Found { looked: dirs.iter().map(|d| shown(d)).collect(), ..Found::default() };
+    for dir in dirs {
+        let entries = match std::fs::read_dir(dir) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => {
+                found.unreadable.push((shown(dir), e.to_string()));
+                continue;
+            }
+        };
+        found.read.push(shown(dir));
         for entry in entries.flatten() {
             let Ok(file) = entry.file_name().into_string() else { continue };
             let Some(name) = file.strip_suffix(".sock") else { continue };
-            if super::check_name(name).is_ok() && !found.iter().any(|(n, _)| n == name) {
-                found.push((name.to_string(), shown(&entry.path())));
+            if super::check_name(name).is_ok() && !found.sessions.iter().any(|(n, _)| n == name) {
+                found.sessions.push((name.to_string(), shown(&entry.path())));
             }
         }
     }
-    found.sort();
+    found.sessions.sort();
     found
 }
 

@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3822-3825`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:3836-3839`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:3974-4083`); they cannot define a group.
+  (`docs/cli.md:3988-4097`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:229`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3822-3825`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:3836-3839`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:370-411`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3822-3825`), which is not a failure of podssh.
+  status (`docs/cli.md:3836-3839`), which is not a failure of podssh.
 
 ## Approach
 
@@ -3017,7 +3017,7 @@ could not be made look alike to a script that reads stdout. Read at `01e371e`.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3027,14 +3027,14 @@ read.
 
 ## Premise
 
-- Read: `session list` returns 0 at once with no session
-  (`crates/podssh-cli/src/session/client.rs:102-104`), and skips a session whose server does not
-  answer within its wait (`crates/podssh-cli/src/session/client.rs:108`); the sockets are found in
-  the directories that it can read, and one that it cannot is skipped
+- Read, at `582b1bf` (before this entry's change, as at `01e371e`): `session list` returns 0 at
+  once with no session (`crates/podssh-cli/src/session/client.rs:102-104`), and skips a session
+  whose server does not answer within its wait (`crates/podssh-cli/src/session/client.rs:108`);
+  the sockets are found in the directories that it can read, and one that it cannot is skipped
   (`crates/podssh-cli/src/session/place.rs:70-84`, `:73`).
-- Read: `detached list` writes a line for each run of its directory, and none for none
-  (`crates/podssh-cli/src/detach/control.rs:143-150`); a directory that cannot be read gives none
-  (`crates/podssh-cli/src/detach/control.rs:128-139`).
+- Read, at `582b1bf`: `detached list` writes a line for each run of its directory, and none for
+  none (`crates/podssh-cli/src/detach/control.rs:143-150`); a directory that cannot be read gives
+  none (`crates/podssh-cli/src/detach/control.rs:128-139`).
 - Read, against the report: `job list` prints no header either
   (`crates/podssh-cli/src/job/list.rs:58-67`), and has `--json` (T-197); `containers` says on
   stderr that a host has none (`crates/podssh-cli/src/containers/mod.rs:299`).
@@ -3060,6 +3060,17 @@ working, and stdout stays the list alone. Lost: a header, which each parser woul
 has none either). The state `no-answer` is a new word of the list, not a line on stderr alone: the
 session is there, and a script that counts the lines counts it.
 
+(The draft, 2026-11-02.) A socket whose connect fails because nobody serves it (`ECONNREFUSED`, or
+its file gone) stays out of the list, as the manual says (the next `start` of its name takes its
+place); each other failure after it, or of the connect (a refusal of this user, a podssh that
+closes with no answer, an answer that does not parse), is `no-answer`, with why on stderr: the
+session is there and cannot be read. Lost: a state of its own for each failure, which a script
+would have to learn one by one. With `--json` the line of an empty list is left out: the object's
+`[]` is the answer, and stdout stays one object; the lines of a session that did not answer and of
+a directory that cannot be read stay, unless `-q`. The exit stays 0 in each case, as `job list`'s:
+the list is what was found, and `unreadable` names what was not read. `detached` gains `--json`
+and `-q`, for `list` alone (64 with `status` or `stop`).
+
 ## Prove
 
 ```sh
@@ -3069,3 +3080,48 @@ cargo test -p podssh-cli --test detach -- list
 ```
 
 Planted: the line of an empty list removed: the test of the empty list fails.
+
+## Done
+
+Drafted 2026-11-02 by an agent in a worktree, which built nothing; merged and measured by the main
+session on 2026-11-03.
+
+- `podssh session list` (`crates/podssh-cli/src/session/list.rs`, out of
+  `crates/podssh-cli/src/session/client.rs`, whose `ask` is now a connect and `exchange`): with no
+  session, stdout stays empty and one line on stderr, "podssh session: no session runs (the
+  directories read: ...)", or "no directory of sessions is there yet (the first: DIR)", or that
+  `PODSSH_CACHE_DIR` is none; a session that takes the connection and gives no answer within 2 s
+  is `NAME\tno-answer\t`, with "podssh session: NAME: no answer within 2 s" on stderr; a socket
+  that refuses the connect stays out; a directory that is there and cannot be read is a line on
+  stderr (`crates/podssh-cli/src/session/place.rs`, `Found`); `-q` leaves out each line of
+  stderr; `--json` (`crates/podssh-cli/src/flags/session.rs`, for `list` alone): `sessions`,
+  `read`, `unreadable`.
+- `podssh detached list` (`crates/podssh-cli/src/detach/control.rs`): with no run, "podssh
+  detached: no run is known in DIR" on stderr, none with `-q`; a directory that cannot be read is
+  a line; `--json`: `runs` (`pid` a number or null) and `dir` (null with no cache); `--json` and
+  `-q` (`crates/podssh-cli/src/flags/detach.rs`, read in `crates/podssh-cli/src/tree.rs`) are for
+  `list` alone, else 64; the usage line is `SUBCOMMAND [OPTIONS] [NAME]`
+  (`crates/podssh-cli/src/help.rs`).
+- The manual: the notes of `session` (a paragraph of `list`,
+  `crates/podssh-cli/src/man/notes_session.rs`) and of `detached`
+  (`crates/podssh-cli/src/man/notes_detached.rs`); `docs/cli.md` ("podssh session" and the
+  paragraph of `podssh detached`).
+- Tests: in `crates/podssh-cli/tests/session.rs`, `an_empty_list_says_so_on_stderr_alone` (one
+  line on stderr and nothing on stdout, nothing with `-q`, `[]` with `--json`, 64 for `capture
+  --json`) and `list_names_a_session_that_does_not_answer` (Unix: a socket bound and never
+  accepted is `mute\tno-answer\t`, with why on stderr; a socket whose listener closed stays out;
+  the JSON); in `crates/podssh-cli/tests/detach.rs`, `an_empty_list_of_runs_says_so_on_stderr_alone`
+  (the line, `-q`, `--json`'s `[]` and `dir`, 64 for `status --json`); the unit tests of
+  `session::list` (the line of an empty list in each case, the JSON, a look that names a
+  directory read, one that cannot be read and one not there). `cargo test -p podssh-cli
+  --test session -- list`: 3 passed (the file 7); `cargo test -p podssh-cli --test detach --
+  list`: 1 (the file 9); `cargo test -p podssh-cli --lib session::list`: 3; `cargo test -p
+  podssh-cli --test flag_table`: 9; `--lib session::`, 17; `--lib man`, 66; `--lib help`, 9.
+- Planted: `scripts/plants/t506-empty-silent.plant` (the line of an empty list never written):
+  `sh scripts/plant-each.sh --here t506-empty-silent`: caught, the test of the empty list failed.
+- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:457-461`
+  (`TODO/cli.md`) and the citations of `docs/cli.md` were moved by hand; `cargo todo remap` from the
+  tree before the draft confirmed them. rustfmt of `podssh-cli` (`exchange` of `session/client.rs`)
+  and clippy of `podssh-cli` with `-D warnings`, all targets: clean.
+- Not changed: `job list` prints nothing for no job, as the Premise reads; `containers` says so on
+  stderr already.

@@ -407,6 +407,34 @@ fn a_second_start_of_a_name_refuses_while_the_first_runs() {
     let _second = Detached(pid_of(&err));
 }
 
+/// T-506: with no run, `detached list` leaves stdout empty and says so in
+/// one line on stderr that names the directory read, none with `-q`;
+/// `--json` gives `[]` and the directory, and is for list alone.
+#[test]
+fn an_empty_list_of_runs_says_so_on_stderr_alone() {
+    let home = scratch("empty-list");
+    let run = |words: &[&str]| {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+        cmd.arg("detached").args(words).env("HOME", &home).env("PODSSH_CACHE_DIR", home.join("cache"));
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let out = ran(cmd);
+        let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
+        (out.status.code(), text(&out.stdout), text(&out.stderr))
+    };
+    let (code, out, err) = run(&["list"]);
+    assert_eq!((code, out.as_str()), (Some(0), ""), "{err}");
+    assert!(err.starts_with("podssh detached: no run is known in ") && err.lines().count() == 1, "{err}");
+    assert!(err.contains("detached"), "the directory is named: {err}");
+    assert_eq!(run(&["list", "-q"]), (Some(0), String::new(), String::new()));
+    let (code, out, err) = run(&["list", "--json"]);
+    assert_eq!(code, Some(0), "{err}");
+    let doc: serde_json::Value = serde_json::from_str(&out).unwrap_or_else(|e| panic!("{e}: {out}"));
+    assert_eq!(doc["runs"], serde_json::json!([]), "{doc}");
+    assert!(doc["dir"].as_str().is_some_and(|d| d.ends_with("detached")), "{doc}");
+    let (code, _, err) = run(&["status", "web", "--json"]);
+    assert_eq!(code, Some(64), "{err}");
+}
+
 /// `podssh detached` reads the lock, never a pid alone (T-392): a run says
 /// its pid and stops; a record whose pid lives but holds no lock (here, the
 /// test's own pid, as a reused pid would) reads as ended, and its stop sends

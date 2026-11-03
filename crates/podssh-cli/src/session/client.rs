@@ -1,7 +1,8 @@
-//! The clients of a session's daemon (T-186): `send`, `wait`, `capture`,
-//! `stop` and `list`. Each makes one request on the socket and reads its
-//! answer: a connect, which is no listener. A daemon that closes the
-//! connection with no answer took the client for another user's.
+//! The clients of a session's daemon (T-186): `send`, `wait`, `capture`
+//! and `stop`, and the request of each session that `list` makes
+//! (`list.rs`). Each makes one request on the socket and reads its answer:
+//! a connect, which is no listener. A daemon that closes the connection
+//! with no answer took the client for another user's.
 
 use std::io::{IsTerminal, Read, Write};
 use std::time::Duration;
@@ -12,12 +13,11 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use super::wire::{self, Failure, Op};
 use super::{place, SessionArgs, SEND_MAX};
 use crate::exitmap::sysexits::{EX_NOPERM, EX_TEMPFAIL, EX_UNAVAILABLE};
+use crate::pipe::pump::End;
 use crate::relay_settings::Refusal;
 
 /// How long an answer may take, past the wait that a request asks for.
 const ANSWER_WAIT: Duration = Duration::from_secs(30);
-/// How long `list` waits for each session.
-const LIST_WAIT: Duration = Duration::from_secs(2);
 
 /// Run a request of `args`'s session, and give its answer: the screen of a
 /// capture on stdout, as is; what ended a wait. The exit code.
@@ -56,13 +56,19 @@ pub fn request(args: &SessionArgs, op: Op, out: &mut dyn Write, err: &mut dyn Wr
     }
 }
 
-fn text<'a>(fields: &'a Map<String, Value>, key: &str) -> &'a str {
+pub(super) fn text<'a>(fields: &'a Map<String, Value>, key: &str) -> &'a str {
     fields.get(key).and_then(Value::as_str).unwrap_or_default()
 }
 
 /// One request on the socket at `path`, and its answer, within `limit`.
 pub(super) async fn ask(path: &str, line: &str, limit: Duration) -> Result<Map<String, Value>, Failure> {
     let end = crate::pipe::unix::connect(path).await.map_err(|e| (code_of(&e), format!("{path}: {e}")))?;
+    exchange(path, end, line, limit).await
+}
+
+/// The request `line` on `end`, the connection to the socket at `path`,
+/// and its answer, within `limit` (75 when it passes).
+pub(super) async fn exchange(path: &str, end: End, line: &str, limit: Duration) -> Result<Map<String, Value>, Failure> {
     let mut writer = end.write;
     let mut reader = BufReader::new(end.read);
     let exchange = async {
@@ -87,33 +93,17 @@ pub(super) async fn ask(path: &str, line: &str, limit: Duration) -> Result<Map<S
 
 /// A socket that is not there, or that nobody serves, is no session (69);
 /// one that this user may not open is a refusal (77).
-fn code_of(e: &std::io::Error) -> i32 {
+pub(super) fn code_of(e: &std::io::Error) -> i32 {
     match e.kind() {
         std::io::ErrorKind::PermissionDenied => EX_NOPERM,
         _ => EX_UNAVAILABLE,
     }
 }
 
-/// `podssh session list`: a line for each session that answers, its name,
-/// its state and its host, with tabs between them. A socket that nobody
-/// serves is left out; the next `start` of its name takes its place.
-pub fn list(out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let sessions = place::all();
-    if sessions.is_empty() {
-        return 0;
-    }
-    let Some(runtime) = super::runtime(err) else { return super::NO_RUNTIME };
-    for (name, path) in sessions {
-        let line = wire::request(&name, &Op::Info);
-        let Ok(fields) = runtime.block_on(ask(&path, &line, LIST_WAIT)) else { continue };
-        let state = match fields.get("status").and_then(Value::as_i64) {
-            Some(status) => format!("ended {status}"),
-            None => text(&fields, "state").to_string(),
-        };
-        let _ = writeln!(out, "{name}\t{state}\t{}", text(&fields, "host"));
-    }
-    runtime.shutdown_background();
-    0
+/// Whether a connect's error says that nobody serves the socket: its file
+/// is gone, or no podssh listens there any more, as after a crash.
+pub(super) fn unserved(e: &std::io::Error) -> bool {
+    matches!(e.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::ConnectionRefused)
 }
 
 /// The text of `send` with no TEXT: stdin to its end, as it is, with no

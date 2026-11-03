@@ -3,11 +3,13 @@
 //! input of `cat`: `start` returns once the session is ready, with its
 //! socket (mode 0600 in a directory of mode 0700 on Unix); `send` types,
 //! `wait` returns at 1 s of quiet, at a text, or with 75 at its limit;
-//! `capture` reads the screen and the raw bytes; `list` names the session;
-//! `stop` ends it and its socket goes. A session whose command ended says
-//! its status, and its screen is still read. The refusals come before
-//! anything listens: 64, and 78 with `PODSSH_LISTEN=no` or no cache; a
-//! login that fails is start's 255, and leaves no socket. Against OpenSSH
+//! `capture` reads the screen and the raw bytes; `list` names the session,
+//! says on stderr alone that there is none, and lists one that does not
+//! answer (T-506); `stop` ends it and its socket goes. A session whose
+//! command ended says its status, and its screen is still read. The
+//! refusals come before anything listens: 64, and 78 with
+//! `PODSSH_LISTEN=no` or no cache; a login that fails is start's 255, and
+//! leaves no socket. Against OpenSSH
 //! and Dropbear, and a client of another user, it runs in the gate
 //! (`scripts/interop-session.sh`).
 
@@ -247,6 +249,54 @@ fn a_start_that_cannot_connect_exits_255_and_leaves_no_socket() {
     assert!(err.contains("podssh: "), "the session's podssh said why: {err}");
     assert!(!home.join("cache").join("sessions").join("c.sock").exists(), "a socket stayed");
     assert_eq!(session(&home, &["list"]).1, "");
+}
+
+/// T-506: an empty list leaves stdout empty and says so in one line on
+/// stderr, none with `-q`; `--json` gives `[]`, and `--json` is for list.
+#[test]
+fn an_empty_list_says_so_on_stderr_alone() {
+    let home = scratch("empty");
+    let (code, out, err) = session(&home, &["list"]);
+    assert_eq!((code, out.as_str()), (0, ""), "{err}");
+    assert_eq!(err.lines().count(), 1, "{err}");
+    assert!(err.starts_with("podssh session: no session runs"), "{err}");
+    let (code, out, err) = session(&home, &["list", "-q"]);
+    assert_eq!((code, out.as_str(), err.as_str()), (0, "", ""));
+    let (code, out, err) = session(&home, &["list", "--json"]);
+    assert_eq!(code, 0, "{err}");
+    let doc: serde_json::Value = serde_json::from_str(&out).unwrap_or_else(|e| panic!("{e}: {out}"));
+    assert_eq!(doc["sessions"], serde_json::json!([]), "{doc}");
+    assert!(doc["read"].is_array() && doc["unreadable"].is_array(), "{doc}");
+    let (code, _, err) = session(&home, &["capture", "w", "--json"]);
+    assert_eq!(code, 64, "{err}");
+    assert!(err.contains("--json is for list"), "{err}");
+}
+
+/// T-506: a socket whose server takes the connection and never answers is a
+/// session that does not answer, listed `no-answer` with why on stderr; a
+/// socket that nobody serves any more is no session, and stays out.
+#[cfg(unix)]
+#[test]
+fn list_names_a_session_that_does_not_answer() {
+    let home = scratch("mute");
+    let dir = home.join("cache").join("sessions");
+    std::fs::create_dir_all(&dir).unwrap();
+    // Bound and never accepted: the kernel takes the connect, and nobody
+    // reads the request.
+    let _mute = std::os::unix::net::UnixListener::bind(dir.join("mute.sock")).unwrap();
+    drop(std::os::unix::net::UnixListener::bind(dir.join("gone.sock")).unwrap());
+    assert!(dir.join("gone.sock").exists(), "a closed listener leaves its file");
+    let (code, out, err) = session(&home, &["list"]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(out, "mute\tno-answer\t\n", "{err}");
+    assert!(err.contains("podssh session: mute: no answer within 2 s"), "{err}");
+    assert!(!err.contains("gone"), "{err}");
+    let (code, out, err) = session(&home, &["list", "--json", "-q"]);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    let doc: serde_json::Value = serde_json::from_str(&out).unwrap_or_else(|e| panic!("{e}: {out}"));
+    assert_eq!(doc["sessions"].as_array().map(Vec::len), Some(1), "{doc}");
+    let listed = &doc["sessions"][0];
+    assert_eq!((listed["name"].as_str(), listed["state"].as_str()), (Some("mute"), Some("no-answer")), "{doc}");
 }
 
 /// T-382: a login that asks a password on the terminal starts a session:

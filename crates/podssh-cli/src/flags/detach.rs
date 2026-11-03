@@ -1,7 +1,7 @@
 //! The rows of a run in the background: `-f` and `--restart` of `ssh`
 //! (T-380, T-390), `--detach-name` of `ssh`, `pipe` and `node` (T-392), and
-//! the table of `podssh detached`, which takes no flag. A module of its own
-//! so that `flags.rs` stays short.
+//! the table of `podssh detached`, whose list takes `--json` and `-q`
+//! (T-506). A module of its own so that `flags.rs` stays short.
 
 use super::{row, FlagKind, FlagRow};
 
@@ -18,5 +18,11 @@ pub const DETACH_NAME: FlagRow = row(None, "detach-name", Some("NAME"), FlagKind
     "with --detach: the run's name, letters, digits, _ and -, 64 at most; a second start of a name that runs refuses (75), and podssh detached shows and stops it (default: the verb and the pid)", None);
 
 /// **`detached`.** `list`, `status NAME` and `stop NAME`: the subcommand
-/// and the name are its arguments, and it takes no flag.
-pub const DETACHED_FLAGS: &[FlagRow] = &[];
+/// and the name are its arguments; the list's form and its word on stderr
+/// are its flags.
+pub const DETACHED_FLAGS: &[FlagRow] = &[
+    row(None, "json", None, FlagKind::Supported,
+        "list: one JSON object on stdout: each run with its name, state, pid and words ([] for none), and the directory read", None),
+    row(Some('q'), "quiet", None, FlagKind::Supported,
+        "list: no line on stderr when no run is known", None),
+];

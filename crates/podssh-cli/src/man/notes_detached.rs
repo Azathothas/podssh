@@ -6,7 +6,10 @@ pub const DETACHED: &[&str] = &[
      --detach (podssh ssh, pipe and node), by its name: the name, its state (running; running, its supervisor \
      gone, for a run of --restart whose supervisor ended; or ended), its pid and its words, with a tab between \
      them. A run's name is its --detach-name, else its verb and its pid (ssh-4242), which no other running run \
-     has, so that a run with no name is never refused.",
+     has, so that a run with no name is never refused. With no run, stdout stays empty and one line on stderr \
+     says that no run is known and names the directory read (none with -q). list --json writes one object \
+     instead: runs (each with its name, state, pid, a number or null, and words; [] for none) and dir, the \
+     directory read (null with no directory of the cache). The exit is 0.",
     "Each run holds the lock of its name, NAME.lock in the directory detached of the cache (see FILES), from \
      before its connection to its end; with --restart its supervisor holds it, so that each restart keeps it, \
      and the run that it starts holds NAME.run.lock. A second start of a name that runs refuses with 75 before \
