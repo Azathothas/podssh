@@ -108,6 +108,11 @@ impl Record {
         self.lock().asking.is_some()
     }
 
+    /// The far end's version line, once it came, made safe for a terminal.
+    pub(crate) fn version(&self) -> Option<String> {
+        self.lock().came.version.clone()
+    }
+
     /// How long the host key's questions waited, until `now`.
     fn asked_for(&self, now: Instant) -> Duration {
         let seen = self.lock();

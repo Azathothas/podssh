@@ -81,7 +81,8 @@ impl std::fmt::Display for AuthError {
     }
 }
 
-/// Log in as `user` on the host called `host` in prompts, at `port`. On
+/// Log in as `user` on the host called `host` in prompts, at `port`: the
+/// method that let the user in (`none` when the server asked for none). On
 /// failure, the message to print, and whether the server refused.
 pub async fn authenticate(
     handle: &mut Handle<Client>,
@@ -90,13 +91,13 @@ pub async fn authenticate(
     port: u16,
     opts: &Options,
     log: &Arc<Log>,
-) -> Result<(), AuthError> {
+) -> Result<&'static str, AuthError> {
     // The key of a password that podssh agent keeps (T-228).
     let stored = Target::password(user, host, port);
     let limit = opts.connect_timeout;
     let none = within(limit, host, "the first request to log in", handle.authenticate_none(user)).await?;
     let mut allowed: Vec<MethodKind> = match none {
-        Ok(AuthResult::Success) => return Ok(()),
+        Ok(AuthResult::Success) => return Ok("none"),
         Ok(AuthResult::Failure { remaining_methods, .. }) => remaining_methods.iter().copied().collect(),
         Err(e) => return Err(AuthError::Broke(format!("authentication failed before it started: {e}"))),
     };
@@ -131,7 +132,7 @@ pub async fn authenticate(
             }
         };
         match step {
-            Step::Success => return Ok(()),
+            Step::Success => return Ok(method.name()),
             Step::Failure { remaining, partial } => {
                 if partial {
                     log.verbose(&format!("{} accepted; the server asks for another method", method.name()));

@@ -70,7 +70,13 @@ impl Found {
 /// -u` gives the user, else the effective UID of `/proc/self/status`, which
 /// the shell itself opens.
 pub fn probe(tool: &str) -> Option<String> {
-    let script = format!(
+    Some(format!("sh -c {} sh {}", shell_word(&script())?, shell_word(tool)?))
+}
+
+/// The script of [`probe`], which reads TOOL as `$1`: also the end of a
+/// script that asks more in the same sh (`health --preflight`, T-482).
+pub fn script() -> String {
+    format!(
         "command -v \"$1\" >/dev/null 2>&1 && exit 0; pm=-; for p in {MANAGERS}; do if command -v \"$p\" \
          >/dev/null 2>&1; then pm=$p; break; fi; done; os=-; if [ -r /etc/os-release ]; then while IFS= read -r \
          l; do case $l in ID=*) os=${{l#ID=}};; esac; done </etc/os-release; fi; u=; if command -v id >/dev/null \
@@ -78,8 +84,7 @@ pub fn probe(tool: &str) -> Option<String> {
          f _ y _; do if [ \"$f\" = Uid: ]; then u=$y; fi; done </proc/self/status; fi; w=user; if [ \"$u\" = 0 ]; \
          then w=root; elif [ \"$pm\" != - ] && [ -O \"$(command -v \"$pm\")\" ] 2>/dev/null; then w=own; elif \
          command -v sudo >/dev/null 2>&1; then w=sudo; fi; echo \"missing $1 $pm $os $w\"; exit 1"
-    );
-    Some(format!("sh -c {} sh {}", shell_word(&script)?, shell_word(tool)?))
+    )
 }
 
 /// What a probe of `tool` said, from its stdout: the last line `missing

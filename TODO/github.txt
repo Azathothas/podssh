@@ -100,7 +100,7 @@
 92 issue open
 93 issue closed
 94 issue open
-95 issue open
+95 issue closed
 96 issue closed
 97 issue open
 98 issue closed

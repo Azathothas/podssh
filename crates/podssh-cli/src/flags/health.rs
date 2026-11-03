@@ -1,7 +1,8 @@
 //! The flag rows of `health` (T-189): the flags that a login needs and the
 //! relay's, with the ids of `ssh` so that its arguments are read the same
-//! way, and the JSON of the facts. A module of its own so that `flags.rs`
-//! stays short; the rules of the table are in [`super`].
+//! way, the JSON of the facts, and the preflight (T-482). A module of its
+//! own so that `flags.rs` stays short; the rules of the table are in
+//! [`super`].
 
 use super::{row, FlagKind, FlagRow};
 
@@ -45,4 +46,6 @@ pub const HEALTH_FLAGS: &[FlagRow] = &[
     super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
     row(None, "json", None, FlagKind::Supported,
         "the facts as one JSON object on stdout, also after a failure; effective holds the CPUs and the memory to plan from, a container's cgroup's where it limits them", None),
+    row(None, "preflight", None, FlagKind::Supported,
+        "after the facts, what the server allows, from the same login: SFTP, -R, -J, the tools of sh, tmux, the cgroup and a keepalive, each ok, FAIL or ????; exit 1 when one failed", None),
 ];

@@ -424,13 +424,14 @@ where
         agent.set_binding(binding);
     }
     retry::reached(Phase::Auth);
-    auth::authenticate(&mut handle, &user, &hop.host, hop.port, opts, log).await.map_err(|e| match e {
+    let method = auth::authenticate(&mut handle, &user, &hop.host, hop.port, opts, log).await.map_err(|e| match e {
         auth::AuthError::Refused(m) => HopError::Auth(m),
         auth::AuthError::Broke(m) => HopError::Unreachable(m),
     })?;
     log.verbose(&format!("authenticated to {label} as {user}"));
     if is_destination {
         retry::reached(Phase::Ready);
+        crate::outcome::logged_in(record.version(), method);
     }
     // The forwards of `-R` are the destination's; asked again after each new
     // connection of a run (`--persist`).

@@ -25,12 +25,14 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              acknowledged, and the one thing of --send or --file is done; with --listen --linger, also when \
              the --timeout passed, the run's planned end. For podssh ping: a relay host \
              gave its measures, or with a destination each measure has its number. For podssh health: the \
-             facts came, or the host has no /proc and gave its system's name.",
+             facts came, or the host has no /proc and gave its system's name; with --preflight, also no \
+             check failed.",
         ),
         row(
             crate::doctor::EXIT_FAILED,
             "podssh doctor: a check failed. podssh relay spec: a fact of the relay's document disagrees. \
-             podssh keygen: a key could not be made or read.",
+             podssh keygen: a key could not be made or read. podssh health --preflight: after the login, a \
+             check failed or the facts did not come.",
         ),
         row(
             crate::exit_codes::EXIT_USAGE,
@@ -124,7 +126,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              for a cut, where it gives the status. podssh ping: the destination could \
              not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
              or logged in to, or its session ended with no exit status. podssh health: the host could not \
-             be reached or logged in to, it has no sh, or its answer had none of the lines of the script. \
+             be reached or logged in to, it has no sh, or its answer had none of the lines of the script \
+             (with --preflight, the login alone). \
              podssh containers: the host could not be reached or logged in to, or its list did not end \
              within 60 s. podssh session start: the connection or the login failed. podssh job: the host \
              could not be reached or logged in to, has no tmux, has no such job, or gave no answer; for \

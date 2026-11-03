@@ -604,11 +604,11 @@ stderr into stdout; the byte test fails.
 
 ## Done
 
-2026-10-12. The record of a run in `crates/podssh-ssh/src/outcome.rs:1-158`:
-the bytes at `crates/podssh-ssh/src/outcome.rs:68-76`, the end at
-`crates/podssh-ssh/src/outcome.rs:86-103`, a run through a control master
-at `crates/podssh-ssh/src/outcome.rs:105-116`, and the cause of a failure
-at `crates/podssh-ssh/src/outcome.rs:118-137`. The bytes are counted where
+2026-10-12. The record of a run in `crates/podssh-ssh/src/outcome.rs:1-173`:
+the bytes at `crates/podssh-ssh/src/outcome.rs:75-83`, the end at
+`crates/podssh-ssh/src/outcome.rs:93-110`, a run through a control master
+at `crates/podssh-ssh/src/outcome.rs:112-123`, and the cause of a failure
+at `crates/podssh-ssh/src/outcome.rs:125-144`. The bytes are counted where
 they pass: stdin at `crates/podssh-ssh/src/io.rs:230`, stdout and stderr at
 `crates/podssh-ssh/src/io/msg.rs:93`, `-W` at
 `crates/podssh-ssh/src/forward.rs:66` and
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4294-4322`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4365-4393`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.

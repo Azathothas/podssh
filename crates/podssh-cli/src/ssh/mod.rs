@@ -272,7 +272,7 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
 }
 
 /// The road of a run, as the session log names it when no relay host does.
-fn road(transport: &Transport) -> &'static str {
+pub(crate) fn road(transport: &Transport) -> &'static str {
     match transport {
         Transport::Relay { .. } => "relay",
         Transport::Direct => "direct",

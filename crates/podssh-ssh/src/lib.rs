@@ -70,6 +70,8 @@ pub mod notice;
 pub mod options;
 pub mod outcome;
 pub mod persist;
+// What the far server allows, for `podssh health --preflight` (T-482).
+pub mod preflight;
 pub mod probe;
 pub mod prompt;
 pub mod record;

@@ -218,7 +218,7 @@ fn other_limits(cg: &Cgroup) -> Vec<String> {
 }
 
 /// A count of CPUs: 4, or 1.5 for a quota of a CPU and a half.
-fn count(n: f64) -> String {
+pub(super) fn count(n: f64) -> String {
     if (n - n.round()).abs() < 0.005 {
         format!("{n:.0}")
     } else {

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/health/preflight/judge.rs
++++ b/crates/podssh-cli/src/health/preflight/judge.rs
+@@ -121,7 +121,7 @@
+             };
+             ok(format!("the server listened on its {LOOPBACK}, {at}, {stopped}: -R works on this host"))
+         }
+-        Answer::Came(Forward::Refused) => fail("the server refused tcpip-forward: -R cannot work on this host"),
++        Answer::Came(Forward::Refused) => ok("the server refused tcpip-forward: -R cannot work on this host"),
+         Answer::Silent(limit) => {
+             fail(format!("no answer to tcpip-forward in {} s: -R cannot work on this host", limit.as_secs()))
+         }

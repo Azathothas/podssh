@@ -2595,6 +2595,76 @@ process.
   script's lines; 64 and 78 before anything connects. The script has 30 s,
   and the whole run 120 s.
 
+### `health --preflight`
+
+`--preflight` (T-482, GitHub #92) asks, after the facts and on the same
+login, what the far server allows of what a long command needs later.
+Each of a server's answers showed before only when the command that needed
+it failed, often late and in the words of a dead link: the server of #92
+ended each idle session at a keepalive's reply (#83), refused
+`tcpip-forward` (#85), opened no `direct-tcpip` (#86) and named no
+`copy-data` (#87). `doctor` checks this host and the road, and its `--hop`
+reaches a hop as `--direct` does; neither reports the far server, and
+`doctor` takes no option of `ssh`, where `health` logs in with each of them.
+
+- A section `preflight` follows the facts, in `doctor`'s lines: `ok`,
+  `FAIL` or `????`, the check's name, and what was found; then the counts.
+  Each probe asks once, within 10 s of its own, so that a server that never
+  answers fails that probe alone; the run has 70 s more.
+- `login`: the user, the hops of `-J`, the method that let the user in, and
+  the server's version line. `road`: the relay host and its limits on a
+  session, 64 MiB both ways, 180 s with no payload and 12 h, from its
+  `/relays.json` where one was read (T-342), else podssh's own; or the road
+  that is not the relay, which has none of them.
+- `sftp`: the subsystem, its sizes of a read and of a write, its
+  extensions, and what `cp` does without `copy-data`,
+  `posix-rename@openssh.com`, `hardlink@openssh.com` and
+  `limits@openssh.com`. No subsystem is `ok`: `cp` then copies by exec. A
+  subsystem that does not answer, or breaks SFTP, is `FAIL`, as `cp` fails
+  there too.
+- `remote forward`: `tcpip-forward` for the server's `127.0.0.1`, port 0,
+  so that the server chooses a port, then `cancel-tcpip-forward` at once. A
+  refusal, or no answer, is `FAIL`: `-R` cannot work there (OpenSSH with
+  `AllowTcpForwarding no`, Dropbear with `-k`). This host binds nothing:
+  the far server listens for a moment on its own loopback, which the user
+  asks for with `--preflight` (the operator, Q83); `health` alone only
+  reads.
+- `jump`: a `direct-tcpip` channel to the server's own `127.0.0.1`, port
+  22, as no port of the far side is known, closed at once. RFC 4254
+  (section 5.1) tells `connect failed` from `administratively prohibited`:
+  a channel that opened, or one refused as `connect failed`, is `ok`, as
+  the server opens such channels and the target was a guess;
+  `administratively prohibited`, an unknown channel type, or no answer is
+  `FAIL`: `-J`, `-L`, `-D` and `-W` through this host cannot work (OpenSSH
+  with `AllowTcpForwarding no`, Dropbear with `-j`). A resource shortage is
+  `????`.
+- `exec tools`: one exec of `sh -c 'SCRIPT' sh tmux`, one line with no
+  single quote and no backslash, as each far script of podssh, names each
+  tool on `PATH` of the copy by exec, of `job`, of `cp --delta` (`dd`) and
+  of `ping` through the host (`head`). A host whose login runs no `sh`, or
+  one that lacks `cat`, `mv`, `rm`, `mkdir`, `sleep` or `wc`, is `FAIL`;
+  each other tool that is missing is named with what it stops, and no
+  `sha256sum`, `shasum` or `openssl` means a check by a second read.
+- `tmux`, from the same exec: missing, it is `FAIL`, as `ssh --persist`
+  cannot work and `job` needs `--no-tmux`; the line names what could
+  install it, from T-481's probe, which the same `sh` runs at the end.
+- `cgroup`: the CPUs and the memory to plan from (T-480), from the facts.
+- `keepalive`, last: one `keepalive@openssh.com` with a reply wanted. A
+  reply, a success or a failure, is `ok` (OpenSSH's sshd answers with a
+  failure); no reply, or a connection that ends at it, is `FAIL`, with `-o
+  ServerAliveInterval=0` as the way round. It goes last, as a reply that
+  cannot be read ends the connection, once each other probe has run. A
+  probe after the connection ended is `????`, and asks nothing.
+- The exit, once the login is done, is `doctor`'s: 1 when a check failed
+  or the facts did not come, else 0. A login that fails is 255, as without
+  `--preflight`, and the section holds its one line, `FAIL`. With `--json`,
+  `preflight` holds `checks` (each with `section`, `check`, `status` and
+  `detail`, as `doctor --json` gives them) and `counts` (`ok`, `fail`,
+  `unknown`); without `--preflight` it is `null`.
+- A flag of `health`, not of `doctor`: the far host's answer needs the
+  login of `ssh`, with each of its options. `doctor --via HOST`, as the
+  issue wrote it, names T-439's second proxy.
+
 ## `podssh keygen`
 
 `podssh man keygen` gives the flags. The rules behind them:
@@ -3827,8 +3897,9 @@ The tools:
   a call's limit of that and 30 s; a job that runs on is a result, `ended`
   false, not an error) and `job_stop`. Until `--json` and `--result-file`
   come for those verbs (T-484, T-486), a result is the exit, the streams and
-  the fields that the tool reads from them; `health` waits for `preflight`
-  (T-482).
+  the fields that the tool reads from them. `health` takes `preflight`, a
+  boolean: `podssh health --json --preflight`, with a limit of 180 s when
+  the call names none (T-482).
 - **`cp_put`** and **`cp_get`** (T-488), with `--allow-dir DIR` too: `podssh
   cp --jsonl` between a path of this host in a DIR and a path of an allowed
   host, each file's SHA-256 checked at both ends, with `recursive` for a

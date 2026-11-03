@@ -76,6 +76,25 @@ fn the_limits_of_a_wait_and_of_a_log() {
     assert_eq!(log.unwrap().unwrap().cap, 15, "the child keeps the bytes up to the window's end");
 }
 
+/// `preflight` puts `--preflight` before the destination, with a longer
+/// limit unless the call names one (T-482); a value that is no boolean is
+/// the call's error.
+#[test]
+fn health_takes_the_preflight() {
+    let s = settings();
+    let asked = plan(&s, "health", &args(json!({ "destination": "web2", "preflight": true }))).unwrap().unwrap();
+    let words: Vec<String> = asked.argv.iter().map(|a| a.to_string_lossy().into_owned()).collect();
+    assert_eq!(words[words.len() - 4..], ["--json", "--preflight", "--", "web2"]);
+    assert_eq!(asked.limit, Duration::from_secs(PREFLIGHT_LIMIT));
+    let named = args(json!({ "destination": "web2", "preflight": true, "timeout_seconds": 20 }));
+    assert_eq!(plan(&s, "health", &named).unwrap().unwrap().limit, Duration::from_secs(20));
+    let off = argv("health", json!({ "destination": "web2", "preflight": false })).unwrap();
+    assert_eq!(off[off.len() - 3..], ["--json", "--", "web2"]);
+    let odd = argv("health", json!({ "destination": "web2", "preflight": "yes" })).unwrap_err();
+    assert!(odd.contains("true or false"), "{odd}");
+    assert!(argv("job_list", json!({ "destination": "web2", "preflight": true })).is_err(), "health's alone");
+}
+
 fn ran(stdout: &[u8], exit: Option<i32>) -> Ran {
     Ran {
         exit,
