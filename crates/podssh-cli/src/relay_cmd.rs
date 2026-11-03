@@ -4,7 +4,9 @@
 //! asks whether its node is online. stdout carries the answer, one line, with
 //! the label and never a token. `spec` checks the relay's document against
 //! podssh's facts (`relay_spec.rs`, T-060). `status` with no NAME, `info` and
-//! `trace` ask the relay about itself (`relay_diag.rs`, T-058).
+//! `trace` ask the relay about itself (`relay_diag.rs`, T-058). `status
+//! --pair-file FILE` asks for the pair of an operator's file, on a host that
+//! stores none, and `--json` gives a pair's state as one object (T-591).
 
 use std::io::Write;
 
@@ -28,6 +30,9 @@ pub struct RelayArgs {
     pub ca_file: Option<String>,
     /// `pair`: a new file for the operator's part of the pair.
     pub operator_file: Option<String>,
+    /// `status`: the pair, or its operator's part, in a file, in place of the
+    /// store (T-591).
+    pub pair_file: Option<String>,
     /// `spec`: a copy of the relay's document to check, read instead of the
     /// live one.
     pub document: Option<String>,
@@ -47,12 +52,16 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         let _ = writeln!(err, "podssh relay: {extra:?} is one word too many: {takes}");
         return EXIT_USAGE;
     }
-    if args.json && !(target || (sub == Some("status") && args.args.is_empty())) {
-        let _ = writeln!(err, "podssh relay: --json goes with status (with no NAME), info and trace");
+    if args.json && !(target || sub == Some("status")) {
+        let _ = writeln!(err, "podssh relay: --json goes with status, info and trace");
         return EXIT_USAGE;
     }
     if args.operator_file.is_some() && sub != Some("pair") {
         let _ = writeln!(err, "podssh relay: --operator-file goes with `podssh relay pair NAME` only");
+        return EXIT_USAGE;
+    }
+    if args.pair_file.is_some() && sub != Some("status") {
+        let _ = writeln!(err, "podssh relay: --pair-file goes with `podssh relay status [NAME]` only");
         return EXIT_USAGE;
     }
     if args.document.is_some() && sub != Some("spec") {
@@ -67,10 +76,12 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
     let done = match (sub, name) {
         (Some("pair"), Some(label)) => make(args, label, out, err),
         (Some("revoke"), Some(label)) => revoke(args, label, out, err),
-        (Some("status"), Some(label)) => status(args, label, out),
+        (Some("status"), Some(label)) => crate::relay_status::pair(args, Some(label), out),
         (Some(sub @ ("pair" | "revoke")), None) => {
             Err(Refusal::usage(format!("missing NAME: `podssh relay {sub} NAME`, where NAME is the label of a pair")))
         }
+        // The pair of an operator's file, with no label in the store.
+        (Some("status"), None) if args.pair_file.is_some() => crate::relay_status::pair(args, None, out),
         (Some("status"), None) => return crate::relay_diag::status(args, out, err),
         (Some("spec"), None) => return crate::relay_spec::run(args, out, err),
         (Some("serve"), None) => return crate::relay_serve::run(args, err),
@@ -164,7 +175,14 @@ fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write)
     if let Some(file) = &args.operator_file {
         let _ = writeln!(err, "podssh relay: the operator's part is in {file}, which only its owner can read");
     }
+    // One line on stdout, as scripts read it; the way past the expiry on
+    // stderr (T-591).
     let _ = writeln!(out, "{label}: expires {}", pairs::utc(made.expires_ms));
+    let _ = writeln!(
+        err,
+        "podssh relay: in its last 24 h, podssh relay pair {label} --operator-file NEW makes the next pair, which \
+         the node takes at the expiry; NEW goes to each operator"
+    );
     Ok(())
 }
 
@@ -220,23 +238,5 @@ fn revoke(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Writ
         }
         Err(e) => return Err(pairs::refusal(&e)),
     }
-    Ok(())
-}
-
-/// `status NAME`: whether the pair's node is online, and its sessions.
-fn status(args: &RelayArgs, label: &str, out: &mut dyn Write) -> Result<(), Refusal> {
-    pairs::check_label(label)?;
-    let stored = pairs::stored(label)?;
-    crate::pins::apply(args.relay_addr.as_deref())?;
-    pairs::online()?;
-    let (trust, proxy) = (pairs::trust(args.ca_file.as_deref()), ProxyChoice::FromEnvironment);
-    let ctx = pairs::context(&stored.relay, &trust, &proxy);
-    let presence = block_on(pair::status(&ctx, &stored))?.map_err(|e| pairs::refusal(&e))?;
-    let until = pairs::utc(stored.expires_ms);
-    let _ = match (presence.online, presence.sessions) {
-        (true, 1) => writeln!(out, "{label}: online, 1 session; expires {until}"),
-        (true, n) => writeln!(out, "{label}: online, {n} sessions; expires {until}"),
-        (false, _) => writeln!(out, "{label}: offline; expires {until}"),
-    };
     Ok(())
 }

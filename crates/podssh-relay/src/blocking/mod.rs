@@ -270,7 +270,8 @@ impl Client {
 
     /// Whether `pair`'s node is online, and its sessions.
     pub fn status(&self, pair: &Pair) -> Result<Presence, Error> {
-        self.block_on(pair::status(&self.pair_context(&pair.relay), pair))?.map_err(Error::Pair)
+        let part = pair::OperatorPart::of(pair);
+        self.block_on(pair::status(&self.pair_context(&pair.relay), &part))?.map_err(Error::Pair)
     }
 
     /// End `pair` on the relay; its tokens end whatever the answer.

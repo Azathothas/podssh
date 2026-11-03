@@ -4,7 +4,9 @@
 //! stand-in relay (`scripts/fake-relay.py`): the `/health` of each host,
 //! the pool and the limits of `/relays.json`, and the trace of a target
 //! with the token in its header, its first line and the relay's refusal to
-//! dial; those checks say that they did not run when this host has no
+//! dial; and a pair's state and expiry from an operator's file, on a host
+//! that stores no pair, and the words of `pair` on the way past the expiry
+//! (T-591). Those checks say that they did not run when this host has no
 //! Python or no openssl for the stand-in.
 
 mod ssh_harness;
@@ -24,9 +26,14 @@ const LIMIT: Duration = Duration::from_secs(120);
 /// `podssh relay ARGS` with HOME and the cache in the session's scratch
 /// directory, and no proxy and no token from this host's environment.
 fn relay(s: &Session, args: &[String]) -> Command {
+    relay_at(&s.home, args)
+}
+
+/// [`relay`] with HOME and the cache under `home`: another host's.
+fn relay_at(home: &std::path::Path, args: &[String]) -> Command {
     let mut all = vec!["relay".to_string()];
     all.extend(args.iter().cloned());
-    let mut cmd = s.command(&all);
+    let mut cmd = throughput_harness::command_in(home, &all);
     for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "PODSSH_RELAY", "PODSSH_RELAY_TOKEN"] {
         cmd.env_remove(name);
     }
@@ -123,15 +130,16 @@ fn bad_targets_and_a_misplaced_json_are_refused_before_anything_connects() {
     let s = Session::start("relay-refuse");
     let (port, reached) = counting_listener();
     let host = format!("127.0.0.1:{port}");
-    let cases: [(&[&str], &str); 8] = [
+    let cases: [(&[&str], &str); 9] = [
         (&["trace"], "missing HOST"),
         (&["trace", "a&b", "22"], "trace"),
         (&["trace", "github.com", "0"], "is not a port"),
         (&["trace", "github.com", "99999"], "is not a port"),
         (&["info", "github.com"], "missing PORT"),
         (&["trace", "github.com", "22", "extra"], "one word too many"),
-        (&["status", "lab", "--json"], "--json goes with"),
+        (&["pair", "lab", "--json"], "--json goes with"),
         (&["spec", "--json"], "--json goes with"),
+        (&["pair", "lab", "--pair-file", "lab.json"], "--pair-file goes with"),
     ];
     for (args, says) in cases {
         let mut all = words(args);
@@ -318,6 +326,73 @@ fn a_relay_that_speaks_only_tls12_is_reached_with_tls12() {
     let out = ran(cmd);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     assert_eq!(text(&out.stdout), ssh_harness::GREETING);
+}
+
+/// T-591: the operator's host holds the operator's part of a pair alone, in
+/// a file, and stores none; `status --pair-file FILE` names online or
+/// offline and the expiry, NAME is only the label shown, and `--json` gives
+/// one object with `seconds_left`. With no file, that host has no pair (78).
+#[test]
+fn relay_status_of_an_operator_s_file_names_the_expiry() {
+    let s = Session::start("relay-status-file");
+    let Some((flags, host)) = stand_in(&s) else { return };
+    let file = s.home.join("lab-operator.json");
+    let mut args = words(&["pair", "lab", "--relay-host", &host, "--operator-file"]);
+    args.push(file.display().to_string());
+    args.extend(flags.iter().cloned());
+    let out = ran(relay(&s, &args));
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    // The operator's host: another HOME, with nothing in its store.
+    let elsewhere = throughput_harness::scratch("relay-status-operator");
+    let status = |extra: &[&str]| {
+        let mut args = words(&["status", "--pair-file"]);
+        args.push(file.display().to_string());
+        args.extend(words(extra));
+        args.extend(flags.iter().cloned());
+        ran(relay_at(&elsewhere, &args))
+    };
+    let out = status(&[]);
+    let stdout = text(&out.stdout);
+    assert_eq!(out.status.code(), Some(0), "stdout: {stdout}\nstderr: {}", text(&out.stderr));
+    assert!(stdout.starts_with(&format!("{}: offline; expires 20", file.display())), "{stdout}");
+    let out = status(&["lab"]);
+    let stdout = text(&out.stdout);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert!(stdout.starts_with("lab: offline; expires 20") && stdout.trim_end().ends_with('Z'), "{stdout}");
+    let out = status(&["lab", "--json"]);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    let doc: serde_json::Value = serde_json::from_slice(&out.stdout).expect("one JSON object");
+    assert_eq!(
+        (doc["label"].as_str(), doc["online"].as_bool(), doc["sessions"].as_u64()),
+        (Some("lab"), Some(false), Some(0))
+    );
+    let left = doc["seconds_left"].as_i64().expect("seconds_left");
+    assert!((71 * 3600..=72 * 3600).contains(&left), "a new pair lives 72 h: {doc}");
+    assert!(doc["expires"].as_str().is_some_and(|at| at.starts_with("20") && at.ends_with('Z')), "{doc}");
+    let mut args = words(&["status", "lab"]);
+    args.extend(flags.iter().cloned());
+    let out = ran(relay_at(&elsewhere, &args));
+    assert_eq!(out.status.code(), Some(78), "no pair is stored there: {}", text(&out.stderr));
+    let _ = std::fs::remove_dir_all(&elsewhere);
+}
+
+/// T-591: `relay pair` keeps its one line on stdout, which scripts read, and
+/// says on stderr how a pair goes on past its expiry.
+#[test]
+fn relay_pair_says_the_way_past_the_expiry() {
+    let s = Session::start("relay-pair-words");
+    let Some((flags, host)) = stand_in(&s) else { return };
+    let mut args = words(&["pair", "lab", "--relay-host", &host]);
+    args.extend(flags);
+    let out = ran(relay(&s, &args));
+    let (stdout, stderr) = (text(&out.stdout), text(&out.stderr));
+    assert_eq!(out.status.code(), Some(0), "{stderr}");
+    assert_eq!(stdout.lines().count(), 1, "one line on stdout: {stdout}");
+    assert!(stdout.starts_with("lab: expires 20"), "{stdout}");
+    let way =
+        "podssh relay: in its last 24 h, podssh relay pair lab --operator-file NEW makes the next pair, which the \
+               node takes at the expiry; NEW goes to each operator";
+    assert!(stderr.contains(way), "{stderr}");
 }
 
 #[test]

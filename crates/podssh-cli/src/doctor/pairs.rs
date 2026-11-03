@@ -43,7 +43,7 @@ pub(super) async fn presence(report: &mut Report<'_>, pairs: &[(String, Pair)], 
         let name = format!("pair {label}");
         let until = utc(found.expires_ms);
         let ctx = PairContext { relay: &found.relay, trust, proxy: &proxy, timeout: TIMEOUT };
-        match pair::status(&ctx, found).await {
+        match pair::status(&ctx, &pair::OperatorPart::of(found)).await {
             Ok(seen) if seen.online => {
                 report.ok(&name, format!("node online, {} sessions; expires {until}", seen.sessions))
             }

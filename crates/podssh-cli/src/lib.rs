@@ -148,6 +148,8 @@ pub mod relay_ends;
 pub mod relay_serve;
 pub mod relay_settings;
 pub mod relay_spec;
+// `podssh relay status NAME` and `--pair-file`: a pair's state and expiry (T-591).
+mod relay_status;
 // `podssh session`: a session that outlives each call of an agent (T-186).
 pub mod session;
 // `podssh run`: copy a project, then run a command in it (T-192).

@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:345`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:276-278`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:279-281`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:86-278`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:89-281`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:273-278`).
+   the code and the reason (`docs/reverse.md:276-281`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:3990`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:4006`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:394-397`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:159-169`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:417`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:3986-3990`).
+`podssh proxy` sysexits (`docs/cli.md:4002-4006`).
 
 ## Approach
 
@@ -1377,7 +1377,7 @@ Read: the library crates must build with no C compiler (`AGENTS.md:290-292`, `sc
    the gate before it is chosen; else RustCrypto parts with the IK handshake written here, and the
    test vectors of the Noise specification.
 3. Messages: each Noise message at most 65535 bytes, with a length prefix, inside the session's
-   bytes. The relay's frames on the operator leg stay bare (`docs/reverse.md:88`).
+   bytes. The relay's frames on the operator leg stay bare (`docs/reverse.md:91`).
 4. Layers with M6 (T-151, T-153): either Noise for each connection under the resumable layer (a
    resume makes a new handshake and proves the resume secret inside it), or above it. Decide in
    T-151, and record the choice in `docs/design.md` (section 5).
@@ -1508,7 +1508,7 @@ only `share PORT` opens a port.
 Read: one name holds one node socket
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:152-154`); tokens are scoped to a name
 and a role (`:128-129`). The operator leg has no framing, so a route cannot travel in the relay's
-frames (`docs/reverse.md:88`). Data needs `ready` first (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:180`), and `ready` comes
+frames (`docs/reverse.md:91`). Data needs `ready` first (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:180`), and `ready` comes
 after the local side accepts (`docs/reverse.md:16`). So a route that the operator names reaches the
 node only after `ready`.
 
@@ -1743,7 +1743,7 @@ upgrade, 72 h at most (`docs/relay.md:232-236`); `POST /v1/pair` gives the three
 (`docs/relay.md:377-380`). The contract scopes reverse tokens to a name and a role, and states no single use and
 no binding to a peer (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:128-129`). A new mint secret
 ends each token at once (`docs/relay.md:365-367`). A text frame from the operator closes its socket with
-`1003`, and the operator leg carries no framing (`docs/relay.md:394-397`, `docs/reverse.md:88`).
+`1003`, and the operator leg carries no framing (`docs/relay.md:394-397`, `docs/reverse.md:91`).
 
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
@@ -2644,7 +2644,7 @@ shown by `relay status NAME`"; it asks for `relay pair --renew` (T-592), the exp
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2656,16 +2656,16 @@ to go on. A feature.
 ## Premise
 
 - Read: `relay status NAME` prints the expiry beside online or offline
-  (`crates/podssh-cli/src/relay_cmd.rs:235-239`), as it did at `35a0d19`; the issue's claim holds
-  where no pair is stored under NAME, as on an operator's host.
-- Read: it reads the pair from the store alone (`crates/podssh-cli/src/relay_cmd.rs:229`,
-  `crates/podssh-cli/src/pairs.rs:36-44`); `relay` takes no `--pair-file`, and `--operator-file`
-  goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:54-57`).
+  (`crates/podssh-cli/src/relay_cmd.rs` lines 235-239 at `2608b91`), as it did at `35a0d19`; the
+  issue's claim holds where no pair is stored under NAME, as on an operator's host.
+- Read: it reads the pair from the store alone (`crates/podssh-cli/src/relay_cmd.rs` line 229 at
+  `2608b91`, `crates/podssh-cli/src/pairs.rs:36-44`); `relay` takes no `--pair-file`, and `--operator-file`
+  goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:59-62`).
 - Read: the relay answers `/v1/status/<name>` to the connect token
   (`crates/podssh-relay/src/pair.rs:198-202`), which the operator's part holds.
 - Read: `relay pair` prints the label and its expiry and nothing more
-  (`crates/podssh-cli/src/relay_cmd.rs:167`); in the last 24 h of a stored pair it makes the next
-  one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:118-141`);
+  (`crates/podssh-cli/src/relay_cmd.rs:180`); in the last 24 h of a stored pair it makes the next
+  one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:129-152`);
   the operator's part of the next pair is a new file, and the default relay renews no pair (T-395's
   Decision, item 2).
 
@@ -2687,6 +2687,15 @@ to go on. A feature.
 for `status`, whose meaning on `pair` is a new file to write. The line on stdout of `relay pair`
 stays one line, as scripts read it, and the words go to stderr.
 
+The calls of the draft (2026-11-03). With `--pair-file` and no NAME, the label shown is FILE as
+given. Lost: the relay's name of the pair (`p-...`), which no user typed, and a refusal that asks
+for a NAME, which an operator's host has no use for. The JSON object of a pair carries `schema`
+(1) and `podssh` too, as each other `--json` of `relay` does. Lost: the five fields alone, an
+object of another form than its siblings. `pair::status` takes the operator's part (`OperatorPart`)
+in place of a whole pair, so that a stored pair and an operator's file go one way. Lost: a second
+function for the part, in a file at its 500 lines. The words of `relay pair` go on stderr at each
+pair, not only with `--operator-file`: the owner needs the way past the expiry either way.
+
 ## Prove
 
 ```sh
@@ -2700,3 +2709,42 @@ pair made, its operator's part alone in a file, the store emptied: `status --pai
 online or offline and the expiry, and `--json` gives `seconds_left`);
 `relay_pair_says_the_way_past_the_expiry` (the words on stderr, and one line on stdout). Planted:
 `t591-pair-file-ignored` (`status` reads the store again): the first test fails.
+
+## Done
+
+Drafted 2026-11-03, in the commit "DRAFT T-591" (not built; the merge fills each UNVERIFIED). The
+Premise holds at the cited lines (read at `2608b91`).
+
+- `crates/podssh-cli/src/relay_status.rs` (new): `pair`, the status of the pair stored under NAME
+  or of the file of `--pair-file` (a pair, or its operator's part, read as `operator` reads it;
+  NAME then the label shown, else FILE): online or offline, the sessions and the expiry, or with
+  `--json` one object (`schema`, `podssh`, `label`, `online`, `sessions`, `expires`,
+  `seconds_left`); `expiry`, which in the last 24 h says how long is left (`expires in 5 h, at
+  ...`), by `node_expiry::left_words`. Its unit test: UNVERIFIED.
+- `crates/podssh-cli/src/relay_cmd.rs`: `RelayArgs::pair_file`; `status NAME`, and `status` with
+  `--pair-file` and no NAME, go to `relay_status::pair`; `--json` goes with each `status`;
+  `--pair-file` with another subcommand is refused (64); `relay pair` keeps its one line on
+  stdout and says the way past the expiry on stderr. The old `status` function went into the new
+  module.
+- `crates/podssh-relay/src/pair.rs`: `status` takes the operator's part. Its callers:
+  `crates/podssh-relay/src/blocking/mod.rs`, `crates/podssh-cli/src/doctor/pairs.rs` and
+  `crates/podssh-relay/tests/pair_live.rs`.
+- `crates/podssh-cli/src/tree.rs` (the field), `crates/podssh-cli/src/lib.rs` (the module),
+  `crates/podssh-cli/src/flags/relay.rs` (the row `--pair-file` of `relay`, and `--json`'s words).
+- The manual: `crates/podssh-cli/src/man/notes_relay.rs`, the notes of `pair`, `status NAME` and
+  `--json`.
+- `docs/cli.md` (the section of the reverse road), `docs/reverse.md` (the node's section) and
+  `docs/STATUS.md` (a row, UNVERIFIED).
+- Tests: `crates/podssh-cli/tests/relay.rs`, through the stand-in relay,
+  `relay_status_of_an_operator_s_file_names_the_expiry` (an operator's host with another HOME and
+  an empty store): UNVERIFIED, and `relay_pair_says_the_way_past_the_expiry`: UNVERIFIED; the
+  refusals before anything connects now hold `pair --json` and `pair --pair-file` in place of
+  `status NAME --json`, which works: UNVERIFIED. `crates/podssh-cli/tests/node_expiry.rs`,
+  `status_in_a_pair_s_last_day_says_how_long_is_left` (the stand-in's `expirefirst`, from the
+  store and from the operator's file): UNVERIFIED.
+- The plant `scripts/plants/t591-pair-file-ignored.plant`: UNVERIFIED (the planted runs wait,
+  Q88).
+
+`cargo test -p podssh-cli --test relay`: UNVERIFIED. `cargo test -p podssh-cli --test node_expiry`:
+UNVERIFIED. `cargo test -p podssh-cli --lib relay_status`: UNVERIFIED. `cargo test -p podssh-relay
+--features blocking --test blocking`: UNVERIFIED. Clippy: UNVERIFIED.
