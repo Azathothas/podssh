@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 567 entries: 103 open, 5 partial, 16 blocked, 443 done.
+`TODO/INDEX.md` holds 567 entries: 102 open, 5 partial, 16 blocked, 444 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -234,7 +234,7 @@ and Q82 filed; and of #112 to #124, T-594, with M10's T-595, T-592 and
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119,
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The first drafts of 2026-11-03 are merged (T-595's first step among them). The second round
-(T-487, T-508, T-510, T-511, T-512, T-533, T-594 and T-595's next steps) waits on the
+(T-487, T-508, T-510, T-512, T-533, T-594 and T-595's next steps) waits on the
 branches `draft/worktree-agent-*` of GitHub, each merged in turn.
 
 **Skip** the entries that the operator holds (status

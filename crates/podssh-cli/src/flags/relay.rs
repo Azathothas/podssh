@@ -94,6 +94,13 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
     row(None, "hop", Some("[USER@]HOST[:PORT]"), FlagKind::Supported,
         "check only this host and a first hop of -J as --direct reaches it: the connection through HTTPS_PROXY with the \
          server's banner, its host key, and the methods that it offers to a key made for the check", None),
+    // The time of a run (T-511): fewer sections, or fewer at once.
+    row(None, "quick", None, FlagKind::Supported,
+        "check this host, the egress and the relay alone, with the roads that the run names (--forwarder, \
+         --shadowsocks, --via, --vless); a line names the sections that it left out", None),
+    row(None, "jobs", Some("N"), FlagKind::Supported,
+        "run at most N sections at once, 1 to 64, in the order of the report (default: each at once; also DoctorJobs \
+         of the settings file); --jobs 1 runs one after another", None),
     super::forwarder::DOCTOR_FORWARDER,
     super::shadowsocks::DOCTOR_SHADOWSOCKS,
     super::vless::DOCTOR_VLESS,

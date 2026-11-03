@@ -349,14 +349,17 @@ fn lossy_proxy() -> u16 {
 fn a_proxy_that_drops_one_connect_in_three_shows_a_loss_of_33_percent() {
     let proxy = format!("http://127.0.0.1:{}", lossy_proxy());
     let set = [("https_proxy", proxy.as_str())];
-    let args = ["--relay-host", "relay.example"];
+    // One section at a time (T-511): the proxy counts each connection, so
+    // the egress's probes must be its first 27, as no other section's dial
+    // comes between them then.
+    let args = ["--relay-host", "relay.example", "--jobs", "1"];
     let run = doctor(&args, &set, &[], false);
     let lines: Vec<&str> = run.out.lines().filter(|l| l.split_whitespace().nth(1) == Some("CONNECT")).collect();
     assert_eq!(lines.len(), 3, "{}", run.out);
     for line in &lines {
         assert!(line.contains("loss 3 of 9 (33 %: 3 broke)"), "{line}");
     }
-    let json = doctor(&["--json", "--relay-host", "relay.example"], &set, &[], false);
+    let json = doctor(&["--json", "--relay-host", "relay.example", "--jobs", "1"], &set, &[], false);
     let doc: serde_json::Value = serde_json::from_str(&json.out).expect("stdout is one JSON object");
     let probes: Vec<&serde_json::Value> =
         doc["checks"].as_array().unwrap().iter().filter(|c| c["check"] == "CONNECT").collect();

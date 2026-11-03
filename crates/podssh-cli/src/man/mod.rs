@@ -23,6 +23,8 @@ mod notes_chat;
 mod notes_config;
 mod notes_containers;
 mod notes_detached;
+// doctor's notes on the time of a run (T-511).
+mod notes_doctor;
 mod notes_each;
 mod notes_edit;
 mod notes_health;

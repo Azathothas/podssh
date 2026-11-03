@@ -42,13 +42,13 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    and `detail`) and `counts` (`ok`, `fail`, `unknown`). `status` is "ok", "FAIL" or "unknown",
    the shape of GitHub #9. The exit code does not change.
 3. One model and two renderers, as `podssh man` has (`crates/podssh-cli/src/man/model.rs`).
-4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:80-101`), read it into
+4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:80-108`), read it into
    `Parsed::Doctor` (`crates/podssh-cli/src/tree.rs` lines 172-181 and 384-392 at `c6f09a8`), and pass it on in
-   `crates/podssh-cli/src/dispatch.rs:189-222`. `tree.rs` has 454 lines and `dispatch.rs` 448:
+   `crates/podssh-cli/src/dispatch.rs:189-226`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:208-280`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:208-282`) and
    `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
@@ -146,7 +146,7 @@ manual do not keep the kind and the `instead` of a flag.
    (`crates/podssh-cli/src/man/mod.rs` lines 73-78 at `332ee58`).
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:41-42`).
 6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:379-386`), the field to
-   `man::Request` (`crates/podssh-cli/src/man/mod.rs:53-60`), and the parse
+   `man::Request` (`crates/podssh-cli/src/man/mod.rs:55-62`), and the parse
    (`crates/podssh-cli/src/tree.rs:240-248`). JSON for `--help` stays with T-010.
 
 ## Prove
@@ -227,7 +227,7 @@ opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:107-125`,
 ## Approach
 
 1. The syntax: `podssh status [OPTIONS] [[user@]host[:port]]`, with the relay flags of `doctor`
-   (`crates/podssh-cli/src/flags/relay.rs:80-101`). Remove the owner row, and add "status" to
+   (`crates/podssh-cli/src/flags/relay.rs:80-108`). Remove the owner row, and add "status" to
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-143`).
 2. Write one line of JSON to stdout and exit 0 (64 for a usage error). No text form: `doctor`
    is the report for people.
@@ -334,8 +334,8 @@ and `crates/podssh-ssh/src/keys.rs:107-139` offers a key to the server.
    be tested; the notes say so. No OpenSSH step (Decision).
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
-6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:80-101`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:208-280`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
+6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:80-108`), the `doctor` notes
+   (`crates/podssh-cli/src/man/notes.rs:208-282`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4365-4393`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4391-4419`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.
@@ -774,10 +774,10 @@ call at `crates/podssh-cli/src/mcp/mod.rs:261-293`. The messages in
 `crates/podssh-cli/src/mcp/protocol.rs:113-168` and
 `crates/podssh-cli/src/mcp/protocol.rs:188-220`, the answers at
 `crates/podssh-cli/src/mcp/protocol.rs:232-245`. The tools at
-`crates/podssh-cli/src/mcp/tools.rs:50-135`, the command line of a call at
-`crates/podssh-cli/src/mcp/tools.rs:194-257`, with the options of each
-session at `crates/podssh-cli/src/mcp/tools.rs:164-182`, and its result at
-`crates/podssh-cli/src/mcp/tools.rs:302-344`. The child of a call at
+`crates/podssh-cli/src/mcp/tools.rs:50-136`, the command line of a call at
+`crates/podssh-cli/src/mcp/tools.rs:195-260`, with the options of each
+session at `crates/podssh-cli/src/mcp/tools.rs:165-183`, and its result at
+`crates/podssh-cli/src/mcp/tools.rs:305-347`. The child of a call at
 `crates/podssh-cli/src/mcp/child.rs:63-122`, its streams at
 `crates/podssh-cli/src/mcp/child.rs:125-157`. The patterns of
 `--allow-host` at `crates/podssh-cli/src/mcp/allow.rs:36-124`. The flags in
@@ -909,7 +909,7 @@ its session at `crates/podssh-cli/src/proxy.rs:410-417`; the bytes of the
 pump at `crates/podssh-cli/src/pipe/pump.rs:96` and
 `crates/podssh-cli/src/pipe/pump.rs:106-134`, and the relay's close at
 `crates/podssh-cli/src/pipe/relay.rs:228`. `SessionLog` at
-`crates/podssh-cli/src/settings.rs:255-258`, and `podssh status` at
+`crates/podssh-cli/src/settings.rs:258-261`, and `podssh status` at
 `crates/podssh-cli/src/status.rs:124-135`. The variable in VARIABLES, the
 two files in FILES, and `docs/cli.md`.
 
@@ -1039,7 +1039,7 @@ Read, at `1769d79`, before this entry's work:
 - Read: the tools are `ssh_exec` (only when a host is allowed), `status`, `doctor` and `man`
   (`crates/podssh-cli/src/mcp/tools.rs`, lines 35-73 at `1769d79`); each call runs this binary
   again as a child (`crates/podssh-cli/src/mcp/mod.rs`, lines 6-11 at `1769d79`), whose command
-  line `plan` makes (`crates/podssh-cli/src/mcp/tools.rs:191-237`).
+  line `plan` makes (`crates/podssh-cli/src/mcp/tools.rs:192-240`).
 - Read: `ssh_exec` checks its destination against `--allow-host`
   (`crates/podssh-cli/src/mcp/tools.rs`, lines 170-173 at `1769d79`), and forces no prompt, a
   known host key, no forwarding and no shared connection, before the user's `-F`
@@ -1202,7 +1202,7 @@ servers and the quick tunnel's edge, through one proxy. Read at `01e371e`.
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1214,7 +1214,8 @@ never named among them.
 
 - Read: the sections run one after another, each awaited before the next: the network, the quick
   tunnel's UDP and its road over TCP, the relay, the forwarders, the roads of the build (iroh,
-  Tor), DERP and the pairs (`crates/podssh-cli/src/doctor/mod.rs:218-259`); the checks of the relay
+  Tor), DERP and the pairs (`crates/podssh-cli/src/doctor/mod.rs` lines 218-259 at `38f424c`,
+  which this entry moved to `crates/podssh-cli/src/doctor/sections.rs`); the checks of the relay
   and of the pairs have limits of 10 s (`crates/podssh-cli/src/doctor/relay_checks.rs:25`,
   `crates/podssh-cli/src/doctor/pairs.rs:14`).
 - Read: the report prints the sections in a fixed order, which `--json` keeps (T-049).
@@ -1248,13 +1249,102 @@ never named among them.
   alone.
 
 - **Ruled, Q73 (2026-11-02):** all the sections at once by default, against the cap of 3 above; a flag and a setting limit how many run together, down to one at a time. The Approach says it.
+- How many dials go at once (2026-11-03, the draft): each section keeps its own dials one after
+  another, as before, and only the sections run together. So a run holds at most one connection
+  for each section that runs (three in a run with no flag and no stored pair: the egress, the
+  relay and DERP; the quick tunnel's edge dials with `--full` alone; a forwarder, `--via`,
+  `--shadowsocks` and `--vless` only when named, and a pair's question only for a stored pair),
+  and the relay's forward its race of hosts (Q10). Q73 is the operator's ruling on rule 2 of
+  `AGENTS.md` for these, as Q67 was for XHTTP's second connection; no row of
+  `docs/decisions.md` changes. Lost: the dials of one section at once too (each relay host, each
+  DERP server, each iroh relay together): the time of a section would fall to its slowest server,
+  but a run would hold ten connections or more through a proxy that drops CONNECTs (L-31), and
+  Q73 named sections.
+- The sections are parts of the report, each with its own text and lines; the first part that
+  still runs goes out line by line, and each later part once those before it have ended
+  (`crates/podssh-cli/src/doctor/parts.rs`). Lost: each section held back until the end, which
+  would show nothing for the time of the longest; and lines in the order that they end, which
+  would break the order that `--json` and each reader of the text keep (T-049).
+- `--quick` keeps the section of each road that the run names (`--forwarder`, `--shadowsocks`,
+  `--via`, `--vless`, and the forwarders' line of the fallback, which dials nothing): the user
+  asked for those roads. It leaves out the quick tunnel's edge (its roots too, a line of that
+  road), iroh's lines (its bind in `this host` too), Tor, DERP and the pairs. The line of what it
+  left out is `????`, as a check that did not run, in a section `left out` at the end. Lost: an
+  `ok` line, which would count a check that measured nothing (T-509).
+- `--jobs N` takes 1 to 64, as `each --parallel` does; more than the sections of a run starts
+  each. `DoctorJobs` of the settings file is checked as the file is read (78), as each keyword is.
+  The MCP tool `doctor` takes `quick` beside `full`, for an agent that runs it at each start.
 
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-cli --test doctor -- quick
+cargo test -p podssh-cli --test doctor_jobs
+cargo test -p podssh-cli --test doctor
 cargo test -p podssh-cli --lib doctor
+cargo test -p podssh-cli --lib settings
+cargo test -p podssh-cli --lib mcp::tools
 ```
 
 Planted: `--quick` that still runs the road of DERP: the test of `--quick` fails.
+
+## Correction
+
+2026-11-03, the draft: the tests of the Approach's item 4 are in
+`crates/podssh-cli/tests/doctor_jobs.rs`, a file of their own, as
+`crates/podssh-cli/tests/doctor.rs` is near 500 lines; the Prove names it. A run at once is not
+held to 8 s: the egress's own probes (each CONNECT tried nine times) and the system resolver take
+a time of their own, which differs between hosts. The test reads the stand-in proxy's log of when
+each slow name came, within 3 s of each other at once and 3 s or more apart with `--jobs 1`, and
+holds the run at once to 6 s less than the run with `--jobs 1`. The test of the lossy proxy in
+`crates/podssh-cli/tests/doctor.rs` (`a_proxy_that_drops_one_connect_in_three_shows_a_loss_of_33_percent`)
+counts the proxy's connections, so it runs with `--jobs 1`, where the egress's 27 probes are its
+first.
+
+## Done
+
+2026-11-03, drafted by an agent and merged here; the results are the merge's. The Premise holds
+at the cited lines (read at `38f424c`).
+
+- `crates/podssh-cli/src/doctor/parts.rs` (new): the parts of a run. `run` starts at most `jobs`
+  parts in the order of the report, each with a `Seat`, the writer of its text; the first part
+  that has not ended sends its text as it comes, each later part holds it until those before it
+  have ended, and one writer of the report writes and flushes it. Each part's lines and counts
+  come back in order. Unit tests on a paused clock: three parts of 3 s, 1 s and 2 s take 3 s at
+  once and 6 s one at a time, with the same text in the same order; the head's first line goes
+  out at once and a later part's text when the head ends; two at once of three parts of 1 s take
+  2 s; no part ends at once.
+- `crates/podssh-cli/src/doctor/sections.rs` (new): `Checks` (from `mod.rs`, with `quick` and
+  `jobs`); `Kind`, each part with its section; `kinds`, the parts in the order of the report,
+  `--quick`'s and the roads named; `network`, the parts through `parts::run`; `jobs`, `--jobs`
+  before `DoctorJobs` before each at once, 64 for a bad flag and 78 for a bad value of the file;
+  `left_out_line`. Unit tests: the order, `--quick`'s parts, the sources of `jobs` and their
+  refusals, and the line of what `--quick` left out.
+- `crates/podssh-cli/src/doctor/mod.rs`: `DoctorArgs` takes `quick` and `jobs`; `--quick` leaves
+  out iroh's bind, the line of the quick tunnel's roots and, offline, the pairs, and ends with the
+  line of what it left out; `Report::ended` and `Report::absorb`, a part's lines into the report.
+  `crates/podssh-cli/src/parsed.rs`, `crates/podssh-cli/src/tree.rs` and
+  `crates/podssh-cli/src/dispatch.rs` carry the two flags.
+- `crates/podssh-cli/src/flags/relay.rs`: the rows `--quick` and `--jobs N`.
+- `crates/podssh-cli/src/settings.rs`: the keyword `DoctorJobs`, checked as it is read;
+  `crates/podssh-cli/src/settings_tests.rs`, its value and two bad ones.
+- `crates/podssh-cli/src/mcp/tools.rs`: the tool `doctor` takes `quick`;
+  `crates/podssh-cli/src/mcp/tools_tests.rs`, its words.
+- The manual: `crates/podssh-cli/src/man/notes_doctor.rs` (new), two notes of `doctor` (the
+  sections at once with `--jobs`, and `--quick`), which `crates/podssh-cli/src/man/notes.rs`
+  takes; the settings file's keywords in `crates/podssh-cli/src/man/data.rs`.
+- `crates/podssh-cli/tests/doctor_jobs.rs` (new): a stand-in proxy that refuses each CONNECT, at
+  once or after 3 s for a name that starts with `slow`, and logs when each name came. The four
+  slow sections at once and with `--jobs 1`; `--quick` with `--via` and in `--json`; a bad
+  `--jobs`. `crates/podssh-cli/tests/doctor.rs`: the lossy proxy's test with `--jobs 1`.
+- `docs/cli.md` (doctor's rules, the settings file, the MCP tool) and a row of `docs/STATUS.md`.
+- `scripts/plants/t511-quick-derp.patch` and `.plant`: the part of DERP in `--quick`'s parts.
+- Results, at the merge (2026-11-03): `cargo test -p podssh-cli --test doctor_jobs`: 3 passed
+  (at once, the four slow names came within 5 ms and the run took 4.8 s; one at a time, 16.8 s;
+  the test now says these spans with `--nocapture`); `--test doctor`: 13 passed; `--lib doctor`:
+  48; `--lib settings`: 9; `--lib mcp::tools`: 6; the lib: 740; `--test man_flag_parity` 6,
+  `--test flag_table` 9, `man_page` 10, `man_json` 4, `mcp` 6; `cargo clippy --all-targets -D
+  warnings`: clean. The time of `podssh doctor` on this cloud session's host: 22.0 s with
+  `--jobs 1`, 18.0 s at once, 18.2 s with `--quick` (42 ok each, 0 FAIL; the sections that
+  `--quick` leaves out run beside the others, so the egress's probes are the longest part here).
+  Planted (`sh scripts/plant-each.sh --here t511-quick-derp`): caught.

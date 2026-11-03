@@ -221,6 +221,8 @@ const DOCTOR: &[&str] = &[
      cache or DNS over HTTPS; a token, a session to github.com port 22 that must show the published host key \
      of GitHub, and the clock).",
     super::notes_pair::DOCTOR_SSHD,
+    super::notes_doctor::DOCTOR_AT_ONCE,
+    super::notes_doctor::DOCTOR_QUICK,
     "Each CONNECT, and the direct TCP check, is tried nine times over a second or more: its line gives \
      the best time (the path's floor), the median, the 95th percentile and the jitter (the median change \
      from one try to the next), and the loss, the tries that timed out and those that broke counted \

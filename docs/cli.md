@@ -2336,6 +2336,30 @@ and no `--timeout`: a person decides how long an edit takes.
 - `doctor` takes the relay settings of `ssh` and `proxy` (`--relay-host`,
   `--relay-addr`, `--ca-file` and their variables), so it checks the path
   that they use.
+- **The sections at once** (T-511, the operator's ruling Q73). The
+  sections that connect (the egress's probes, the quick tunnel's edge, the
+  relay, the forwarders and each road that the run names, iroh and tor in a
+  build with them, DERP and the pairs) start together by default, each into
+  its own part of the report, and the report keeps its order: a part's
+  lines go out once each part before it has ended, the first that still
+  runs line by line, as a run of one section at a time showed them. A run
+  then takes about as long as its longest section, not their sum (22 to
+  40 s in the testers' runs of `v1.0.0`, most of it the iroh relays, the
+  DERP servers and the quick tunnel's edge). Each section still reaches its
+  servers one after another, so a run holds at most one connection for
+  each section that runs, three in a run with no flag and no stored pair
+  (the egress, the relay, DERP), and the relay's forward races its hosts as `ssh` does
+  (Q10). `--jobs N` (1 to 64), or `DoctorJobs N` in the settings file,
+  starts at most N together, in the order of the report; `--jobs 1` is one
+  after another, as before. A bad value is 64 for the flag, 78 for the
+  file.
+- **`--quick`** (T-511) checks this host, the egress and the relay alone,
+  what each run of `ssh` and `proxy` needs, with the section of each road
+  that the run names (`--forwarder`, `--shadowsocks`, `--via`, `--vless`).
+  It leaves out the quick tunnel's edge (its roots, `UDP out`, `edge
+  road`), iroh and tor in a build with them, DERP and the pairs, and says
+  so in its last line, `sections` in the section `left out`, as `????`: a
+  check that did not run. The MCP tool `doctor` takes it as `quick`.
 - `ok`: the check ran and podssh can work with the result. A condition that
   podssh is made for (no listener, no pty, no user database entry, no DNS)
   is a fact and gives `ok`.
@@ -3886,7 +3910,8 @@ The tools:
   `isError` is true only when podssh failed, or the limit passed.
 - **`status`**, **`doctor`** and **`man`** give the JSON of `podssh
   status` (with a `destination`, which must be allowed), `podssh doctor
-  --json` (with `full`) and `podssh man --json` (with a `section`).
+  --json` (with `full`, and `quick` since T-511) and `podssh man --json`
+  (with a `section`).
 - **`health`** and the **`job_`** tools (T-488, GitHub #101), with a host
   allowed: `podssh health --json`; `job_start` (a command in the host's
   tmux, which outlives the call; the result's `id`), `job_list` (`job list
@@ -4165,8 +4190,9 @@ variables and above the built-in defaults: `RelayHost` (as `--relay-host`
 and `PODSSH_RELAY`), `RelayAddr` (as `--relay-addr` and `PODSSH_RELAY_ADDR`;
 each line adds to the flag's and the variable's pins), `RelayFailover` (as
 `--relay-failover`), `CaFile` (as `--ca-file` and `SSL_CERT_FILE`; `~` is
-the home), `SessionLog` (as `PODSSH_SESSION_LOG`, below) and `Direct` (yes
-or no, as `PODSSH_DIRECT`: the direct road after the relay hosts, T-363). It has `Keyword value` lines, `Keyword=value` too, and `#`
+the home), `SessionLog` (as `PODSSH_SESSION_LOG`, below), `Direct` (yes
+or no, as `PODSSH_DIRECT`: the direct road after the relay hosts, T-363) and
+`DoctorJobs` (1 to 64, as `doctor --jobs`, T-511). It has `Keyword value` lines, `Keyword=value` too, and `#`
 comments, read as an `ssh_config` line is; the first value of a keyword
 wins. The file is the one that `PODSSH_SETTINGS` names, an absolute path
 that must exist (`none` reads none); else the first that exists of

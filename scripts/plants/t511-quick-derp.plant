@@ -1,0 +1,6 @@
+# T-511: --quick that still runs the section of DERP; the test of --quick,
+# which reads the stand-in proxy's log of the names asked, must fail.
+ENTRY=T-511
+GROUP=cli-tests
+EXPECT='test quick_checks_the_host_the_egress_and_the_relay_and_names_what_it_left_out \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test doctor_jobs -- quick_checks_the_host_the_egress_and_the_relay_and_names_what_it_left_out'

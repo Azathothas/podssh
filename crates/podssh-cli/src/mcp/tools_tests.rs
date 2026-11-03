@@ -113,6 +113,11 @@ fn a_wrong_argument_is_the_calls_error() {
     assert_eq!(argv(&other("status", json!({ "destination": "web1" })).unwrap()), ["status", "--", "web1"]);
     assert_eq!(argv(&other("doctor", json!({ "full": true })).unwrap()), ["doctor", "--json", "--full"]);
     assert!(other("doctor", json!({ "full": "yes" })).is_err());
+    // --quick (T-511), alone or with --full.
+    assert_eq!(argv(&other("doctor", json!({ "quick": true })).unwrap()), ["doctor", "--json", "--quick"]);
+    let both = other("doctor", json!({ "full": true, "quick": true })).unwrap();
+    assert_eq!(argv(&both), ["doctor", "--json", "--full", "--quick"]);
+    assert!(other("doctor", json!({ "quick": 1 })).unwrap_err().starts_with("quick: expected true or false"));
     assert_eq!(argv(&other("man", json!({ "section": "exit-status" })).unwrap()), ["man", "--json", "exit-status"]);
     assert!(other("man", json!({ "section": "--roff" })).is_err());
 }
