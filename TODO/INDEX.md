@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**573 entries: 114 open, 2 partial, 2 blocked, 455 done.**
+**573 entries: 113 open, 2 partial, 2 blocked, 456 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 41 | 1 | 0 | 219 | 261 |
-| P3 | 73 | 0 | 2 | 172 | 247 |
-| **All** | 114 | 2 | 2 | 455 | 573 |
+| P3 | 72 | 0 | 2 | 173 | 247 |
+| **All** | 113 | 2 | 2 | 456 | 573 |
 
 ## Entries
 
@@ -542,7 +542,7 @@ repository and CI).
 | [T-472](copy.md) | P2 | M | none | feature | done | `cp`, `mv` and `run` say nothing of what they did without `-v`, and nothing in a pipe while a copy runs |
 | [T-473](copy.md) | P3 | M | none | feature | done | `cp` and `mv` have no `--no-clobber`, `--update` or `--backup` |
 | [T-474](copy.md) | P2 | S | none | feature | done | `cp` copies many small files one at a time unless `--parallel` is given |
-| [T-475](multi.md) | P3 | S | none | feature | open | `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go |
+| [T-475](multi.md) | P3 | S | none | feature | done | `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go |
 | [T-476](copy.md) | P2 | S | none | defect | done | `cp -r` says its first failure twice, and exits 66 for a device, FIFO or socket that it skips by design |
 | [T-480](multi.md) | P2 | M | none | defect | done | `health` gives the host's CPUs and memory where a container's cgroup allows fewer |
 | [T-481](multi.md) | P2 | M | none | feature | done | `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked |

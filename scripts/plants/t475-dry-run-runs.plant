@@ -1,0 +1,9 @@
+# T-475: a dry run of podssh run says its plan, then copies nothing and runs
+# its command all the same; the test of a dry run after a run and a change,
+# which looks first for the command's output, must fail.
+ENTRY=T-475
+GROUP=cli-tests
+EXPECT='test a_dry_run_after_a_change_plans_that_file_alone_and_runs_nothing \.\.\. FAILED'
+SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+RUN='cargo test --locked -p podssh-cli --test run_far -- a_dry_run_after_a_change_plans_that_file_alone_and_runs_nothing'
+LIMIT=2400

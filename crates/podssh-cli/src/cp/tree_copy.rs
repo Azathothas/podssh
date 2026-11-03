@@ -12,6 +12,9 @@
 //! the default of T-474), before each directory's mode is set (T-297). The
 //! steps on one name each are in `tree_items.rs`. `--no-clobber`, `--update`
 //! and `--backup` (T-473, `clobber.rs`) take each file, link and dry run.
+//! Each path that the excludes left out of the source is named at `-v` with
+//! its pattern, and counted for the summary (T-475); a dry run of `podssh
+//! run` plans only what its copy would change.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -30,7 +33,7 @@ use super::session::shown;
 use super::transfer::{self, Failed, Side};
 use super::tree::{self, Item, Special, Tree};
 use super::tree_conn::{flush, Conn, Linked, Waiting};
-use super::tree_items::{far_link, make_link, remove_far, remove_local, same_far, second_name};
+use super::tree_items::{far_dir, far_link, make_link, remove_far, remove_local, same_far, same_link, second_name};
 use super::Outcome;
 use crate::exitmap::Fault;
 
@@ -102,6 +105,18 @@ fn count_files(items: &[Item], tree: &Tree) {
     }
 }
 
+/// The paths of the source that the excludes left out (T-475): each said
+/// at `-v` with the pattern that left it out, shown as `shown` gives its
+/// path, and counted for the summary, so that an exclude does not read as a
+/// file that the copy lost.
+fn left_out(outcome: &mut Outcome, log: &Log, tree: &Tree, left: &[String], shown: impl Fn(&str) -> String) {
+    for rel in left {
+        let by = tree.excluded_by(rel).unwrap_or("an exclude");
+        log.verbose(&format!("{}: left out by {by}", shown(rel)));
+    }
+    outcome.left_out += left.len();
+}
+
 /// Copy the directory `source` to `dest` over `conn`: up or down.
 #[allow(clippy::too_many_arguments)]
 pub async fn copy(
@@ -159,7 +174,8 @@ async fn up(
             return failed(outcome, log, root, Failed::new(Fault::Usage, why));
         }
     }
-    let items = tree::walk_local(Path::new(src), tree);
+    let (items, left) = tree::walk_local(Path::new(src), tree);
+    left_out(outcome, log, tree, &left, |rel| local_join(Path::new(src), rel).display().to_string());
     count_files(&items, tree);
     let mut dirs = Vec::new();
     let mut clean = true;
@@ -173,7 +189,10 @@ async fn up(
             Item::Dir { rel, stamp } => {
                 let target = remote_join(&root, rel);
                 if tree.dry_run {
-                    outcome.planned.push(("mkdir", local_join(Path::new(src), rel).display().to_string(), target));
+                    // `podssh run` plans only what its copy would change.
+                    if !(tree.changed_only && far_dir(conn.sftp(), &target).await) {
+                        outcome.planned.push(("mkdir", local_join(Path::new(src), rel).display().to_string(), target));
+                    }
                     continue;
                 }
                 let Some(sftp) = conn.sftp() else { return };
@@ -191,9 +210,12 @@ async fn up(
             Item::File { rel } => {
                 let from = local_join(Path::new(src), rel).display().to_string();
                 let target = remote_join(&root, rel);
-                if tree.changed_only && !tree.dry_run && same_far(conn.sftp(), &from, &target).await {
+                // The look only reads, so a dry run makes it too (T-475).
+                if tree.changed_only && same_far(conn.sftp(), &from, &target).await {
                     outcome.unchanged += 1;
-                    gauge::passed();
+                    if !tree.dry_run {
+                        gauge::passed();
+                    }
                     continue;
                 }
                 let id = meta::inode(Path::new(&from));
@@ -256,7 +278,9 @@ async fn up(
             Item::Link { rel, target: names } => {
                 let target = remote_join(&root, rel);
                 if tree.dry_run {
-                    outcome.planned.push(("link", target, names.clone()));
+                    if !(tree.changed_only && same_link(conn.sftp(), &target, names).await) {
+                        outcome.planned.push(("link", target, names.clone()));
+                    }
                     continue;
                 }
                 let Some(sftp) = conn.sftp() else { return };
@@ -302,7 +326,7 @@ async fn up(
     // of the run, once each copy of it succeeded (T-144).
     if tree.delete {
         if let Some(sftp) = conn.sftp() {
-            let mut target = tree::walk_far(sftp, &root, &Tree { follow: false, ..tree.clone() }, false).await;
+            let (mut target, _) = tree::walk_far(sftp, &root, &Tree { follow: false, ..tree.clone() }, false).await;
             clobber::protect(&mut target, shape.clobber);
             for item in tree::to_delete(&items, &target) {
                 let path = remote_join(&root, tree::rel_of(&item));
@@ -351,7 +375,8 @@ async fn down(
         }
     }
     let Some(sftp) = conn.sftp() else { return };
-    let items = tree::walk_far(sftp, &src.path, tree, cfg!(windows)).await;
+    let (items, left) = tree::walk_far(sftp, &src.path, tree, cfg!(windows)).await;
+    left_out(outcome, log, tree, &left, |rel| remote_join(&src.path, rel));
     count_files(&items, tree);
     let mut dirs = Vec::new();
     let mut clean = true;
@@ -439,7 +464,7 @@ async fn down(
     // --delete: what the target has and the source lacks; it goes at the end
     // of the run (T-144).
     if tree.delete && root.is_dir() {
-        let mut target = tree::walk_local(&root, &Tree { follow: false, ..tree.clone() });
+        let (mut target, _) = tree::walk_local(&root, &Tree { follow: false, ..tree.clone() });
         target.retain(|i| !tree::not_copied(i));
         clobber::protect(&mut target, shape.clobber);
         for item in tree::to_delete(&items, &target) {

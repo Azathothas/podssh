@@ -1,5 +1,6 @@
 //! The steps of a tree's copy (`tree_copy.rs`) that act on one name each: a
-//! far file that a copy of `podssh run` left as it is, a link made there or
+//! far file, directory or link that a copy of `podssh run` leaves as it is,
+//! which its dry run plans no more (T-475), a link made there or
 //! here, another name of a file copied up, and the removal of the source of
 //! `mv -r`, which leaves each device, FIFO or socket, with the directories
 //! that hold it, as it copied none (T-476), and each file that
@@ -26,6 +27,22 @@ pub(super) async fn same_far(sftp: Option<&Sftp>, from: &str, target: &str) -> b
     let Ok(far) = sftp.lstat(target).await else { return false };
     let time = local.modified().ok().and_then(meta::seconds);
     far.is_regular() && !far.is_symlink() && far.size == Some(local.len()) && time.is_some() && far.mtime == time
+}
+
+/// Whether the far `target` is a directory already, which the copy of
+/// `podssh run` makes no more, so its dry run plans no `mkdir` (T-475).
+pub(super) async fn far_dir(sftp: Option<&Sftp>, target: &str) -> bool {
+    let Some(sftp) = sftp else { return false };
+    sftp.lstat(target).await.is_ok_and(|attrs| attrs.is_dir())
+}
+
+/// Whether the far `target` is a link that names `names` already, which
+/// [`far_link`] leaves as it is, so a dry run of `podssh run` plans no
+/// `link` (T-475).
+pub(super) async fn same_link(sftp: Option<&Sftp>, target: &str, names: &str) -> bool {
+    let Some(sftp) = sftp else { return false };
+    let is_link = sftp.lstat(target).await.is_ok_and(|attrs| attrs.is_symlink());
+    is_link && sftp.readlink(target).await.is_ok_and(|now| now == names)
 }
 
 /// A symbolic link at `target` on the server that names `names`: one that a

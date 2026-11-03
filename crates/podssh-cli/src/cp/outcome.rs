@@ -37,6 +37,9 @@ pub(super) struct Outcome {
     pub(super) pending: Vec<mirror::Pending>,
     /// The files that `podssh run` did not send again (T-192).
     pub(super) unchanged: usize,
+    /// The paths of a tree's source that the excludes left out, each the
+    /// top of what it left out (T-475).
+    pub(super) left_out: usize,
 }
 
 impl Outcome {

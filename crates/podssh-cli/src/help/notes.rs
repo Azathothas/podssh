@@ -46,6 +46,16 @@ pub fn verb_notes(verb: &Verb) -> String {
         s.push_str("  source is as it was: a side file in the cache, podssh-cp-*.resume, keeps\n");
         s.push_str("  the offset, never a byte of the file (podssh man files).\n");
     }
+    if verb.name == "run" {
+        // What never goes, and that an exclude removes nothing, which a user
+        // could not tell from a defect of the copy (GitHub #103, T-475).
+        s.push('\n');
+        s.push_str("target/, node_modules/ and .git/ never go, at any depth, nor what the\n");
+        s.push_str("  project's .podsshignore names (a pattern a line); --no-ignore sends them.\n");
+        s.push_str("  The summary counts what they left out, and -v names each.\n");
+        s.push_str("An exclude removes nothing on the host: what an earlier run sent stays.\n");
+        s.push_str("podssh cp -r has no default excludes, and reads no .podsshignore.\n");
+    }
     if verb.name == "job" {
         // The ID's form and fetch's 75, which the rows cannot say (T-512).
         s.push('\n');
@@ -100,6 +110,20 @@ mod tests {
             assert!(notes.contains("podssh-cp-*.resume"), "{name}: {help}");
         }
         assert!(!verb_notes(verb("sftp")).contains("podssh-cp-*.resume"));
+    }
+
+    /// `run --help` names what never goes and the file that adds to it, the
+    /// flag that sends them, its dry run, and that an exclude removes
+    /// nothing (T-475).
+    #[test]
+    fn run_help_names_the_default_excludes_and_the_ignore_file() {
+        let help = verb_help(verb("run"));
+        for word in [".podsshignore", "target/", "--no-ignore", "--dry-run", "removes nothing on the host"] {
+            assert!(help.contains(word), "{word}: {help}");
+        }
+        let notes = verb_notes(verb("run"));
+        assert!(notes.contains("podssh cp -r has no default excludes"), "{notes}");
+        assert!(help.ends_with(&notes), "the notes below the options: {help}");
     }
 
     /// `job --help` says what an ID is, in its about and below the options,

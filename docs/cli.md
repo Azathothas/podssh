@@ -1679,12 +1679,40 @@ a host, then runs a command in it, with the command's exit status (T-192,
   goes over SFTP, as a directory of `cp -r` does. `target/`,
   `node_modules/` and `.git/` never go, at any depth, nor what the
   project's `.podsshignore` (a pattern a line, as the file of
-  `--exclude-from`), `--exclude` and `--exclude-from` leave out. Nothing on
-  the far side is removed. Before the command starts, the summary of `cp`
+  `--exclude-from`), `--exclude` and `--exclude-from` leave out; `run
+  --help` names them in the row of `--exclude` and below the options
+  (T-475). Before the command starts, the summary of `cp`
   says at the default level what the copy did (T-472): `1 copied (34 B), 2
-  unchanged, in 0.6 s (56 B/s)`, also before the error of a copy that
-  failed; `-q` silences it. A copy that lasts writes a plain line each 10 s
+  unchanged, 2 left out, in 0.6 s (56 B/s)`, also before the error of a
+  copy that failed; `-q` silences it. `left out` counts the paths that the
+  excludes left out, each the top of what it left out (`target`, not each
+  file in it), and `-v` names each with its pattern: `PROJ/target: left out
+  by target/` (T-475). A copy that lasts writes a plain line each 10 s
   where stderr is no terminal, as `cp` does.
+- **`--no-ignore`** (T-475) sends `target/`, `node_modules/`, `.git/` and
+  what `.podsshignore` names too; `--exclude` and `--exclude-from` still
+  apply.
+- **Nothing on the far side is removed**: an exclude leaves a path out of
+  the copy, and what an earlier run sent stays there, as `run` has no
+  `--delete` (`cp -r --delete` makes a mirror). `cp -r` has no default
+  excludes and reads no `.podsshignore`: it copies what its command line
+  names (T-143's Decision), where `run`, a loop of work on a project,
+  reads its ignore file (T-192's Decision).
+- **`--dry-run`** (T-475,
+  `crates/podssh-cli/src/run_cmd/dry.rs`) connects and makes the copy's
+  looks, which only read, then prints on stdout what the copy would change,
+  in the lines of `cp -r --dry-run`: `mkdir DIR` for each far directory
+  that is not there (the parents of the far directory first), `copy SRC ->
+  DST` for each file whose size or time differs from the far file's,
+  `link DST -> TARGET` for a link that is not there as it is here, `skip
+  SRC: WHY` for an item that the copy would not copy (a FIFO, a loop); then
+  `run cd 'DIR' && COMMAND`.
+  After a run and one change, the plan is that file and the command.
+  Nothing changes on either side and nothing runs; stderr counts the paths
+  that the excludes left out (`2 paths left out by the excludes; -v names
+  each`), and no summary comes, as for `cp`. The exit is 0, or 255 when
+  the far side cannot be read: a far session that stops answering during
+  the plan gives no plan, as its looks would read as files to copy.
 - **Then the command** runs on the same connection, as `podssh ssh` runs
   one: `cd 'DIR' && COMMAND`, DIR in single quotes for a POSIX shell, the
   words of COMMAND joined with spaces as OpenSSH joins them, with stdin and
@@ -1990,7 +2018,9 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   in the order of the sources. With `--jsonl` each failure is an `error`
   object. `--exclude PATTERN` (repeatable; `*` and `?` within a name; with
   a `/`, from the root of the copy) and `--exclude-from FILE` (a pattern a
-  line; `#` starts a comment) leave paths out; `--dry-run` says each action
+  line; `#` starts a comment) leave paths out, and nothing else does: `cp
+  -r` has no default excludes and reads no `.podsshignore`, which `podssh
+  run` reads (T-475); `--dry-run` says each action
   (`mkdir`, `copy`, `link`, `skip`; with `--jsonl` an object each) and
   changes nothing. `mv -r` removes the source once each item of it is
   copied, and leaves a special file and the directories that hold it, and
@@ -2089,12 +2119,13 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   KiB/s)`. Each count of zero is left out but the first, and so are the
   bytes and the rate when nothing was copied; unchanged counts the files
   that `run` left as they were, skipped a device, a FIFO or a socket of a
-  tree and a file that `-n` or `-u` left out (T-473), and failed each
-  failure, said when it came. It comes also after a
+  tree and a file that `-n` or `-u` left out (T-473), left out the paths of
+  a tree's source that an exclude left out, each named at `-v` with its
+  pattern (T-475), and failed each failure, said when it came. It comes also after a
   failure, before an error that no line said before it, so that the error
   stays the last line. `-q` silences it; with `--jsonl` a `summary` object on
   stdout takes its place (`copied`, `bytes`, `unchanged`, `skipped`,
-  `failed` and `seconds`). `run` says it before the command starts, so
+  `left_out`, `failed` and `seconds`). `run` says it before the command starts, so
   that the command's stdout stays its own. A dry run gives none, nor a run
   that the `--timeout` ended, whose records went with it, nor `scp` and
   `sftp`, which keep the output of OpenSSH's.
