@@ -313,21 +313,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     }
 
     if verb.name == "relay" {
-        let get = |id: &str| matches.get_one::<String>(id).cloned();
-        return Parsed::Relay(Box::new(crate::relay_cmd::RelayArgs {
-            subcommand: get("subcommand"),
-            args: matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default(),
-            relay_host: get("relay-host"),
-            relay_addr: get("relay-addr"),
-            ca_file: get("ca-file"),
-            operator_file: get("operator-file"),
-            renew: matches.get_flag("renew"),
-            pair_file: get("pair-file"),
-            document: get("document"),
-            json: matches.get_flag("json"),
-            serve: crate::relay_serve::ServeArgs::from_matches(&matches),
-            refused,
-        }));
+        return Parsed::Relay(Box::new(crate::relay_cmd::RelayArgs::from_matches(&matches, refused)));
     }
 
     if verb.name == "ping" {

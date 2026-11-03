@@ -134,6 +134,16 @@ The code is in `crates/podssh-relay/`.
    `PODSSH_DIRECT=no` or the settings file's `Direct no` turns the fallback
    off ([cli.md](cli.md), "Options of `podssh ssh`").
 
+`podssh relay rank` (T-606) measures each host of the default list's pool
+from this host, on demand, one at a time: rounds of a session to
+`github.com:22` each, timed from the dial to the upgrade, and kept in the
+cache as `relay-rank.json` for 24 h for the egress that measured it. The
+order is the share of failed probes, then the median time to open, then the
+p95, a tie within 50 ms or 10 % kept in the order given. It is a measure of
+this host's path, which `/relays.json`'s rank is not (see "Relay facts for a
+client that selects a relay"); the default list's use of it is T-607's, and
+podssh makes no rank unasked unless `RelayRank auto` asks (Q89, T-608).
+
 A token is cached for its relay deployment, with the host that minted it.
 The hosts of the default deployment share one token: a pool host accepts the
 token of the default host (measured 2026-10-08). Any other host has its own
@@ -427,7 +437,8 @@ are `podssh relay`, `podssh node`, `podssh operator` and
 - `/trace?target=<host>:<port>&banner=1`: the relay connects to the target
   and gives the first banner line. Use it to tell a relay problem from a
   target problem. `podssh relay status`, `podssh relay info [HOST PORT]` and
-  `podssh relay trace HOST PORT` ask these three (T-058). Measured
+  `podssh relay trace HOST PORT` ask these three (T-058); `podssh relay rank`
+  times a session through each host from this host (T-606). Measured
   2026-10-11: a target trace answers `target` with `ok`, `road`, `dialed`,
   `address_family`, `connect_ms`, `first_byte_ms`, `bytes_seen`, `verdict`
   and `banner`, or with `error` alone for a target that the relay will not

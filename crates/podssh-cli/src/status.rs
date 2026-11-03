@@ -85,6 +85,7 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "session_log": session_log,
         "relay_failures": relay_failures(),
         "relay_opened": relay_opened(),
+        "relay_rank": crate::relay_rank::status_value(),
         "open_files": open_files(),
         "pairs": pairs_state(),
     });

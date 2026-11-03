@@ -49,6 +49,19 @@ pub const RELAY: &[&str] = &[
      tries, and podssh ping --relay-host HOST times one, from this host. With --json, the relay's fields \
      are unchanged, and pool_order says whose order it is and from which edge. With HOST PORT, also the \
      URL that the relay chooses for that target.",
+    "podssh relay rank measures each relay host from this host, one at a time, and keeps the rank: the \
+     default host and each host of its pool (the pool read first when none is cached), or the hosts of \
+     --relay-host. Each round probes each host in a new random order, 250 ms apart, with a session to \
+     github.com:22 (--target HOST:PORT for another) that sends no byte, and times the dial, TLS and the \
+     upgrade, the token's time left out, then --count pings; --rounds rounds, 3 by default, within 10 \
+     minutes. The hosts go in the order of the share of probes that failed, then the median time to \
+     open, then its p95; two medians within 50 ms or 10 % keep the order that the hosts came in. A line \
+     for each probe goes to stderr, and the rank to stdout, best first, or as one object with --json. \
+     The rank is a private file of the cache, relay-rank.json, with no token and no name of the proxy: \
+     the egress is a digest of the proxy's host and port, or direct, and the rank holds 24 h for it. \
+     --cached prints the rank kept, its age and whether it holds here, and --forget removes it; neither \
+     connects. Exit 0 when a host opened, 69 when none did or PODSSH_OFFLINE is set, 64 for a bad flag. \
+     podssh probes no host that the user did not ask it to (Q89).",
     "podssh relay trace HOST PORT asks the first relay host to dial the target and to read its first \
      line, with a forward token in a header and never in the URL: the relay's verdict (live, or \
      silent-or-unreachable for a target that sent nothing), the address that it dialed, the times of \

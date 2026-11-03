@@ -2649,7 +2649,7 @@ before anything else; `podssh doctor` is the report that measures.
   and `host` for a destination (its name in `known_hosts`, whether a key is
   recorded, the key types); `session_log` (T-056) and `relay_failures`, the
   relay hosts that each run tries last now, with `ago_s`, the `reason` and the `road` (T-059), and
-  `relay_opened`, those that opened lately, with `ago_s` and `opens` (T-563); `open_files`, the limit of open files: podssh raises its soft limit at start to the hard one, at most 65,536 (on macOS within `kern.maxfilesperproc`, then `OPEN_MAX` if the host refuses more), and gives the `soft` limit, the `hard` one (null for none), the soft one `at_start`, whether it was `raised` and the host's `refused` answer, a line at `-v` ("open file limit: 256 -> 10240") and the limit after an error of too many open files; null on Windows (T-564); `pairs`, each stored pair's `label`, `expires_ms`, whether it
+  `relay_opened`, those that opened lately, with `ago_s` and `opens` (T-563); `relay_rank`, the rank that `relay rank` kept, with `age_s`, `this_egress`, `holds`, `named`, `first` and `hosts`, null with none (T-606); `open_files`, the limit of open files: podssh raises its soft limit at start to the hard one, at most 65,536 (on macOS within `kern.maxfilesperproc`, then `OPEN_MAX` if the host refuses more), and gives the `soft` limit, the `hard` one (null for none), the soft one `at_start`, whether it was `raised` and the host's `refused` answer, a line at `-v` ("open file limit: 256 -> 10240") and the limit after an error of too many open files; null on Windows (T-564); `pairs`, each stored pair's `label`, `expires_ms`, whether it
   `expired`, and `next_now`, whether `relay pair LABEL` makes its next pair
   now, in its last 24 hours (T-395).
 - It never holds a token: it reads the cache entry without its token field
@@ -3033,6 +3033,19 @@ commands. The rules behind them:
   `relay status` with no NAME asks each relay host for its `/health`, one
   after the other, a line for each as it answers (the code that `doctor`
   uses, in `podssh-relay`): 0 when a host answered, 69 when none did.
+  `relay rank` measures each host from this host, one at a time (T-606):
+  the default host and each host of its pool, or the hosts of
+  `--relay-host`; `--rounds N` rounds (3) of a session to `github.com:22`
+  (`--target HOST:PORT`) each, in a new random order, 250 ms apart, within
+  10 minutes; the dial, TLS and the upgrade timed, the token's time left
+  out, and `--count N` pings (5). The order: the share of failed probes,
+  then the median time to open, then the p95, a tie within 50 ms or 10 %
+  kept in the order given. The rank goes to stdout (`--json`, one object)
+  and into the cache, `relay-rank.json`, private, with no token and the
+  egress as a digest of the proxy's host and port or `direct`; it holds
+  24 h for that egress. `--cached` prints it and `--forget` removes it,
+  neither connecting. Exit 0 when a host opened, 69 when none did or with
+  `PODSSH_OFFLINE`, 64 for a bad flag.
   `relay info [HOST PORT]` reads the first host's `/relays.json`: the edge
   that this host reaches, the pool in the relay's order, the limits, and
   with a target the URL that the relay chooses for it. The relay ranks the

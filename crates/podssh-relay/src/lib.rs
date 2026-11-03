@@ -65,7 +65,9 @@ pub mod pair;
 #[cfg(feature = "piping")]
 pub mod piping;
 pub mod pool;
+// The rank of the relay hosts as measured from this host (T-606).
 pub mod quick;
+pub mod rank;
 pub mod relay;
 #[cfg(feature = "pair")]
 pub mod reverse;

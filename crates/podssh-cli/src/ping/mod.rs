@@ -6,8 +6,9 @@
 //! Each step has a limit, and so has the whole run.
 
 mod far;
-mod relay;
-mod stats;
+// `relay rank` probes each host with the leg of `ping` (T-606).
+pub(crate) mod relay;
+pub(crate) mod stats;
 
 use std::io::Write;
 use std::sync::Arc;

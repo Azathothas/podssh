@@ -32,7 +32,7 @@ const MAX_BODY: usize = 512 * 1024;
 
 /// The relay hosts and their trust, with the pins applied; nothing is
 /// asked with `PODSSH_OFFLINE`.
-fn settings(args: &RelayArgs) -> Result<(RelayList, Trust), Refusal> {
+pub(crate) fn settings(args: &RelayArgs) -> Result<(RelayList, Trust), Refusal> {
     crate::pins::apply(args.relay_addr.as_deref())?;
     let env = std::env::var(podssh_relay::relay::RELAY_ENV).ok();
     let relays = crate::relay_settings::relays(args.relay_host.as_deref(), env)?;

@@ -159,6 +159,8 @@ mod relay_diag_text;
 pub mod relay_ends;
 // `podssh relay pair --renew NAME`: a pair renewed at podssh's relay role (T-592).
 mod relay_renew;
+// `podssh relay rank`: each relay host measured from this host, the rank kept (T-606).
+mod relay_rank;
 pub mod relay_serve;
 pub mod relay_settings;
 pub mod relay_spec;

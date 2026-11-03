@@ -41,11 +41,53 @@ pub struct RelayArgs {
     /// `spec`: a copy of the relay's document to check, read instead of the
     /// live one.
     pub document: Option<String>,
-    /// `status` with no NAME, `info` and `trace`: one JSON object.
+    /// `status` with no NAME, `info`, `trace` and `rank`: one JSON object.
     pub json: bool,
+    /// `rank` (T-606): the rounds of probes of each host, the pings of each
+    /// probe, the target of its sessions, the rank kept read back, or
+    /// forgotten.
+    pub rounds: Option<String>,
+    pub count: Option<String>,
+    pub target: Option<String>,
+    pub cached: bool,
+    pub forget: bool,
     /// `serve`: the relay as a role of podssh (T-169).
     pub serve: crate::relay_serve::ServeArgs,
     pub refused: Vec<(String, &'static str, &'static str)>,
+}
+
+impl RelayArgs {
+    /// The arguments of `podssh relay` from the parse of its command line.
+    pub(crate) fn from_matches(
+        matches: &clap::ArgMatches,
+        refused: Vec<(String, &'static str, &'static str)>,
+    ) -> RelayArgs {
+        let get = |id: &str| matches.get_one::<String>(id).cloned();
+        RelayArgs {
+            subcommand: get("subcommand"),
+            args: matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default(),
+            relay_host: get("relay-host"),
+            relay_addr: get("relay-addr"),
+            ca_file: get("ca-file"),
+            operator_file: get("operator-file"),
+            renew: matches.get_flag("renew"),
+            pair_file: get("pair-file"),
+            document: get("document"),
+            json: matches.get_flag("json"),
+            rounds: get("rounds"),
+            count: get("count"),
+            target: get("target"),
+            cached: matches.get_flag("cached"),
+            forget: matches.get_flag("forget"),
+            serve: crate::relay_serve::ServeArgs::from_matches(matches),
+            refused,
+        }
+    }
+
+    /// Whether a flag of `rank` alone was given.
+    fn rank_flags(&self) -> bool {
+        self.rounds.is_some() || self.count.is_some() || self.target.is_some() || self.cached || self.forget
+    }
 }
 
 /// Run the verb; returns the process exit code.
@@ -57,8 +99,15 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         let _ = writeln!(err, "podssh relay: {extra:?} is one word too many: {takes}");
         return EXIT_USAGE;
     }
-    if args.json && !(target || sub == Some("status")) {
-        let _ = writeln!(err, "podssh relay: --json goes with status, info and trace");
+    if args.json && !(target || matches!(sub, Some("status" | "rank"))) {
+        let _ = writeln!(err, "podssh relay: --json goes with status, info, trace and rank");
+        return EXIT_USAGE;
+    }
+    if args.rank_flags() && sub != Some("rank") {
+        let _ = writeln!(
+            err,
+            "podssh relay: --rounds, --count, --target, --cached and --forget go with `podssh relay rank` only"
+        );
         return EXIT_USAGE;
     }
     if args.operator_file.is_some() && sub != Some("pair") {
@@ -102,13 +151,17 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         (Some("spec"), Some(word)) => {
             Err(Refusal::usage(format!("spec takes no NAME, and {word:?} would be dropped: `podssh relay spec`")))
         }
+        (Some("rank"), None) => return crate::relay_rank::run(args, out, err),
+        (Some("rank"), Some(word)) => Err(Refusal::usage(format!(
+            "rank takes no NAME, and {word:?} would be dropped: `podssh relay rank`, or --relay-host HOSTS for other hosts"
+        ))),
         (Some("info"), _) => return crate::relay_diag::info(args, out, err),
         (Some("trace"), _) => return crate::relay_diag::trace(args, out, err),
         (Some(other), _) => Err(Refusal::usage(format!(
-            "there is no subcommand {other:?}; the subcommands are pair, revoke, status, info, trace, spec and serve"
+            "there is no subcommand {other:?}; the subcommands are pair, revoke, status, info, trace, rank, spec and serve"
         ))),
         (None, _) => Err(Refusal::usage(
-            "missing SUBCOMMAND: pair NAME, revoke NAME, status [NAME], info [HOST PORT], trace HOST PORT, spec or serve",
+            "missing SUBCOMMAND: pair NAME, revoke NAME, status [NAME], info [HOST PORT], trace HOST PORT, rank, spec or serve",
         )),
     };
     match done {

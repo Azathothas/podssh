@@ -1,0 +1,8 @@
+# T-606: the rank orders the hosts by each one's last probe in place of its
+# median; a host that is slow once in three, last, would then go after a
+# steady one that it beats twice: the unit test of that host must fail.
+ENTRY=T-606
+GROUP=cli-tests
+EXPECT='test rank::tests::a_host_slow_once_in_three_keeps_its_place_by_its_median \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib rank'
+LIMIT=1800

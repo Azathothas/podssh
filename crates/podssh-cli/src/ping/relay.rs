@@ -25,7 +25,7 @@ const PING_WAIT: Duration = Duration::from_secs(5);
 pub const REFERENCE: (&str, u16) = ("github.com", 22);
 
 /// What one relay host measured.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Leg {
     pub host: String,
     pub target: String,

@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/rank.rs
++++ b/crates/podssh-relay/src/rank.rs
+@@ -93,7 +93,7 @@
+         host: host.to_string(),
+         tries: probes.len() as u32,
+         opened: opens.len() as u32,
+-        open_p50_ms: nearest(&opens, 50.0),
++        open_p50_ms: probes.iter().rev().find(|p| p.opened()).and_then(|p| p.open_ms),
+         open_p95_ms: nearest(&opens, 95.0),
+         ping_p50_ms: nearest(&pings, 50.0),
+         why: probes.iter().rev().find_map(|p| if p.opened() { None } else { p.why.clone() }),
