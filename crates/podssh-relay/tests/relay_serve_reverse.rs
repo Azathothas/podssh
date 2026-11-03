@@ -270,8 +270,9 @@ async fn after_a_planned_stops_1012_the_node_joins_its_pair_again() {
     let (stop, stopped) = oneshot::channel();
     let test = async {
         role.until_said("reverse node").await;
-        assert!(role.cfg.pairs.restart(Duration::from_secs(5)).await, "each Close went out");
-        // The node connects again, after its backoff, to the pair it holds.
+        assert!(role.cfg.pairs.restart(Duration::from_secs(5)).await, "each Close went out, and was answered");
+        // The node connects again to the pair it holds: at once, or after
+        // its backoff when the stop's `503` met it (T-255).
         let deadline = std::time::Instant::now() + LIMIT;
         while role.events.lock().unwrap().iter().filter(|l| *l == "reverse node").count() < 2 {
             assert!(std::time::Instant::now() < deadline, "{:?}", role.events.lock().unwrap());

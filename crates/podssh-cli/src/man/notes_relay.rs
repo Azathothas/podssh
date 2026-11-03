@@ -115,7 +115,10 @@ pub const RELAY: &[&str] = &[
      its operators instead. A frame of the node for a session that ended in the last 2 seconds was on \
      its way, and is dropped; one for an id never given closes the node's socket with 1003, as the \
      contract says. Ctrl-C or SIGTERM first closes each socket of the reverse road with 1012, so that \
-     each node connects again and each session resumes once the relay is back with its pairs. Where \
+     each node connects again and each session resumes once the relay is back with its pairs: each \
+     socket gets the frames that wait for it first, 1 second at most, and the role waits for each \
+     answer to its Close, 3 seconds at most in all; a node or an operator that comes meanwhile gets \
+     503 and tries again. Where \
      nothing may listen, the node of a quick tunnel serves the same roads behind its tunnel, with no \
      listener, and the tunnel's name is the relay host: see podssh node --relay.",
     "--mint keys:FILE mints tokens and makes pairs for the keys of FILE alone, a list in the format of \

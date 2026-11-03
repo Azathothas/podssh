@@ -1,0 +1,13 @@
+--- a/crates/podssh-cli/src/pairs.rs
++++ b/crates/podssh-cli/src/pairs.rs
+@@ -195,10 +195,6 @@
+              so a new session may work"
+                 .to_string()
+         }
+-        1012 => format!(
+-            "the relay is restarting (relay close 1012: {reason}); the node connects again once it is back, so a \
+-             new session may work"
+-        ),
+         _ => format!("the relay ended the session (relay close {code}): {reason}"),
+     }
+ }

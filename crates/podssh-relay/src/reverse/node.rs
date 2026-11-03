@@ -125,9 +125,50 @@ pub fn after_close(close: &RelayClose) -> Next {
     }
 }
 
-/// Run the node until it ends; reconnect after a broken socket, with the
-/// jittered backoff of the forward opener. `config.pair` is then the pair that
-/// the node ended with: a new one after a re-pair.
+/// A relay's Close of a planned restart (RFC 6455's "Service Restart"), which
+/// podssh's relay role sends before it stops (T-255).
+pub const RESTART: u16 = 1012;
+
+/// A node connects again at once this often at most: a relay that takes each
+/// socket and drops it at once meets the backoff from the second time.
+pub const AT_ONCE_EVERY: Duration = Duration::from_secs(10);
+
+/// Whether a node whose socket ended connects again at once (T-255, T-421):
+/// after a socket that served, as a restart (`1012`), a drop with no Close
+/// and a fault of one frame are no overload; and once each [`AT_ONCE_EVERY`]
+/// at most, `last` being when it last went at once.
+pub fn again_at_once(served: bool, last: Option<Instant>, now: Instant) -> bool {
+    served && last.is_none_or(|at| now.saturating_duration_since(at) >= AT_ONCE_EVERY)
+}
+
+/// How a socket that served ended, in the words of the node's line: the
+/// relay's restart, a fault of this node's bytes, another Close, or a link
+/// that ended with no Close. `None` for a stop of the caller's.
+pub fn ended_words(end: &End) -> Option<String> {
+    let reason = |text: &str| match podssh_ws::text::one_line(text) {
+        shown if shown.is_empty() => "no reason".to_string(),
+        shown => shown,
+    };
+    Some(match end {
+        End::Stopped => return None,
+        End::Closed(close) if close.code == RESTART => {
+            format!("the relay is restarting (relay close {RESTART}: {})", reason(&close.reason))
+        }
+        End::Closed(close) if matches!(after_close(close), Next::Exit("fault")) => {
+            format!("the relay closed the node for a fault of this node: {} {}", close.code, reason(&close.reason))
+        }
+        End::Closed(close) => {
+            format!("the relay closed the node's socket (relay close {}: {})", close.code, reason(&close.reason))
+        }
+        End::Failed(e) => format!("the link to the relay ended with no Close ({})", reason(&e.to_string())),
+    })
+}
+
+/// Run the node until it ends; reconnect after a broken socket, at once the
+/// first time after a socket that served ([`again_at_once`]), else with the
+/// jittered backoff of the forward opener, with a line that says how the
+/// socket ended. `config.pair` is then the pair that the node ended with: a
+/// new one after a re-pair.
 ///
 /// A `409` at the first registration means that another node has the name,
 /// or that the relay still holds the socket of the node that ran just before
@@ -147,7 +188,12 @@ where
     let mut lost: Option<Instant> = None;
     // When the relay first answered `409` to a node that had held no socket.
     let mut first_conflict: Option<Instant> = None;
+    // When the node last connected again at once (T-255).
+    let mut at_once: Option<Instant> = None;
     loop {
+        // How the socket ended, when one served this time: the words of the
+        // next try's line.
+        let mut ended: Option<String> = None;
         let path = match crate::relay::node_path(&config.pair.name) {
             Ok(path) => path,
             Err(_) => return Exit::Forbidden,
@@ -184,6 +230,7 @@ where
                     Socket::Carrier(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
                 };
                 lost = Some(Instant::now());
+                ended = ended_words(&end);
                 match end {
                     End::Stopped => return Exit::Stopped,
                     End::Failed(_) => Next::Reconnect,
@@ -202,16 +249,8 @@ where
                         // sessions of this socket, not the node: a server
                         // that only this node reaches must not be locked out
                         // by one frame, and the layer resumes its sessions on
-                        // the next socket (T-409).
-                        Next::Exit(_) => {
-                            if let Some(say) = config.say {
-                                say(format!(
-                                    "the relay closed the node for a fault of this node: {} {}; connecting again",
-                                    close.code, close.reason
-                                ));
-                            }
-                            Next::Reconnect
-                        }
+                        // the next socket (T-409). The line says so.
+                        Next::Exit(_) => Next::Reconnect,
                         next => next,
                     },
                 }
@@ -250,9 +289,23 @@ where
                 config.pair = pair;
             }
             Next::Reconnect => {
+                // The first try after a socket that served goes at once: its
+                // sessions wait on the layer meanwhile (T-255, T-421).
+                let now = Instant::now();
+                if again_at_once(ended.is_some(), at_once, now) {
+                    at_once = Some(now);
+                    if let (Some(say), Some(ended)) = (config.say, &ended) {
+                        say(format!("{ended}; connecting again at once"));
+                    }
+                    continue;
+                }
                 retry = retry.saturating_add(1);
+                let wait = crate::open::backoff(retry);
+                if let (Some(say), Some(ended)) = (config.say, &ended) {
+                    say(format!("{ended}; connecting again in {:.1} s", wait.as_secs_f64()));
+                }
                 tokio::select! {
-                    () = tokio::time::sleep(crate::open::backoff(retry)) => {}
+                    () = tokio::time::sleep(wait) => {}
                     () = &mut stop => return Exit::Stopped,
                 }
             }
@@ -265,4 +318,43 @@ fn expired(pair: &Pair) -> bool {
     let now =
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0);
     pair.expires_ms <= now
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use podssh_ws::SessionError;
+
+    fn closed(code: u16, reason: &str) -> End {
+        End::Closed(RelayClose { code, reason: reason.into(), clean: true })
+    }
+
+    #[test]
+    fn a_socket_that_served_is_taken_again_at_once_once_each_10_s() {
+        let now = Instant::now();
+        assert!(again_at_once(true, None, now), "the first time after a socket that served");
+        assert!(!again_at_once(false, None, now), "a try that never had a socket backs off");
+        assert!(!again_at_once(true, Some(now), now + Duration::from_secs(3)), "twice within 10 s");
+        assert!(again_at_once(true, Some(now), now + AT_ONCE_EVERY), "10 s after the last time");
+    }
+
+    #[test]
+    fn the_words_of_an_end_name_a_restart_a_fault_a_close_and_a_drop() {
+        assert_eq!(
+            ended_words(&closed(1012, "relay restarting")).as_deref(),
+            Some("the relay is restarting (relay close 1012: relay restarting)")
+        );
+        assert_eq!(
+            ended_words(&closed(1003, "unknown session id")).as_deref(),
+            Some("the relay closed the node for a fault of this node: 1003 unknown session id")
+        );
+        assert_eq!(
+            ended_words(&closed(1011, "")).as_deref(),
+            Some("the relay closed the node's socket (relay close 1011: no reason)")
+        );
+        let dropped = ended_words(&End::Failed(SessionError::ClosedWithoutClose("the peer went".into())));
+        let words = dropped.as_deref().unwrap_or_default();
+        assert!(words.starts_with("the link to the relay ended with no Close ("), "{words}");
+        assert_eq!(ended_words(&End::Stopped), None, "a stop of the caller's is said by the caller");
+    }
 }

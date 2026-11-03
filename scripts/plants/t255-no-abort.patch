@@ -1,0 +1,15 @@
+--- a/crates/podssh-relay/src/serve/reverse/pairs.rs
++++ b/crates/podssh-relay/src/serve/reverse/pairs.rs
+@@ -313,11 +313,5 @@
+             socket.close(super::RESTART, super::RESTARTING);
+         }
+-        if !self.writers.settled(grace).await {
+-            // Each socket again, so that one that joined as the stop began
+-            // hears it too.
+-            for socket in self.sockets() {
+-                socket.abort(super::RESTART, super::RESTARTING);
+-            }
+-        }
++        let _ = self.writers.settled(grace).await;
+         let left = || until.saturating_duration_since(Instant::now());
+         self.writers.settled(left()).await && self.live.settled(left()).await

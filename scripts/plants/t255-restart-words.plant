@@ -1,0 +1,7 @@
+# T-255: `podssh operator` and `podssh ssh node://` take the relay's 1012
+# for a close like any other, with no word that the relay restarts and that
+# its node comes back; the test of the words of a 1012 must fail.
+ENTRY=T-255
+GROUP=resume
+EXPECT='test pairs::tests::a_relay_that_restarts_is_named_and_may_work_again \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib pairs::tests'

@@ -184,7 +184,9 @@ fn ended_at(part: &pair::OperatorPart) -> Result<Option<i64>, PairError> {
 /// How a session of the reverse road ended after `ready`, in words, the same
 /// for `podssh operator` and `podssh ssh node://NAME`. With no Close (`1006`)
 /// the link broke, and the relay drops links at random (T-255); a node that
-/// lost its link connects again. In both cases a new session may work.
+/// lost its link connects again; `1012` is a relay that restarts, as podssh's
+/// relay role closes each socket before a planned stop, and its node comes
+/// back once the relay does. In each case a new session may work.
 pub(crate) fn session_end(code: u16, reason: &str) -> String {
     match code {
         1006 => format!("the link to the relay ended with no Close ({reason}); a new session may work"),
@@ -193,6 +195,10 @@ pub(crate) fn session_end(code: u16, reason: &str) -> String {
              so a new session may work"
                 .to_string()
         }
+        1012 => format!(
+            "the relay is restarting (relay close 1012: {reason}); the node connects again once it is back, so a \
+             new session may work"
+        ),
         _ => format!("the relay ended the session (relay close {code}): {reason}"),
     }
 }
@@ -232,6 +238,13 @@ mod tests {
             );
             assert!(text.ends_with("so a new session may work"), "{text}");
         }
+    }
+
+    #[test]
+    fn a_relay_that_restarts_is_named_and_may_work_again() {
+        let text = session_end(1012, "relay restarting");
+        assert!(text.starts_with("the relay is restarting (relay close 1012: relay restarting)"), "{text}");
+        assert!(text.ends_with("so a new session may work"), "{text}");
     }
 
     #[test]

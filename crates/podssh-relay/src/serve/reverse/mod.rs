@@ -6,7 +6,8 @@
 //! `podssh relay serve` with no other relay. What the default deployment does
 //! not do, the role does: a bound of 1 MiB for a slow receiver (T-336), a
 //! frame in flight for a session just closed dropped, not the node's socket
-//! (T-421), and `1012` to each socket before a planned stop (T-255). Beside
+//! (T-421), and `1012` to each socket before a planned stop, after the frames
+//! that wait for it, with no socket joining meanwhile (T-255). Beside
 //! the contract, `POST /v1/renew/<name>` with the stop token renews a pair
 //! for 72 h, its tokens the same, and the status names the expiry (T-592).
 //!
@@ -44,6 +45,13 @@ pub const PING_EVERY: Duration = Duration::from_secs(20);
 pub const PINGS_ALLOWED: u32 = 3;
 /// How long a socket that the role closed waits for the peer's Close.
 pub const CLOSE_WAIT: Duration = Duration::from_secs(5);
+/// A planned stop's Close (T-255): RFC 6455's "Service Restart", which a
+/// client tells apart from a lost link, and connects again after.
+pub const RESTART: u16 = crate::reverse::node::RESTART;
+pub const RESTARTING: &str = "relay restarting";
+/// How long a planned stop lets the frames that wait for a socket go out
+/// before its `1012`; past it, the Close goes before them.
+pub const STOP_GRACE: Duration = Duration::from_secs(1);
 /// The contract's wait for a `ready`: `1013 node open timeout` after it.
 pub const OPEN_WAIT: Duration = Duration::from_secs(15);
 /// The contract's cap of one session, both ways together.
@@ -115,6 +123,12 @@ where
             answer(&mut stream, docs::json(&json!({ "stopped": stopped, "sessions": sessions }))).await
         }
         ("renew", "POST") => renew(&mut stream, name, &cfg).await,
+        // A planned stop closes each socket: one that would join now would
+        // be cut with no Close, so it waits for the role that comes back.
+        ("node" | "connect", _) if cfg.pairs.stopping() => {
+            let why = format!("reverse: {RESTARTING}");
+            answer(&mut stream, request::refusal(503, &why, &[("Retry-After", "1")])).await
+        }
         ("node", _) => node::join(stream, head, pending, pair, cfg).await,
         ("connect", _) => operator::join(stream, head, pending, pair, cfg).await,
         (_, method) => {
@@ -271,5 +285,55 @@ mod tests {
             NodeInbound::Close { reason: None, .. }
         ));
         assert_ne!(new_id().unwrap(), id, "each id is drawn");
+    }
+
+    /// A role that mints for anyone, with no listener: its requests come on
+    /// pipes.
+    fn config() -> Arc<Config> {
+        Arc::new(Config {
+            version: "podssh test".into(),
+            mint: Mint::Anyone,
+            tokens: super::super::tokens::Tokens::new([5; 32]),
+            policy: Default::default(),
+            egress: Default::default(),
+            limits: Default::default(),
+            pairs: Pairs::default(),
+            answered: Default::default(),
+            brake: Default::default(),
+            events: None,
+        })
+    }
+
+    /// T-255: while a planned stop closes each socket, a node or an operator
+    /// that would join gets `503` and a second to wait, not a socket that the
+    /// stop cuts with no Close; once it is over, the role takes them again.
+    #[tokio::test]
+    async fn while_a_planned_stop_runs_no_socket_joins() {
+        use tokio::io::AsyncReadExt;
+        let cfg = config();
+        let made = cfg.pairs.make(super::super::tokens::now_ms()).unwrap();
+        let held = cfg.pairs.hold_joins();
+        let sockets =
+            [(format!("/v1/node/{}", made.name), &made.node), (format!("/v1/connect/{}", made.name), &made.connect)];
+        for (path, token) in sockets {
+            let text = format!(
+                "GET {path} HTTP/1.1\r\nHost: relay-a.test\r\nX-Relay-Token: {token}\r\nUpgrade: websocket\r\n\
+                 Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
+                 Sec-WebSocket-Version: 13\r\n\r\n"
+            );
+            let head = request::parse_request(text.as_bytes()).unwrap();
+            let (mut near, far) = tokio::io::duplex(4096);
+            // Each wait is bounded: a socket that joined would be served on.
+            let asked = request(far, head, Vec::new(), cfg.clone(), None);
+            let _ = tokio::time::timeout(Duration::from_secs(5), asked).await;
+            let mut answer = Vec::new();
+            let _ = tokio::time::timeout(Duration::from_secs(5), near.read_to_end(&mut answer)).await;
+            let answer = String::from_utf8_lossy(&answer);
+            assert!(answer.starts_with("HTTP/1.1 503 "), "{path}: {answer}");
+            assert!(answer.contains("Retry-After: 1\r\n"), "{path}: {answer}");
+            assert!(answer.ends_with("reverse: relay restarting\n"), "{path}: {answer}");
+        }
+        drop(held);
+        assert!(!cfg.pairs.stopping(), "the role takes sockets again once the stop is over");
     }
 }

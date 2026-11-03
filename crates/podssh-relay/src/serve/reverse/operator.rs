@@ -56,6 +56,9 @@ pub async fn leg<S>(session: Arc<RelaySession<S>>, pair: Arc<Pair>, cfg: Arc<Con
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
+    // Until the operator answered a Close: a planned stop waits for it
+    // (T-255).
+    let _live = cfg.pairs.live.counted();
     let outbox = Outbox::start(session.clone(), cfg.pairs.writers.clone());
     let Some(id) = new_id() else {
         outbox.close(1011, "socket error");

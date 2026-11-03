@@ -100,8 +100,13 @@ found each of podssh's 7 facts in it.
    done: `podssh operator` and `podssh ssh node://NAME` say that the link
    ended with no Close, a node connects again, and the resumable layer
    carries a session over a drop.
-   In podssh: T-255 sends a Close before each planned stop of podssh's own
-   relay role (T-427), and measures this deployment's drops again.
+   In podssh: T-255 sends `1012` before each planned stop of podssh's own
+   relay role (T-427), after the frames that wait, and waits for each
+   answer; podssh's node says how each socket ended and connects again at
+   once after one that served; and the run above measures this
+   deployment's drops again, beside the role on a runner
+   (`reverse-drops.yml` with `relay: role`), with the time that each drop
+   costs podssh's node and a session of its layer.
 3. **No IPv6 egress** (T-253, [TODO/relay.md](../TODO/relay.md); [#2](https://github.com/Azathothas/podssh/issues/2)).
    Measured on 2026-10-08, at the version that the relay still serves: no
    IPv6 host can be reached. `/connect/2001:4860:4860::8888/853` (the bare

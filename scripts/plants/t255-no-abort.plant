@@ -1,0 +1,9 @@
+# T-255: a planned stop with no end to its grace, so that a socket that
+# takes nothing keeps its Close behind each frame that waits, and the stop
+# waits its whole limit for it; the test of a socket that took nothing for
+# the grace, which must get its 1012 after the frame on its way and none
+# after it, must fail.
+ENTRY=T-255
+GROUP=resume
+EXPECT='test serve::reverse::pairs::tests::past_the_grace_a_socket_that_took_nothing_gets_1012_first \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib serve::reverse::pairs'

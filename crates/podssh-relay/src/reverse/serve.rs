@@ -205,7 +205,12 @@ where
     };
     routes.lock().unwrap_or_else(|e| e.into_inner()).clear();
     drop(tx);
-    let _ = tokio::time::timeout(Duration::from_secs(5), &mut writer.0).await;
+    // A stop's last frames (each session's `close`, the Close) go out
+    // first. A socket that the relay closed, or that broke, takes nothing
+    // more, so the node goes on at once (T-255).
+    if matches!(end, End::Stopped) {
+        let _ = tokio::time::timeout(Duration::from_secs(5), &mut writer.0).await;
+    }
     end
 }
 

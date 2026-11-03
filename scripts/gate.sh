@@ -193,13 +193,14 @@ step_libs() {
     tests "the blocking facade against a stand-in relay (features blocking, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features blocking,plain-ws --test blocking_plain
     # The relay role (T-169, T-427): its routes, and its reverse road against
-    # raw sockets and against podssh's node and operator on plain ws://; its
-    # forward road through a stand-in of the host's proxy (T-457).
+    # raw sockets and against podssh's node and operator on plain ws://, also
+    # across a planned stop and the role's return (T-255); its forward road
+    # through a stand-in of the host's proxy (T-457).
     tests "the relay role's routes (feature serve, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve --lib serve::
     tests "the relay role's reverse road (features serve, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve,plain-ws \
-            --test relay_serve_contract --test relay_serve_reverse
+            --test relay_serve_contract --test relay_serve_reverse --test reverse_restart
     # The relay role behind a quick tunnel (T-428): through the stand-in edge
     # and its front over HTTP/2, and as the origin of a QUIC stream on pipes.
     tests "the relay role behind a quick tunnel (features quick, serve, plain-ws, no C compiler)" \

@@ -239,9 +239,13 @@ async fn a_planned_stop_closes_each_socket_with_1012() {
     let (operator, id) = opened(&role, &pair, &node).await;
     node.send_text(&format!(r#"{{"type":"ready","id":"{id}"}}"#)).await.unwrap();
     assert_eq!(next_text(&operator).await["type"], "ready");
-    assert!(role.cfg.pairs.restart(Duration::from_secs(5)).await, "each Close went out");
-    assert_eq!(closed(&operator).await, (Some(1012), "relay restarting".into()));
-    assert_eq!(closed(&node).await, (Some(1012), "relay restarting".into()));
+    // The stop waits for each peer's answer to its Close (T-255), which a
+    // read of the Close gives.
+    let stop = role.cfg.pairs.restart(Duration::from_secs(5));
+    let (stopped, operator_saw, node_saw) = tokio::join!(stop, closed(&operator), closed(&node));
+    assert!(stopped, "each Close went out, and each peer answered it");
+    assert_eq!(operator_saw, (Some(1012), "relay restarting".into()));
+    assert_eq!(node_saw, (Some(1012), "relay restarting".into()));
     // The pair stays: the node comes back to it, once the role let the old
     // socket go.
     for _ in 0..100 {

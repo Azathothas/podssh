@@ -93,7 +93,11 @@ pub(super) const NODE: &[&str] = &[
      with its tokens the same, and says each renewal; the store keeps the new expiry, and the lines \
      above are said only where the relay renews none. A stopped node deletes the stored pair only while it \
      is the node's own. A broken \
-     connection to the relay is made again, after a growing wait. After a loss the relay can still \
+     connection to the relay is made again, and a line says how it ended: the relay is restarting \
+     (1012, as podssh relay serve closes each socket before it stops), the link ended with no Close, \
+     a fault of the node's bytes, or another close. The first try after a connection that served goes \
+     at once, as none of these is an overload, and once each 10 s at most; each other try after a \
+     growing wait, which the line names. After a loss the relay can still \
      hold the old connection, and answer 409: the node then connects again for the time that it keeps \
      a session (10 minutes, or --resume-deadline), with a line for each 409. A 409 at the start means that another node \
      serves the pair, or that the relay still holds the connection of the node that ran just before: the node \

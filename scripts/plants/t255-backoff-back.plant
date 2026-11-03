@@ -1,0 +1,8 @@
+# T-255 (and T-421's second item): the node's first connection again after
+# a socket that served waits the backoff, 0.5 s to 1.5 s, as it did before;
+# the test of the planned stop, whose node must say that it connects again
+# at once and be online again within 1 s, must fail.
+ENTRY=T-255
+GROUP=resume
+EXPECT='test a_planned_stop_closes_each_socket_with_1012_and_the_sessions_resume_on_the_role_again \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test reverse_restart'

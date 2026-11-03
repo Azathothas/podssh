@@ -39,7 +39,9 @@ come from dropssh, a sibling project that implemented both sides.
    carried a byte each way afterwards (T-061, 2026-10-09). But the relay's
    side ends a socket's connection at random, with no Close (T-255). Count
    the probes that get no answer (dropssh probes every 20 s and stops after
-   3). Connect again with a jittered backoff. The relay answers a Ping on a
+   3). Connect again at once after a socket that served, as a drop, a
+   restart (`1012`) or one bad frame is no overload, and then with a
+   jittered backoff. The relay answers a Ping on a
    node socket with a Pong of the same payload (measured 2026-10-09), so
    podssh's node pings every 10 s and drops the socket after 3 silent
    intervals.
@@ -66,8 +68,14 @@ left, then exit; `1001 operator stopped reverse relay`, exit and delete the stor
 CLI's takes the pair stored under the node's label since, if it expires
 later, else the node exits (T-395); `1003` and `1009`, a fault of the node's own bytes, a line and a new
 socket, as one frame must not lock out a server that only the node reaches
-(T-409; the sessions of the socket resume on the next); anything else,
-connect again with the jittered backoff. A node that cannot connect as it is set up (an unusable
+(T-409; the sessions of the socket resume on the next); `1012`, a restart
+of the relay, which podssh's relay role sends before a planned stop, and
+anything else: connect again. For each socket that ends, a line on stderr
+says how (the relay restarting, a link with no Close, a fault, another
+close) and when the node connects again: at once the first time after a
+socket that served, and at most once each 10 s, as its sessions wait on the
+layer meanwhile (T-255, T-421); else after the jittered backoff, which the
+line names. A node that cannot connect as it is set up (an unusable
 proxy setting or trust store) exits too, as connecting again would repeat
 it. A stop closes each session with `close {id}`, then the socket with
 `1000`. Measured against the live relay on 2026-10-09: two
@@ -295,7 +303,11 @@ by a name of the user's own, and by its key, and asks no directory
 4. An end with no Close is the link, and so is `1011 node disconnected` for
    the node's link: the relay's side drops them at random (T-255). Say so,
    and that a new session may work; the node connects again by itself.
-   `podssh operator` exits 69 for both.
+   `1012` is a relay that restarts, which podssh's relay role sends before
+   a planned stop: say that, and that the node comes back with the relay.
+   `podssh operator` exits 69 for each. A session of the layer resumes on
+   a new leg after each of them, and says nothing of it but its loss and
+   its resume.
 
 ## Credentials
 

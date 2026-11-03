@@ -1,6 +1,10 @@
 //! The tests of the role's pairs, in a file of their own so that `pairs.rs`
 //! stays within 500 lines.
 
+use podssh_ws::frame;
+use podssh_ws::session::{close_code_and_reason, RelaySession};
+use tokio::io::DuplexStream;
+
 use super::*;
 
 #[test]
@@ -84,4 +88,65 @@ fn the_file_keeps_digests_and_no_token() {
     again.end(&made.name, 1001, "operator stopped reverse relay");
     assert!(Pairs::open(Some(path)).unwrap().is_empty(), "a stopped pair leaves the file");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A pair of the role with one operator's socket on a pipe of 1 KiB, so
+/// that its frames wait in the queue, four of 16 KiB queued; the client's
+/// end of the socket.
+fn one_operator_with_four_frames() -> (Pairs, RelaySession<DuplexStream>) {
+    let pairs = Pairs::default();
+    let made = pairs.make(1_000).unwrap();
+    let pair = pairs.find(&made.name, Role::Connect, Some(&made.connect), 2_000).unwrap();
+    let (ours, theirs) = tokio::io::duplex(1024);
+    let outbox = Outbox::start(Arc::new(podssh_ws::server::session(ours, Vec::new(), None)), pairs.writers.clone());
+    let id = SessionId::parse(b"0123456789abcdef0123456789abcdef").unwrap();
+    let session = Session { operator: outbox.clone(), ready: true, answer: None, bytes: 0 };
+    pair.lock().sessions.insert(id, session);
+    for n in 0..4u8 {
+        outbox.binary_or_full(vec![n; 16 * 1024]).unwrap();
+    }
+    (pairs, RelaySession::new(theirs, Vec::new(), None, Duration::from_secs(10)))
+}
+
+/// The first byte of each binary frame that `client` reads, then its Close.
+async fn frames_then_close(client: &RelaySession<DuplexStream>) -> (Vec<u8>, (Option<u16>, String)) {
+    let mut firsts = Vec::new();
+    loop {
+        let read = tokio::time::timeout(Duration::from_secs(10), client.read_frame()).await;
+        let f = read.expect("a frame in time").expect("a frame");
+        if f.opcode == frame::OPCODE_CLOSE {
+            return (firsts, close_code_and_reason(&f.payload));
+        }
+        firsts.push(f.payload.first().copied().unwrap_or_default());
+    }
+}
+
+/// T-255: a planned stop gives a socket the frames that wait for it, the
+/// sessions' last bytes, and then its `1012`.
+#[tokio::test]
+async fn a_planned_stop_sends_what_waits_then_its_1012() {
+    let (pairs, client) = one_operator_with_four_frames();
+    let (closed, (firsts, close)) = tokio::join!(pairs.restart(Duration::from_secs(5)), frames_then_close(&client));
+    assert!(closed, "each Close went out");
+    assert_eq!(firsts, [0, 1, 2, 3], "each frame that waited, in order, before the Close");
+    assert_eq!(close, (Some(1012), "relay restarting".to_string()));
+    assert!(!pairs.stopping(), "the stop is over");
+}
+
+/// T-255: a socket that takes nothing for the grace gets its `1012` before
+/// what still waits, and no socket joins while the stop runs.
+#[tokio::test]
+async fn past_the_grace_a_socket_that_took_nothing_gets_1012_first() {
+    let (pairs, client) = one_operator_with_four_frames();
+    let grace = Duration::from_millis(200);
+    let stop = pairs.restart_with(grace, Duration::from_secs(5));
+    tokio::pin!(stop);
+    // Nobody reads: the writer stays in its first frame past the grace.
+    assert!(tokio::time::timeout(2 * grace, &mut stop).await.is_err(), "the stop waits for the socket");
+    assert!(pairs.stopping(), "no socket joins while the stop runs");
+    let (closed, (firsts, close)) = tokio::join!(stop, frames_then_close(&client));
+    assert!(closed, "each Close went out");
+    assert_eq!(firsts, [0], "the frame on its way, and none after it");
+    assert_eq!(close, (Some(1012), "relay restarting".to_string()));
+    assert!(!pairs.stopping(), "the stop is over");
 }
