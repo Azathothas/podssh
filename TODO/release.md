@@ -1243,7 +1243,7 @@ unattended once the testers' defects pass the checks of a release, then the next
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1318,3 +1318,18 @@ down), `reverse.two`, `iroh.n0`, headscale, `irc.image`; the skips are those of 
 (railway, `irc.live`, the direct cell, Q32's two, the tailnet). Step 3: `release.yml` with
 `publish=v1.0.1` on the branch `release/v1.0.1` at `6ece1f9` (run 41584435178), as `main` takes
 the record meanwhile.
+
+2026-11-03, done. `v1.0.1` is tagged at `6ece1f9` and published, not a prerelease
+(https://github.com/Azathothas/podssh/releases/tag/v1.0.1, 05:45:58 UTC), by the tag's run
+(41584450122): twelve files, the eight binaries of the dry run's sizes, `SHA256SUMS`, its
+signature, the provenance and the licenses. After it, `release-proofs.yml` (run 41585851581) and
+`update-live.yml` with `tag=v1.0.1` (run 41585854741) passed. `sh scripts/release-check.sh
+v1.0.1` on the published files ran its first 20 rows: 19 passed (the twelve files, no prerelease,
+the tag's commit, the version, the sums' names, the signature by `release.yml` at
+`refs/tags/v1.0.1`, each binary against its sum, the provenance of 8 of 8, static, the short
+form, the sandbox's check, the README's steps, `pipe`, the fresh container's two, `update
+--check`, `irc.live` through OFTC, `irc.image`, headscale) and railway was a SKIP (T-422). It was
+stopped there by the operator's ruling Q88 (2026-11-03): its long rows (throughput, `cp` of 200
+MiB, `reverse.two`, `iroh.n0`) and its ACTIONS rows wait until podssh is stable; the code of the
+tag passed them before the tag. Step 4: the README names `v1.0.1` since step 1; `v1.1.0-beta.1`
+follows with the merges after it (T-446).

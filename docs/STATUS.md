@@ -42,7 +42,11 @@ build without their features.
   T-250): `v1.0.0-beta.1` is published (2026-10-30, at `5c8d423`), and
   `v1.0.0-beta.2` (2026-10-31, at `f7f97a5`) and `v1.0.0-beta.3`
   (2026-11-01, at `54d89a0`), each with the provenance of each binary and a
-  signature of its checksums.
+  signature of its checksums. `v1.0.0` is published (2026-11-02, at
+  `35a0d19`), and `v1.0.1` with the repairs of its testers' defects
+  (2026-11-03, at `6ece1f9`; `release-proofs.yml` run 41585851581,
+  `update-live.yml` run 41585854741). Until podssh is stable the expensive
+  checks wait (Q88).
 
 The open work, the defects included, is in [TODO/INDEX.md](../TODO/INDEX.md),
 and its order in [TODO/PROGRESS.md](../TODO/PROGRESS.md). The milestones are

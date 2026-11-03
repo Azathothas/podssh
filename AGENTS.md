@@ -147,6 +147,14 @@ the next entries.
 
 ### Releases
 
+- **Move fast until podssh is stable (Q88, 2026-11-03).** A release or a
+  beta goes out when the gate is green at its commit, the release workflow
+  passed by hand on it, and `scripts/release-short.sh BINARY --net` passed
+  on its binary; after the tag, `release-proofs.yml` and `update-live.yml`.
+  The whole release check of T-251, the dispatch of each live and interop
+  workflow at a candidate, `plants.yml` and planted defects in the build
+  image wait until the operator calls podssh stable; the rules below that
+  ask for them hold again then.
 - Betas (the operator, 2026-10-30; T-309): a prerelease from `main` when
   the gate passed on its commit, the release workflow passed by hand on it,
   and the local checks of its binary passed. The next beta follows a batch
@@ -297,8 +305,10 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    the checks of the release (T-251; `docs/decisions.md`, 2026-10-09); the
    entry's `## Done` says what waits. So does a live test of more than 5
    minutes or 100 MiB; a shorter live test runs with the entry, and so does
-   each live test of the relay (the operator, 2026-10-31). A test that
-   fails at random is repaired before any other work.
+   each live test of the relay (the operator, 2026-10-31). Until podssh is
+   stable (Q88), a live test of more than a few minutes waits too, and work
+   does not wait on a gate that has not ended; a red gate is repaired first.
+   A test that fails at random is repaired before any other work.
 2. Test protocol code against software that podssh did not write: OpenSSH,
    Dropbear, a real IRC server, the live relay, or bytes captured from one.
    A test that needs the build image waits for T-251.

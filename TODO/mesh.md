@@ -4374,7 +4374,7 @@ that they let podssh in.
   which a server may count by,": a server may refuse podssh by the name of its program.
 - `crates/podssh-relay/tests/derp_live.rs:3` says "server of the fleet whose probe answers
   through the proxy of the": the live test of tailcat's fleet, 64 KiB each way, run by hand.
-- `AGENTS.md:251` says "session's own host: Tailscale's main DERP fleet, to learn whether it
+- `AGENTS.md:259` says "session's own host: Tailscale's main DERP fleet, to learn whether it
   lets": short runs from GitHub Actions and the session's host.
 
 ## Approach
@@ -4451,7 +4451,7 @@ taken over.
   proxies on", and `docs/carriers.md:225` says "No host names an operator, terms or limits. The
   sweep flagged 54 of": the sweep's hosts give no operator, and most are domains of other
   parties, so none of them is a source for this entry.
-- `AGENTS.md:252` says "podssh in (Q74); the public Wisp servers that their operators run for
+- `AGENTS.md:260` says "podssh in (Q74); the public Wisp servers that their operators run for
   that": short live runs may reach them.
 
 ## Approach
