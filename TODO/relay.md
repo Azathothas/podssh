@@ -791,7 +791,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:121-296`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:171-207`); the variable to VARIABLES and the modes to THE
+   (`crates/podssh-cli/src/ssh/args.rs:174-211`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:46-298`, 170-183); both to `docs/relay.md:84-127`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:209-223`,
    `crates/podssh-cli/src/man/data.rs:168-176`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:218-294`).
+   notes (`crates/podssh-cli/src/man/notes.rs:222-298`).
 
 ## Decision
 
@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:303`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:304`). That is one run, before 2026-10-09.
 
 ## Approach
 

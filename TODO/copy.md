@@ -332,8 +332,8 @@ a script expects, and its login shell may not be a POSIX shell.
 
 - Read: an exec with no pty carries bytes unchanged: 262144, 262145 and
   5,000,000 bytes up and back with equal digests on OpenSSH and Dropbear
-  (`docs/STATUS.md:119`, `scripts/interop.sh:139-154`), and 300 KB up and
-  5 MB down through the relay (`docs/STATUS.md:123`).
+  (`docs/STATUS.md:120`, `scripts/interop.sh:139-154`), and 300 KB up and
+  5 MB down through the relay (`docs/STATUS.md:124`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
   a terminal (`crates/podssh-ssh/src/session.rs:77-87`).
@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:383`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:384`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:382`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:383`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:312-333` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:4356-4359`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:4374-4377`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:26-29`): `docs/relay.md:328-340` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:381`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:382`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1273,7 +1273,7 @@ differ", and the destination was not changed. The measurement:
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:381`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:382`).
 
 ## Premise
 
@@ -1546,7 +1546,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:381`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:382`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -3790,7 +3790,7 @@ Planted: the new field read as required: the test of `scp` with no terminal fail
 (EXIT STATUS), and a handshake that ConnectTimeout ends is a hop that could not be reached
 (`crates/podssh-ssh/src/run.rs:405` says "Err(timed_out) => return Err(HopError::Unreachable(timed_out)),"),
 which a copy takes as a server that cannot be reached, 69
-(`crates/podssh-cli/src/cp/link.rs:217`). Read, not measured; the test asks for 69 within 10 s.
+(`crates/podssh-cli/src/cp/link.rs:222`). Read, not measured; the test asks for 69 within 10 s.
 The field of the row is `FlagRow::optional` (`crates/podssh-cli/src/flags.rs`), set by
 `optional(row(...))` on the row of `--timeout` of `scp` and `sftp`, and false on each other row.
 
