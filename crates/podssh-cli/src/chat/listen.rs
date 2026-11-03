@@ -79,6 +79,9 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
         (Some(path), false) => format!("in {}", path.display()),
     };
     let _ = writeln!(err, "podssh chat: {label}: key {} ({kept})", key.identity.public());
+    if let Some(note) = key.path.as_deref().and_then(podssh_relay::cache::kept_note) {
+        let _ = writeln!(err, "podssh chat: {label}: {note}");
+    }
     let _ = writeln!(err, "podssh chat: {label}: {}", crate::channel::who_may(allow.as_deref()));
     let shown = label.clone();
     let node = ends::Node {

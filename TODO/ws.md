@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`crates/podssh-relay/src/token.rs:95-100`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:177-185`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:324`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:341`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -2058,7 +2058,7 @@ and each other command print rustls's words alone. An error should tell what to 
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid
   yet") holds for both.
 - Read: the expiry of a cached token is read against the local clock, and a token that the relay
-  refuses is minted again once (`crates/podssh-relay/src/cache.rs:84`;
+  refuses is minted again once (`crates/podssh-relay/src/cache.rs:97`;
   `crates/podssh-relay/src/open.rs:349-360`): that case needs no hint.
 
 ## Approach

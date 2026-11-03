@@ -414,10 +414,10 @@ pub fn store_in_first(dirs: &[PathBuf], label: &str, pair: &Pair) -> Result<Path
     cache::store_file_in_first(dirs, &name, &body).map_err(PairError::Store)
 }
 
-/// The pair kept under `label`, if any. Its expiry is not checked here: a
-/// caller says so with the remedy.
+/// The pair kept under `label`, if any, also in a place passed over (T-593).
+/// Its expiry is not checked here: a caller says so with the remedy.
 pub fn load(label: &str) -> Result<Option<Pair>, PairError> {
-    load_from(&cache::candidate_dirs(), label)
+    load_from(&cache::read_dirs(), label)
 }
 
 /// [`load`] over explicit directories (for tests).
@@ -455,7 +455,7 @@ fn parse_stored(text: &str, what: &str) -> Result<Pair, PairError> {
 
 /// The labels of the pairs in the store, sorted.
 pub fn labels() -> Vec<String> {
-    labels_from(&cache::candidate_dirs())
+    labels_from(&cache::read_dirs())
 }
 
 /// [`labels`] over explicit directories (for tests).
@@ -467,9 +467,10 @@ pub fn labels_from(dirs: &[PathBuf]) -> Vec<String> {
         .collect()
 }
 
-/// Forget the pair kept under `label`, in each directory where it is ours.
+/// Forget the pair kept under `label`, in each directory where it is ours, a
+/// place passed over too, where it would be read again.
 pub fn remove(label: &str) -> Result<(), PairError> {
-    remove_from(&cache::candidate_dirs(), label)
+    remove_from(&cache::read_dirs(), label)
 }
 
 /// [`remove`] over explicit directories (for tests).

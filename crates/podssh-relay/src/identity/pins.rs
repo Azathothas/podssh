@@ -51,14 +51,22 @@ impl std::fmt::Display for PinError {
 }
 
 /// Check the key of the node of `label` against the pins, and pin it at the
-/// first sight.
+/// first sight. The pins that podssh kept before in a place of the cache in
+/// another user's tree are read there (T-593).
 pub fn check(label: &str, key: &PublicKey) -> Result<Seen, PinError> {
-    check_in(&cache::candidate_dirs(), label, key)
+    let places = cache::places();
+    check_split(&places.read(), &places.dirs, label, key)
 }
 
 /// [`check`], with `dirs` as the cache's directories (for tests).
 pub fn check_in(dirs: &[PathBuf], label: &str, key: &PublicKey) -> Result<Seen, PinError> {
-    let found = find(dirs)?;
+    check_split(dirs, dirs, label, key)
+}
+
+/// [`check`], with the pins looked for in `kept` and written in `dirs` (for
+/// tests).
+pub fn check_split(kept: &[PathBuf], dirs: &[PathBuf], label: &str, key: &PublicKey) -> Result<Seen, PinError> {
+    let found = find(kept)?;
     if let Some((path, text)) = &found {
         let mut first: Option<(String, usize)> = None;
         for (n, line) in text.lines().enumerate() {
@@ -101,7 +109,9 @@ fn find(dirs: &[PathBuf]) -> Result<Option<(PathBuf, String)>, PinError> {
 }
 
 /// Add the line of `label` to the file that was found, or make the file in
-/// the first directory that takes it.
+/// the first directory that takes it. A file found outside `dirs`, in a
+/// place passed over, is copied with the line into the first of `dirs`, so
+/// that nothing more is written in another user's tree and no pin is lost.
 fn pin(dirs: &[PathBuf], found: Option<(PathBuf, String)>, label: &str, key: &PublicKey) -> Seen {
     if label.is_empty() || label.starts_with('#') || label.chars().any(char::is_whitespace) {
         return Seen::NotPinned(format!("the label {label:?} cannot be written as a line of {FILE}"));
@@ -113,7 +123,12 @@ fn pin(dirs: &[PathBuf], found: Option<(PathBuf, String)>, label: &str, key: &Pu
                 text.push('\n');
             }
             text.push_str(&line);
-            (path.parent().map(Path::to_path_buf).into_iter().collect::<Vec<_>>(), text)
+            let parent = path.parent().map(Path::to_path_buf);
+            let place = match parent {
+                Some(dir) if dirs.contains(&dir) => vec![dir],
+                _ => dirs.to_vec(),
+            };
+            (place, text)
         }
         None => (dirs.to_vec(), line),
     };

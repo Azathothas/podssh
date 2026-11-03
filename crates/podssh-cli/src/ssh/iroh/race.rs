@@ -74,6 +74,9 @@ impl<'a> IrohRoad<'a> {
                 "a new iroh key for this client: {fingerprint}; a node lets it in once its allowlist holds it"
             ));
         }
+        if let Some(note) = key.path.as_deref().and_then(podssh_relay::cache::kept_note) {
+            self.log.info(&format!("this client's iroh key: {note}"));
+        }
         let mut list: Vec<RelayUrl> = self.addr.relay_urls().cloned().collect();
         for relay in self.race.relays.iter().filter_map(|text| podssh_iroh::relays::parse_url(text).ok()) {
             if !list.contains(&relay) {

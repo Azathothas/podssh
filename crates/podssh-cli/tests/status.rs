@@ -168,6 +168,11 @@ fn the_cache_shows_its_directories_and_what_chose_them() {
     assert_eq!(doc["cache"]["from"], "PODSSH_CACHE_DIR");
     assert_eq!(doc["cache"]["dirs"][0], chosen.display().to_string());
     assert_eq!(doc["cache"]["dirs"][1], cache_dir(&home).display().to_string());
+    // The test's own home is this user's, so no place in it is passed over
+    // (T-593); a runtime directory that the run inherits may be.
+    let passed = doc["cache"]["passed"].as_array().expect("passed is a list");
+    let home_text = home.display().to_string();
+    assert!(passed.iter().all(|p| !p["dir"].as_str().unwrap_or_default().starts_with(&home_text)), "{passed:?}");
     let (code, out, err) = status(&home, &[], &[("PODSSH_CACHE_DIR", "none")]);
     assert_eq!(code, 0, "{err}");
     let doc = one_line(&out);

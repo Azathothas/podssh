@@ -187,8 +187,9 @@ const DOCTOR: &[&str] = &[
     "Each line is ok, FAIL or ????, the check, and what podssh found. ok: podssh can work with it; a \
      missing pty, listener, DNS or user database entry is ok, because podssh is made for them. FAIL: \
      something that podssh needs is broken. ????: the check could not run, and it does not fail the run.",
-    "The checks: this host (the user database entry, where host keys and tokens can be written, and \
-     whether PODSSH_CACHE_DIR chose the place or is none, /proc, \
+    "The checks: this host (the user database entry, where host keys and tokens can be written, \
+     whether PODSSH_CACHE_DIR chose the place or is none, and each usual place of the cache passed over \
+     as another user's (see FILES), /proc, \
      a pty, a socket bind that is closed at once, the directories that can run programs, the terminal); \
      the egress (the proxy setting, TLS and the trust store, what the proxy allows, the system resolver, \
      the addresses of the cache, and DNS over HTTPS with the form that answered; on github.com port 22 only \
@@ -259,7 +260,8 @@ const STATUS: &[&str] = &[
      port) and relays_from (--relay-host, PODSSH_RELAY, or the default and its pool), pool (cached, when \
      it was fetched, how many hosts), token (source: PODSSH_RELAY_TOKEN, cache or none; the relay that it \
      is for; when it expires; whether it can be used), cache (from: PODSSH_CACHE_DIR, none or default; \
-     dirs: the directories in the order podssh tries them), proxy (the variable, HOST:PORT and the kind, \
+     dirs: the directories in the order podssh tries them; passed: each usual place that is in another \
+     user's tree, its dir and why, see FILES), proxy (the variable, HOST:PORT and the kind, \
      http or socks5), offline, \
      attachment, stdin_tty and stdout_tty, host for a destination (its name in known_hosts, whether \
      a key is recorded, the key types), and pairs: each stored pair's label, when it expires, whether \

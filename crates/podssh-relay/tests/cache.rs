@@ -1,6 +1,8 @@
 //! The relay-token cache, in temporary directories: what it reuses, what it
 //! ignores, and where it falls back to.
 
+#[cfg(unix)]
+mod cache_owner;
 mod cleanup;
 
 use std::path::PathBuf;
@@ -292,12 +294,17 @@ fn with_no_temporary_variable_the_fixed_places_come_last() {
 
 /// No absolute path stays in the code of the cache's module but the temporary
 /// directory's two fixed places, in their one list (T-243, and the
-/// operator's ruling of 2026-10-08).
+/// operator's ruling of 2026-10-08), and the file of the user database, whose
+/// home comes in place of another user's (T-593, as T-500 reads it).
 #[test]
 fn the_scan_finds_no_other_absolute_path_in_the_cache() {
-    let code =
-        [include_str!("../src/cache.rs"), include_str!("../src/cache/dirs.rs"), include_str!("../src/cache/own.rs")]
-            .concat();
+    let code = [
+        include_str!("../src/cache.rs"),
+        include_str!("../src/cache/dirs.rs"),
+        include_str!("../src/cache/own.rs"),
+        include_str!("../src/cache/owner.rs"),
+    ]
+    .concat();
     let mut found = Vec::new();
     for (i, _) in code.match_indices('"') {
         let rest = &code[i + 1..];
@@ -310,7 +317,7 @@ fn the_scan_finds_no_other_absolute_path_in_the_cache() {
     }
     found.sort();
     found.dedup();
-    assert_eq!(found, ["/dev/shm", "/tmp"], "{found:?}");
+    assert_eq!(found, ["/dev/shm", "/etc/passwd", "/tmp"], "{found:?}");
     let fixed = code.lines().filter(|l| l.contains("\"/tmp\"") || l.contains("\"/dev/shm\"")).count();
     assert_eq!(fixed, 1, "the fixed places are in one list");
 }

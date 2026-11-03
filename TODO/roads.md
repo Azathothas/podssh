@@ -60,7 +60,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:160-187`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:170-197`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -173,7 +173,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:358-359`,
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
    (`crates/podssh-relay/src/cache.rs`, lines 61-76 at `4dd52f8`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:297-322`: mode 0600, no
+   the token cache (`crates/podssh-relay/src/cache.rs:311-336`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:358-359`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:992`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:153-420`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:153-429`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-295`).
 
 ## Decision
@@ -1156,13 +1156,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:289-310`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:306-327`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:236`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:253`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1211,7 +1211,7 @@ What the role serves: the contract `2026-10-03-r2`, so that each client of podss
 with `?dial=lazy`, `?precheck` and `?family`; `/relays.json` with the five limits of
 `crates/podssh-probe/facts/relay-limits.toml`; `/trace`; and `/llms-full.txt`, podssh's own copy
 of the contract. A target is dialed only after its name resolved to a public address (the ranges
-of `docs/relay.md:236`), and port 25 is refused; the limits are the contract's (an empty frame
+of `docs/relay.md:253`), and port 25 is refused; the limits are the contract's (an empty frame
 each 25 s, 180 s idle, 12 h, 64 MiB, frames of 262144 bytes), and so are the forward close
 codes; each queue has a bound (`1013` at 2 MiB, T-336), which a write that waits gives.
 
@@ -2575,7 +2575,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:220-222`).
+   URL or in output (`docs/relay.md:237-239`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:139-148`).
@@ -4009,7 +4009,7 @@ Endpoint puts a credential in its URL.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:238`); an RSA key signs through aws-lc-rs in the
   binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
-  the relay's caps (`docs/relay.md:247-253`), as an hour of EICE would need.
+  the relay's caps (`docs/relay.md:264-270`), as an hour of EICE would need.
 - Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
 
 ## Approach
@@ -6129,7 +6129,7 @@ ask, and nothing does so.
 ## Premise
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
-  (`crates/podssh-cli/src/node_iroh.rs:355-356`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node_iroh.rs:358-359`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:104-106`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-72`), in a file of 488 of its 500 lines.

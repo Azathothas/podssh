@@ -307,6 +307,9 @@ where
         "podssh {verb}: {label}: key {fingerprint}, the node iroh:{} ({kept})",
         keys::name(&key.public())
     );
+    if let Some(note) = key.path.as_deref().and_then(podssh_relay::cache::kept_note) {
+        let _ = writeln!(err, "podssh {verb}: {label}: {note}");
+    }
     let _ = writeln!(err, "podssh {verb}: {label}: ticket {}", ticket::of(&endpoint, &relay));
     // The endpoint is up with its home relay: a detached node goes on (T-380).
     crate::detach::ready("node");

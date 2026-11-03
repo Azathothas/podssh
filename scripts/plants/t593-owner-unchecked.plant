@@ -1,0 +1,8 @@
+# T-593: the owner of a directory of the cache is never read, as before: a
+# HOME of another uid is kept as the user's cache, and a missing .cache is
+# made in it. The tests give that home to another uid, so they run as any
+# user; the first two must fail.
+ENTRY=T-593
+GROUP=resume
+EXPECT='a_home_of_another_uid_is_passed_over_for_the_passwd_home \.\.\. FAILED'
+RUN='cargo test --locked --no-fail-fast -p podssh-relay --test cache -- a_home_of_another_uid_is_passed_over_for_the_passwd_home no_parent_is_made_in_another_user_s_home'
