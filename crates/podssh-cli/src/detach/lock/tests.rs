@@ -40,6 +40,12 @@ fn a_held_lock_is_seen_without_taking_it_and_free_once_let_go() {
     assert!(matches!(hold(&path), Ok(Tried::Taken(_))));
     assert!(began.elapsed() >= PATIENCE);
     drop(file);
+    // A child that another test forks in this moment holds a copy of the
+    // descriptor, and the lock with it, until its exec: a moment, not more.
+    let until = Instant::now() + std::time::Duration::from_secs(5);
+    while holder(&path) != Holder::Free && Instant::now() < until {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
     assert_eq!(holder(&path), Holder::Free);
     assert!(matches!(hold(&path), Ok(Tried::Held(_))));
     let _ = std::fs::remove_dir_all(&dir);
