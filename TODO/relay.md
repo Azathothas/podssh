@@ -1597,17 +1597,16 @@ reader (T-169, T-427), and each socket that it accepts or dials holds at most 12
 (`crates/podssh-relay/src/serve/sockets.rs`, called by `podssh relay serve`'s accept and by the
 forward road's dial).
 
-- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_backpressure`: 2 passed.
-  A forward client read 16 KiB/s for 12 s through the role, from a target with 48 MiB to send:
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_backpressure`: 3 passed
+  (the bound, read back from the kernel, among them). A forward client read 16 KiB/s for 12 s through the role, from a target with 48 MiB to send:
   it read 228352 bytes, the target's socket took 606208, at most 377856 waited past the target,
   and no Close came. Before the bound, the same run left 4877312 bytes past the target: the role's
   send queue held 3697664, its receive queue 933888 and the target's 147297 (`/proc/net/tcp`
   during the run). The control at full speed carried 48 MiB and ended `1000 target closed`.
 - The reverse road's bound, `1011 relay backpressure` at 1 MiB, is `relay_serve_reverse.rs`'s slow
   operator (T-427), and the stand-in's mode `strict:RATE` gives it (T-443): `--test
-  relay_serve_reverse` 4 passed, `--test relay_serve_contract` 13, `--lib serve::` 35 (the unit
-  test of the bound among them); `-p podssh-cli --test relay_serve` 14, `--test relay_serve_node`
-  5.
+  relay_serve_reverse` 4 passed, `--test relay_serve_contract` 13, `--lib serve::` 34; `-p
+  podssh-cli --test relay_serve` 14, `--test relay_serve_node` 5.
 - Planted (`sh scripts/plant-each.sh --here t336-unsent-unbounded`, the bound not set): caught,
   5111808 bytes waited past the target.
 - Live, from this session's host: `cargo test -p podssh-relay --features pair --test

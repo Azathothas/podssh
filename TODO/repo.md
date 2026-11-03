@@ -4902,7 +4902,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame
   cap is never compiled in, is T-342's: its Premise reads that line, and its Approach item 5
-  corrects it with the code (`TODO/relay.md:1837-1840`).
+  corrects it with the code (`TODO/relay.md:1836-1839`).
 
 ## Approach
 
