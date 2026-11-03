@@ -553,7 +553,7 @@ checksum = "144e573728da132683b9488acd528274c790e07fc06ff81ee29f9d8f8b1041e0"
 dependencies = [
  "blowfish",
  "pbkdf2",
- "sha2 0.11.0",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -1841,7 +1841,7 @@ dependencies = [
  "ed25519 3.0.0",
  "rand_core 0.10.1",
  "serde",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "signature 3.0.0",
  "subtle",
  "zeroize",
@@ -4496,7 +4496,7 @@ dependencies = [
  "elliptic-curve 0.14.1",
  "primefield",
  "primeorder 0.14.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -4522,7 +4522,7 @@ dependencies = [
  "fiat-crypto 0.3.0",
  "primefield",
  "primeorder 0.14.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -4550,7 +4550,7 @@ dependencies = [
  "elliptic-curve 0.14.1",
  "primefield",
  "primeorder 0.14.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -4566,7 +4566,7 @@ dependencies = [
  "futures",
  "log",
  "rand 0.10.3",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "thiserror 2.0.21",
  "tokio",
  "windows",
@@ -4848,7 +4848,7 @@ dependencies = [
  "rand_core 0.10.1",
  "scrypt",
  "sha1 0.11.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "spki 0.8.1",
 ]
 
@@ -4922,7 +4922,7 @@ dependencies = [
  "rustls",
  "serde_json",
  "sha1 0.11.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "tokio",
  "tokio-rustls",
  "vt100",
@@ -4937,7 +4937,7 @@ version = "1.1.0-beta.1"
 dependencies = [
  "hex",
  "proptest",
- "sha2 0.11.0",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -4957,7 +4957,7 @@ dependencies = [
  "podssh-ws",
  "rcgen",
  "rustls",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "simple-dns",
  "tokio",
  "tokio-rustls",
@@ -4970,7 +4970,7 @@ version = "1.1.0-beta.1"
 dependencies = [
  "regex",
  "serde",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "tokio",
  "toml 1.1.8+spec-1.1.0",
 ]
@@ -4998,7 +4998,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "snow",
  "tokio",
  "tokio-rustls",
@@ -5031,7 +5031,7 @@ dependencies = [
  "russh",
  "russh-sftp",
  "sha1 0.11.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "signature 3.0.0",
  "tokio",
  "vt100",
@@ -5136,7 +5136,7 @@ dependencies = [
  "serde_json",
  "sha1 0.11.0",
  "sha2 0.10.9",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "tokio",
  "tokio-rustls",
  "unicode-width",
@@ -5818,7 +5818,7 @@ dependencies = [
  "pkcs1 0.8.0-rc.4",
  "pkcs8 0.11.0",
  "rand_core 0.10.1",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "signature 3.0.0",
  "spki 0.8.1",
  "zeroize",
@@ -5923,7 +5923,7 @@ dependencies = [
  "scrypt",
  "sec1 0.8.1",
  "sha1 0.11.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "sha3 0.12.0",
  "signature 3.0.0",
  "spki 0.8.1",
@@ -6254,7 +6254,7 @@ dependencies = [
  "cfg-if",
  "pbkdf2",
  "salsa20 0.11.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -6535,9 +6535,9 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.11.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
+checksum = "47d7069beb7d6ac7b9acd1039986e73443f24234f41074da099d6f994ac9ad19"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.3.1",
@@ -6899,7 +6899,7 @@ dependencies = [
  "rsa 0.10.0-rc.18",
  "sec1 0.8.1",
  "sha1 0.11.0",
- "sha2 0.11.0",
+ "sha2 0.11.1",
  "signature 3.0.0",
  "ssh-cipher",
  "ssh-encoding",

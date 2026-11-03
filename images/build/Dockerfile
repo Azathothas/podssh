@@ -3,4 +3,4 @@
 # it; the scripts and the workflows read it. The digest is that of the
 # multi-platform index (linux/amd64 and linux/arm64), so two runs of one
 # commit use one compiler, on each architecture.
-FROM docker.io/library/rust:1-alpine@sha256:0cce0a5e0e8ba67b455257a3a02a1d99005f382748789d6464460028810f1627
+FROM docker.io/library/rust:1-alpine@sha256:7e9e2d068a107a2adafd19930011178d14a78326053cd4c3a9f7ad3fd049557d

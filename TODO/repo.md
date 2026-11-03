@@ -5165,7 +5165,7 @@ repair.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5213,3 +5213,22 @@ sh scripts/test_in_box.sh
 
 Each passes on the new versions. Planted: one byte of an HMAC-SHA-256 key changed in the
 known-answer test fails it on sha2 0.11.1, as in T-386.
+
+## Done
+
+2026-11-03.
+
+- #122: `Cargo.lock` takes sha2 0.11.1 and nothing else. This host's cargo, with the workspace's
+  `incompatible-rust-versions = "fallback"`, also moved `data-encoding-macro-internal`'s syn and
+  `tempfile`'s getrandom to older versions in the same update; those two lines are kept as the lock
+  had them. `cargo test --locked -p podssh-ws -p podssh-relay -p podssh-ssh -p podssh-core -p
+  podssh-probe --no-fail-fast`: 1261 passed, 0 failed. Planted, one byte of the HMAC-SHA-256 key of RFC
+  4231's first case: `crypto_vectors` failed at its digest.
+- #120: `images/build/Dockerfile` takes the digest `7e9e2d0...` of `rust:1-alpine`, rustc 1.99.1
+  (58cf8f9c3 2026-10-13). The gate in it, dispatched on `draft/t597-images` with the three updates
+  (run 41621923591): each step passed but the test of `exit` that T-587 had left behind, which
+  failed the same way at `main` and is repaired there (`00266ad`).
+- #119: `images/box-proxy/Dockerfile` takes `python:3.15-alpine` by its digest `20a82db...`;
+  `box.yml` on the same branch (run 41621928340): its four runs passed.
+- #123 stays out, as the Decision says: iroh-dns 1.4.1 is still the newest, and takes simple-dns
+  0.12; its pull request is answered with that reason.

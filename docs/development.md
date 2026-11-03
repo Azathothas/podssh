@@ -222,7 +222,7 @@ Each image is named in one place, pinned to the digest of its multi-platform
 index: `images/build/Dockerfile` (`rust:1-alpine`, for the gate, CI
 and the release), `images/box/Dockerfile` (`alpine:3.24`, the box and
 its SSH server) and `images/box-proxy/Dockerfile`
-(`python:3.12-alpine`, the box's proxy). The scripts and the workflows read
+(`python:3.15-alpine`, the box's proxy). The scripts and the workflows read
 their `FROM` line, so two runs of one commit use one compiler, and
 `python scripts/check-repo.py` fails on a second name. CI pulls each through
 `scripts/pull-image.sh`: when Docker Hub refuses a pull with no account,
