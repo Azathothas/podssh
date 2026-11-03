@@ -37,6 +37,9 @@ pub(super) struct Outcome {
     pub(super) pending: Vec<mirror::Pending>,
     /// The files that `podssh run` did not send again (T-192).
     pub(super) unchanged: usize,
+    /// A copy between servers came down to this host and went up again,
+    /// so its bytes went both ways (T-486).
+    pub(super) through: bool,
 }
 
 impl Outcome {

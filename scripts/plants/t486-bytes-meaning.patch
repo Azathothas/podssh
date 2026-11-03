@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/cp/result.rs
++++ b/crates/podssh-cli/src/cp/result.rs
+@@ -160,6 +160,7 @@
+ /// runs no command whose streams `bytes` counts in `ssh`'s.
+ pub(crate) fn copy_object(verb: &str, exit: i32, took: Duration, record: &Record, did: &Did) -> Value {
+     let mut object = object(verb, exit, took, record, did);
+-    object.insert("bytes".into(), Value::Null);
++    let moved = object.get("transferred").cloned().unwrap_or(Value::Null);
++    object.insert("bytes".into(), moved);
+     Value::Object(object)
+ }

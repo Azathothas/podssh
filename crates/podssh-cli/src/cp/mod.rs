@@ -40,6 +40,9 @@ pub(crate) mod pipe;
 pub mod plan;
 pub mod rate;
 mod report;
+// `--result-file` of the copies, and its parts that `run` and `sftp` take
+// (T-486).
+pub(crate) mod result;
 pub(crate) mod resume;
 pub(crate) mod session;
 pub(crate) mod summary;
@@ -55,9 +58,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::ArgMatches;
+use podssh_ssh::outcome::Scope;
 use podssh_ssh::Log;
 
 use crate::exitmap::Fault;
+use crate::relay_settings::Refusal;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env, Resolved};
 use moving::After;
@@ -65,6 +70,7 @@ use operand::{Operand, Remote};
 use outcome::Outcome;
 use plan::{Direction, Plan};
 use report::report;
+use result::Did;
 use session::session;
 use transfer::Failed;
 
@@ -204,15 +210,51 @@ fn inplace_before(plan: &Plan) -> Option<String> {
     })
 }
 
-/// Run `podssh cp` or `podssh mv`; returns the process exit code.
+/// Run `podssh cp`, `podssh mv` or `podssh scp`; returns the process exit
+/// code. With `--result-file FILE`, the run's record goes to FILE at its
+/// end, on each path (T-486).
 pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let file = args.ssh.result_file.as_deref();
+    if crate::ssh::result::dash(args.verb, file, err) {
+        return Fault::Usage.code();
+    }
+    let (started, scope, mut did) = (std::time::Instant::now(), Scope::new(), Did::default());
+    let code = run_copy(args, deadline, jsonl, out, err, &scope, &mut did);
+    if let Some(path) = file {
+        let object = result::copy_object(args.verb, code, started.elapsed(), &scope.record(), &did);
+        crate::ssh::result::write(args.verb, path, &object, err);
+    }
+    code
+}
+
+/// A refusal before anything connects: said, kept for the record, and 64.
+fn refuse(verb: &str, why: String, err: &mut dyn Write, did: &mut Did) -> i32 {
+    let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
+    did.error = Some(why);
+    Fault::Usage.code()
+}
+
+/// A refusal of the command line or the settings, kept for the record.
+fn refused(verb: &str, refusal: &Refusal, err: &mut dyn Write, did: &mut Did) -> i32 {
+    did.error = Some(refusal.message.clone());
+    refusal.report(verb, err)
+}
+
+/// The copy of [`run_cp`], its connections in `scope`, what it did in
+/// `did`; the exit code.
+fn run_copy(
+    args: &CpArgs,
+    deadline: Option<Duration>,
+    jsonl: bool,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    scope: &Scope,
+    did: &mut Did,
+) -> i32 {
     let verb = args.verb;
     let mut plan = match plan::plan(&args.paths, cfg!(windows)) {
         Ok(plan) => plan,
-        Err(why) => {
-            let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
-            return Fault::Usage.code();
-        }
+        Err(why) => return refuse(verb, why, err, did),
     };
     let keep = meta::Keep { times: args.preserve, owner: args.owner, sparse: args.sparse };
     let shape = pipe::pipeline(None, None, &args.sftp_options).and_then(|pipe| {
@@ -223,36 +265,26 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     });
     plan.shape = match shape {
         Ok(shape) => shape,
-        Err(why) => {
-            let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
-            return Fault::Usage.code();
-        }
+        Err(why) => return refuse(verb, why, err, did),
     };
     let limit = match args.limit.as_deref().map(|text| rate::parse("-l", text)).transpose() {
         Ok(limit) => limit,
-        Err(why) => {
-            let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
-            return Fault::Usage.code();
-        }
+        Err(why) => return refuse(verb, why, err, did),
     };
     rate::set(limit);
     plan.tree = match tree_of(args) {
         Ok(tree) => tree,
-        Err(why) => {
-            let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
-            return Fault::Usage.code();
-        }
+        Err(why) => return refuse(verb, why, err, did),
     };
     if let Some(why) = args.inplace.then(|| inplace_before(&plan)).flatten() {
-        let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
-        return Fault::Usage.code();
+        return refuse(verb, why, err, did);
     }
+    // A move's verb is `mv`.
     if let Some(why) = args.moving.then(|| moving::same_text(&plan)).flatten() {
-        let _ = writeln!(err, "podssh mv: {why}.\n  Nothing has been attempted.");
-        return Fault::Usage.code();
+        return refuse(verb, why, err, did);
     }
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
-        return refusal.report(verb, err);
+        return refused(verb, &refusal, err, did);
     }
     let resolve_for = |server: &Remote| {
         let mut ssh = args.ssh.clone();
@@ -281,7 +313,7 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
                 r.options.forward_agent = podssh_ssh::Agent::Off;
                 resolved.push(r);
             }
-            Err(refusal) => return refusal.report(verb, err),
+            Err(refusal) => return refused(verb, &refusal, err, did),
         }
     }
     let log = Arc::new(Log::new(resolved[0].options.log_level));
@@ -306,15 +338,18 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
-            log.error(&format!("could not start the async runtime: {e}"));
+            let why = format!("could not start the async runtime: {e}");
+            log.error(&why);
+            (did.failure, did.error) = (Some("session"), Some(why));
             return Fault::SessionFault.code();
         }
     };
     let after = if args.moving { After::Remove } else { After::Keep };
     let (started, mut timed_out) = (std::time::Instant::now(), false);
     // On the heap: the copy's future is large, and Windows gives the main
-    // thread 1 MiB of stack.
-    let run = Box::pin(run_plan(&plan, &resolved, &log, after));
+    // thread 1 MiB of stack. Its connections write the run's own record,
+    // which outlives a future that the --timeout drops (T-486).
+    let run = Box::pin(scope.run(run_plan(&plan, &resolved, &log, after)));
     // A carrier that the copy's connections shared ends after it (T-595).
     let outcome = runtime.block_on(crate::ssh::transport::settled(async {
         let run = async {
@@ -358,13 +393,19 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
             }
         };
         let _ = writeln!(err, "podssh {verb}: interrupted{kept}");
+        (did.failure, did.error) = (Some("interrupted"), Some(format!("interrupted{kept}")));
         runtime.shutdown_background();
         return 130;
     };
     runtime.shutdown_background();
     // After the --timeout the run's records went with its future, so a
-    // summary would count nothing that it did (T-472).
+    // summary would count nothing that it did (T-472), and the record
+    // gives no files.
     let took = (!scp && !args.dry_run && !timed_out).then(|| started.elapsed());
+    did.copied = (!timed_out).then(|| result::Copied::of(&outcome, plan.direction));
+    if let Some((_, failed)) = &outcome.failed {
+        (did.failure, did.error) = (Some(result::class(failed, &scope.record().facts)), Some(failed.message.clone()));
+    }
     report(&outcome, jsonl, out, &log, took)
 }
 

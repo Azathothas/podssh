@@ -156,6 +156,16 @@ const CP: &[&str] = &[
      The same command run again goes on too while the source is as it was: a private side file in the \
      cache directories, podssh-cp-*.resume (see FILES), keeps the offset, never a byte of the file. The \
      digest covers the whole file.",
+    "--result-file FILE writes one JSON object to FILE at the end of each run, also of one refused before \
+     it connected, a new file for its owner alone; - is refused (exit 64). Its keys are those of podssh \
+     ssh --result-file in their meaning, with verb and error: schema, verb, exit, failure (connect, \
+     relay, host-key or auth where the connection failed; copy for a source, a destination or a step \
+     that the server refused; verify for digests that differ; session, timeout, interrupted, usage or \
+     config; or null), error (its words), duration_ms, relay (host, close_code, reason, and sessions, the \
+     relay sessions that the run opened), files (sent, unchanged, skipped, deleted and failed) and \
+     transferred (up and down: the bytes of the files through this host, with --delta the blocks that \
+     went, none for a rename or a hard link). bytes is null, as in podssh ssh it counts a command's \
+     streams. After the --timeout, files and transferred are null. --jsonl keeps its events on stdout.",
 ];
 
 const SCP: &[&str] = &[
@@ -172,6 +182,8 @@ const SCP: &[&str] = &[
      never required, with no terminal either: a script runs OpenSSH's scp in a pipe with no such flag, \
      and each wait of a copy has its own limit, ConnectTimeout the login's (60 s by default). podssh cp \
      and podssh mv need it with no terminal, where nothing else bounds the whole run.",
+    "--result-file FILE writes the object of podssh cp at the end, its verb scp; stdout and stderr stay \
+     those of OpenSSH's scp.",
 ];
 
 const SFTP: &[&str] = &[
@@ -199,6 +211,10 @@ const SFTP: &[&str] = &[
      podssh makes the line with their names. n shows the numbers, h the sizes in K, M and G; t sorts the \
      newest first, S the largest first, r turns the order round, f keeps the server's, and a shows the \
      names that start with a dot.",
+    "--result-file FILE writes one JSON object to FILE at the end, as podssh cp does, its verb sftp, with \
+     commands (run and failed) and failed_command, the line of the batch whose failure ended it, as \
+     written, or null; a fetch of the destination's file is one command. It has no files and no \
+     transferred, and bytes is null.",
 ];
 
 const MV: &[&str] = &[
@@ -217,6 +233,8 @@ const MV: &[&str] = &[
      with the directories that hold it. Within one server, -n moves by a hard link and the removal of \
      the source's name, so a name that came since the look stays; -b keeps the old destination as for \
      podssh cp.",
+    "--result-file FILE writes the object of podssh cp at the end, its verb mv, with removed: the sources \
+     that the move removed once their copy was verified.",
 ];
 
 const DOCTOR: &[&str] = &[

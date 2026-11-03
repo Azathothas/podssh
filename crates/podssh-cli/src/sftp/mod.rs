@@ -7,22 +7,30 @@
 //! **Exit codes are the sysexits of `cp`**: 64 a usage error (OpenSSH gives
 //! 1, and a script that tests for "not zero" works with both), and the code
 //! of the first command that fails a batch.
+//!
+//! **`--result-file FILE`** (T-486): at the end, on each path, one JSON
+//! object in FILE, as `cp`'s, with the commands run and failed and the
+//! command that ended the batch ([`result`]).
 
 mod commands;
 mod listing;
+mod result;
 mod run;
 
 use std::io::{BufRead, Write};
 use std::sync::Arc;
 
 use clap::ArgMatches;
+use podssh_ssh::outcome::Scope;
 use podssh_ssh::Log;
 
 use crate::cp::link;
 use crate::cp::operand::{self, Operand, Remote};
 use crate::exitmap::Fault;
+use crate::relay_settings::Refusal;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env};
+use result::Tally;
 use run::{Flow, State};
 
 /// `sftp`'s command line as parsed.
@@ -115,6 +123,8 @@ fn read_batch(path: &str) -> std::io::Result<Vec<String>> {
 
 /// Run `podssh sftp`; the process exit code. `deadline` is `--timeout`, or
 /// `PODSSH_TIMEOUT`: a bound of the whole run, never required (T-508).
+/// With `--result-file FILE`, the run's record goes to FILE at its end, on
+/// each path (T-486).
 pub fn run_sftp(
     args: &SftpArgs,
     deadline: Option<std::time::Duration>,
@@ -122,44 +132,78 @@ pub fn run_sftp(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let refuse = |err: &mut dyn Write, why: &str| {
-        let _ = writeln!(err, "podssh sftp: {why}.\n  Nothing has been attempted.");
-        Fault::Usage.code()
-    };
+    let file = args.ssh.result_file.as_deref();
+    if crate::ssh::result::dash("sftp", file, err) {
+        return Fault::Usage.code();
+    }
+    let (started, scope, mut tally) = (std::time::Instant::now(), Scope::new(), Tally::default());
+    let code = sftp_run(args, deadline, tty, out, err, &scope, &mut tally);
+    if let Some(path) = file {
+        let object = result::object(code, started.elapsed(), &scope.record(), &tally);
+        crate::ssh::result::write("sftp", path, &object, err);
+    }
+    code
+}
+
+/// A refusal before anything connects: said, kept for the record, and 64.
+fn refuse(err: &mut dyn Write, why: &str, tally: &mut Tally) -> i32 {
+    let _ = writeln!(err, "podssh sftp: {why}.\n  Nothing has been attempted.");
+    tally.did.error = Some(why.to_string());
+    Fault::Usage.code()
+}
+
+/// A refusal of the settings or the destination, kept for the record.
+fn refused(refusal: &Refusal, err: &mut dyn Write, tally: &mut Tally) -> i32 {
+    tally.did.error = Some(refusal.message.clone());
+    refusal.report("sftp", err)
+}
+
+/// [`run_sftp`], its connection in `scope`, what it did in `tally`.
+fn sftp_run(
+    args: &SftpArgs,
+    deadline: Option<std::time::Duration>,
+    tty: crate::pager::Tty,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    scope: &Scope,
+    tally: &mut Tally,
+) -> i32 {
     let Some(text) = &args.destination else {
-        return refuse(
-            err,
-            "give a destination: [user@]host[:path], sftp://[user@]host[:port][/path] or node://[user@]NAME[:path]",
-        );
+        let why =
+            "give a destination: [user@]host[:path], sftp://[user@]host[:port][/path] or node://[user@]NAME[:path]";
+        return refuse(err, why, tally);
     };
     let server = match destination(text) {
         Ok(server) => server,
-        Err(why) => return refuse(err, &why),
+        Err(why) => return refuse(err, &why, tally),
     };
     let pipe = match crate::cp::pipe::pipeline(args.buffer.as_deref(), args.requests.as_deref(), &args.sftp_options) {
         Ok(pipe) => pipe,
-        Err(why) => return refuse(err, &why),
+        Err(why) => return refuse(err, &why, tally),
     };
     let mut shape = crate::cp::pipe::Shape { pipe, ..Default::default() };
     shape.keep.times = args.preserve;
     match args.limit.as_deref().map(|text| crate::cp::rate::parse("-l", text)).transpose() {
         Ok(limit) => crate::cp::rate::set(limit),
-        Err(why) => return refuse(err, &why),
+        Err(why) => return refuse(err, &why, tally),
     }
     // With no terminal the commands come from -b; a destination with a path
     // can still name one file to fetch.
     if args.batch.is_none() && !tty.stdin && server.path.is_empty() {
-        return refuse(err, "with no terminal, give the commands with -b FILE, or -b - for stdin");
+        return refuse(err, "with no terminal, give the commands with -b FILE, or -b - for stdin", tally);
     }
     let script = match args.batch.as_deref().map(read_batch).transpose() {
         Ok(script) => script,
         Err(e) => {
-            let _ = writeln!(err, "podssh sftp: the batch file {}: {e}", args.batch.as_deref().unwrap_or("-"));
+            let why = format!("the batch file {}: {e}", args.batch.as_deref().unwrap_or("-"));
+            let _ = writeln!(err, "podssh sftp: {why}");
+            // The command line named a batch that cannot be read.
+            (tally.did.failure, tally.did.error) = (Some("usage"), Some(why));
             return Fault::NoInput.code();
         }
     };
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
-        return refusal.report("sftp", err);
+        return refused(&refusal, err, tally);
     }
     let mut ssh = args.ssh.clone();
     ssh.destination = Some(server.destination());
@@ -168,7 +212,7 @@ pub fn run_sftp(
     }
     let mut resolved = match resolve::resolve_or_refuse(&ssh, &Env::from_process()) {
         Ok(resolved) => resolved,
-        Err(refusal) => return refusal.report("sftp", err),
+        Err(refusal) => return refused(&refusal, err, tally),
     };
     resolved.options.host_key_pin = Some(podssh_ssh::hostkey::Pin::default());
     resolved.options.remembered = Some(podssh_ssh::remember::Remembered::default());
@@ -186,45 +230,59 @@ pub fn run_sftp(
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
-            log.error(&format!("could not start the async runtime: {e}"));
+            let why = format!("could not start the async runtime: {e}");
+            log.error(&why);
+            (tally.did.failure, tally.did.error) = (Some("session"), Some(why));
             return Fault::SessionFault.code();
         }
     };
     let subsystem = args.subsystem.as_deref().unwrap_or("sftp");
-    let ran = session(&resolved, &server, subsystem, shape, args.recursive, script, tty.stdin, &log, out);
+    let work = Work { subsystem, shape, recursive: args.recursive, script, interactive: tty.stdin };
+    // The session's connection writes the run's own record (T-486).
+    let ran = scope.run(session(&resolved, &server, work, &log, out, tally));
     // The bound covers the login and each command, as cp's covers its copy;
     // a carrier that the session's connection took ends after it (T-595).
-    let code = runtime.block_on(crate::ssh::transport::settled(async {
+    let ended = runtime.block_on(crate::ssh::transport::settled(async {
         match deadline {
-            Some(limit) => tokio::time::timeout(limit, ran).await.unwrap_or_else(|_| {
-                log.error(&format!("the --timeout of {} s passed", limit.as_secs()));
-                Fault::TimedOut.code()
-            }),
-            None => ran.await,
+            Some(limit) => tokio::time::timeout(limit, ran).await.map_err(|_| limit),
+            None => Ok(ran.await),
         }
     }));
     runtime.shutdown_background();
-    code
+    ended.unwrap_or_else(|limit| {
+        let why = format!("the --timeout of {} s passed", limit.as_secs());
+        log.error(&why);
+        (tally.did.failure, tally.did.error) = (Some("timeout"), Some(why));
+        Fault::TimedOut.code()
+    })
 }
 
-/// The SFTP session: the destination's path first, then the batch or the
-/// prompt; `recursive` is `sftp -r`.
-#[allow(clippy::too_many_arguments)]
-async fn session(
-    resolved: &crate::ssh::resolve::Resolved,
-    server: &Remote,
-    subsystem: &str,
+/// What the session runs: the subsystem, the shape of each copy, `sftp
+/// -r`, and the batch, or the prompt when stdin is a terminal.
+struct Work<'a> {
+    subsystem: &'a str,
     shape: crate::cp::pipe::Shape,
     recursive: bool,
     script: Option<Vec<String>>,
     interactive: bool,
+}
+
+/// The SFTP session: the destination's path first, then the batch or the
+/// prompt; what its commands did, in `tally`.
+async fn session(
+    resolved: &crate::ssh::resolve::Resolved,
+    server: &Remote,
+    work: Work<'_>,
     log: &Arc<Log>,
     out: &mut dyn Write,
+    tally: &mut Tally,
 ) -> i32 {
+    let Work { subsystem, shape, recursive, script, interactive } = work;
     let link = match link::open_sftp(resolved, log, subsystem).await {
         Ok(link) => link,
         Err(f) => {
             log.error(&f.message);
+            tally.ended_by(&f, None);
             return f.fault.code();
         }
     };
@@ -238,15 +296,19 @@ async fn session(
                 state.run(&commands::Command::Cd(Some(path)), out).await?;
             } else {
                 let get = commands::Command::Get { remote: path, local: None, preserve: false, recursive: false };
+                // The fetch is the one command of the run.
+                tally.run += 1;
                 state.run(&get, out).await?;
                 return Ok(0);
             }
         }
         Ok(match script {
-            Some(lines) => batch(&mut state, &lines, log, out).await,
-            None if interactive => prompt(&mut state, log, out).await,
+            Some(lines) => batch(&mut state, &lines, log, out, tally).await,
+            None if interactive => prompt(&mut state, log, out, tally).await,
             None => {
-                log.error("with no terminal, give the commands with -b FILE, or -b - for stdin");
+                let why = "with no terminal, give the commands with -b FILE, or -b - for stdin";
+                log.error(why);
+                (tally.did.failure, tally.did.error) = (Some("usage"), Some(why.to_string()));
                 Fault::Usage.code()
             }
         })
@@ -257,32 +319,43 @@ async fn session(
         Ok(code) => code,
         Err(failed) => {
             log.error(&failed.message);
+            tally.ended_by(&failed, None);
             failed.fault.code()
         }
     }
 }
 
 /// Each line of a batch, echoed unless `@`; the first error ends it unless
-/// its line starts with `-`.
-async fn batch(state: &mut State<'_>, lines: &[String], log: &Log, out: &mut dyn Write) -> i32 {
+/// its line starts with `-`. Each command is counted, and the one that ends
+/// the batch named, as the user wrote it (T-486).
+async fn batch(state: &mut State<'_>, lines: &[String], log: &Log, out: &mut dyn Write, tally: &mut Tally) -> i32 {
     for text in lines {
         let line = match commands::parse_line(text) {
             Ok(Some(line)) => line,
             Ok(None) => continue,
             Err(why) => {
                 log.error(&why);
+                (tally.run, tally.failed) = (tally.run + 1, tally.failed + 1);
+                tally.failed_command = Some(text.trim().to_string());
+                (tally.did.failure, tally.did.error) = (Some("usage"), Some(why));
                 return Fault::Usage.code();
             }
         };
         if line.echo {
             let _ = writeln!(out, "sftp> {}", text.trim().trim_start_matches(['-', '@']));
         }
+        tally.run += 1;
         match state.run(&line.command, out).await {
             Ok(Flow::Bye) => return 0,
             Ok(Flow::Next) => {}
-            Err(failed) if line.keep_going => log.error(&failed.message),
+            Err(failed) if line.keep_going => {
+                log.error(&failed.message);
+                tally.failed += 1;
+            }
             Err(failed) => {
                 log.error(&failed.message);
+                tally.failed += 1;
+                tally.ended_by(&failed, Some(text));
                 return failed.fault.code();
             }
         }
@@ -291,8 +364,9 @@ async fn batch(state: &mut State<'_>, lines: &[String], log: &Log, out: &mut dyn
 }
 
 /// The prompt: each line that the user types, until `bye` or the end of
-/// input. An error is said, and the prompt goes on.
-async fn prompt(state: &mut State<'_>, log: &Log, out: &mut dyn Write) -> i32 {
+/// input. An error is said, and the prompt goes on; each command is
+/// counted.
+async fn prompt(state: &mut State<'_>, log: &Log, out: &mut dyn Write, tally: &mut Tally) -> i32 {
     loop {
         let _ = write!(out, "sftp> ");
         let _ = out.flush();
@@ -311,13 +385,22 @@ async fn prompt(state: &mut State<'_>, log: &Log, out: &mut dyn Write) -> i32 {
             Ok(Ok((_, line))) => line,
         };
         match commands::parse_line(&line) {
-            Ok(Some(parsed)) => match state.run(&parsed.command, out).await {
-                Ok(Flow::Bye) => return 0,
-                Ok(Flow::Next) => {}
-                Err(failed) => log.error(&failed.message),
-            },
+            Ok(Some(parsed)) => {
+                tally.run += 1;
+                match state.run(&parsed.command, out).await {
+                    Ok(Flow::Bye) => return 0,
+                    Ok(Flow::Next) => {}
+                    Err(failed) => {
+                        log.error(&failed.message);
+                        tally.failed += 1;
+                    }
+                }
+            }
             Ok(None) => {}
-            Err(why) => log.error(&why),
+            Err(why) => {
+                log.error(&why);
+                (tally.run, tally.failed) = (tally.run + 1, tally.failed + 1);
+            }
         }
     }
 }

@@ -3,13 +3,14 @@
 //! from a failure of podssh, and reads the signal, the bytes and the relay,
 //! with no parsing of stderr. The command's output never goes into it; its
 //! stdout and stderr stay as they are. The parts of the object that other
-//! verbs give too (`each`, T-484), and the one writer, are here.
+//! verbs give too (`each`, T-484; `cp`, `mv`, `scp`, `run` and `sftp`,
+//! T-486), and the one writer, are here.
 
 use std::io::Write;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use podssh_ssh::outcome::{Facts, Record};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 /// The version of the object's form.
 pub const SCHEMA: u32 = 1;
@@ -71,6 +72,43 @@ pub(crate) fn relay(f: &Facts) -> Value {
         let (code, reason) = f.relay_close.clone().unwrap_or_default();
         json!({ "host": host, "close_code": code, "reason": (!reason.is_empty()).then_some(reason) })
     })
+}
+
+/// The keys that each verb's object gives beside `ssh`'s (T-486), in the
+/// meaning of `ssh`'s, with `verb` and `error`: `failure` is the class, and
+/// `error` its words; `relay` adds `sessions`, the relay sessions that the
+/// run opened. `ssh`'s own object keeps its keys, which its readers hold.
+pub(crate) fn common(
+    verb: &str,
+    exit: i32,
+    took: Duration,
+    f: &Facts,
+    failure: Option<&str>,
+    error: Option<&str>,
+) -> Map<String, Value> {
+    let mut relay = relay(f);
+    if let Some(relay) = relay.as_object_mut() {
+        relay.insert("sessions".into(), f.relay_sessions.into());
+    }
+    let mut object = Map::new();
+    object.insert("schema".into(), SCHEMA.into());
+    object.insert("verb".into(), verb.into());
+    object.insert("exit".into(), exit.into());
+    object.insert("failure".into(), failure.into());
+    object.insert("error".into(), error.into());
+    object.insert("duration_ms".into(), (took.as_millis() as u64).into());
+    object.insert("relay".into(), relay);
+    object
+}
+
+/// `--result-file -` of a verb whose stdout is its own output: refused,
+/// as for `ssh`; whether it was, said on `err`.
+pub(crate) fn dash(verb: &str, path: Option<&str>, err: &mut dyn Write) -> bool {
+    if path != Some("-") {
+        return false;
+    }
+    let _ = writeln!(err, "podssh {verb}: --result-file -: stdout carries the run's own output; name a file");
+    true
 }
 
 /// The verdict of the end-to-end channel to a node (T-088), which says more

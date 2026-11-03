@@ -13,19 +13,28 @@
 //! **Exit codes are those of `podssh ssh`**: the command's status; 255 for a
 //! failure of podssh, a copy that failed included, which runs nothing; 64 a
 //! usage error and 78 a setting, before anything connects.
+//!
+//! **`--result-file FILE`** (T-486): at the end, on each path, one JSON
+//! object in FILE, as `cp`'s with the `status`, `signal`, `end` and `bytes`
+//! of the command, as `ssh`'s ([`result`]).
+
+mod result;
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::ArgMatches;
+use podssh_ssh::outcome::Scope;
 use podssh_ssh::{Connection, Log, Request, EXIT_FAILURE};
 
 use crate::cp::operand::{self, Operand, Remote};
+use crate::cp::result::{class, Copied};
 use crate::cp::{link, summary, sync, tree};
 use crate::relay_settings::Refusal;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env, Resolved, Transport};
+use result::Ran;
 
 /// What is never copied, at any depth: the output of a build, the packages
 /// of node, and the history of git.
@@ -154,14 +163,37 @@ pub fn plan(args: &RunArgs) -> Result<Plan, String> {
     Ok(Plan { far, local, tree, command })
 }
 
-/// Run `podssh run`; the process exit code.
+/// Run `podssh run`; the process exit code. With `--result-file FILE`, the
+/// run's record goes to FILE at its end, on each path (T-486).
 pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
+    let file = args.ssh.result_file.as_deref();
+    if crate::ssh::result::dash("run", file, err) {
+        return crate::exitmap::Fault::Usage.code();
+    }
+    let (started, scope, mut ran) = (std::time::Instant::now(), Scope::new(), Ran::default());
+    let code = run_planned(args, err, &scope, &mut ran);
+    if let Some(path) = file {
+        let object = result::object(code, started.elapsed(), &scope.record(), &ran);
+        crate::ssh::result::write("run", path, &object, err);
+    }
+    code
+}
+
+/// A refusal before anything connects, kept for the record.
+fn refused(refusal: Refusal, err: &mut dyn Write, ran: &mut Ran) -> i32 {
+    ran.did.error = Some(refusal.message.clone());
+    refusal.report("run", err)
+}
+
+/// [`run_run`]: the plan, then the copy and the command in `scope`, what
+/// they did in `ran`.
+fn run_planned(args: &RunArgs, err: &mut dyn Write, scope: &Scope, ran: &mut Ran) -> i32 {
     let plan = match plan(args) {
         Ok(plan) => plan,
-        Err(why) => return Refusal::usage(why).report("run", err),
+        Err(why) => return refused(Refusal::usage(why), err, ran),
     };
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
-        return refusal.report("run", err);
+        return refused(refusal, err, ran);
     }
     let mut ssh = args.ssh.clone();
     ssh.destination = Some(plan.far.destination());
@@ -171,13 +203,13 @@ pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
     }
     let mut resolved = match resolve::resolve_or_refuse(&ssh, &Env::from_process()) {
         Ok(resolved) => resolved,
-        Err(refusal) => return refusal.report("run", err),
+        Err(refusal) => return refused(refusal, err, ran),
     };
     if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. } | Transport::Derp { .. }) {
         let why =
             "podssh run reaches a host through the relay or with --direct; a node://, iroh: or derp: destination is \
                    for podssh ssh";
-        return Refusal::usage(why).report("run", err);
+        return refused(Refusal::usage(why), err, ran);
     }
     resolved.options.request = Request::Exec(plan.command.clone());
     // Each new connection of the run meets the first one's host key, and
@@ -196,30 +228,44 @@ pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
-            log.error(&format!("could not start the async runtime: {e}"));
+            let why = format!("could not start the async runtime: {e}");
+            log.error(&why);
+            (ran.did.failure, ran.did.error) = (Some("session"), Some(why));
             return EXIT_FAILURE;
         }
     };
     // On the heap: the copy's future is large, and Windows gives the main
-    // thread 1 MiB of stack.
-    let code = runtime.block_on(crate::ssh::transport::settled(Box::pin(copy_then_run(&plan, &resolved, &log))));
+    // thread 1 MiB of stack. The copy's connections and the command's
+    // session write the run's own record (T-486).
+    let run = scope.run(copy_then_run(&plan, &resolved, &log, ran));
+    let code = runtime.block_on(crate::ssh::transport::settled(Box::pin(run)));
     runtime.shutdown_background();
     code
 }
 
-/// The copy, then the command: its exit status, or 255.
-async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>) -> i32 {
+/// The class and the words of a failure of the copy, for the record; the
+/// facts of the connection are those of the run's own scope.
+fn copy_failed(ran: &mut Ran, failed: &crate::cp::transfer::Failed) {
+    let facts = podssh_ssh::outcome::record().facts;
+    (ran.did.failure, ran.did.error) = (Some(class(failed, &facts)), Some(failed.message.clone()));
+}
+
+/// The copy, then the command: its exit status, or 255; what each did, in
+/// `ran`.
+async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>, ran: &mut Ran) -> i32 {
     let started = std::time::Instant::now();
     let first = match link::connect(resolved, log).await {
         Ok(first) => first,
         Err(failed) => {
             log.error(&failed.message);
+            copy_failed(ran, &failed);
             return EXIT_FAILURE;
         }
     };
     if let Err(failed) = sync::parents(&first, &plan.far.path).await {
         first.close().await;
         log.error(&format!("{}: {}; the command did not run", plan.far.path, failed.message));
+        copy_failed(ran, &failed);
         return EXIT_FAILURE;
     }
     let mut link = Some(first);
@@ -228,7 +274,9 @@ async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>) -> i32 
     // The summary, on stderr before the command starts, so that the
     // command's stdout stays its own (T-472).
     log.info(&summary::line(&synced.counts, started.elapsed()));
-    if synced.failed.is_some() {
+    ran.did.copied = Some(Copied::up(&synced.counts));
+    if let Some(failed) = &synced.failed {
+        copy_failed(ran, failed);
         // Each failure was said as it came.
         if let Some(link) = link {
             link.close().await;
@@ -242,25 +290,33 @@ async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>) -> i32 
             link.close().await;
         }
         log.verbose("the copy used most of the relay session: the command runs on a new one");
-        let Some(handles) = crate::job::far::connect(resolved, log).await else { return EXIT_FAILURE };
-        let code = command(handles.last().expect("the destination's connection"), resolved, log).await;
+        let Some(handles) = crate::job::far::connect(resolved, log).await else {
+            ran.did.failure = Some(podssh_ssh::outcome::record().facts.failure.unwrap_or("connect"));
+            return EXIT_FAILURE;
+        };
+        let code = command(handles.last().expect("the destination's connection"), resolved, log, ran).await;
         podssh_ssh::run::disconnect_all(&handles).await;
         return code;
     }
     let link = link.expect("a connection, as the copy kept it");
-    let code = command(link.handle(), resolved, log).await;
+    let code = command(link.handle(), resolved, log, ran).await;
     link.close().await;
     code
 }
 
 /// The command on `handle`, as `podssh ssh` runs one: its exit status, or
-/// 255 when the session ended with none.
-async fn command(handle: &Connection, resolved: &Resolved, log: &Arc<Log>) -> i32 {
+/// 255 when the session ended with none. Its status, signal, end and
+/// bytes go to the run's record, which the copy wrote none of: SFTP takes
+/// no channel of a session.
+async fn command(handle: &Connection, resolved: &Resolved, log: &Arc<Log>, ran: &mut Ran) -> i32 {
     let host = resolved.options.destination.host.clone();
+    ran.command = true;
     match podssh_ssh::session::run(handle, &resolved.options, &host, log).await {
         Ok(code) => code,
         Err(why) => {
             log.error(&why);
+            let class = podssh_ssh::outcome::record().facts.failure.unwrap_or("session");
+            (ran.did.failure, ran.did.error) = (Some(class), Some(why));
             EXIT_FAILURE
         }
     }

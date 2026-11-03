@@ -1,0 +1,8 @@
+# T-486: cp writes the bytes of its files under `bytes`, where `ssh`'s
+# object counts a command's streams; the test of each verb's keys must
+# fail (and, where this host has an sftp-server, the test of one list of
+# keys for the six verbs: tests/result_file.rs).
+ENTRY=T-486
+GROUP=cli-tests
+EXPECT='test cp::result::tests::each_verb_gives_its_keys \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib cp::result && cargo test --locked -p podssh-cli --test result_file'

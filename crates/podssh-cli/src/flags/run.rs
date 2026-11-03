@@ -14,6 +14,9 @@ pub const RUN_FLAGS: &[FlagRow] = &[
         "leave out one more path: * and ? within a name; with a /, from the root of the project; repeatable", None),
     row(None, "exclude-from", Some("FILE"), FlagKind::Supported,
         "the --exclude patterns of FILE, one a line; # starts a comment", None),
+    // The record of the run (T-486): the copy's, and the command's as ssh's.
+    row(None, "result-file", Some("FILE"), FlagKind::Supported,
+        "at the end, one JSON object in FILE: the exit, the command's status or signal, end and bytes, the files of the copy and their bytes, the failure and the relay", None),
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,

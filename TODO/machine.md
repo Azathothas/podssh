@@ -48,14 +48,14 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:218-294`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:234-312`) and
    `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
 
 Recommendation: `--json` writes one JSON document when a one-shot report is complete (`doctor`,
 `man`, `status`, `relay`, `ping`); `--jsonl` stays for the events of a long run (`chat`, `cp`,
-`ts`: `crates/podssh-cli/src/flags.rs`, lines 272-273 at `7aa955a`, `crates/podssh-cli/src/flags/copy.rs:55-56`,
+`ts`: `crates/podssh-cli/src/flags.rs`, lines 272-273 at `7aa955a`, `crates/podssh-cli/src/flags/copy.rs:60-61`,
 `crates/podssh-cli/src/flags.rs:377-378`). `--jsonl` also makes the run
 non-interactive and starts the `--timeout` rule
 (`crates/podssh-cli/src/non_interactive.rs:56-64`, 187-203), which a bounded report does not
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:107-139` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:80-108`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:218-294`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:234-312`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
 
@@ -604,11 +604,11 @@ stderr into stdout; the byte test fails.
 
 ## Done
 
-2026-10-12. The record of a run in `crates/podssh-ssh/src/outcome.rs:1-299`:
-the bytes at `crates/podssh-ssh/src/outcome.rs:196-207`, the end at
-`crates/podssh-ssh/src/outcome.rs:217-235`, a run through a control master
-at `crates/podssh-ssh/src/outcome.rs:237-248`, and the cause of a failure
-at `crates/podssh-ssh/src/outcome.rs:250-271`. The bytes are counted where
+2026-10-12. The record of a run in `crates/podssh-ssh/src/outcome.rs:1-308`:
+the bytes at `crates/podssh-ssh/src/outcome.rs:200-211`, the end at
+`crates/podssh-ssh/src/outcome.rs:221-239`, a run through a control master
+at `crates/podssh-ssh/src/outcome.rs:241-252`, and the cause of a failure
+at `crates/podssh-ssh/src/outcome.rs:254-275`. The bytes are counted where
 they pass: stdin at `crates/podssh-ssh/src/io.rs:230`, stdout and stderr at
 `crates/podssh-ssh/src/io/msg.rs:93`, `-W` at
 `crates/podssh-ssh/src/forward.rs:66` and
@@ -622,9 +622,9 @@ failure at `crates/podssh-ssh/src/run.rs:136-146` and
 `crates/podssh-ssh/src/mux/client.rs:168`,
 `crates/podssh-ssh/src/mux/client.rs:202` and
 `crates/podssh-ssh/src/mux/client.rs:264-271`. The object in
-`crates/podssh-cli/src/ssh/result.rs:17-41`, the channel's verdict at
-`crates/podssh-cli/src/ssh/result.rs:76-86`, the file at
-`crates/podssh-cli/src/ssh/result.rs:88-102`, written at the end of
+`crates/podssh-cli/src/ssh/result.rs:18-42`, the channel's verdict at
+`crates/podssh-cli/src/ssh/result.rs:114-124`, the file at
+`crates/podssh-cli/src/ssh/result.rs:126-140`, written at the end of
 `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:82-116`); the relay host at
 `crates/podssh-cli/src/ssh/transport.rs:207` and its close at
 `crates/podssh-cli/src/ssh/mod.rs:391`. The flag in `SSH_FLAGS`
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4474-4502`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4522-4550`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.
@@ -943,7 +943,7 @@ asks for the summary of the same facts for people.
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -955,13 +955,13 @@ itself. `ssh --result-file` gives one object at the end; the verbs that copy giv
 
 - Read: `--result-file` is a row of `ssh` alone (`crates/podssh-cli/src/flags.rs:214-215`); its
   object is `schema`, `exit`, `status`, `signal`, `end`, `failure`, `bytes` (stdin, stdout,
-  stderr), `duration_ms` and `relay` (`crates/podssh-cli/src/ssh/result.rs:17-41`), written with
-  the mode 0600 (`crates/podssh-cli/src/ssh/result.rs:88-102`).
+  stderr), `duration_ms` and `relay` (`crates/podssh-cli/src/ssh/result.rs:18-42`), written with
+  the mode 0600 (`crates/podssh-cli/src/ssh/result.rs:126-140`).
 - Read: `cp`, `mv` and `scp` share one run and one report (`crates/podssh-cli/src/cp/report.rs:1-5`);
   its outcome holds the files done, the failure, the deletes, the actions of a dry run and the
-  files that `run` did not send again (`crates/podssh-cli/src/cp/outcome.rs:15-40`, where T-476
+  files that `run` did not send again (`crates/podssh-cli/src/cp/outcome.rs:15-43`, where T-476
   moved it from `cp/mod.rs`); `--jsonl`
-  gives an event for each (`crates/podssh-cli/src/flags/copy.rs:55-56`).
+  gives an event for each (`crates/podssh-cli/src/flags/copy.rs:60-61`).
 - Read: `run` copies, then runs the command as `ssh` does (`crates/podssh-cli/src/run_cmd/mod.rs:1-15`),
   and says its count of files sent and unchanged with `-v` alone
   (`crates/podssh-cli/src/run_cmd/mod.rs`, line 226 at `010abe1`; T-472 makes it a summary at the
@@ -998,6 +998,39 @@ itself. `ssh --result-file` gives one object at the end; the verbs that copy giv
   on stdout lost: the stdout of `run` is its command's.
 - The facts come of the run's own outcome (that of `cp`, and the session's record of T-484 for the
   command of `run`), never of the process's record where the verb opens more than one session.
+- 2026-11-03, the draft: `ssh`'s own object keeps its keys, with no `verb` and no `error`
+  (step 1 names `ssh` among the verbs): its tests hold the object whole, and the Prove keeps them
+  unchanged, as a reader of today's file may. The five verbs add `verb` and `error`; the keys
+  that the six share (`schema`, `exit`, `failure`, `duration_ms`, `relay`, and `status`,
+  `signal`, `end` and `bytes` of `ssh` and `run`) have one type each. Lost: `verb` in `ssh`'s
+  object too, which changes the two objects that `crates/podssh-cli/tests/ssh_result.rs` holds.
+- 2026-11-03, the draft: each verb's facts come from a scope of its own around its run
+  (`podssh_ssh::outcome::Scope`, T-484), which outlives work that a `--timeout` drops: the relay's
+  host and its sessions (each opened session counts, `Facts::relay_sessions`), the close of the
+  last one (`Link::close` keeps it), and the class of a connection that failed, which the copies
+  now say as `ssh` does (`crates/podssh-cli/src/cp/link.rs`). `run` has one scope for its copy
+  and its command (step 3): the copy writes no status, end or bytes, as SFTP takes no channel of a
+  session, so those are the command's; and a scope of the command alone would miss the server's
+  words of its connection, which the connection's `Client` keeps in the scope that made it. Lost:
+  a scope of the command alone.
+- 2026-11-03, the draft: the classes of T-054 where the connection failed (`connect`, `relay`,
+  `host-key`, `auth`, as the scope's record says), `copy` for a source, a destination or a step
+  that the server refused (no SFTP after the login among them), `verify` for digests that differ,
+  `session` for a session that broke, and two more: `timeout` after `--timeout` (75) and
+  `interrupted` after a signal (130), as `ssh` has `interrupted` as an end; `usage` and `config`
+  from the exit code of a refusal before anything connects, as `ssh`'s. Lost: `session` for a
+  `--timeout`, which tells a harness nothing of why.
+- 2026-11-03, the draft: `transferred` counts the bytes of the files through this host: a file's
+  size, with `--delta` the blocks that went, none for a rename or a hard link; between two servers
+  through this host both ways, within one server (`copy-data`, a rename) none. `run`'s is the bytes
+  of its summary (T-472), up alone. After `--timeout`, `files` and `transferred` are null, as the
+  run's counts went with its future (T-472's Decision). Lost: a count of each byte on the wire,
+  which needs a counter in each road of the copy.
+- 2026-11-03, the draft: `sftp`'s unit is the command, as step 4 names it: no `files` and no
+  `transferred`, and `bytes` null. `failed_command` is the line of the batch whose failure ended
+  it, trimmed; a line with `-` that fails is counted in `commands.failed` and named nowhere, as it
+  ends nothing; a fetch of the destination's file counts as one command. `-` is refused (64) by
+  each verb, as stdout is the run's own output (`--jsonl`, the command's, the batch's lines).
 
 ## Prove
 
@@ -1014,6 +1047,69 @@ Against the test's SSH server: `cp -r` of a tree with one file changed gives `fi
 six verbs. In `scripts/interop-result.sh`, the same against OpenSSH and Dropbear. Planted (new,
 t486-bytes-meaning): `cp` writes its transferred bytes under `bytes`; the test of one list of keys
 fails.
+
+## Correction
+
+- The Prove's `cp -r` of a tree with one file changed and `files.unchanged` 2: `cp -r` sends each
+  file of a tree; only `podssh run` leaves a file that it finds as it is
+  (`crates/podssh-cli/src/run_cmd/mod.rs:162`, `changed_only`), and the outcome counts it as
+  unchanged for `run` alone (`crates/podssh-cli/src/cp/outcome.rs:38`). A copy that leaves the
+  unchanged files is `cp -r -u` (`crates/podssh-cli/src/flags/copy.rs:35`), which counts them as
+  skipped (T-473). The test measures both: `cp -r -u` with one file newer gives `files.sent` 1 and
+  `files.skipped` 2, and a second `run` gives `files.unchanged` 3.
+- The Prove's Dropbear in `scripts/interop-result.sh`: `run` and `sftp` need the SFTP of the
+  OpenSSH server (as `scripts/interop-run.sh` runs on port 2201), and a copy to Dropbear goes by
+  exec where it has no SFTP; the checks are `cp` against both, `run` and `sftp` against OpenSSH.
+- The plant's test: the test of one list of keys runs against the test's server only where this
+  host has an `sftp-server`; the plant is caught by the unit test of each verb's keys
+  (`cp::result::tests::each_verb_gives_its_keys`), and its RUN runs the test of one list after it.
+
+## Done
+
+2026-11-03, drafted by an agent, not built: each result below is UNVERIFIED, for the main session
+to fill when it merges, builds and runs the draft. It builds on T-484's draft (the scope of a
+session's record).
+
+- `crates/podssh-cli/src/cp/result.rs`, new: what a run did (`Did`, `Copied`), the bytes of a file
+  through this host (`moved`), the class of a failure (`class`), and the objects of the five verbs
+  (`object`, `copy_object`); its tests in `crates/podssh-cli/src/cp/result_tests.rs`.
+  `crates/podssh-cli/src/ssh/result.rs` gives the keys that each verb shares (`common`, with
+  `relay.sessions`) and the refusal of `-` (`dash`); `crates/podssh-ssh/src/outcome.rs` counts
+  the relay sessions of a run (`Facts::relay_sessions`).
+- `cp`, `mv` and `scp` (`crates/podssh-cli/src/cp/mod.rs`): `run_cp` writes the record, and its
+  copy (`run_copy`) runs in a scope of its own, keeping each refusal's words, the outcome's files,
+  and the class of its first failure; `crates/podssh-cli/src/cp/link.rs` says the class of a
+  connection that failed and keeps the relay's close; `crates/podssh-cli/src/cp/outcome.rs` and
+  `crates/podssh-cli/src/cp/across.rs` mark a copy between servers through this host.
+- `run` (`crates/podssh-cli/src/run_cmd/mod.rs`, and `crates/podssh-cli/src/run_cmd/result.rs`,
+  new): one scope for the copy and the command, the copy's files and the command's status,
+  signal, end and bytes. `sftp` (`crates/podssh-cli/src/sftp/mod.rs`, and
+  `crates/podssh-cli/src/sftp/result.rs`, new): each command counted, the line that ended the
+  batch, the class of a failure and of the `--timeout`.
+- The row `--result-file` of `cp` and `mv` (`crates/podssh-cli/src/flags/copy.rs`), `scp` and
+  `sftp` (`crates/podssh-cli/src/flags/scp.rs`) and `run` (`crates/podssh-cli/src/flags/run.rs`);
+  the notes of the manual (`crates/podssh-cli/src/man/notes.rs`,
+  `crates/podssh-cli/src/man/notes_run.rs`); `docs/cli.md` ("The record of a copy:
+  `--result-file`", and `podssh run`), and a row of `docs/STATUS.md`.
+- Tests: `cargo test -p podssh-cli --lib cp::result`, UNVERIFIED (the bytes of a file, a rename,
+  a link and a delta; up, down and between servers; each class; each verb's keys, `bytes` null;
+  the relay's sessions); `--lib run_cmd::`, UNVERIFIED (the command's end beside the copy; a
+  failed copy with no bytes); `--lib sftp::`, UNVERIFIED (the command that ended the batch);
+  `cargo test -p podssh-cli --test result_file`, UNVERIFIED (Unix, with an `sftp-server`: `cp -r`
+  of three files and 9 bytes up, `cp -r -u` with one changed, 1 sent, 2 skipped and 13 bytes up,
+  2 bytes down, a missing source `copy` with its words, `mv`'s `removed`, `scp`'s object; `run` of
+  `echo ran; exit 3`, status 3 and 4 bytes of stdout beside 3 files, then 3 unchanged; an `sftp`
+  batch, `commands` 3 and 2, `failed_command` `get nosuch`; one list of keys and types for the six
+  verbs; `-` refused by each, 64; each file mode 0600); `--test ssh_result`, unchanged,
+  UNVERIFIED; the suites of `podssh-cli` and `podssh-ssh`, UNVERIFIED; `man_page`,
+  `man_flag_parity`, `flag_table`, `man_json`, UNVERIFIED; clippy, all targets, `-D warnings`,
+  UNVERIFIED.
+- Planted, `scripts/plants/t486-bytes-meaning.patch` (a copy's bytes under `bytes`): `git apply
+  --check` passes; caught, UNVERIFIED (`sh scripts/plant-each.sh --here t486-bytes-meaning`).
+- In the gate (`scripts/interop-result.sh`): `result.cp.openssh` and `result.cp.dropbear` (one file
+  of 262145 bytes up, its record), `result.run` (`echo out; exit 3`) and `result.sftp` (a batch
+  whose `get` fails), in `scripts/interop-baseline.txt`; UNVERIFIED, the gate's step `release` at
+  the push.
 
 # T-488: `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec`
 

@@ -4,6 +4,11 @@
 
 use super::{row, FlagKind, FlagRow};
 
+/// `--result-file` of the copies (T-486): the keys of `ssh --result-file`
+/// in their meaning, and the files; `scp` takes it too.
+pub(super) const RESULT_FILE: FlagRow = row(None, "result-file", Some("FILE"), FlagKind::Supported,
+    "at the end, one JSON object in FILE: the exit, the failure and its words, the files sent, unchanged, skipped, deleted and failed, their bytes each way, and the relay", None);
+
 /// **`cp` / `mv` and their `scp` / `sftp` aliases.** `cp` copies files over
 /// SFTP or by exec (T-134, T-135); `mv` copies, then removes each source
 /// (T-138).
@@ -54,6 +59,7 @@ pub const CP_FLAGS: &[FlagRow] = &[
         "read this ssh_config file in place of ~/.ssh/config; none reads no file", None),
     row(None, "jsonl", None, FlagKind::Supported,
         "one JSON object per event on stdout", None),
+    RESULT_FILE,
     row(None, "timeout", Some("DURATION"), FlagKind::Supported,
         "bound the transfer; required with no TTY (default: env PODSSH_TIMEOUT)", None),
     // The connection, as `ssh` makes it: the same ids, so `SshArgs` reads

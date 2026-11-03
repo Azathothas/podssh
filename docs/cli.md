@@ -1719,6 +1719,9 @@ a host, then runs a command in it, with the command's exit status (T-192,
 - **The exit status** is the command's, with the rules of `podssh ssh`;
   a copy that failed exits 255 and runs nothing. 64 and 78 come before
   anything connects.
+- **`--result-file FILE`** gives the copy's files and the command's
+  status, signal, end and bytes in one object (T-486; "The record of a
+  copy: `--result-file`").
 
 ## `podssh job`
 
@@ -2315,6 +2318,51 @@ renamed.
   `put` does: a broken session ends the command, and no side file is kept.
   Several sources that a pattern names (`get -r dir*`) each go under the
   local directory, with their own names.
+
+## The record of a copy: `--result-file`
+
+`cp`, `mv`, `scp`, `run` and `sftp` take `--result-file FILE` (T-486,
+GitHub #97, `crates/podssh-cli/src/cp/result.rs`): at the end of each run,
+also of one refused before it connected, one JSON object in FILE, so that a
+harness reads what happened with no parsing of stderr and no sum of the
+events of `--jsonl`, which stay as they are.
+
+- **The keys of `ssh --result-file` keep their meaning**
+  (`crates/podssh-cli/src/ssh/result.rs`), and each verb adds keys:
+  `schema` (1), `verb`, `exit` (the code that podssh exits with),
+  `failure` (the class, or null), `error` (its words, or null),
+  `duration_ms` and `relay` (`host`, `close_code`, `reason`, and
+  `sessions`, the relay sessions that the run opened: a copy past the
+  relay's limits opens more than one; null with no relay). `ssh`'s own
+  object keeps its keys, with no `verb`: a reader of it compares it whole.
+- **The classes**: those of T-054 where the connection failed, as the
+  run's own record says (`connect`, `relay`, `host-key`, `auth`); `copy`
+  for a source, a destination, or a step that the server refused (no SFTP
+  after the login is one); `verify` for digests that differ; `session` for
+  a session that broke; `timeout` after `--timeout` (75) and `interrupted`
+  after a signal (130); `usage` and `config` for a refusal before anything
+  connects (64, 78).
+- **The copies** add `files` (`sent`, `unchanged`, `skipped`, `deleted`,
+  `failed`, as the summary counts them) and `transferred` (`up` and `down`:
+  the bytes of the files through this host, with `--delta` the blocks that
+  went, none for a rename or a hard link, and both ways between two servers
+  through this host). `bytes` is null: it is the streams of a command in
+  `ssh`'s object, and a copy runs none. After `--timeout`, `files` and
+  `transferred` are null, as the run's counts went with it (T-472). `mv`
+  adds `removed`, the sources that it removed once their copy was verified.
+- **`run`** adds the `status`, `signal`, `end` and `bytes` of its command,
+  as `ssh` gives them; `bytes` is null when the command did not run, as
+  after a copy that failed. Its `transferred` is up alone.
+- **`sftp`** adds `commands` (`run`, `failed`) and `failed_command`, the
+  line of the batch whose failure ended it, as the user wrote it, or null;
+  a fetch of the destination's file is one command. Its unit is the
+  command: it has no `files` and no `transferred`, and `bytes` is null.
+- The facts are the run's own: its outcome, and the record of its own
+  scope (`podssh_ssh::outcome::Scope`, T-484), which its connections and
+  the command's session write, never the process's. A new file is made for
+  its owner alone (mode 0600 on Unix), by the one writer of `ssh`'s; `-` is
+  refused (64), as stdout is the run's. A file that cannot be written is a
+  line on stderr, and the exit code stays the run's.
 
 ## `podssh edit`
 

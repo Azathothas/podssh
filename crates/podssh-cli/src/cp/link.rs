@@ -101,13 +101,17 @@ impl Link {
 
     /// End the SFTP session, then each connection.
     pub async fn close(self) {
-        let Link { handles, road, layer, .. } = self;
+        let Link { handles, road, layer, meter } = self;
         if let Road::Sftp(sftp) = road {
             let _ = sftp.close_session();
         }
         podssh_ssh::run::disconnect_all(&handles).await;
         drop(handles);
         crate::ssh::transport::settle(layer).await;
+        // The relay's close, for the record of `--result-file` (T-486).
+        if let Some(end) = meter.relay.as_ref().and_then(RelayStatus::get) {
+            podssh_ssh::outcome::relay_end(&end);
+        }
     }
 }
 
@@ -165,11 +169,18 @@ async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<Hops, Failed> {
             for line in &not.lines {
                 log.error(line);
             }
+            // The class of the road that failed, as `ssh --result-file`
+            // gives it, for the record of the copy (T-486).
+            let leg = if matches!(resolved.transport, Transport::Relay { .. }) { "relay" } else { "connect" };
+            podssh_ssh::outcome::failure_is(leg);
             let message = format!("{}: no connection to the server", resolved.options.destination.host);
             return Err(Failed::new(fault_of(not.code), message));
         }
     };
-    let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log).await.map_err(hop_failure)?;
+    let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log).await.map_err(|e| {
+        podssh_ssh::outcome::failed(e.class());
+        hop_failure(e)
+    })?;
     Ok((handles, reached.relay, reached.layer))
 }
 

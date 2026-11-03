@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:4388-4391`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:4436-4439`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4568-4677`); they cannot define a group.
+  (`docs/cli.md:4616-4725`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:246`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:4388-4391`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:4436-4439`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:90-110`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:386-427`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:4388-4391`), which is not a failure of podssh.
+  status (`docs/cli.md:4436-4439`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2267,11 +2267,11 @@ a command.
 ## Premise
 
 - Read: `run` leaves out the default excludes, and reads `.podsshignore` at the project's root
-  when it is there (`crates/podssh-cli/src/run_cmd/mod.rs:30-34`, `:141-149`), as the manual's
+  when it is there (`crates/podssh-cli/src/run_cmd/mod.rs:39-43`, `:150-158`), as the manual's
   note says (`crates/podssh-cli/src/man/notes_run.rs:11-18`). So the issue's first ask, a
   `.podsshignore` read by default, is met, as its comment found.
 - Read: the rows of `run`, which `--help` shows, name neither the defaults nor the file, and hold
-  no `--dry-run` and no way to turn the excludes off (`crates/podssh-cli/src/flags/run.rs:10-47`,
+  no `--dry-run` and no way to turn the excludes off (`crates/podssh-cli/src/flags/run.rs:10-50`,
   `:13-16`).
 - Read: the walk drops each excluded path with no count (`crates/podssh-cli/src/cp/tree.rs:291-293`),
   and the run says its files sent and unchanged at `-v` alone
@@ -2301,7 +2301,7 @@ a command.
    `.podsshignore`, and that `run` does. `docs/cli.md` and `docs/STATUS.md`.
 5. (L-20.) The row of `--exclude` and the notes of `run` say that an exclude leaves a path out of
    the copy and removes nothing: what an earlier run sent stays on the far side. `run` has no
-   `--delete`, which `cp -r` has (`crates/podssh-cli/src/flags/copy.rs:49-50`); the notes say so.
+   `--delete`, which `cp -r` has (`crates/podssh-cli/src/flags/copy.rs:54-55`); the notes say so.
 
 ## Decision
 

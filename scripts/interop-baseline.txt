@@ -23,7 +23,7 @@ harness recording interop 3 scripts/interop-recording.sh
 harness x11 interop 3 scripts/interop-x11.sh
 harness stdio interop 3 scripts/interop-stdio.sh
 harness match interop 18 scripts/interop-match.sh
-harness result interop 13 scripts/interop-result.sh
+harness result interop 17 scripts/interop-result.sh
 harness mcp interop 6 scripts/interop-mcp.sh
 harness each interop 9 scripts/interop-each.sh
 harness snippets interop 7 scripts/interop-snippets.sh
@@ -709,6 +709,10 @@ result.dropbear.signal pass
 result.dropbear.bytes pass
 result.dropbear.auth pass
 result.shared pass
+result.cp.openssh pass
+result.cp.dropbear pass
+result.run pass
+result.sftp pass
 result.session_log pass
 result.error_program.openssh pass
 result.error_program.dropbear pass

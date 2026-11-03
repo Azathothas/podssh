@@ -1,8 +1,9 @@
 # --result-file (T-054) against OpenSSH's sshd on port 2201 and Dropbear on
 # port 2203: the remote status, a signal, 5,000,000 bytes each way, and a
 # refused login, each in the JSON object of the run, while stdout stays as
-# it is; a run through a podssh control master (T-039); and the program of
-# PODSSH_ERROR_PROGRAM (T-195), which a remote status never starts.
+# it is; a run through a podssh control master (T-039); the record of cp,
+# run and sftp (T-486); and the program of PODSSH_ERROR_PROGRAM (T-195),
+# which a remote status never starts.
 # Sourced by scripts/interop.sh; uses ok, bad, p, $W, $K and $T.
 
 echo
@@ -68,6 +69,46 @@ rc=$?
 p 2201 -S "$RW/ctl" -O exit "$T" </dev/null >/dev/null 2>&1
 kill "$master" 2>/dev/null
 wait "$master" 2>/dev/null
+# The record of the copies and of run (T-486): cp up to each server (over
+# SFTP, or by exec where it has none), its file and its bytes, and bytes
+# null; run and sftp against OpenSSH.
+# v VERB PORT [arguments...]: podssh VERB as p() runs ssh, with no stdin.
+v() {
+    _verb=$1
+    _port=$2
+    shift 2
+    _p=-P
+    [ "$_verb" = run ] && _p=-p
+    # shellcheck disable=SC2086
+    timeout 120 env -u SSH_AUTH_SOCK HOME="$W" "$BIN" "$_verb" --direct "$_p" "$_port" -o UserKnownHostsFile="$KH" \
+        -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes -o BatchMode=yes $K "$@" \
+        </dev/null
+}
+head -c 262145 /dev/urandom >"$RW/cp.bin"
+for srv in openssh:2201 dropbear:2203; do
+    port=${srv#*:}
+    v cp "$port" --timeout 120s --result-file "$RW/cp.json" "$RW/cp.bin" "$T:result-cp.bin" >"$RW/out" 2>"$RW/err"
+    rc=$?
+    [ "$rc" = 0 ] && result_of "$RW/cp.json" \
+        'r["verb"] == "cp" and r["files"]["sent"] == 1 and r["transferred"] == {"up": 262145, "down": 0} and r["bytes"] is None' \
+        && ok "result.cp.${srv%%:*}" "port $port: cp's record gives one file sent, 262145 bytes up, and bytes null" \
+        || bad "result.cp.${srv%%:*}" "port $port: exit $rc, $(cat "$RW/cp.json" 2>/dev/null)" "$RW/err"
+done
+mkdir -p "$RW/proj"
+printf 'a\n' >"$RW/proj/a.txt"
+v run 2201 --result-file "$RW/run.json" --from "$RW/proj" "$T" -- 'echo out; exit 3' >"$RW/out" 2>"$RW/err"
+rc=$?
+[ "$rc" = 3 ] && [ "$(cat "$RW/out")" = out ] && result_of "$RW/run.json" \
+    'r["verb"] == "run" and (r["status"], r["end"], r["failure"]) == (3, "status", None) and r["bytes"]["stdout"] == 4' \
+    && ok result.run "run to OpenSSH: exit 3, the command's status, end and bytes beside its copy" \
+    || bad result.run "exit $rc, $(cat "$RW/run.json" 2>/dev/null)" "$RW/err"
+printf 'pwd\nget result-nosuch\npwd\n' >"$RW/batch"
+v sftp 2201 --result-file "$RW/sftp.json" -b "$RW/batch" "$T" >"$RW/out" 2>"$RW/err"
+rc=$?
+[ "$rc" != 0 ] && result_of "$RW/sftp.json" \
+    'r["commands"] == {"run": 2, "failed": 1} and r["failed_command"] == "get result-nosuch" and r["failure"] == "copy"' \
+    && ok result.sftp "sftp to OpenSSH: the commands run and failed, and the one that ended the batch" \
+    || bad result.sftp "exit $rc, $(cat "$RW/sftp.json" 2>/dev/null)" "$RW/err"
 # The session log (T-056): a line for the run, and never its command.
 SL="$RW/sessions.jsonl"
 export PODSSH_SESSION_LOG="$SL"
