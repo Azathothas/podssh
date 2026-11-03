@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/job/follow.rs
++++ b/crates/podssh-cli/src/job/follow.rs
+@@ -166,7 +166,7 @@
+     tries: &mut u32,
+ ) -> Option<i32> {
+     loop {
+-        let from = place.from.map_or_else(|| "end".to_string(), |n| n.to_string());
++        let from = place.from.map_or_else(|| "end".to_string(), |_| "0".to_string());
+         let mut start = None;
+         sink.came = 0;
+         let words = ["follow", id, from.as_str()];

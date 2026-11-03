@@ -31,6 +31,15 @@ pub const JOB: &[&str] = &[
      restart of the host), the exit status (a dash while there is none) and the command. podssh job log HOST ID \
      writes the job's output to stdout, also after its end. podssh job stop HOST ID ends the tmux session \
      of that exact name, never another, and removes the job's directory with its output.",
+    "podssh job log --follow HOST ID writes the job's output as it comes, on one connection, and exits with \
+     the job's status once it ended: 255 for a job that is lost, and 75 at --timeout DURATION, the job \
+     running on. Each call of the far script gives the new bytes each second, from the count of the bytes \
+     that came, for 20 s at most, and a read of the state follows it; so a quiet job costs one call each \
+     20 s, a call that broke goes on where the output stopped with no byte twice, and a dead link is found \
+     within 30 s, as for each call. --from-end starts at the size of the output then. --jsonl writes one \
+     JSON object for each line, {\"event\":\"line\",\"text\":...}, or \"base64\" for bytes that are not \
+     UTF-8, then {\"event\":\"end\",\"state\":...,\"status\":...}. A reader that went (| head) ends it, with \
+     0.",
     "podssh job submit HOST -- COMMAND queues the command on the host and prints its ID; a runner in the \
      host's tmux, podssh-runner, starts the oldest queued job while fewer jobs run there than the slots. \
      --slots N sets the slots, 1 to 64; they stay for the next submits, and are 1 until one sets them. The \
@@ -49,6 +58,6 @@ pub const JOB: &[&str] = &[
      status, started_ms and command.",
     "The exit status is that of podssh ssh: 0; 64 for a usage error and 78 for a setting, before anything \
      connects; 255 when the host cannot be reached or logged in to, has no tmux, has no such job, gives \
-     no answer, or a job of --no-tmux runs on after its stop. wait gives the job's status, or 75 at its \
-     --timeout.",
+     no answer, or a job of --no-tmux runs on after its stop. wait and log --follow give the job's \
+     status, or 75 at their --timeout.",
 ];

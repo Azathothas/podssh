@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3998-4001`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:4020-4023`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4178-4287`); they cannot define a group.
+  (`docs/cli.md:4200-4309`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:246`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3998-4001`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:4020-4023`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1777,7 +1777,7 @@ session built it and ran each check below.
 - The planted defect: `stop` ends each tmux session whose name starts
   with `podssh-job-`. The test
   `two_jobs_run_and_a_stop_of_one_leaves_the_other` failed with it, at
-  `crates/podssh-cli/tests/job_far.rs:77`, and passed again without it. The checks `job.openssh.stop` and
+  `crates/podssh-cli/tests/job_far.rs:94`, and passed again without it. The checks `job.openssh.stop` and
   `job.dropbear.stop` of the interop wait for T-251.
 
 # T-195: Hand an error report to a program that the user names, for triage by an AI or a script
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:87-107`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:370-411`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3998-4001`), which is not a failure of podssh.
+  status (`docs/cli.md:4020-4023`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2937,7 +2937,7 @@ handshake each (the reporter's measurement).
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2948,12 +2948,12 @@ output comes in steps.
 ## Premise
 
 - Read: the far script's `log` prints the file `out` once
-  (`crates/podssh-cli/src/job/far.sh:274-286`), and the client streams those bytes as they come
-  (`crates/podssh-cli/src/job/far.rs:125-173`), in one call
-  (`crates/podssh-cli/src/job/mod.rs:269-279`).
+  (`crates/podssh-cli/src/job/far.sh:285-297`), and the client streams those bytes as they come
+  (`crates/podssh-cli/src/job/far.rs`, lines 121-169 at `477b47c`), in one call
+  (`crates/podssh-cli/src/job/mod.rs`, lines 262-272 at `477b47c`).
 - Read: `job wait` reads the state over one connection each 5 s until the job ends, and exits with
   its status, or 75 once `--timeout` passed (`crates/podssh-cli/src/job/queue.rs:18`,
-  `crates/podssh-cli/src/job/mod.rs:134-149`).
+  `crates/podssh-cli/src/job/mod.rs:137-152`).
 - Read: each step of a call has 30 s, each piece of the answer too
   (`crates/podssh-cli/src/job/far.rs:33-35`), so a call that waits longer for a quiet job's next
   byte fails.
@@ -2987,6 +2987,17 @@ output comes in steps.
   output stopped, with no byte twice.
 - `--follow` alone, with no `-f`: on `ssh`, `-f` is `--detach` (T-380), and `job` takes the
   connection's options of `ssh`; a `-f` with another meaning on `job` lost.
+- 2026-11-03, as drafted: the far end names the offset of each call (`out N`), and the client
+  counts from it, so that `--from-end` learns the size from the first call, and a call that broke
+  after its head goes on from N and the bytes that came. A call ends after 20 s in all, not only
+  after 20 s with no byte: so a call keeps the Decision's 20 s at most, also on a job that prints
+  without a pause. A call that broke gets a new connection, 5 in a row at most with the backoff of
+  the relay's opener, as `wait` does.
+- 2026-11-03, as drafted: a reader that went (`| head`) ends the call at once and the run with 0,
+  where `log` reads the rest and drops it; with `--jsonl`, a line of more than 1 MiB with no
+  newline goes as it is, so that memory stays bounded, and at a `--timeout` the end object gives
+  the state last read. `-v` says each call (`N bytes from AT`), which the test of the quiet job
+  counts. Lost: an end object for a refusal (no job, no host), whose exit and words say it.
 
 ## Prove
 
@@ -3002,6 +3013,61 @@ them). A job quiet for 45 s, then printing, is followed across three calls with 
 twice. `--from-end` prints only what came after; `--timeout 2s` on `sleep 300` exits 75; a lost
 job exits 255. In `scripts/interop-job.sh`, the ticks against OpenSSH and Dropbear. Planted (new,
 t485-offset-reset): each call from offset 0; the test of the ticks finds a tick twice, and fails.
+
+## Correction
+
+2026-11-03, read in the draft:
+
+- The Decision's "some 8 KiB each 20 s" was the far script at `477b47c` (7,443 bytes); with the
+  jobs with no tmux of T-481 and `follow`, it is some 19 KiB, about 1 KB/s on a quiet job. Still
+  small beside a login each poll, which the issue measured at 1.4 s; a call that runs the kept
+  `jobs.sh` with no script lost, as a host may keep the script of another version.
+- The plant cannot fail the test of the ticks: five ticks in 5 s come in one call, which ends at
+  the job's end, so no second call asks from the offset 0. The plant `t485-offset-reset` fails the
+  test of the quiet job instead, whose `A` then comes again on each later call.
+
+## Done
+
+2026-11-03, drafted by an agent that does not build: nothing below was compiled or run, but a run
+of the far action under dash in a scratch home. Each result is UNVERIFIED until the main session
+runs the Prove.
+
+- `crates/podssh-cli/src/job/far.sh`: the action `follow ID FROM` (`FROM` a number or `end`) and
+  `size`, a count of `wc -c` with no blanks.
+- `crates/podssh-cli/src/job/follow.rs` (new): `Sink` (the bytes, or `--jsonl`'s objects, and the
+  count of each call), `line_event`, `Place`, `follow` (the connections, as `wait`) and `watch`
+  (the calls of `follow` and of `state`). Three unit tests.
+- `crates/podssh-cli/src/job/far.rs`: `stream` gives back the words after its head and, for a
+  follow, ends the call when the reader went; `log` passes neither. The test of the actions names
+  `follow)`. `crates/podssh-cli/src/job/args.rs`: `--follow`, `--from-end`, `--jsonl`,
+  `Action::Follow`, `--timeout` of `wait` and of `log --follow` (one parse), and the refusals (64).
+  `crates/podssh-cli/src/job/mod.rs`: the arm of `Action::Follow` with its `--timeout` (75, and
+  the end object); `crates/podssh-cli/src/job/tests.rs`, one test more.
+- `crates/podssh-cli/src/job/far_notmux.sh`: the watcher of a runner with no tmux (T-481) also
+  ends with the job's directory, as a runner killed from outside can stay a zombie where nothing
+  reaps it, which the test of the lost job makes.
+- The rows (`crates/podssh-cli/src/flags/job.rs`), the notes
+  (`crates/podssh-cli/src/man/notes_job.rs`), an example
+  (`crates/podssh-cli/src/man/examples.rs`), `docs/cli.md`, a row of `docs/STATUS.md`.
+- Tests: `crates/podssh-cli/tests/job_far.rs`, four new
+  (`log_follow_gives_each_tick_once_as_it_comes_then_the_status`,
+  `log_follow_goes_on_across_calls_with_no_byte_lost_or_twice`,
+  `log_follow_from_the_end_and_its_timeout`,
+  `log_follow_ends_a_lost_job_with_255_and_jsonl_gives_each_line`), on jobs with no tmux, so that
+  they run on a host with no tmux; `job_harness`'s `command` and `job_lines` (each line with the
+  time it came); `crates/podssh-cli/tests/job.rs`, the refusals, a host out of reach, the words of
+  the manual.
+- `scripts/interop-job.sh`: `job.{openssh,dropbear}.follow`, five ticks in tmux, then 3;
+  `scripts/interop-baseline.txt`, the two ids, and its floor is 20.
+- Planted: `scripts/plants/t485-offset-reset.plant` (group `cli-tests`): each call from the
+  offset 0; `git apply --check` takes it, and the four plants of `far.sh`.
+- The run under dash (no build): the ticks of a job of 3 s in 3 s, then `state done 3`; from the
+  offset 7, the last two ticks; from the end, `out 21` and nothing; `unknown follow x`;
+  `no-job 00000000`; a job whose runner was killed ended at once, `state lost -`.
+
+What waits, UNVERIFIED: each command of the Prove, and `cargo test -p podssh-cli --test job`;
+`cargo fmt --check` and `cargo clippy`; `scripts/interop-job.sh` in the gate; the plant
+(`sh scripts/plant-each.sh t485-offset-reset`).
 
 # T-504: `each` splits a host of the command line at a blank, and runs the command on hosts that nobody named
 

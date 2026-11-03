@@ -100,6 +100,38 @@ fn no_tmux_makes_a_plain_start_or_submit() {
     assert_eq!(action(&submit), Ok(Action::Submit { command: "make".into(), slots: None, plain: true }));
 }
 
+/// T-485: `log --follow`, with `--from-end`, `--jsonl` and `--timeout`;
+/// each of the three without `--follow` is refused, and `--follow` with
+/// another subcommand.
+#[test]
+fn log_follow_reads_its_flags_and_refuses_them_without_it() {
+    let mut follow = args(&["log", "web1", "ABCD1234"], false);
+    follow.follow = true;
+    let want = Action::Follow { id: "abcd1234".into(), from_end: false, jsonl: false, timeout: None };
+    assert_eq!(action(&follow), Ok(want));
+    follow.from_end = true;
+    follow.jsonl = true;
+    follow.timeout = Some("2s".into());
+    let timeout = Some(Duration::from_secs(2));
+    let want = Action::Follow { id: "abcd1234".into(), from_end: true, jsonl: true, timeout };
+    assert_eq!(action(&follow), Ok(want));
+    let refused = |set: &dyn Fn(&mut JobArgs)| {
+        let mut a = args(&["log", "web1", "abcd1234"], false);
+        set(&mut a);
+        action(&a).expect_err("a refusal")
+    };
+    let why = refused(&|a| a.from_end = true);
+    assert!(why.contains("--from-end goes with podssh job log --follow"), "{why}");
+    let why = refused(&|a| a.jsonl = true);
+    assert!(why.contains("--jsonl goes with podssh job log --follow, not with log without --follow"), "{why}");
+    let why = refused(&|a| a.timeout = Some("2s".into()));
+    assert!(why.contains("--timeout goes with podssh job wait or log --follow"), "{why}");
+    let mut stop = args(&["stop", "web1", "abcd1234"], false);
+    stop.follow = true;
+    let why = action(&stop).expect_err("a refusal");
+    assert!(why.contains("--follow goes with podssh job log, not with stop"), "{why}");
+}
+
 #[test]
 fn an_id_is_eight_hex_digits_and_new_ones_differ() {
     let a = new_id();

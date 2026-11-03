@@ -123,13 +123,19 @@ pub(crate) enum Streamed {
 }
 
 /// One call whose answer is a line `head`, then bytes, which go to `out` as
-/// they come: the output of `log`. Another first line is given back.
+/// they come: the output of `log`. Another first line is given back. The
+/// words after `head` on its line go to `words_after` once it came: the
+/// offset of `follow`'s `out N` (T-485). `gone_ends`: a reader that went
+/// away ends the call, as for `log --follow`, where else the rest is read
+/// and dropped.
 pub(crate) async fn stream(
     handle: &Connection,
     host: &str,
     words: &[&str],
     head: &str,
     out: &mut dyn std::io::Write,
+    gone_ends: bool,
+    words_after: &mut Option<String>,
 ) -> Result<Streamed, String> {
     let marker = marker();
     let command = command(&marker, words)?;
@@ -146,16 +152,22 @@ pub(crate) async fn stream(
                 let rest = first.split_off(end + 1);
                 let said = String::from_utf8_lossy(first).trim_end().to_string();
                 line = None;
-                if said != head {
-                    other = Some(said);
+                match said.strip_prefix(head) {
+                    Some("") => *words_after = Some(String::new()),
+                    Some(after) if after.starts_with(' ') => *words_after = Some(after[1..].to_string()),
+                    _ => other = Some(said),
                 }
                 rest
             }
         };
         // A reader that went away (`podssh job log ... | head`) is not a
-        // failure: the rest is read and dropped.
+        // failure: the rest is read and dropped, or the call ends.
         if other.is_none() {
-            let _ = out.write_all(&rest);
+            if let Err(e) = out.write_all(&rest) {
+                if gone_ends {
+                    return Err(e);
+                }
+            }
         }
         Ok(())
     };
@@ -296,7 +308,8 @@ mod tests {
     /// shell's syntax of each line is read by the tests that run it.
     #[test]
     fn the_script_names_each_action_of_the_client() {
-        let actions = ["start | submit)", "job)", "plain)", "runner)", "list)", "state)", "log)", "files)", "stop)"];
+        let actions =
+            ["start | submit)", "job)", "plain)", "runner)", "list)", "state)", "log)", "follow)", "files)", "stop)"];
         for action in actions {
             assert!(SCRIPT.contains(&format!("\n{action}\n")), "{action}");
         }
