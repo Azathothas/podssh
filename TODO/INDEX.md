@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 97 open, 5 partial, 16 blocked, 450 done.**
+**568 entries: 97 open, 4 partial, 16 blocked, 451 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 24 | 4 | 14 | 216 | 258 |
+| P2 | 24 | 3 | 14 | 217 | 258 |
 | P3 | 73 | 0 | 2 | 171 | 246 |
-| **All** | 97 | 5 | 16 | 450 | 568 |
+| **All** | 97 | 4 | 16 | 451 | 568 |
 
 ## Entries
 
@@ -642,5 +642,5 @@ repository and CI).
 | [T-600](resume.md) | P2 | S | none | defect | done | A resume that comes before the first link's task carries its session ends the session, as while a node opens its target |
 | [T-601](reverse.md) | P2 | S | none | defect | done | A node's `serve` that is dropped leaves its writer holding the socket, so the far side never sees the node go while a session of it lives |
 | [T-602](mesh.md) | P2 | S | M10 | defect | done | The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control |
-| [T-603](multi.md) | P2 | S | none | defect | partial | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |
+| [T-603](multi.md) | P2 | S | none | defect | done | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |
 | [T-604](ws.md) | P3 | S | none | feature | open | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |

@@ -3384,7 +3384,7 @@ It passed on macOS at `a4344a7`, on Linux at each gate, and here 4 runs of 4.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3419,11 +3419,26 @@ cargo test -p podssh-cli --test job_far log_follow
 
 Each passes; planted, each failed write taken for a reader that went: the new unit test fails.
 
+## Correction
+
+The cause, from the lines of step 2 at the gate of `fe224ea` (run 41640349123, its job `macos`):
+the far job held `out "A\nB\n"`, `state done` and `status 0`, and no write had failed. The second
+call's 20 s ended just before the job wrote B and its status, which came at once after its last
+read; the client then asked the state, heard `done`, and ended with 0, B never read. A runner
+slow enough to stretch the call's 20 loops past the job's 45 s meets it; this host never did.
+
 ## Done
 
-Not done: the cause on macOS, which the next failure there names (step 3).
-
 2026-11-03:
+
+- `crates/podssh-cli/src/job/follow.rs`: a state of `done` ends the follow only after one more call
+  of `follow`, which begins after the status and reads to the end at once (the far script reads on
+  while the status is there).
+- `crates/podssh-cli/tests/job_far.rs`: `log_follow_reads_once_more_after_the_job_ended`, a job
+  that ended before the follow: A and B once, in two calls; `--test job_far log_follow`: 5 passed,
+  `--lib job::` 24. Planted, no call after the status: the new test failed (one call).
+
+Before it, the same day (steps 1 and 2):
 
 - `crates/podssh-cli/src/job/follow.rs`: the sink keeps the kind and the words of its failed
   write; `gone` gives 0 and a line at `-v` for a broken pipe, else 1 and the error.

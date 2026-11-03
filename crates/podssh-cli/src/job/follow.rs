@@ -170,6 +170,7 @@ async fn watch(
     log: &Log,
     tries: &mut u32,
 ) -> Option<i32> {
+    let mut last_read = false;
     loop {
         let from = place.from.map_or_else(|| "end".to_string(), |n| n.to_string());
         let mut start = None;
@@ -224,6 +225,10 @@ async fn watch(
         };
         place.state = Some(state.clone());
         match (state.as_str(), status) {
+            // The status can come just after a call's last read of the
+            // output, with the job's last bytes: one more call, which begins
+            // after it, reads them to the end at once (T-603).
+            ("done", Some(_)) if !last_read => last_read = true,
             ("done", Some(code)) => {
                 sink.end(Some("done"), Some(code));
                 return Some(code.clamp(0, 255));

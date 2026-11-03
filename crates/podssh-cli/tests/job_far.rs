@@ -323,3 +323,22 @@ fn log_follow_ends_a_lost_job_with_255_and_jsonl_gives_each_line() {
     let last: serde_json::Value = serde_json::from_str(&lines.last().expect("the end").1).unwrap();
     assert_eq!(last, serde_json::json!({ "event": "end", "state": "lost", "status": null }));
 }
+
+/// T-603: a job's status ends the follow only after one more call, which
+/// begins after it and so reads each byte that came with it; a job that has
+/// ended already is read whole, then once more.
+#[test]
+fn log_follow_reads_once_more_after_the_job_ended() {
+    let far = follow_far("last");
+    let id = start_plain(&far, "echo A; echo B");
+    let until = Instant::now() + Duration::from_secs(20);
+    while far.job_dir(&id).is_none_or(|d| !d.join("status").exists()) {
+        assert!(Instant::now() < until, "the job ends");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let (code, lines, err) = far.job_lines("log", &[id.as_str(), "--follow", "-v"], Duration::from_secs(60));
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(texts(&lines), ["A", "B"], "{err}");
+    let calls = err.lines().filter(|l| l.contains(&format!("job {id} on ")) && l.contains(" bytes from ")).count();
+    assert_eq!(calls, 2, "the call that read the output, then one after the status: {err}");
+}
