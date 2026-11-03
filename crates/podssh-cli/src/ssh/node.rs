@@ -80,11 +80,28 @@ pub(super) struct Ask<'a> {
     pub forward: bool,
 }
 
+/// The roads of a `node://NAME` destination, each checked before anything
+/// connects: the iroh road's ticket, the DERP road's, the transit relay's
+/// variable and OpenTunnel's name (T-531); then its transport. Apart from
+/// `resolve.rs`, for the length of that file.
+pub(super) fn resolved(r: &Ask<'_>, env: &Env) -> Result<Transport, Refusal> {
+    let race = super::iroh::race(r.args, r.label)?;
+    // The DERP road of the node (T-379): one node, one key for each road.
+    let derp = super::derp::race(r.args)?;
+    crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
+    let opentunnel = super::opentunnel::race(r.args)?;
+    if let (Some(iroh), Some(ticket)) = (&race, &derp.ticket) {
+        super::iroh::same_node(&iroh.ticket, ticket)?;
+    }
+    transport(r, env, race, derp, opentunnel).map_err(Refusal::from)
+}
+
 pub(super) fn transport(
     r: &Ask<'_>,
     env: &Env,
     race: Option<super::iroh::Race>,
     derp: super::derp::Race,
+    opentunnel: super::opentunnel::Race,
 ) -> Result<Transport, String> {
     // A carrier is the node's one road (T-595): a flag of another road is
     // refused in its words first.
@@ -115,6 +132,13 @@ pub(super) fn transport(
         .and_then(|ask| ask.to_route(r.route))
         .map_err(|why| format!("{SCHEME}{}: {why}", r.label))?;
     // The DERP road's channel is the node's only door (T-379).
+    if channel.off && opentunnel.name.is_some() {
+        return Err(format!(
+            "{SCHEME}{}: --no-e2e cannot go with --opentunnel-name: anyone may connect to a tunnel's name, so the \
+             node lets in the key that the end-to-end channel proves",
+            r.label
+        ));
+    }
     if channel.off && derp.ticket.is_some() {
         return Err(format!(
             "{SCHEME}{}: --no-e2e cannot go with --derp-ticket: the node of the DERP road lets in the key that the \
@@ -123,7 +147,63 @@ pub(super) fn transport(
         ));
     }
     let (label, pair_file, carrier) = (r.label.to_string(), r.args.pair_file.clone(), r.args.carrier.clone());
-    Ok(Transport::Node { label, pair_file, trust, race, derp, channel, carrier })
+    let opentunnel = Box::new(opentunnel);
+    Ok(Transport::Node { label, pair_file, trust, race, derp, opentunnel, channel, carrier })
+}
+
+/// SSH to the node of a `node://NAME` destination: over its carrier alone
+/// (T-595); else over the race of its roads beside the pair's, when one is
+/// given, kept or asked; else over the pair's road. None for another
+/// destination. Apart from `super`'s `mod.rs`, for the length of that file.
+pub(super) async fn run(transport: &Transport, opts: &Options, log: Arc<Log>) -> Option<i32> {
+    let Transport::Node { label, pair_file, trust, race, derp, opentunnel, channel, carrier } = transport else {
+        return None;
+    };
+    // A carrier is the node's one road: no other races it (T-595).
+    if let Some(text) = carrier {
+        return Some(Box::pin(super::carried::connect(label, text, channel, opts, log)).await);
+    }
+    // The member's record of pkarr, for each road that no ticket gave
+    // (T-445): a bad variable of it is said before anything connects.
+    let record = match super::iroh::record_ask(label, race.is_some(), derp, channel) {
+        Ok(record) => record,
+        Err(refusal) => {
+            log.error(&refusal.message);
+            return Some(refusal.code);
+        }
+    };
+    // The DERP road: the ticket given, else the one kept under the label
+    // (Q50); never with --no-e2e, as its node's door is the channel.
+    let derp = derp.road(label).filter(|_| !channel.off);
+    // The OpenTunnel road (T-531): the name given, else the one kept under
+    // the label (Q76); never with --no-e2e, as its node's door is the channel.
+    let opentunnel = opentunnel.road(label).filter(|_| !channel.off);
+    // The transit relay of the pair (T-436, Q65): never with --no-e2e,
+    // and only with a good pair here, whose token it is; with none, the
+    // pair's road says why, as before.
+    let good_pair = || crate::pairs::operator_part(label, pair_file.as_deref()).is_ok();
+    let transit = crate::node_transit::url().filter(|_| !channel.off && good_pair());
+    // The Piping Server road (T-437): asked, or the fallback of Q65 once
+    // the upgrade is refused; never with --no-e2e, as its server would
+    // see each byte.
+    let piping = match crate::piping_road::race() {
+        Ok(piping) => piping.filter(|_| !channel.off),
+        Err(refusal) => {
+            log.error(&refusal.message);
+            return Some(refusal.code);
+        }
+    };
+    let piping_asked = piping.as_ref().is_some_and(|road| road.asked);
+    let others = derp.is_some() || opentunnel.is_some() || transit.is_some() || piping_asked || record.is_some();
+    if race.is_some() || others {
+        let record = record.as_ref();
+        let raced = super::roads::Raced { iroh: race.as_ref(), derp, opentunnel, transit, piping, record };
+        return Some(
+            Box::pin(super::roads::connect(label, pair_file.as_deref(), trust, raced, channel, opts, log)).await,
+        );
+    }
+    let piping = piping.as_ref();
+    Some(Box::pin(connect(label, pair_file.as_deref(), trust, piping, channel, opts, log)).await)
 }
 
 /// SSH over the operator's leg to the node of the pair under `label`; over
@@ -181,7 +261,14 @@ pub(super) async fn connect(
             if let Some(race) = piping.filter(|_| podssh_relay::piping::probe::upgrade_refused(&e)) {
                 log.verbose(&format!("{shown}: {why}: the upgrade was refused on the way; the Piping Server road"));
                 let piping = Some(race.refused());
-                let raced = super::roads::Raced { iroh: None, derp: None, transit: None, piping, record: None };
+                let raced = super::roads::Raced {
+                    iroh: None,
+                    derp: None,
+                    opentunnel: None,
+                    transit: None,
+                    piping,
+                    record: None,
+                };
                 return Box::pin(super::roads::connect(label, pair_file, trust, raced, ask, opts, log)).await;
             }
             log.error(&format!("{shown}: {why}"));

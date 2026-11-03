@@ -71,6 +71,18 @@ exit's owner answers for that traffic. `podssh exit --listen` serves the
 exit to the programs of the client's host on a loopback address alone, as
 its SOCKS takes no credentials.
 
+A node of the OpenTunnel road (`podssh node --opentunnel`, T-530 and T-531)
+keeps a tunnel of `opentunnel.xyz`, whose service gets the CSR of the
+tunnel's name and never its key, which the node keeps in a private file
+beside the tunnel's bearer token. TLS ends at the node: the service reads
+the SNI of each visitor's ClientHello and sends the rest on, still
+encrypted, so it sees the names, the times and the sizes, never the
+plaintext. A tunnel's name is in the logs of Certificate Transparency, and
+anyone may connect to it, so the node claims a route of 26 random letters
+alone, and its door is the end-to-end channel's allowlist, `--allow` or the
+net's members; it refuses to start with neither. A client checks the
+node's certificate by its name, then the node's key in the channel.
+
 The host-key check makes a relay in the middle safe:
 
 - podssh refuses an unknown host key unless you accept it;

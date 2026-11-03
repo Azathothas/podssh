@@ -71,6 +71,9 @@ fn command(home: &Path, args: &[&str]) -> Command {
     // No transit road (T-436): the roads of the test alone; and no record
     // at n0's server of pkarr, which a node of DERP alone keeps (Q81).
     cmd.env("PODSSH_TRANSIT", "no").env("PODSSH_IROH_PKARR", "off");
+    // Nor OpenTunnel's service, which a node with no other road takes
+    // unasked (Q76, T-531).
+    cmd.env("PODSSH_OPENTUNNEL", "no");
     cmd.env("HOME", home).env("USERPROFILE", home);
     cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
     cmd

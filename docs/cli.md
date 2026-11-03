@@ -2475,7 +2475,7 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
 - **The sections at once** (T-511, the operator's ruling Q73). The
   sections that connect (the egress's probes, the quick tunnel's edge, the
   relay, the forwarders and each road that the run names, iroh and tor in a
-  build with them, DERP and the pairs) start together by default, each into
+  build with them, OpenTunnel, DERP and the pairs) start together by default, each into
   its own part of the report, and the report keeps its order: a part's
   lines go out once each part before it has ended, the first that still
   runs line by line, as a run of one section at a time showed them. A run
@@ -2483,8 +2483,8 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   40 s in the testers' runs of `v1.0.0`, most of it the iroh relays, the
   DERP servers and the quick tunnel's edge). Each section still reaches its
   servers one after another, so a run holds at most one connection for
-  each section that runs, three in a run with no flag and no stored pair
-  (the egress, the relay, DERP), and the relay's forward races its hosts as `ssh` does
+  each section that runs, four in a run with no flag and no stored pair
+  (the egress, the relay, OpenTunnel, DERP), and the relay's forward races its hosts as `ssh` does
   (Q10). `--jobs N` (1 to 64), or `DoctorJobs N` in the settings file,
   starts at most N together, in the order of the report; `--jobs 1` is one
   after another, as before. A bad value is 64 for the flag, 78 for the
@@ -2493,7 +2493,7 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   what each run of `ssh` and `proxy` needs, with the section of each road
   that the run names (`--forwarder`, `--shadowsocks`, `--via`, `--vless`).
   It leaves out the quick tunnel's edge (its roots, `UDP out`, `edge
-  road`), iroh and tor in a build with them, DERP and the pairs, and says
+  road`), iroh and tor in a build with them, OpenTunnel, DERP and the pairs, and says
   so in its last line, `sections` in the section `left out`, as `????`: a
   check that did not run. The MCP tool `doctor` takes it as `quick`.
 - `ok`: the check ran and podssh can work with the result. A condition that
@@ -3431,6 +3431,37 @@ commands. The rules behind them:
   no pair is stored: the fallback of Q50, which `PODSSH_DERP=no` turns off.
   `--derp-ticket` with another destination, and `--derp-server` with a
   destination that is no node, are usage errors (64).
+- **`node --opentunnel` serves the OpenTunnel road** (T-531, drafted
+  2026-11-03), in each build: a blind TLS tunnel of `opentunnel.xyz` with
+  no account, or of the service of `PODSSH_OPENTUNNEL`
+  ([carriers.md](carriers.md), the reverse road, item 6). The node makes one
+  tunnel and keeps it, its token and its key in a private file of the cache
+  (`opentunnel-HOST-NAME.json`) before the service orders its certificate,
+  so that each start keeps its name and binds no new CSR; its key and its
+  CSR are made as the ACME client makes them. Its name, `ROUTE.ID.DOMAIN`,
+  a route of 26 random letters under the tunnel, is its line `name`, with
+  the command of a client; its bridge is a WebSocket through `HTTPS_PROXY`,
+  again after each loss, and TLS ends at the node. Anyone may connect to a
+  tunnel's name, so the road needs the end-to-end channel and a door, as
+  the DERP road does: `--allow`, or the net's members; `--plain`,
+  `--no-e2e`, `--exit`, a `udp:` TARGET, `--derp` and `--iroh` beside it are
+  refused (64), and with no door it is refused before any tunnel is made.
+  With a pair, the node serves the pair's road beside it with one keeper.
+- **A node with no other road serves it unasked** (the operator's ruling
+  Q76, [decisions.md](decisions.md)): no pair stored under NAME (or an
+  expired one), a door, and the DERP road turned off (`PODSSH_DERP=no`); its
+  first line says so. `PODSSH_OPENTUNNEL=no` turns the road off; another
+  word there is 78. A node whose DERP servers do not answer names
+  `--opentunnel` in its refusal (69).
+- **`ssh node://NAME --opentunnel-name HOST`** races the OpenTunnel road
+  250 ms after the DERP road: TCP to HOST on port 443 through `HTTPS_PROXY`,
+  then TLS by HOST, checked with the host's trust for a name of
+  `opentunnel.xyz` and with `--ca-file`'s for another service's, with no
+  WebSocket upgrade. The name is kept under NAME (`opentunnel-NAME.name` in
+  the cache), and a later run that gives none dials it only once each road
+  before it failed (Q76). The node's key is the pins' of NAME, or
+  `--node-key`; `--no-e2e` with the flag is 64, and the flag with another
+  destination too.
 - **A carrier: the node's road on a stream that exists already (T-595).**
   For a host whose every road out is closed but that grants one channel,
   as the exec channel of a platform's own SSH: `node NAME TARGET --carrier

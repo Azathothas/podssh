@@ -1,6 +1,7 @@
 //! The flags of `podssh node` that each road reads: the node's key and
 //! allowlist, each by its two names (T-087, T-163), and the resume deadline
-//! (T-306). Apart from `node.rs` for the length of that file.
+//! (T-306); and those that the iroh road refuses. Apart from `node.rs` for
+//! the length of that file.
 
 use std::path::PathBuf;
 
@@ -42,6 +43,22 @@ pub(crate) fn deadline(args: &NodeArgs) -> Result<(), Refusal> {
         return Err(Refusal::usage("--resume-deadline is a time of the resumable layer, which --plain turns off"));
     }
     crate::layered::set_far_deadline(crate::layered::parse_deadline(text).map_err(Refusal::usage)?);
+    Ok(())
+}
+
+/// The flags that the iroh road refuses: `--plain`, as it always runs the
+/// layer; a UDP TARGET, the pair's road's alone (T-168), in a build with the
+/// iroh road or without it; and `--opentunnel`, another road (T-531).
+pub(crate) fn iroh_checks(args: &NodeArgs) -> Result<(), Refusal> {
+    if args.plain && args.iroh {
+        return Err(Refusal::usage("--plain is for the pair's road: the iroh road always runs the resumable layer"));
+    }
+    if args.iroh && args.targets.iter().any(|t| t.starts_with("udp:") || t.contains("=udp:")) {
+        return Err(Refusal::usage("a udp: TARGET goes on the pair's road: the iroh road carries TCP only"));
+    }
+    if args.iroh && args.opentunnel {
+        return Err(Refusal::usage("--iroh and --opentunnel are two roads: give one; run a second node for the other"));
+    }
     Ok(())
 }
 

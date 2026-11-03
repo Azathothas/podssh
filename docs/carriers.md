@@ -712,6 +712,15 @@ The candidates, ranked:
      tests run against a stand-in written from the protocol, and
      `opentunnel-interop.yml` against OpenTunnel's own server, built from
      its source.
+   - The command line (T-531, drafted 2026-11-03): `podssh node NAME TARGET
+     --opentunnel` with `--allow` or the net's members as its door, beside
+     the pair's road with one keeper; unasked, by Q76, for a node with no
+     pair, a door and the DERP road off; `podssh ssh node://NAME
+     --opentunnel-name HOST` races it 250 ms after the DERP road, and a name
+     kept under NAME once each road before it failed;
+     `PODSSH_OPENTUNNEL=no` turns it off; `doctor` asks the API's host for
+     `/health` and makes no tunnel. A short live run,
+     `opentunnel-live.yml`, makes a throwaway tunnel and deletes it.
 7. **Microsoft Dev Tunnels**: a preview, for "adhoc testing and
    development" [R11]. The host logs in with Microsoft or GitHub; a client
    can be anonymous, or use a token of 24 h [R12]. The host opens a

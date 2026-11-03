@@ -105,6 +105,9 @@ pub mod node_udp;
 // `podssh node --derp`: the DERP road, and its fallback of a node with no
 // pair (T-379).
 pub mod node_derp;
+// `podssh node --opentunnel`: the OpenTunnel road, and its fallback of a node
+// with no other road (T-531, Q76).
+pub mod node_opentunnel;
 // The transit relay of Q65 beside a pair's road, for a node and its
 // operators (T-436).
 pub mod node_transit;

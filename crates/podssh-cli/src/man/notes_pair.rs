@@ -200,6 +200,7 @@ pub(super) const NODE: &[&str] = &[
      runs the resumable layer and the end-to-end channel, so --plain, --no-e2e and a udp: TARGET keep the \
      node on the pair's road alone. The server sees the paths, the sizes and the times; the channel keeps \
      the bytes from it.",
+    super::notes_pair::NODE_OPENTUNNEL,
     "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
      Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
      each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge, and races \
@@ -330,6 +331,36 @@ pub(super) const OPERATOR: &[&str] = &[
 ];
 
 /// The note of `ssh node://NAME --carrier ADDR` (T-595), beside operator's.
+/// The OpenTunnel road of a node (T-531), apart from the notes above for
+/// their length.
+pub(super) const NODE_OPENTUNNEL: &str = "With --opentunnel, the node serves TARGET over the OpenTunnel road: \
+     a blind TLS tunnel of https://opentunnel.xyz, which needs no account, or of the service of PODSSH_OPENTUNNEL. \
+     The node makes one tunnel, ID.opentunnel.xyz, with a P-256 key and the CSR of its name that it makes itself, \
+     and keeps the tunnel, its token and its key in a private file of the cache before the service orders its \
+     certificate, so that each start keeps the same name and asks for no new certificate, of the 5 a day that the \
+     service gives a tunnel. Its route is 26 random letters, so its name is ROUTE.ID.opentunnel.xyz, which the \
+     line name says, with the command of a client; the node keeps a bridge to the service, a WebSocket through \
+     HTTPS_PROXY, again after each loss, and TLS ends at the node with the tunnel's certificate: the service \
+     sees the name, the times and the sizes, never the bytes. Anyone may connect to a tunnel's name, so the \
+     road needs the end-to-end channel and a door: --allow, or the members of the net held here when the node's \
+     key is one; never --plain, --no-e2e, --exit or a udp: TARGET (64). With the pair NAME, or --pair-file, the \
+     node serves the pair's road beside it, with one keeper of sessions. A node with no pair, a door, and the \
+     DERP road turned off (PODSSH_DERP=no) serves the road unasked, by the operator's ruling Q76, and its first \
+     line says so; PODSSH_OPENTUNNEL=no turns the road off. The service's refusals are named: a token that it \
+     no longer takes (a new tunnel is made, and said), a route that an earlier run holds (tried again), its \
+     limit of 30 tunnels an hour from one address, with its wait.";
+
+/// The OpenTunnel road of a client (T-531).
+pub(super) const SSH_OPENTUNNEL: &str = "node://NAME with --opentunnel-name HOST races the OpenTunnel road too, \
+     250 ms after the DERP road: HOST is the name that the node's line name says, ROUTE.ID.opentunnel.xyz. Each \
+     link is TCP to HOST on port 443 through HTTPS_PROXY, then TLS by HOST, checked with the host's trust \
+     (SSL_CERT_FILE, else the system's stores), with no WebSocket upgrade, so a proxy that refuses the upgrade \
+     passes it, and so does one that ends TLS itself, whose CA the host trusts. The name is kept under NAME in the \
+     cache (opentunnel-NAME.name), and a later run that gives none dials it only once each road before it \
+     failed, the fallback of the operator's ruling Q76, which PODSSH_OPENTUNNEL=no turns off. The end-to-end \
+     channel checks the node's key by the pins of NAME, or --node-key, so --no-e2e leaves the road out (64 \
+     with --opentunnel-name).";
+
 pub(super) const SSH_CARRIER: &str = "node://NAME with --carrier ADDR reaches the node at the other end of a \
      stream that exists already, as its one road, with no relay and no pair: exec:CMD, a program that podssh \
      starts with no shell, such as the platform's own SSH into a host whose every road out is closed, \

@@ -48,6 +48,8 @@ mod login;
 // A line before the relay's cap ends the session (T-461).
 mod near_cap;
 pub mod node;
+// The OpenTunnel road of node://NAME (T-531).
+pub mod opentunnel;
 // The notes of what podssh accepts and does not use (T-502, T-505).
 mod noted;
 pub mod options;
@@ -346,45 +348,9 @@ pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i3
         return Box::pin(upgrade::run(&resolved, &upgrade, log)).await;
     }
     let opts = &resolved.options;
-    if let Transport::Node { label, pair_file, trust, race, derp, channel, carrier } = &resolved.transport {
-        // A carrier is the node's one road: no other races it (T-595).
-        if let Some(text) = carrier {
-            return Box::pin(carried::connect(label, text, channel, opts, log)).await;
-        }
-        // The member's record of pkarr, for each road that no ticket gave
-        // (T-445): a bad variable of it is said before anything connects.
-        let record = match iroh::record_ask(label, race.is_some(), derp, channel) {
-            Ok(record) => record,
-            Err(refusal) => {
-                log.error(&refusal.message);
-                return refusal.code;
-            }
-        };
-        // The DERP road: the ticket given, else the one kept under the label
-        // (Q50); never with --no-e2e, as its node's door is the channel.
-        let derp = derp.road(label).filter(|_| !channel.off);
-        // The transit relay of the pair (T-436, Q65): never with --no-e2e,
-        // and only with a good pair here, whose token it is; with none, the
-        // pair's road says why, as before.
-        let good_pair = || crate::pairs::operator_part(label, pair_file.as_deref()).is_ok();
-        let transit = crate::node_transit::url().filter(|_| !channel.off && good_pair());
-        // The Piping Server road (T-437): asked, or the fallback of Q65 once
-        // the upgrade is refused; never with --no-e2e, as its server would
-        // see each byte.
-        let piping = match crate::piping_road::race() {
-            Ok(piping) => piping.filter(|_| !channel.off),
-            Err(refusal) => {
-                log.error(&refusal.message);
-                return refusal.code;
-            }
-        };
-        let piping_asked = piping.as_ref().is_some_and(|road| road.asked);
-        if race.is_some() || derp.is_some() || transit.is_some() || piping_asked || record.is_some() {
-            let raced = roads::Raced { iroh: race.as_ref(), derp, transit, piping, record: record.as_ref() };
-            return Box::pin(roads::connect(label, pair_file.as_deref(), trust, raced, channel, opts, log)).await;
-        }
-        let piping = piping.as_ref();
-        return Box::pin(node::connect(label, pair_file.as_deref(), trust, piping, channel, opts, log)).await;
+    // A node's roads (T-084, T-164, T-379, T-436, T-437, T-445, T-531, T-595).
+    if let Some(code) = Box::pin(node::run(&resolved.transport, opts, log.clone())).await {
+        return code;
     }
     if let Transport::Iroh { ticket, key, relays, trust, channel } = &resolved.transport {
         return Box::pin(iroh::connect(ticket, key.as_deref(), relays, trust, channel, opts, log)).await;

@@ -930,17 +930,21 @@ from this cloud session's host.
 
 ## The OpenTunnel road, measured
 
-T-530 ([carriers.md](carriers.md), the reverse road, item 6): a carrier of
+T-530 and T-531 ([carriers.md](carriers.md), the reverse road, item 6): a carrier of
 the reverse road through OpenTunnel, a blind TLS tunnel with no account,
 whose client's leg is TLS by name with no upgrade. Drafted and merged on
-2026-11-03; the run against OpenTunnel's own server waits for its run in Actions.
+2026-11-03; run against OpenTunnel's own server in Actions.
 
 | Check | Result |
 | --- | --- |
 | `unreleased`: The unit tests, 2026-11-03: the protocol's vectors of its messages, frames, names and retries, the record and its file, the route, a connection's frames, the bridge's upgrade (`cargo test -p podssh-relay --features opentunnel --lib opentunnel`) | **Works.** 22 passed. |
 | `unreleased`: Against the stand-in server, 2026-11-03: a tunnel made and kept, 1 MiB echoed by TLS by name in the layer, a second start that binds no new CSR, the same CSR bound again, a wrong token, a route held, the limit of tunnels said at once, a CSR of other names, a bridge ended and a session resumed (`cargo test -p podssh-relay --features opentunnel --test opentunnel_link`) | **Works** against the stand-in: 7 passed. |
-| `unreleased`: Against OpenTunnel's own server v0.6.1, built from its source, with MySQL 8, its local CA and squid, 2026-11-03 (`opentunnel-interop.yml`) | Waits: `opentunnel-interop.yml`'s run by hand at the push. |
+| `unreleased`: Against OpenTunnel's own server v0.6.1, built from its source, with MySQL 8, its local CA and squid, 2026-11-03 (`opentunnel-interop.yml`) | **Works** against OpenTunnel's own server: a node kept its tunnel and a client echoed 1 MiB through squid (run 41675551360 at `69df297`); the planted CSR of the tunnel's name alone failed, as it must. |
 | `unreleased`: Planted, 2026-11-03: the tunnel never kept (`scripts/plants/t530-tunnel-not-kept.plant`) | **Caught**: the test of a second start failed. |
+| `unreleased`: The command line, 2026-11-03 (T-531): `podssh node lab TARGET --opentunnel --allow FILE` and `podssh ssh node://tester@lab --opentunnel-name NAME greet` against the stand-in, through a proxy that passes the service's names alone, with the pair's road down; a name kept and dialled once each road before it failed; `PODSSH_OPENTUNNEL=no`; a node with no door refused (64); a node with no pair and the DERP road off serving the road unasked and keeping its tunnel (`cargo test -p podssh-cli --test opentunnel_road`) | **Works** against the stand-in: 3 passed. |
+| `unreleased`: The flags, the manual's notes, `doctor`'s line of the API's host, the binary's CSR of a tunnel, 2026-11-03 (`cargo test -p podssh-cli --lib`, `--test flag_table --test man_flag_parity --test doctor_jobs`) | **Works**: the library 777, `flag_table` 9, `man_flag_parity` 6, `doctor_jobs` 3. |
+| `unreleased`: Live, short (Q76), 2026-11-03: a throwaway tunnel through `opentunnel.xyz`, 256 KiB echoed, a second start that keeps it, then deleted (`opentunnel-live.yml`, `--test opentunnel_live -- --ignored`) | UNVERIFIED (not run) |
+| `unreleased`: Planted, 2026-11-03: the node of the road started with no door (`scripts/plants/t531-no-door.plant`) | **Caught**: the test of a node with no door failed. |
 
 ## The relay
 

@@ -1,0 +1,14 @@
+diff --git a/crates/podssh-cli/src/node_opentunnel.rs b/crates/podssh-cli/src/node_opentunnel.rs
+index 6ba4af6..6eefdee 100644
+--- a/crates/podssh-cli/src/node_opentunnel.rs
++++ b/crates/podssh-cli/src/node_opentunnel.rs
+@@ -159,7 +159,8 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
+     let flags = crate::node::key_flags(args)?;
+     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
+     let why_open = "anyone may connect to a tunnel's name, which the logs of Certificate Transparency show";
+-    let door = crate::node_derp::door_of("--opentunnel", why_open, flags.allow.as_deref(), &place)?;
++    let door = crate::node_derp::door_of("--opentunnel", why_open, flags.allow.as_deref(), &place)
++        .unwrap_or_else(|_| Door::Net(String::new()));
+     crate::pins::apply(args.relay_addr.as_deref())?;
+     let pair = match &args.pair_file {
+         Some(file) => Ok((crate::pairs::usable(crate::pairs::from_file(file)?, &label)?, false)),

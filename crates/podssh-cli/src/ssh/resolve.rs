@@ -40,6 +40,8 @@ pub enum Transport {
         trust: Trust,
         race: Option<super::iroh::Race>,
         derp: super::derp::Race,
+        // Boxed: the variant is large beside the others.
+        opentunnel: Box<super::opentunnel::Race>,
         channel: crate::channel::Ask,
         carrier: Option<String>,
     },
@@ -161,6 +163,9 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     }
     if args.derp_ticket.is_some() && node.is_none() {
         return Err("--derp-ticket is for a node://NAME destination, whose pair it races with".into());
+    }
+    if args.opentunnel_name.is_some() && node.is_none() {
+        return Err("--opentunnel-name is for a node://NAME destination, whose pair it races with".into());
     }
     if args.derp_server.is_some() && node.is_none() && derp.is_none() {
         return Err("--derp-server is for a derp:TICKET or node://NAME destination".into());
@@ -314,14 +319,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         forward: matches!(request, Request::StdioForward(_)),
     };
     let transport = if let Some((_, label, route)) = &node {
-        let race = super::iroh::race(args, label)?;
-        // The DERP road of the node (T-379): one node, one key for each road.
-        let derp = super::derp::race(args)?;
-        crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
-        if let (Some(iroh), Some(ticket)) = (&race, &derp.ticket) {
-            super::iroh::same_node(&iroh.ticket, ticket)?;
-        }
-        super::node::transport(&ask(label, route.as_deref()), env, race, derp)?
+        super::node::resolved(&ask(label, route.as_deref()), env)?
     } else if let Some(dest) = &iroh {
         let trust = ca_file(args, env).map_or(Trust::Default, |file| Trust::File(file.into()));
         super::iroh::transport(dest, &ask(&dest.shown, None), trust)?

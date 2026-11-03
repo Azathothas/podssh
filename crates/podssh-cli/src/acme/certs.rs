@@ -95,6 +95,18 @@ pub fn csr(name: &str, key: &Key) -> Result<Vec<u8>, String> {
     Ok(request.der().as_ref().to_vec())
 }
 
+/// The CSR of an OpenTunnel tunnel's name (T-531), as its service checks one
+/// before each order: `hostname` as its common name, and `hostname` and
+/// `*.hostname` alone in subjectAltName.
+pub fn tunnel_csr(hostname: &str, key: &Key) -> Result<Vec<u8>, String> {
+    let names = vec![hostname.to_string(), format!("*.{hostname}")];
+    let mut params = rcgen::CertificateParams::new(names).map_err(|e| format!("{hostname}: {e}"))?;
+    params.distinguished_name = rcgen::DistinguishedName::new();
+    params.distinguished_name.push(rcgen::DnType::CommonName, hostname);
+    let request = params.serialize_request(key).map_err(|e| format!("the CSR of {hostname}: {e}"))?;
+    Ok(request.der().as_ref().to_vec())
+}
+
 /// The certificate of TLS-ALPN-01 for `name`, and its key, as PEM: self-signed,
 /// its one name in subjectAltName, and the critical acmeIdentifier extension
 /// that holds the SHA-256 of `key_authorization` (RFC 8737, section 3). Its

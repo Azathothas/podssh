@@ -103,6 +103,7 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         (args.iroh_relay.is_some(), "--iroh-relay"),
         (args.derp, "--derp"),
         (args.derp_server.is_some(), "--derp-server"),
+        (args.opentunnel, "--opentunnel"),
     ];
     if let Some((_, flag)) = alone.iter().find(|(given, _)| *given) {
         return Err(Refusal::usage(format!(

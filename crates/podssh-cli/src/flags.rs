@@ -206,7 +206,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "iroh:TICKET: the iroh relays to try after the ticket's, https://HOST[:PORT][,...] (default: env PODSSH_IROH_RELAY, else n0's)", None),
     row(None, "iroh-ticket", Some("TICKET"), FlagKind::Supported,
         "node://NAME: race the iroh road to TICKET, first, with the pair's road; the first that answers carries the session; a build with the feature iroh", None),
-    derp::DERP_TICKET,
+    derp::DERP_TICKET, opentunnel::SSH_OPENTUNNEL_NAME,
     derp::SSH_DERP_SERVER, node::EXIT, operator::SSH_CARRIER,
     row(None, "persist", None, FlagKind::Supported,
         "run the shell in the server's tmux, and after a lost link connect again and attach it again; tmux is probed", None),
@@ -317,6 +317,7 @@ mod man;
 mod mcp;
 mod node;
 mod operator;
+mod opentunnel;
 mod ping;
 mod pipe;
 mod play;

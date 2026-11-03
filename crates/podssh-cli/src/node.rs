@@ -14,7 +14,8 @@
 //! `node_temp`). `udp:HOST:PORT` is a UDP TARGET: each session is one flow
 //! of datagrams from this host (T-168, `node_udp`). With `--derp`, or with
 //! no pair and a door (`--allow`, or its net), the node serves the DERP road
-//! (T-379, T-452, `node_derp`). A node of the layer and the channel also waits
+//! (T-379, T-452, `node_derp`); with `--opentunnel`, or with no other road,
+//! the OpenTunnel road (T-531, `node_opentunnel`). A node of the layer and the channel also waits
 //! at the transit relay of Q65 for the pair's operators (T-436, `node_transit`).
 //! With `--exit`, it lends this host's egress to its net (T-431, `node_exit`).
 //! With `--carrier ADDR`, its one road is a stream that exists already (T-595).
@@ -98,21 +99,18 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     if args.derp_server.is_some() && !args.derp && unasked.is_none() {
         return Refusal::usage("--derp-server is for the DERP road: add --derp").report("node", err);
     }
-    if args.plain && args.iroh {
-        let why = "--plain is for the pair's road: the iroh road always runs the resumable layer";
-        return Refusal::usage(why.to_string()).report("node", err);
-    }
-    // A UDP TARGET is the pair's road's alone (T-168), in a build with the
-    // iroh road or without it.
-    if args.iroh && args.targets.iter().any(|t| t.starts_with("udp:") || t.contains("=udp:")) {
-        let why = "a udp: TARGET goes on the pair's road: the iroh road carries TCP only";
-        return Refusal::usage(why.to_string()).report("node", err);
+    if let Err(refusal) = crate::node_flags::iroh_checks(args) {
+        return refusal.report("node", err);
     }
     if args.iroh {
         return iroh(args, err);
     }
     if args.derp || unasked.is_some() {
         return crate::node_derp::run(args, unasked, err);
+    }
+    // The OpenTunnel road (T-531): asked, or unasked by a node with no other road (Q76).
+    if let Some(code) = crate::node_opentunnel::dispatch(args, err) {
+        return code;
     }
     // The Piping Server road (T-437) that PODSSH_PIPING asks for; the
     // unasked one is decided in `serve`, once TARGET passed (Q65).

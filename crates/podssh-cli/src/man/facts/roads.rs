@@ -2,8 +2,8 @@
 //! length of that file: the DERP road (T-349, T-379), the Piping Server road
 //! (T-437), the direct road after the relay hosts (T-363), the forwarders of
 //! other products (T-369), Wisp's among them (T-438), and their fallback
-//! (T-370), the forward proxy over TLS of --via (T-439), and the wstunnel
-//! server of --wstunnel (T-441).
+//! (T-370), the forward proxy over TLS of --via (T-439), the wstunnel
+//! server of --wstunnel (T-441), and the OpenTunnel road (T-531).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -42,6 +42,15 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           road as asked, which a node serves beside the pair's road and a client races 250 ms after it; with \
           --plain, --no-e2e or a udp: TARGET the node refuses it (64). Another word is a configuration error \
           (78).",
+    ),
+    (
+        &["PODSSH_OPENTUNNEL"],
+        "The OpenTunnel road (T-531), which the operator's ruling Q76 lets podssh take unasked for a node with no \
+          other road: a blind TLS tunnel with no account, https://opentunnel.xyz by default, of podssh node \
+          --opentunnel and podssh ssh node://NAME --opentunnel-name. no: no such road, and the flags are refused \
+          (64); an https://HOST[:PORT] URL: that service in place of OpenTunnel's, whose certificates the trust of \
+          --ca-file checks; unset, empty or yes: the default. Another word is a configuration error (78), which \
+          does not echo the value.",
     ),
     (
         &["PODSSH_DIRECT"],

@@ -53,6 +53,8 @@ pub(super) enum Kind {
     Iroh,
     #[cfg(feature = "tor")]
     Tor,
+    /// The API's host of OpenTunnel (T-531).
+    OpenTunnel,
     Derp,
     Pairs,
 }
@@ -71,6 +73,7 @@ impl Kind {
             Kind::Iroh => "iroh",
             #[cfg(feature = "tor")]
             Kind::Tor => "tor",
+            Kind::OpenTunnel => "opentunnel",
             Kind::Derp => "derp",
             Kind::Pairs => "pairs",
         }
@@ -99,7 +102,7 @@ pub(super) fn kinds(quick: bool, servers: bool, road: bool, links: bool) -> Vec<
         kinds.push(Kind::Iroh);
         #[cfg(feature = "tor")]
         kinds.push(Kind::Tor);
-        kinds.extend([Kind::Derp, Kind::Pairs]);
+        kinds.extend([Kind::OpenTunnel, Kind::Derp, Kind::Pairs]);
     }
     kinds
 }
@@ -165,6 +168,7 @@ async fn checks_of(kind: Kind, report: &mut Report<'_>, checks: &Checks<'_>) {
         Kind::Iroh => super::iroh::relay(report, trust).await,
         #[cfg(feature = "tor")]
         Kind::Tor => super::tor::check(report, trust, full).await,
+        Kind::OpenTunnel => super::opentunnel::check(report, trust).await,
         Kind::Derp => super::derp::check(report, trust).await,
         Kind::Pairs => {
             let stored = super::pairs::stored(report);
@@ -201,7 +205,7 @@ fn left_out() -> Vec<&'static str> {
     names.push("iroh (bind UDP and its relays)");
     #[cfg(feature = "tor")]
     names.push("tor");
-    names.extend(["DERP", "the pairs"]);
+    names.extend(["OpenTunnel", "DERP", "the pairs"]);
     names
 }
 
@@ -233,6 +237,7 @@ mod tests {
         let named = kinds(true, true, true, true);
         assert_eq!(named[3..], [Kind::Shadowsocks, Kind::Via, Kind::Vless]);
         assert!(!named.contains(&Kind::Derp) && !named.contains(&Kind::QuickTunnel), "{named:?}");
+        assert!(!named.contains(&Kind::OpenTunnel) && whole.contains(&Kind::OpenTunnel), "{whole:?}");
         let sections: Vec<&str> = kinds(false, true, false, false).iter().map(|k| k.section()).collect();
         assert_eq!(sections[..5], ["egress", "egress", "relay", "forwarders", "shadowsocks"]);
         assert!(!Kind::Network.opens() && !Kind::QuickTunnel.opens() && Kind::Relay.opens());

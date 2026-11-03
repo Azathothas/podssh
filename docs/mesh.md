@@ -248,8 +248,9 @@ availability only ([carriers.md](carriers.md)):
 
 The triage of the operator's sweep of public relays (2026-11-02) found one
 more that fits: OpenTunnel, a blind TLS tunnel with no account, whose TLS
-ends at the node and whose client's leg needs no upgrade (T-530, T-531);
-a node with no other road tries it unasked (Q76). The operator's rulings
+ends at the node and whose client's leg needs no upgrade (T-530, T-531,
+drafted 2026-11-03: `podssh node --opentunnel` and `podssh ssh node://NAME
+--opentunnel-name`); a node with no other road tries it unasked (Q76). The operator's rulings
 of the same day (Q74, Q75, Q77, Q78, Q82; [decisions.md](decisions.md))
 take each other fallback that exists: Tailscale's main DERP fleet after
 tailcat's, once a short test shows that it lets podssh in (T-534); the

@@ -352,6 +352,42 @@ after the pair's road; `PODSSH_PIPING=no` turns it off. Measured (2026-11-02):
 nwtgck's two servers on the loopback, 6 passed; a short live run through
 `ppng.io` (`--test piping_live -- --ignored`) passed.
 
+## The OpenTunnel road
+
+OpenTunnel gives a node, with no account, a public name whose TLS ends at
+the node itself ([carriers.md](carriers.md), item 6 of the reverse road):
+the node's leg is a WebSocket through `HTTPS_PROXY`, and a client's is TLS
+by name on port 443, with no upgrade, so a client behind a proxy that
+refuses the upgrade has this road beside Piping Server's. podssh's road
+(T-530 and T-531, drafted 2026-11-03; `crates/podssh-relay/src/opentunnel/`)
+keeps these rules:
+
+1. A node makes one tunnel for its life (Q76), keeps it with its token, its
+   key and its CSR in a private file before the service orders its
+   certificate, and binds the same CSR again at a start that stopped
+   half-way, so that it never spends the service's 5 certificates of a day
+   for a tunnel. A tunnel whose token the service no longer takes is made
+   again, and said.
+2. The node claims one route, 26 random letters, never the tunnel's own
+   name, which the logs of Certificate Transparency show: a visitor of that
+   name is closed by the service before the node hears of it. The node's
+   name is `ROUTE.ID.opentunnel.xyz`.
+3. Each visitor's connection comes over the bridge from its ClientHello on;
+   the node ends TLS with the tunnel's certificate, in podssh-ws's server,
+   and serves the resumable layer and the end-to-end channel above it, with
+   one keeper of sessions beside the pair's road.
+4. The node renews nothing itself: the service renews the certificate with
+   the same CSR, and the node asks for it each 12 hours, each minute in its
+   last 30 days, and presents a new one from the next handshake on.
+5. A client dials the name that the node printed, `--opentunnel-name`, or
+   the one kept under NAME, and checks TLS by that name; the channel checks
+   the node's key. The service sees the names, the times and the sizes.
+
+Measured: UNVERIFIED (2026-11-03, the draft): `cargo test -p podssh-relay
+--features opentunnel --test opentunnel_link` against a stand-in of the
+protocol, `opentunnel-interop.yml` against OpenTunnel's own server, and
+`cargo test -p podssh-cli --test opentunnel_road` from end to end.
+
 ## A carrier
 
 A host whose every road out is closed often grants one channel, as the
