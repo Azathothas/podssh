@@ -1297,3 +1297,24 @@ files, how to check a download, and what is not in it. `podssh --version`: `pods
 CLI's tests of `update`, `binary_streams`, `doctor`, `man_page` and `flag_table`: 18, 7, 13, 10
 and 9 passed, and its lib, 652. Step 2 next: the gate at this commit, the release workflow and the
 changelog workflow by hand on it, and the release check.
+
+2026-11-03, step 2. At `3bb42ea` the gate's step `release` failed (`interop: 610 passed, 3
+failed`, red since `7abebd2`, T-563's push) and `plants.yml` missed three plants (29 caught, 3
+missed); `warp-live.yml` and `quick-tunnel-live.yml` each failed once on WARP's side and passed
+again (T-585's Correction). The repairs, tests and the record alone, so the binaries' code is
+`3bb42ea`'s: the three fault tests that lean on the list's order take an empty record each
+(T-563's Done), and the plants of T-430, T-431 and T-453 install Python in the build image,
+which has none, where their tests had said they did not run. The tag's commit is `6ece1f9`, with
+the notes' sizes (the dry run's binaries are of the same sizes at both commits) and how it was
+checked. At `6ece1f9` each of the 21 runs passed: the gate (41574534079), deny and secrets, the
+release workflow (41574553380) and changelog by hand, plants (41574559699), update, box,
+headscale, relay-live's node_live (41574576966) and live_backpressure (41574579880), WARP, the
+quick tunnel, the forwarders, hop, DoH, service, via, wstunnel, Go's x/crypto/ssh and cgroup.
+`sh scripts/release-check.sh --local` from a worktree at `6ece1f9`, on the dry run's static binary
+and a release build here (`podssh 1.0.1 (6ece1f9...)`), with each of those runs: 43 passed, 6
+skipped (each named), PASSED, exit 0; its table is in `docs/STATUS.md`, "The release check".
+Among its rows: throughput (the relay's loop: p50 1.68 MiB/s), `cp` of 200 MiB (48 s up, 70 s
+down), `reverse.two`, `iroh.n0`, headscale, `irc.image`; the skips are those of `v1.0.0`'s
+(railway, `irc.live`, the direct cell, Q32's two, the tailnet). Step 3: `release.yml` with
+`publish=v1.0.1` on the branch `release/v1.0.1` at `6ece1f9` (run 41584435178), as `main` takes
+the record meanwhile.

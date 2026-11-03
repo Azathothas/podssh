@@ -943,58 +943,64 @@ A session fills this section from a run:
 The script exits 0 only when no row failed and each ACTIONS row was read; a
 SKIP names the entry or the question of the operator that holds it.
 
-The release check of the local sources at `35a0d19`, 2026-11-01T22:32:13Z, on Linux x86_64 (`sh scripts/release-check.sh --local --binary PATH --sums PATH --build PATH --actions-run build=41355865458 --actions-run deny=41355865505 --actions-run release=41355870015 --actions-run plants=41355872516 --actions-run box=41355875375 --actions-run headscale=41355877780 --actions-run relay-node=41355880238 --actions-run relay-backpressure=41355882960 --actions-run warp=41355885655 --actions-run quick=41355888590 --actions-run forwarders=41355891172 --actions-run hop=41355893574 --actions-run doh=41355896323 --actions-run service=41355898738 --actions-run update=41355901067 --table PATH --logs PATH`).
-The artifact: sha256 `e268d403a3071bf1826e85f3315dcc651c0eea46567109551ba790d23c20453f`. The build of this host: sha256 `287b775a9178b37d10ad17ccd34358b4c9d37233d44a113b2bc5b586bbdbd7bf`.
+The release check of the local sources at `6ece1f9`, 2026-11-03T04:14:18Z, on Linux x86_64 (`sh scripts/release-check.sh --local --binary PATH --sums PATH --build PATH --commit 6ece1f92ec2264d81f29cf447c5737546046b38b --actions-run build=41574534079 --actions-run deny=41574533945 --actions-run release=41574553380 --actions-run plants=41574559699 --actions-run update=41574562600 --actions-run box=41574565396 --actions-run headscale=41574568563 --actions-run relay-node=41574576966 --actions-run relay-backpressure=41574579880 --actions-run warp=41574582296 --actions-run quick=41574585402 --actions-run forwarders=41574587438 --actions-run hop=41574590207 --actions-run doh=41574597810 --actions-run service=41574600823 --actions-run via=41574603233 --actions-run wstunnel=41574605408 --actions-run gossh=41574608741 --actions-run cgroup=41574611693 --table PATH --logs PATH`).
+The artifact: sha256 `97ce376b67a39f94e3abe85a2143c9c6514227c57546980f30bb58802aee7b0f`. The build of this host: sha256 `f915d9501a99706677df89a42ebcffc15360fcc9e9105824c1fdaa995433fe7d`.
 
 | Check | Entry | Where | Binary | Limit | Time | Result | Detail |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `src.checkout` | T-251 | here | - | 10 s | - | PASS | clean at 35a0d19, version 1.0.0 |
-| `sums.check` | T-211 | here | artifact | 120 s | - | PASS | sha256 e268d403a3071bf1826e85f3315dcc651c0eea46567109551ba790d23c20453f |
+| `src.checkout` | T-251 | here | - | 10 s | - | PASS | clean at 6ece1f9, version 1.0.1 |
+| `sums.check` | T-211 | here | artifact | 120 s | - | PASS | sha256 97ce376b67a39f94e3abe85a2143c9c6514227c57546980f30bb58802aee7b0f |
 | `static` | T-218 | here | - | 60 s | - | PASS | 1 of 1: static, each of its machine |
-| `build.local` | T-251 | here | build | 3600 s | - | PASS | given by --build: podssh 1.0.0 |
+| `build.local` | T-251 | here | build | 3600 s | - | PASS | given by --build: podssh 1.0.1 (6ece1f92ec2264d81f29cf447c5737546046b38b) |
 | `short` | T-218 | here | artifact | 300 s | 40 s | PASS | 6 ok lines |
-| `sandbox` | T-006 | here | artifact | 900 s | 63 s | PASS | sandbox-check: 15 ok, 0 FAIL, 0 skip |
-| `readme` | T-251 | here | artifact | 240 s | - | PASS | man ssh 1105 lines; 256 SHA256:U2OCLWnNe5R35CoQupMsVKUJj4IhhY2WOeHHQM02JfU; status JSON |
-| `short` | T-218 | here | build | 300 s | 12 s | PASS | 6 ok lines |
+| `sandbox` | T-006 | here | artifact | 900 s | 62 s | PASS | sandbox-check: 15 ok, 0 FAIL, 0 skip |
+| `readme` | T-251 | here | artifact | 240 s | - | PASS | man ssh 1395 lines; 256 SHA256:YcV/f/1SuwiHkc56L2lW3DntaXprKCsuIdcDshqTbv4; status JSON |
+| `short` | T-218 | here | build | 300 s | 40 s | PASS | 6 ok lines |
 | `sandbox` | T-006 | here | build | 900 s | 61 s | PASS | sandbox-check: 15 ok, 0 FAIL, 0 skip |
-| `readme` | T-251 | here | build | 240 s | - | PASS | man ssh 1105 lines; 256 SHA256:2n+VOJjW+TxSTdvdePEFAAySI3d/jawjSurc430lB94; status JSON |
+| `readme` | T-251 | here | build | 240 s | - | PASS | man ssh 1395 lines; 256 SHA256:kzUG7k7lEKTEpCxsKiRweaqX9R3KCg8XNvvZauxfeIY; status JSON |
 | `pipe` | T-176 | here | artifact | 240 s | - | PASS | exec:cat and unix-connect: each gave 5,000,000 bytes back, sha256 equal |
 | `railway` | T-084 | here | artifact | 240 s | 2 s | SKIP | railway.new refused this anonymous visitor, its limit (its words withheld): -tt: exit 13; -T: exit 1; an outside refusal (T-422); the exit status through the relay is reverse.two's and actions.node's |
-| `container.short` | T-218 | a fresh container | artifact | 600 s | 40 s | PASS | podman, ok   proxy github.com 22: SSH-2.0-a09ebb4f |
-| `container.sandbox` | T-006 | a fresh container | artifact | 900 s | 63 s | PASS | podman, sandbox-check: 14 ok, 0 FAIL, 1 skip |
-| `irc.live` | T-252 | here | artifact | 700 s | 12 s | PASS | irc.oftc.net:6697 took a message of #podssh-rc-3a6a16 |
-| `irc.image` | T-252 | the build image | build | 3600 s | 248 s | PASS | ngircd: plain text and TLS |
-| `headscale` | T-334 | here | build (ts) | 5400 s | 472 s | PASS | each run here passed; the live relay's three are actions.headscale's (exit 3) |
-| `throughput` | T-157 | here | build | 7200 s | 3068 s | PASS | the cells and their MiB/s are in its log |
-| `throughput.loop` | T-157 | here | build | - | - | PASS | the cell through the relay's loop: min 2.06, p50 2.16, p95 2.23, max 2.23 MiB/s (5 runs) |
-| `reverse.two` | T-083 | here | artifact | 300 s | 4 s | PASS | exit 3 alone, then 3 and 3 at once, through the node of rce19f5941 |
-| `cp.200mib` | T-155 | here | artifact | 3600 s | 134 s | PASS | 200 MiB up in 55 s, down in 79 s, sha256 equal at both ends |
+| `container.short` | T-218 | a fresh container | artifact | 600 s | 40 s | PASS | podman, ok   proxy github.com 22: SSH-2.0-c8f69ae6 |
+| `container.sandbox` | T-006 | a fresh container | artifact | 900 s | 61 s | PASS | podman, sandbox-check: 14 ok, 0 FAIL, 1 skip |
+| `irc.live` | T-252 | here | artifact | 700 s | 21 s | SKIP | each network turned the relay's address away before its welcome: irc.oftc.net:6697 exit 69; irc.oftc.net:6697 exit 69; irc.oftc.net:6697 exit 69; irc.libera.chat:6697 exit 77; irc.undernet.org:6667 exit 77; an outside refusal (docs/irc.md); a deployment on another provider is T-346's; IRC is irc.image's, against ngircd |
+| `irc.image` | T-252 | the build image | build | 3600 s | 334 s | PASS | ngircd: plain text and TLS |
+| `headscale` | T-334 | here | build (ts) | 5400 s | 366 s | PASS | each run here passed; the live relay's three are actions.headscale's (exit 3) |
+| `throughput` | T-157 | here | build | 7200 s | 3366 s | PASS | the cells and their MiB/s are in its log |
+| `throughput.loop` | T-157 | here | build | - | - | PASS | the cell through the relay's loop: min 1.59, p50 1.68, p95 1.73, max 1.73 MiB/s (5 runs) |
+| `reverse.two` | T-083 | here | artifact | 300 s | 3 s | PASS | exit 3 alone, then 3 and 3 at once, through the node of rc3f3c3ad2 |
+| `cp.200mib` | T-155 | here | artifact | 3600 s | 118 s | PASS | 200 MiB up in 48 s, down in 70 s, sha256 equal at both ends |
 | `iroh.n0` | T-163 | here | artifact | 600 s | 18 s | PASS | refused (255) and named, then let in: exit 3 |
-| `actions.gate` | T-251 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: all:1 passed |
-| `actions.resume` | T-156 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: gate (m6):1 passed |
-| `actions.windows` | T-218 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: windows:1 passed |
-| `actions.macos` | T-218 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: macos:1 passed |
-| `actions.plants` | T-251 | GitHub Actions | - | - | - | PASS | run 41355872516 of plants.yml at 35a0d19: *:all passed |
-| `actions.release` | T-218 | GitHub Actions | - | - | - | PASS | run 41355870015 of release.yml at 35a0d19: linux *:4 macos *:2 windows *:2 notes:1 publish:1 passed |
-| `actions.update` | T-375 | GitHub Actions | - | - | - | PASS | run 41355901067 of update-live.yml at 35a0d19: update (*):3 passed |
-| `actions.box` | T-006 | GitHub Actions | - | - | - | PASS | run 41355875375 of box.yml at 35a0d19: box (default):1 box (nolisten):1 box (tt):1 passed |
-| `actions.chat` | T-099 | GitHub Actions | - | - | - | PASS | run 41355875375 of box.yml at 35a0d19: box (chat):1 passed |
-| `actions.headscale` | T-334 | GitHub Actions | - | - | - | PASS | run 41355877780 of ts-headscale.yml at 35a0d19: live:1 passed |
-| `actions.node` | T-155 | GitHub Actions | - | - | - | PASS | run 41355880238 of relay-live.yml at 35a0d19: live:1 passed |
-| `actions.backpressure` | T-062 | GitHub Actions | - | - | - | PASS | run 41355882960 of relay-live.yml at 35a0d19: live:1 passed |
-| `actions.warp` | T-352 | GitHub Actions | - | - | - | PASS | run 41355885655 of warp-live.yml at 35a0d19: live:1 passed |
-| `actions.quick` | T-300 | GitHub Actions | - | - | - | PASS | run 41355888590 of quick-tunnel-live.yml at 35a0d19: live:1 passed |
-| `actions.forwarders` | T-370 | GitHub Actions | - | - | - | PASS | run 41355891172 of forwarder-live.yml at 35a0d19: live:1 passed |
-| `actions.hop` | T-371 | GitHub Actions | - | - | - | PASS | run 41355893574 of hop-live.yml at 35a0d19: live:1 passed |
-| `actions.doh` | T-344 | GitHub Actions | - | - | - | PASS | run 41355896323 of doh-live.yml at 35a0d19: live:1 passed |
-| `actions.service` | T-121 | GitHub Actions | - | - | - | PASS | run 41355898738 of service-live.yml at 35a0d19: unit:1 passed |
-| `actions.deny` | T-341 | GitHub Actions | - | - | - | PASS | run 41355865505 of deny.yml at 35a0d19: deny:1 passed |
+| `actions.gate` | T-251 | GitHub Actions | - | - | - | PASS | run 41574534079 of build.yml at 6ece1f9: all:1 passed |
+| `actions.resume` | T-156 | GitHub Actions | - | - | - | PASS | run 41574534079 of build.yml at 6ece1f9: gate (m6):1 passed |
+| `actions.windows` | T-218 | GitHub Actions | - | - | - | PASS | run 41574534079 of build.yml at 6ece1f9: windows:1 passed |
+| `actions.macos` | T-218 | GitHub Actions | - | - | - | PASS | run 41574534079 of build.yml at 6ece1f9: macos:1 passed |
+| `actions.plants` | T-251 | GitHub Actions | - | - | - | PASS | run 41574559699 of plants.yml at 6ece1f9: *:all passed |
+| `actions.release` | T-218 | GitHub Actions | - | - | - | PASS | run 41574553380 of release.yml at 6ece1f9: linux *:4 macos *:2 windows *:2 notes:1 publish:1 passed |
+| `actions.update` | T-375 | GitHub Actions | - | - | - | PASS | run 41574562600 of update-live.yml at 6ece1f9: update (*):3 passed |
+| `actions.box` | T-006 | GitHub Actions | - | - | - | PASS | run 41574565396 of box.yml at 6ece1f9: box (default):1 box (nolisten):1 box (tt):1 passed |
+| `actions.chat` | T-099 | GitHub Actions | - | - | - | PASS | run 41574565396 of box.yml at 6ece1f9: box (chat):1 passed |
+| `actions.headscale` | T-334 | GitHub Actions | - | - | - | PASS | run 41574568563 of ts-headscale.yml at 6ece1f9: live:1 passed |
+| `actions.node` | T-155 | GitHub Actions | - | - | - | PASS | run 41574576966 of relay-live.yml at 6ece1f9: live:1 passed |
+| `actions.backpressure` | T-062 | GitHub Actions | - | - | - | PASS | run 41574579880 of relay-live.yml at 6ece1f9: live:1 passed |
+| `actions.warp` | T-352 | GitHub Actions | - | - | - | PASS | run 41574582296 of warp-live.yml at 6ece1f9: live:1 passed |
+| `actions.quick` | T-300 | GitHub Actions | - | - | - | PASS | run 41574585402 of quick-tunnel-live.yml at 6ece1f9: live:1 passed |
+| `actions.forwarders` | T-370 | GitHub Actions | - | - | - | PASS | run 41574587438 of forwarder-live.yml at 6ece1f9: live:1 passed |
+| `actions.hop` | T-371 | GitHub Actions | - | - | - | PASS | run 41574590207 of hop-live.yml at 6ece1f9: live:1 passed |
+| `actions.doh` | T-344 | GitHub Actions | - | - | - | PASS | run 41574597810 of doh-live.yml at 6ece1f9: live:1 passed |
+| `actions.service` | T-121 | GitHub Actions | - | - | - | PASS | run 41574600823 of service-live.yml at 6ece1f9: unit:1 passed |
+| `actions.via` | T-439 | GitHub Actions | - | - | - | PASS | run 41574603233 of via-interop.yml at 6ece1f9: interop:1 passed |
+| `actions.wstunnel` | T-441 | GitHub Actions | - | - | - | PASS | run 41574605408 of wstunnel-interop.yml at 6ece1f9: interop:1 passed |
+| `actions.gossh` | T-460 | GitHub Actions | - | - | - | PASS | run 41574608741 of go-ssh-interop.yml at 6ece1f9: interop:1 passed |
+| `actions.cgroup` | T-480 | GitHub Actions | - | - | - | PASS | run 41574611693 of cgroup-interop.yml at 6ece1f9: interop:1 passed |
+| `actions.deny` | T-341 | GitHub Actions | - | - | - | PASS | run 41574533945 of deny.yml at 6ece1f9: deny:1 passed |
 | `throughput.direct` | T-157 | none | - | - | - | SKIP | the direct cell needs the operator's SSH host (Q38; the decision of 2026-10-31 names it as not run) |
 | `serve.box` | T-248 | none | - | - | - | SKIP | podssh serve with vi, less and Ctrl-C in the box: T-248 is held by the operator (Q32) |
 | `reverse.boxes` | T-085 | none | - | - | - | SKIP | two sessions from one box to a node in another box: T-085 is held by the operator (Q32) |
 | `tailnet` | T-334 | none | - | - | - | SKIP | the operator's tailnet and the key of .env/ (Q40): headscale stands in (the decision of 2026-10-31) |
 
-The plant of the Prove, the same day: one byte of the artifact changed at offset 4096, with the
+43 passed, 6 skipped (each named), PASSED, exit 0, before the tag of `v1.0.1` (T-584).
+
+The plant of the Prove (T-251), on 2026-11-01 at `35a0d19`: one byte of the artifact changed at offset 4096, with the
 same `--sums`: `sums.check` FAIL, "a source did not verify: no check ran. FAILED.", exit 1.
 
 The release check of v1.0.0 at `35a0d19`, 2026-11-03T02:16:21Z, on Linux x86_64 (`sh scripts/release-check.sh v1.0.0 --actions-run build=41355865458 --actions-run deny=41355865505 --actions-run release=41374990313 --actions-run proofs=41376232083 --actions-run plants=41355872516 --actions-run box=41355875375 --actions-run headscale=41355877780 --actions-run relay-node=41355880238 --actions-run relay-backpressure=41355882960 --actions-run warp=41355885655 --actions-run quick=41355888590 --actions-run forwarders=41355891172 --actions-run hop=41355893574 --actions-run doh=41355896323 --actions-run service=41355898738 --actions-run update=41376235134 --table PATH --logs PATH`).
