@@ -3230,10 +3230,10 @@ The draft's calls, 2026-11-02:
    each socket of both roads, which needs a token or a pair that the brake let through and is
    checked with a MAC or a digest and no state. Lost: a brake of the upgrades with no token, as
    the default relay counts them: the role's refusal of one costs less than the count.
-4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:178`), never a
+4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:193`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:133`),
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:150`),
    with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:52`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
@@ -3288,7 +3288,7 @@ name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:146`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:163`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -3346,7 +3346,7 @@ the main session the same day.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3366,6 +3366,52 @@ net's document.
    next serial on, read again when it changes.
 2. Which roles of a member mint is the net's policy's (T-430): until then, each member.
 
+## Decision
+
+The draft's calls, 2026-11-03, each with what lost:
+
+1. **The policy decides, with a word of its own** (Approach item 2: T-430 is done, so "until then"
+   has passed). `relay:NODE` names the relay role behind NODE's quick tunnel, `relay:*` each relay
+   role of the net, `podssh relay serve`'s too, and `*` reaches them as it reaches each thing; with
+   no policy each member mints, as each member reaches each. A relay's forward road lends its
+   host's egress, as an exit does, so the owner says who may use it as `exit:NODE` says who may go
+   out; this is Tailscale's grant of `tailscale.com/cap/relay` for a peer relay. Neither word opens
+   a door of NODE (`Want::AnyOf` is not reached by it), and a word that a podssh of before does not
+   read allows nothing there. Lost: each member always, which leaves the owner no say over a
+   relay's egress; the member's roles (`node`, `exit`, ...), which say what a member offers the
+   net, not what it may use; a rule to NODE as a node, which would let a member that may use the
+   relay into the node's services too.
+2. **`podssh relay serve` has no name in the net**: it has no key of its own (its TLS key is a
+   certificate's), so only `relay:*` and `*` name it; the node of `--quick-tunnel --relay` names
+   itself by its node key, which the net names. Lost: the cache's `client.key` as the role's key,
+   which would make a key at the start of a role that needs none, and tie the role's name to the
+   client of the host; a flag that names the role's member, a word more for a case that
+   `relay:*` covers.
+3. **The words of `--mint`**: `net`, and `net,keys:FILE` for both, FILE the rest of the word, so a
+   path may hold commas. Lost: a second `--mint`, which clap's single value overrides; `keys:FILE,net`,
+   whose FILE would end at a comma.
+4. **The document is read, and its owner's signature checked, for each request**, as the node's
+   door reads it for each session (`store::held`), so a member removed counts from that serial on
+   and nothing caches a stale one. A mint is braked at 120 a minute for each address (T-454), so the
+   cost of an SSHSIG's check stays small. Lost: a copy kept until the file's time changes, a second
+   reading of the store that could disagree with the node's.
+5. **The signature is checked before whom the key is.** The net's refusal names the net and the
+   member, and a member's key is public: before, anyone could send a member's key with no
+   signature and read its policy's words. The list's refusal of T-448 is unchanged in its words,
+   and now comes after the signature too. A key that is no member hears neither the net's name nor
+   its members, only its key and the document's serial; a member, the policy's words. Lost: the
+   order of T-448, which named the list's refusal first, before the signature's.
+6. **A token minted before a removal lives on**, until its end or the role's stop, as a token of a
+   list's key does (T-448, Decision 5): the contract's token, `ephm1.<expiry>.forward.<mac>`, names
+   no key, so the role cannot ask the net again at the upgrade. Lost: a table of the tokens of each
+   key, kept in the role and checked at each upgrade, a second state to bound and lose at a
+   restart, for a gap of 72 h at most that a restart of the role closes.
+7. **A net that the host does not hold, that fails its check, that ended, or `PODSSH_NET=no`, stops
+   the start (78)**, as a list that cannot be read does; once running, such a net gives each request
+   a `403` that names no file, and `podssh net ls` on the host says why. The node's role is made
+   after its key is loaded, so that `relay:NAME` names it; its word is checked before (64), so a
+   usage error still comes before anything is made.
+
 ## Prove
 
 ```sh
@@ -3375,6 +3421,65 @@ cargo test -p podssh-cli --test relay_serve
 
 A member mints and pairs; a stranger, and a member removed by a newer document, get `403`.
 Planted, the member check skipped, and the stranger's test fails.
+
+## Correction
+
+2026-11-03 (the drafting agent). The Premise's first point is wrong in one part: the role reads the
+list of `keys:FILE` again for each request (`crates/podssh-relay/src/serve/keys.rs`, `Whom::admits`,
+before this change `Allowlist::read` in `prove`), and only the binary reads it once at the start,
+to say its keys and refuse one that cannot be read (`crates/podssh-cli/src/relay_serve.rs`,
+`list_shown`). The second holds: `crates/podssh-cli/src/net/` holds the host's document
+(`store::held`). The Approach is unchanged, and item 2 is done by the policy's word (Decision 1).
+The Prove that runs, beside the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-cli --lib net::
+cargo test -p podssh-cli --test node_quick_relay --test net
+sh scripts/plant-each.sh --here t455-member-check-skipped
+sh scripts/plant-each.sh --here t448-no-signature-check
+```
+
+## Done
+
+2026-11-03: drafted by an agent in a worktree; merged and measured on this machine the same day.
+
+- The library: `Mint::Net` and the trait `keys::Members`, which the binary answers; `keys::Whom`,
+  the list, the net or both; the signature checked before whom the key is; `"mint": "net"` or
+  `"net,keys"` in `/health`; the event names the member (`crates/podssh-relay/src/serve/keys.rs`,
+  `serve/mod.rs`). The plant `t448-no-signature-check` moved with its lines.
+- The binary: `crates/podssh-cli/src/net/mint.rs` (the verdict, the start's line), the words
+  `relay:NODE` and `relay:*` of the policy (`net/policy.rs`, `net/policy_words.rs`) and of `policy
+  check` (`net/policy_cmd.rs`), `--mint net` and `net,keys:FILE` (`relay_serve.rs`,
+  `node_quick_relay.rs`, `node_quick.rs`); the flag rows of `relay` and `node`; the manual's notes
+  of `relay`, `node` and `net`; `docs/relay.md` ("Tokens for the members of the net"),
+  `docs/mesh.md`, `docs/cli.md`.
+- The tests: `cargo test -p podssh-relay --features serve --lib serve::keys` (a member mints, a
+  stranger hears the net only by its own signature, the list and the net beside it): passed,
+  with `serve::` 29. `cargo test -p podssh-cli --lib net::` (`net::mint`, 3; `net::policy_tests`, the
+  words of a relay): passed, `--lib` 794. `cargo test -p podssh-cli --test relay_serve` (`serve_net`: a
+  member mints and pairs, a stranger gets `403` with its key and no name of the net, the member
+  removed by serial 3 gets `403`; a host with no net, and `PODSSH_NET=no`, stop the start with 78;
+  the words of `--mint some`): 12 passed. `cargo test -p podssh-cli --test node_quick_relay`
+  (`--mint net` on a host with no net, 78; the new words of `--mint everyone`): 3 passed.
+- Planted, `sh scripts/plant-each.sh --here t455-member-check-skipped` (a stranger taken as the
+  net's first member): caught; `t448-no-signature-check`, again on its moved lines: caught.
+- Clippy with `-D warnings` and `cargo fmt --check` of both crates: clean.
+
+What the merge repaired (2026-11-03):
+
+- The node of `--quick-tunnel --relay` built its role after its key, so that `relay:NAME` names it,
+  and so read the list of `--mint keys:FILE` after the check of `PODSSH_OFFLINE`: a list that cannot
+  be read gave 69 where `a_list_that_cannot_be_read_stops_the_start` asks 78. The list and the net
+  are now read before anything else (`node_quick_relay::precheck`), and the role is still built
+  after the key.
+- The test harness's relay role always passed `--mint anyone`, and `serve_net` named its own
+  `--mint`, which the parser refuses twice: the harness passes its default only when the test names
+  none (`throughput_harness/cells.rs`).
+- Twelve plants had a SETUP of `apk add` alone, which a host with no apk refuses, so `--here` missed
+  them (this one among them): each runs `apk` only where it exists, as in the build image.
+- `relay_serve_contract` 10 and `relay_serve_reverse` 4 passed with the new `Mint`.
 
 # T-456: XHTTP over HTTP/1.1, on a second connection
 
@@ -6517,7 +6622,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:249-259`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:251-261`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -6871,8 +6976,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:258-259`), and needs the net's role exit, signed by
-  its owner (`:256-257`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:260-261`), and needs the net's role exit, signed by
+  its owner (`:258-259`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:92`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

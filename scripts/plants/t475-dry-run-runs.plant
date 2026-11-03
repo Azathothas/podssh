@@ -4,6 +4,6 @@
 ENTRY=T-475
 GROUP=cli-tests
 EXPECT='test a_dry_run_after_a_change_plans_that_file_alone_and_runs_nothing \.\.\. FAILED'
-SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+SETUP='if command -v apk >/dev/null; then apk add --no-cache openssh-sftp-server >/dev/null; fi'
 RUN='cargo test --locked -p podssh-cli --test run_far -- a_dry_run_after_a_change_plans_that_file_alone_and_runs_nothing'
 LIMIT=2400

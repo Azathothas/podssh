@@ -1,6 +1,6 @@
 --- a/crates/podssh-relay/src/serve/keys.rs
 +++ b/crates/podssh-relay/src/serve/keys.rs
-@@ -90,7 +90,7 @@
+@@ -145,7 +145,7 @@
      let Some(signature) = signature.and_then(|s| <[u8; 64]>::try_from(s).ok()) else {
          return Proof::Refused("the signature is not 64 bytes in base64".into());
      };
@@ -8,4 +8,4 @@
 +    if false && !key.verifies(&message(host, path, challenge), &signature) {
          return Proof::Refused(format!("the signature does not verify for the key {}", key.fingerprint()));
      }
-     if !cfg.answered.take(challenge, ends, now_ms) {
+     // Whom the key is, once its holder proved itself: the net's words name

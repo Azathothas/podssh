@@ -4,6 +4,6 @@
 ENTRY=T-197
 GROUP=cli-tests
 EXPECT='test three_jobs_with_one_slot_run_one_at_a_time_and_the_last_gives_5 \.\.\. FAILED'
-SETUP='apk add --no-cache tmux'
+SETUP='if command -v apk >/dev/null; then apk add --no-cache tmux; fi'
 RUN='PODSSH_TEST_TMUX=/usr/bin/tmux cargo test --locked -p podssh-cli --test job_queue -- three_jobs_with_one_slot_run_one_at_a_time_and_the_last_gives_5'
 LIMIT=2400

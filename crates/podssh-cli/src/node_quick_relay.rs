@@ -6,11 +6,13 @@
 //! path; its one line on stdout, `https://NAME.trycloudflare.com`, is the
 //! relay host of `--relay-host`. The role mints for the keys of `--allow` by
 //! default, each by its signature of the role's challenge (T-448), and for
-//! another list, anyone or no one when `--mint` says so; the net's members
-//! are T-455's.
+//! another list, the members of the node's net (T-455, as its policy lets
+//! them reach `relay:NAME`, the node's name in the net, or `relay:*`),
+//! anyone or no one when `--mint` says so.
 
 use std::sync::Arc;
 
+use podssh_relay::identity::PublicKey;
 use podssh_relay::quick::origin::Origin;
 use podssh_relay::serve::behind::Behind;
 use podssh_relay::serve::{self, Config, Limits, Mint};
@@ -39,17 +41,42 @@ pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
                    that listens is podssh relay serve --listen";
         return Err(Refusal::usage(why));
     }
+    // The word now (64), before a key is loaded; whom it names is read once
+    // the node's key is known (T-455).
+    if let Some(word) = args.mint.as_deref() {
+        crate::relay_serve::mint_of(word, None)?;
+    }
     Ok(())
 }
 
+/// What `role` reads, read before anything connects or a key is loaded: a
+/// list that cannot be read, or a net that this host does not hold, stops
+/// the start (78) as it did before the role waited for the node's key.
+pub(crate) fn precheck(args: &NodeArgs, allow: &std::path::Path) -> Result<(), Refusal> {
+    if !args.relay {
+        return Ok(());
+    }
+    let mint = match args.mint.as_deref() {
+        Some(word) => crate::relay_serve::mint_of(word, None)?,
+        None => Mint::Keys(allow.to_path_buf()),
+    };
+    crate::relay_serve::minting_for(&mint).map(|_| ())
+}
+
 /// The role that `--relay` asks for, or none: whom it mints for (the keys of
-/// `allow` by default), and its pairs, read now.
-pub(crate) fn role(args: &NodeArgs, label: &str, allow: &std::path::Path) -> Result<Option<Role>, Refusal> {
+/// `allow` by default), and its pairs, read now; `me` is the node's key,
+/// whose name in the net `relay:NAME` names (T-455).
+pub(crate) fn role(
+    args: &NodeArgs,
+    label: &str,
+    allow: &std::path::Path,
+    me: PublicKey,
+) -> Result<Option<Role>, Refusal> {
     if !args.relay {
         return Ok(None);
     }
     let mint = match args.mint.as_deref() {
-        Some(word) => crate::relay_serve::mint_of(word)?,
+        Some(word) => crate::relay_serve::mint_of(word, Some(me))?,
         None => Mint::Keys(allow.to_path_buf()),
     };
     let who = crate::relay_serve::minting_for(&mint)?;

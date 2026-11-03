@@ -4,6 +4,6 @@
 ENTRY=T-470
 GROUP=cli-tests
 EXPECT='test with_no_copy_data_and_no_command_the_whole_file_goes_and_one_line_says_why \.\.\. FAILED'
-SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+SETUP='if command -v apk >/dev/null; then apk add --no-cache openssh-sftp-server >/dev/null; fi'
 RUN='cargo test --locked -p podssh-cli --test cp_delta -- with_no_copy_data_and_no_command'
 LIMIT=2400

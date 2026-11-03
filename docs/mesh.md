@@ -145,7 +145,8 @@ What T-430 built ([cli.md](cli.md), "`podssh net`"):
 - The policy is the document's field `policy`, which `requires` names:
   rules from members (`*`, a name, `tag:TAG`) to what they may reach (`*`,
   `NODE` whole, `NODE/ROUTE`, `tag:TAG`, `exit:NODE`, `exit:*`, a range
-  `ADDR/BITS`), and tags; with no policy, each member reaches each, as
+  `ADDR/BITS`, and since T-455 `relay:NODE` and `relay:*`, a relay role's
+  tokens and pairs), and tags; with no policy, each member reaches each, as
   Tailscale's default policy (`crates/podssh-cli/src/net/policy.rs`). A rule
   only allows, so what this podssh does not read allows nothing.
 - The node that is reached decides, for each session, with the newest
@@ -177,8 +178,9 @@ which `--pairs FILE` keeps across a restart:
   in place of its 404, over HTTP/2 and QUIC, with no listener, the tunnel's
   name the relay host and the keys of `--allow` its own by default (T-428);
 - for the keys of a list, each by its signature of the role's challenge
-  (`--mint keys:FILE`, T-448), and for the net's members by the net's list
-  (T-429); for anyone, only when the user asks;
+  (`--mint keys:FILE`, T-448), and for the net's members by the same
+  signature, as the net's policy lets them reach `relay:*` or `relay:NODE`
+  (`--mint net`, T-455); for anyone, only when the user asks;
 - with a brake of 120 mints and pairs a minute for each address, as the
   default relay's, so that one client fills neither the table of pairs nor
   the role's CPU ([relay.md](relay.md), "The relay role's brake", T-454);

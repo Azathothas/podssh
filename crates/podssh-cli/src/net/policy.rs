@@ -1,6 +1,7 @@
 //! The net's policy (T-430): who may reach which node, which route of it (a
-//! share, T-433, is reached as a route), which exit (T-431) and which range
-//! of routes (T-432), as the owner signs it in the net's document. The model
+//! share, T-433, is reached as a route), which exit (T-431), which range
+//! of routes (T-432) and which relay role's mint (T-455), as the owner signs
+//! it in the net's document. The model
 //! is Tailscale's ACLs: rules, each from members or tags to what they may
 //! reach, and nothing else once a policy is there; with no policy at all,
 //! each member reaches each other, as Tailscale's default policy lets each
@@ -32,7 +33,7 @@ const POLICY_FIELDS: &[&str] = &["rules", "tags"];
 const RULE_FIELDS: &[&str] = &["from", "to", "note"];
 /// The forms of a word of `from` and of `to`, as a refusal names them.
 const FROM_FORMS: &str = "*, a member's name or tag:TAG";
-const TO_FORMS: &str = "*, NODE, NODE/ROUTE, tag:TAG, exit:NODE, exit:* or a range ADDR/BITS";
+const TO_FORMS: &str = "*, NODE, NODE/ROUTE, tag:TAG, exit:NODE, exit:*, relay:NODE, relay:* or a range ADDR/BITS";
 
 /// One rule: from these members or tags, to these nodes, routes, exits or
 /// ranges.
@@ -70,6 +71,10 @@ pub enum Want<'a> {
     Egress(&'a str),
     /// An address of a range of routes (T-432).
     Addr(IpAddr),
+    /// A token or a pair of the relay role of this member (T-455); none for
+    /// a role that is no member, as `podssh relay serve`'s, which only
+    /// `relay:*` names.
+    Relay(Option<&'a str>),
 }
 
 impl fmt::Display for Want<'_> {
@@ -81,6 +86,8 @@ impl fmt::Display for Want<'_> {
             Want::Exit(node) => write!(f, "exit:{node}"),
             Want::Egress(node) => write!(f, "exit:{node} or a range"),
             Want::Addr(addr) => write!(f, "{addr}"),
+            Want::Relay(Some(node)) => write!(f, "relay:{node}"),
+            Want::Relay(None) => f.write_str("relay:*"),
         }
     }
 }
@@ -217,9 +224,9 @@ pub fn checked(value: &Value, doc: &Doc) -> Result<(Policy, Vec<String>), String
             match Dest::parse(word) {
                 Dest::Unknown => return Err(format!("rule {n}: {word:?} is not what a rule reaches: {TO_FORMS}")),
                 Dest::Tag(tag) if !policy.tags.contains_key(tag) => return Err(undefined(tag)),
-                Dest::Node(name) | Dest::Route(name, _) => said.extend(unknown(name, what)),
+                Dest::Node(name) | Dest::Route(name, _) | Dest::Relay(Some(name)) => said.extend(unknown(name, what)),
                 Dest::Exit(Some(name)) => said.extend(exit_named(doc, name, what)),
-                Dest::All | Dest::Tag(_) | Dest::Exit(None) | Dest::Range(_) => {}
+                Dest::All | Dest::Tag(_) | Dest::Exit(None) | Dest::Relay(None) | Dest::Range(_) => {}
             }
         }
     }

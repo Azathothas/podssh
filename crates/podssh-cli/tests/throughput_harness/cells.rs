@@ -63,7 +63,14 @@ impl Cell {
     /// podssh's own relay role (T-169), `podssh relay serve` with `extra`
     /// flags, where the stand-in would run.
     pub fn podssh_relay(s: &Session, name: &str, extra: &[&str]) -> Result<Cell, Skipped> {
-        Cell::relay_process(s, "normal", name, "relay.pem", Some(extra))
+        Cell::relay_process(s, "normal", name, "relay.pem", Some(extra), &[])
+    }
+
+    /// [`Cell::podssh_relay`] with variables of its own on the role's
+    /// process, as `PODSSH_NET` for a role that mints for a net (T-455), or
+    /// a proxy that its targets go through (T-457).
+    pub fn podssh_relay_env(s: &Session, name: &str, extra: &[&str], env: &[(&str, String)]) -> Result<Cell, Skipped> {
+        Cell::relay_process(s, "normal", name, "relay.pem", Some(extra), env)
     }
 
     fn fake_relay_cert(s: &Session, mode: &str, name: &str, cert: &str) -> Result<Cell, Skipped> {
@@ -71,10 +78,17 @@ impl Cell {
         // the stand-in where it behaves (T-169), the reverse road too
         // (T-427); the fault modes stay the stand-in's.
         let role = mode == "normal" && std::env::var("PODSSH_RELAY_UNDER_TEST").as_deref() == Ok("podssh");
-        Cell::relay_process(s, mode, name, cert, role.then_some(&["--allow-private"][..]))
+        Cell::relay_process(s, mode, name, cert, role.then_some(&["--allow-private"][..]), &[])
     }
 
-    fn relay_process(s: &Session, mode: &str, name: &str, cert: &str, role: Option<&[&str]>) -> Result<Cell, Skipped> {
+    fn relay_process(
+        s: &Session,
+        mode: &str,
+        name: &str,
+        cert: &str,
+        role: Option<&[&str]>,
+        env: &[(&str, String)],
+    ) -> Result<Cell, Skipped> {
         let name = name.to_string();
         let python = ["python3", "python"].into_iter().find(|p| found(p, &["--version"]));
         let Some(python) = python else { return Err((name, "no Python here".into())) };
@@ -93,7 +107,13 @@ impl Cell {
         let port_file = dir.join(format!("port-{}-{cert}{which}", mode.replace(':', "-")));
         let mut command = if let Some(extra) = role {
             let mut c = Command::new(env!("CARGO_BIN_EXE_podssh"));
-            c.args(["relay", "serve", "--listen", "127.0.0.1:0", "--mint", "anyone"]).args(extra);
+            c.args(["relay", "serve", "--listen", "127.0.0.1:0"]);
+            // Anyone mints, unless the test names whom (T-455): one --mint.
+            if !extra.contains(&"--mint") {
+                c.args(["--mint", "anyone"]);
+            }
+            c.args(extra);
+            c.envs(env.iter().map(|(name, value)| (*name, value)));
             c
         } else {
             let mut c = Command::new(python);

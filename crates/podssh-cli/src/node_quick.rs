@@ -132,11 +132,13 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
             "--quick-tunnel needs --allow FILE: its name is public, so only the operator keys in FILE come in",
         )
     })?;
-    let relay = crate::node_quick_relay::role(args, &label, &allow)?;
+    crate::node_quick_relay::precheck(args, &allow)?;
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
     crate::pairs::online()?;
     let record = crate::node_record::named()?;
     let key = crate::channel::load_node_key(&place)?;
+    // After the key: the net's `relay:NAME` names the node by it (T-455).
+    let relay = crate::node_quick_relay::role(args, &label, &allow, key.identity.public())?;
     Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp, relay, record })
 }
 

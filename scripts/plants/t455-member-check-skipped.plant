@@ -1,0 +1,10 @@
+# T-455: the relay role of --mint net takes a key that is no member of the
+# net as its first member, as if it skipped the member check, so a stranger
+# mints a token; the test of the stranger's 403 must fail with its words.
+ENTRY=T-455
+GROUP=cli-tests
+EXPECT='a stranger minted'
+# The role's harness asks for Python and openssl, which the build image lacks:
+# with no SETUP the test said it did not run, and passed.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- serve_net::a_relay_that_mints_for_the_net_takes_its_members_and_a_member_removed_is_refused'

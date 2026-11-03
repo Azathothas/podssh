@@ -170,7 +170,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 578 entries: 106 open, 2 partial, 2 blocked, 468 done.
+`TODO/INDEX.md` holds 578 entries: 105 open, 2 partial, 2 blocked, 469 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -211,7 +211,7 @@ this order:
 
 0. A test that fails at random comes first: the relay suite's, named and repaired (done, 50 runs
    in a row here and on a runner).
-1. The relay role (its certificate from ACME, its brake of mint and pair, and the role behind a node's quick tunnel are done): the net's members' mint (T-455) and the role's dial through `HTTPS_PROXY` (T-457); then what the role serves: T-336, T-255,
+1. The relay role (its certificate from ACME, its brake of mint and pair, the role behind a node's quick tunnel and the net's members' mint are done): the role's dial through `HTTPS_PROXY` (T-457); then what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net (its policy, the record of each road, the DERP node of a member and the copies by a name are done): T-086, T-226, T-346, T-106, T-550 and T-551.
 3. Exit, routes, share and funnel (the exit is done): T-458, T-432, T-433,

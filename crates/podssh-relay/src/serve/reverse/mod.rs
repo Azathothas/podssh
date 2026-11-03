@@ -135,7 +135,7 @@ where
         let why = format!("/v1/pair: not {}, but POST", head.method);
         return answer(stream, request::refusal(405, &why, &[("Allow", "POST")])).await;
     }
-    if cfg.mint == Mint::Nobody {
+    if matches!(cfg.mint, Mint::Nobody) {
         let why = "/v1/pair: this relay makes no pair, as it mints no token; its owner gives them";
         return answer(stream, request::refusal(503, why, &[])).await;
     }

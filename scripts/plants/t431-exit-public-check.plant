@@ -7,5 +7,5 @@ GROUP=cli-tests
 EXPECT='a private target was reached'
 # The stand-in relay is Python's, and the build image has none: with no SETUP the
 # test said it did not run, and passed.
-SETUP='apk add --no-cache python3 openssl >/dev/null'
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
 RUN='cargo test --locked -p podssh-cli --test exit -- an_exit_carries_what_its_net_lets_out_and_dials_no_address_unchecked'

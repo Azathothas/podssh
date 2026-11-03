@@ -4,15 +4,18 @@
 //! P-256 key in PEM files, or from ACME, read again on SIGHUP (T-447,
 //! `relay_serve/certs.rs`). The routes are `podssh_relay::serve`'s; this
 //! file owns the listener, TLS, the port file of a harness, the file of the
-//! pairs, and the end on Ctrl-C or SIGTERM, which closes each reverse socket
-//! with `1012` first (T-255).
+//! pairs, whom it mints for (a list's keys, T-448; the net's members, T-455,
+//! `crate::net::mint`), and the end on Ctrl-C or SIGTERM, which closes each
+//! reverse socket with `1012` first (T-255).
 
 mod certs;
 
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use podssh_relay::identity::PublicKey;
 use podssh_relay::serve::{self, Config, Limits, Mint};
 use podssh_ws::tls_server::ACME_TLS_1;
 use tokio::io::AsyncWriteExt as _;
@@ -94,7 +97,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         Refusal::usage("serve needs --listen ADDR:PORT, the address to serve on (127.0.0.1:0 takes a free port)")
     })?;
     let source = certs::Source::of(s, ca_file)?;
-    let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"))?;
+    // No key of its own: the net's `relay:*` names this role (T-455).
+    let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"), None)?;
     let who = minting_for(&mint)?;
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
@@ -148,35 +152,56 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     Ok(Prepared { listener, acceptor, cfg: Arc::new(cfg), certs, shown, port_file })
 }
 
-/// Who `--mint WORD` mints for: anyone, nobody, or the keys of a list
-/// (T-448); the node behind a quick tunnel reads the same words (T-428).
-pub(crate) fn mint_of(word: &str) -> Result<Mint, Refusal> {
+/// The words of `--mint`, as a refusal names them.
+const MINT_WORDS: &str = "anyone, nobody, keys:FILE, net or net,keys:FILE";
+
+/// Who `--mint WORD` mints for: anyone, nobody, the keys of a list (T-448),
+/// the members of the net that this host holds (T-455), or both of those
+/// (`net,keys:FILE`: FILE is the rest of the word, commas and all); the node
+/// behind a quick tunnel reads the same words (T-428), and names its key
+/// `me`, which the net's `relay:NODE` names.
+pub(crate) fn mint_of(word: &str, me: Option<PublicKey>) -> Result<Mint, Refusal> {
+    let list = |text: &str| text.strip_prefix("keys:").filter(|file| !file.is_empty()).map(PathBuf::from);
+    let net = |list: Option<PathBuf>| Mint::Net(Arc::new(crate::net::mint::Members::new(me)), list);
     match word {
         "anyone" => Ok(Mint::Anyone),
         "nobody" | "none" => Ok(Mint::Nobody),
-        word => match word.strip_prefix("keys:").filter(|file| !file.is_empty()) {
-            Some(file) => Ok(Mint::Keys(file.into())),
-            None => Err(Refusal::usage(format!("--mint {word:?}: anyone, nobody or keys:FILE"))),
+        "net" => Ok(net(None)),
+        word => match (word.strip_prefix("net,").map(list), list(word)) {
+            (Some(Some(file)), _) => Ok(net(Some(file))),
+            (None, Some(file)) => Ok(Mint::Keys(file)),
+            _ => Err(Refusal::usage(format!("--mint {word:?}: {MINT_WORDS}"))),
         },
     }
 }
 
-/// Whom `mint` mints for, in the words of the first line. The list is read
-/// again for each request; here, so that a list that cannot be read stops
-/// the start, and the keys that it holds are said.
+/// Whom `mint` mints for, in the words of the first line. The list and the
+/// net's document are read again for each request; here, so that a list
+/// that cannot be read, or a net that this host does not hold or that
+/// ended, stops the start (78), and whom they hold is said.
 pub(crate) fn minting_for(mint: &Mint) -> Result<String, Refusal> {
     Ok(match mint {
         Mint::Anyone => "anyone".to_string(),
         Mint::Nobody => "no one".to_string(),
-        Mint::Keys(file) => {
-            let list = podssh_relay::identity::allow::Allowlist::read(file).map_err(Refusal::config)?;
-            let bad = match list.bad_lines() {
-                [] => String::new(),
-                lines => format!("; lines {lines:?} hold no key, and let nobody in"),
-            };
-            format!("the {} keys of {}{bad}", list.len(), file.display())
+        Mint::Keys(file) => list_shown(file)?,
+        Mint::Net(net, list) => {
+            let members = net.shown().map_err(|why| Refusal::config(format!("--mint net: {why}")))?;
+            match list {
+                Some(file) => format!("{members}; and {}", list_shown(file)?),
+                None => members,
+            }
         }
     })
+}
+
+/// The keys of the list in `file`, in the words of the first line.
+fn list_shown(file: &Path) -> Result<String, Refusal> {
+    let list = podssh_relay::identity::allow::Allowlist::read(file).map_err(Refusal::config)?;
+    let bad = match list.bad_lines() {
+        [] => String::new(),
+        lines => format!("; lines {lines:?} hold no key, and let nobody in"),
+    };
+    Ok(format!("the {} keys of {}{bad}", list.len(), file.display()))
 }
 
 fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {

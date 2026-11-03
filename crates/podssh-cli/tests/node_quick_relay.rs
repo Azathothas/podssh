@@ -28,7 +28,7 @@ fn the_relay_s_flags_are_refused_before_any_connection_without_their_needs() {
         (vec!["node", "lab", "127.0.0.1:22", "--allow-private"], "--allow-private is a setting of the relay role"),
         (
             vec!["node", "lab", "--quick-tunnel", "--relay", "--allow", &allow, "--mint", "everyone"],
-            "anyone, nobody or keys:FILE",
+            "anyone, nobody, keys:FILE, net or net,keys:FILE",
         ),
         (vec!["node", "lab", "--quick-tunnel", "--relay"], "needs --allow FILE"),
         (vec!["node", "lab", "--quick-tunnel", "--allow", &allow], "missing TARGET"),
@@ -55,6 +55,12 @@ fn a_list_that_cannot_be_read_stops_the_start() {
     let (rc, out, err) = podssh(&home, &args, &[]);
     assert_eq!(rc, 78, "{err}");
     assert!(err.contains("no-such-list") && out.is_empty(), "{err}");
+    // So does a net that this host does not hold, for --mint net (T-455).
+    let none = home.join("none.doc").to_string_lossy().into_owned();
+    let args = ["node", "lab", "--quick-tunnel", "--relay", "--allow", &allow, "--mint", "net"];
+    let (rc, out, err) = podssh(&home, &args, &[("PODSSH_NET", &none)]);
+    assert_eq!(rc, 78, "{err}");
+    assert!(err.contains("--mint net: this host holds no net") && out.is_empty(), "{err}");
 }
 
 /// The relay alone, and beside a TARGET, pass each check that needs no

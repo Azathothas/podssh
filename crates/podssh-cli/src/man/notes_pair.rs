@@ -235,8 +235,10 @@ pub(super) const NODE: &[&str] = &[
      reaches the relay with --relay-host https://NAME.trycloudflare.com, as it reaches another relay. With \
      no TARGET, the node is the relay alone, and each path is the relay's. It mints tokens, and makes \
      pairs, for the keys of --allow by default, each by its signature of the relay's challenge, and a \
-     signed request must name the tunnel; --mint keys:FILE names another list, --mint anyone mints for \
-     each client, and --mint nobody for none. --pairs FILE keeps its pairs across a restart, though the \
+     signed request must name the tunnel; --mint keys:FILE names another list, --mint net the members of \
+     the node's net, as its policy lets them reach relay:NAME (NAME the node's name in the net) or \
+     relay:*, --mint anyone mints for each client, and --mint nobody for none. --pairs FILE keeps its \
+     pairs across a restart, though the \
      tunnel's name is new each run; --allow-private dials non-public targets too. The relay dials each \
      target from this host, as podssh relay serve does. Each mint, upgrade and step of the reverse road \
      is a line on stderr, and Ctrl-C or SIGTERM first closes each socket of the reverse road with 1012.",

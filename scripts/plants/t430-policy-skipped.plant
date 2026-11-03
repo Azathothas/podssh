@@ -6,5 +6,5 @@ GROUP=cli-tests
 EXPECT='a target that no rule names was reached'
 # The stand-in relay is Python's, and the build image has none: with no SETUP the
 # test said it did not run, and passed.
-SETUP='apk add --no-cache python3 openssl >/dev/null'
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
 RUN='cargo test --locked -p podssh-cli --test net -- net_policy::a_member_reaches_only_what_the_policy_lets_it'

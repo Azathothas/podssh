@@ -3,9 +3,10 @@
 //! `*` (each node, route, exit and range), `NODE` (its target with no route
 //! and each of its routes, as Tailscale's `host:*`), `NODE/ROUTE` (one route,
 //! as `node://NODE/ROUTE` reaches it), `tag:TAG` (each member of the tag, as
-//! `NODE`), `exit:NODE` and `exit:*` (an egress, T-431), and a range
-//! `ADDR/BITS` or one address (the routes of T-432). A word of no such form
-//! reaches nothing, so that a later podssh's word lets in nobody here.
+//! `NODE`), `exit:NODE` and `exit:*` (an egress, T-431), `relay:NODE` and
+//! `relay:*` (a relay role's mint, T-455), and a range `ADDR/BITS` or one
+//! address (the routes of T-432). A word of no such form reaches nothing, so
+//! that a later podssh's word lets in nobody here.
 
 use std::net::IpAddr;
 
@@ -53,6 +54,9 @@ pub enum Dest<'a> {
     Tag(&'a str),
     /// `exit:NODE`, or `exit:*` (none named).
     Exit(Option<&'a str>),
+    /// `relay:NODE`, the relay role of that node, or `relay:*`, each relay
+    /// of the net, a role that is no member too (T-455).
+    Relay(Option<&'a str>),
     Range(Range),
     Unknown,
 }
@@ -69,6 +73,13 @@ impl<'a> Dest<'a> {
             return match node {
                 "*" => Dest::Exit(None),
                 _ if check_name(node).is_ok() => Dest::Exit(Some(node)),
+                _ => Dest::Unknown,
+            };
+        }
+        if let Some(node) = word.strip_prefix("relay:") {
+            return match node {
+                "*" => Dest::Relay(None),
+                _ if check_name(node).is_ok() => Dest::Relay(Some(node)),
                 _ => Dest::Unknown,
             };
         }
@@ -96,6 +107,10 @@ impl<'a> Dest<'a> {
             (Dest::Tag(tag), Want::Node { node, .. } | Want::AnyOf(node)) => policy.tagged(tag, node),
             (Dest::Exit(None), Want::Exit(_) | Want::AnyOf(_) | Want::Egress(_)) => true,
             (Dest::Exit(Some(named)), Want::Exit(node) | Want::AnyOf(node) | Want::Egress(node)) => named == node,
+            // A relay's mint is no door of the node: `relay:NODE` lets a
+            // member mint there, and reach nothing of the node by it.
+            (Dest::Relay(None), Want::Relay(_)) => true,
+            (Dest::Relay(Some(named)), Want::Relay(Some(node))) => named == node,
             (Dest::Range(range), Want::Addr(addr)) => range.contains(addr),
             // Which node routes a range is T-432's: a road's door lets the
             // member come in to ask, and the channel checks the address.

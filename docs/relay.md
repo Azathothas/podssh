@@ -511,6 +511,33 @@ and a request whose `Host` is not the name that its TLS asked for; the
 `403` names the key's fingerprint, for the owner's list. A relay of the
 contract never answers `401`, so a client asks nothing more of it.
 
+## Tokens for the members of the net (T-455)
+
+`podssh relay serve --mint net` mints, and makes pairs, for the members of
+the net that the host holds ([mesh.md](mesh.md), section 3), each by the
+same signature of the role's challenge with the key that the net names for
+it; `--mint net,keys:FILE` for those and the keys of FILE. The role reads
+the document, and checks its owner's signature, for each request
+(`crates/podssh-cli/src/net/mint.rs`), so that a member that a newer
+document removed is refused from that serial on. A token that it minted
+before lives until its end or the role's stop, as a token of a list's key
+does: the contract's token names no key.
+
+- With no policy in the document, each member mints, as each member
+  reaches each. With a policy, a member mints where a rule lets it reach
+  `relay:*`; behind a node's quick tunnel (`podssh node NAME --quick-tunnel
+  --relay --mint net`), `relay:NAME` reaches it too, NAME the node's name
+  in the net, as `exit:NAME` names a node's egress. `podssh relay serve`
+  has no key of its own, so only `relay:*` and `*` name it.
+- The signature is checked before whom the key is, so a refusal by the net
+  goes only to the key's holder. A key that is no member gets `403` that
+  names the key and the document's serial, never the net or its members; a
+  member that the policy refuses gets the policy's words.
+- A host with no net, with one that fails its check or that ended, or with
+  `PODSSH_NET=no`, does not start (78); once the net goes bad, each request
+  gets a `403` that names no file, and `podssh net ls` on the host says
+  why.
+
 ## The relay role behind a quick tunnel (T-428)
 
 Where nothing may listen, the node of a quick tunnel serves the role:

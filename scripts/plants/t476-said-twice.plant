@@ -3,6 +3,6 @@
 ENTRY=T-476
 GROUP=cli-tests
 EXPECT='test special_files_are_skipped_once_each_with_exit_0 \.\.\. FAILED'
-SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+SETUP='if command -v apk >/dev/null; then apk add --no-cache openssh-sftp-server >/dev/null; fi'
 RUN='cargo test --locked -p podssh-cli --test cp_tree -- special'
 LIMIT=2400

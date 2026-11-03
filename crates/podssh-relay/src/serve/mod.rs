@@ -59,7 +59,7 @@ impl Default for Limits {
 }
 
 /// Who may mint a token, and make a pair.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub enum Mint {
     /// Anyone, as the default relay mints.
     Anyone,
@@ -68,6 +68,9 @@ pub enum Mint {
     Nobody,
     /// The keys of this list, each by its signature of a challenge (T-448).
     Keys(std::path::PathBuf),
+    /// The members of the net that the binary reads (T-455), each by the
+    /// same signature, and the keys of a list beside them when one is named.
+    Net(Arc<dyn keys::Members>, Option<std::path::PathBuf>),
 }
 
 impl Mint {
@@ -77,6 +80,20 @@ impl Mint {
             Mint::Anyone => "anyone",
             Mint::Nobody => "nobody",
             Mint::Keys(_) => "keys",
+            Mint::Net(_, None) => "net",
+            Mint::Net(_, Some(_)) => "net,keys",
+        }
+    }
+}
+
+impl std::fmt::Debug for Mint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Mint::Anyone => f.write_str("Anyone"),
+            Mint::Nobody => f.write_str("Nobody"),
+            Mint::Keys(file) => f.debug_tuple("Keys").field(file).finish(),
+            // The net is the binary's, and has no words of its own here.
+            Mint::Net(_, list) => f.debug_tuple("Net").field(list).finish(),
         }
     }
 }
@@ -188,7 +205,7 @@ where
         Ok(sent) => sent,
         Err(refusal) => return answer(stream, refusal).await,
     };
-    if cfg.mint == Mint::Nobody {
+    if matches!(cfg.mint, Mint::Nobody) {
         let why = "/v1/mint: this relay mints no token; its owner gives them";
         return answer(stream, request::refusal(503, why, &[])).await;
     }
@@ -228,10 +245,12 @@ async fn slow_down<S>(
 /// Whether a mint or a pair of `body` may go on, by whom the role mints for:
 /// `Err` holds the answer, a `401` that asks for a key or a `403`.
 fn proven(cfg: &Config, head: &request::Request, sni: Option<&str>, path: &str, body: &[u8]) -> Result<(), Vec<u8>> {
-    let Mint::Keys(file) = &cfg.mint else { return Ok(()) };
-    match keys::prove(cfg, file, head, sni, path, body, tokens::now_ms()) {
-        keys::Proof::Key(key) => {
-            cfg.event(&format!("{path}: the key {}", key.fingerprint()));
+    let Some(whom) = keys::Whom::of(&cfg.mint) else { return Ok(()) };
+    match keys::prove(cfg, &whom, head, sni, path, body, tokens::now_ms()) {
+        keys::Proof::Key(key, member) => {
+            // A member of the net by its name too (T-455), for the owner.
+            let member = member.map(|words| format!(", {words}")).unwrap_or_default();
+            cfg.event(&format!("{path}: the key {}{member}", key.fingerprint()));
             Ok(())
         }
         keys::Proof::Ask(challenge, ends) => Err(keys::ask(&challenge, ends)),

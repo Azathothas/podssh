@@ -153,7 +153,7 @@ pub const NODE_FLAGS: &[FlagRow] = &[
     row(None, "relay", None, FlagKind::Supported,
         "with --quick-tunnel: serve the relay's forward and reverse roads too, those of podssh relay serve, at the tunnel's name, with no listener; a client names https://NAME.trycloudflare.com as its relay host; with no TARGET, the relay alone", None),
     row(None, "mint", Some("WHO"), FlagKind::Supported,
-        "with --relay: who may mint a token and make a pair: keys:FILE, the keys of FILE, each by its signature of the relay's challenge; anyone; or nobody (default: the keys of --allow)", None),
+        "with --relay: who may mint a token and make a pair: keys:FILE, the keys of FILE, each by its signature of the relay's challenge; net, the members of this node's net, as its policy lets them reach relay:NAME (this node) or relay:*; net,keys:FILE, both; anyone; or nobody (default: the keys of --allow)", None),
     row(None, "pairs", Some("FILE"), FlagKind::Supported,
         "with --relay: keep the pairs of its reverse road in FILE, of mode 0600, so that they outlive a restart (the digests of their tokens, never a token)", None),
     row(None, "allow-private", None, FlagKind::Supported,

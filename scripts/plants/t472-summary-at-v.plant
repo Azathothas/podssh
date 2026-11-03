@@ -3,6 +3,6 @@
 ENTRY=T-472
 GROUP=cli-tests
 EXPECT='test a_run_in_a_pipe_ends_with_one_summary_line \.\.\. FAILED'
-SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+SETUP='if command -v apk >/dev/null; then apk add --no-cache openssh-sftp-server >/dev/null; fi'
 RUN='cargo test --locked -p podssh-cli --test cp_progress -- a_run_in_a_pipe_ends_with_one_summary_line'
 LIMIT=2400

@@ -6,6 +6,6 @@
 ENTRY=T-586
 GROUP=resume-cli
 EXPECT='test short_logins_through_operator_leave_the_node_room \.\.\. FAILED'
-SETUP='apk add --no-cache python3 openssl openssh-client'
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl openssh-client; fi'
 RUN='cargo test --locked -p podssh-cli --test roost -- short_logins_through_operator_leave_the_node_room'
 LIMIT=2700
