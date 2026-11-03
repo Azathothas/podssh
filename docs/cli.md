@@ -3156,8 +3156,8 @@ own, and the forward road starts at the node.
   (T-367, GitHub #75). `http-listen:[ADDR:]PORT` listens as `tcp-listen:`
   does, and `http-listen:PATH` (a path with a `/`, or `@NAME`) as
   `unix-listen:` does, by the same rules and the same probe. Its other side
-  names its target `%h:%p`, once and last, as `ProxyCommand` names the host
-  and the port: `relay:%h:%p`, `tcp:%h:%p` or
+  names its target `%h:%p`, once and last (or none, as the next item says),
+  as `ProxyCommand` names the host and the port: `relay:%h:%p`, `tcp:%h:%p` or
   `ssh:[USER@]HOP[,HOP...],%h:%p`; another side exits 64, and so does
   `%h:%p` beside a side that is not a proxy. A proxy takes each client, 32
   at once (a program opens a connection for each host, npm up to 15 at a
@@ -3186,6 +3186,21 @@ own, and the forward road starts at the node.
   needs the file (64): scanners find an open proxy, and each request would
   spend this host's road. With `ssh:`, each request logs in anew; `podssh
   ssh -D` keeps one connection for many SOCKS clients.
+- **A proxy's other side with no target** (T-483, GitHub #93). A side with
+  no `%h` and no `%p` is read with its target: `ssh:HOP[,HOP...]` takes
+  `,%h:%p` at its end, and `relay` and `tcp`, with a colon or none, take
+  `:%h:%p`; one line says the reading before the proxy listens
+  (`http-listen: ssh:me@bastion is read as ssh:me@bastion,%h:%p: each
+  CONNECT's target is reached from the last hop`). Each word of `ssh:` is a
+  hop, as a proxy has no fixed target: `ssh:me@bastion,db:5432` logs in to
+  `db:5432` from `bastion`, which the line shows, and a hop that is no SSH
+  server fails at its login. A side of another kind (`exec:`, `stdio`,
+  `node:`, a socket, a listener) exits 64 with why first: each CONNECT
+  names its own target, which that side does not take. `pipe --help` shows
+  the proxy of an SSH server on a port with curl as its client: curl
+  reaches a proxy over TCP, as its `--unix-socket` makes `--proxy` of no
+  effect, so `http-listen:PATH` needs a client that speaks to a proxy at a
+  socket.
 - **A WebSocket by its URL, with no token** (T-368, GitHub #76).
   `wss://HOST[:PORT]/PATH` and `ws://HOST[:PORT]/PATH`, the URL as a user
   copies it for websocat (the form `wss:HOST:PORT/PATH` is refused with the

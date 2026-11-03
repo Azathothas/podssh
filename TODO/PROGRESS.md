@@ -152,7 +152,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 563 entries: 119 open, 1 partial, 16 blocked, 427 done.
+`TODO/INDEX.md` holds 563 entries: 118 open, 1 partial, 16 blocked, 428 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -228,7 +228,7 @@ T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); D
 to #123 are T-597, a `none` entry in its turn. Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts wait to be merged
 (`.claude/worktrees/agent-*`): the
-features T-483 and T-488.
+feature T-488.
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):

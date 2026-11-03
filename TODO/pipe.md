@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:329`).
+  do not run programs (`docs/STATUS.md:330`).
 
 ## Approach
 
@@ -69,8 +69,8 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
    (`crates/podssh-cli/src/man/notes.rs:31-67`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-267`; its test at
-   `crates/podssh-cli/src/man/examples.rs:390-416` learns the new variant),
+   (`crates/podssh-cli/src/man/examples.rs:8-272`; its test at
+   `crates/podssh-cli/src/man/examples.rs:395-421` learns the new variant),
    `docs/design.md:1002-1011`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:293-294`).
 
@@ -161,7 +161,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:188-194`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:256`).
+  (`docs/STATUS.md:257`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:14-22`
   after the hops of `crates/podssh-ssh/src/run.rs:157-174`, but that code is
   private and gives only an exit code.
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:3890`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:3905`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:339-442` a typed error, so that 77 is not
    guessed from a message.
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:88-92` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:204-213`,
   `crates/podssh-cli/src/doctor/unix.rs:227-232`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:329`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:330`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -415,7 +415,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1045-1047`).
   `AGENTS.md:272-278`, `docs/architecture.md:208-223`,
   `docs/target-environment.md:88-92`, `SECURITY.md:170-197`, `README.md:43-52`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:329`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:330`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs` lines 137-231 at `48a8744`). A bind that works does
@@ -587,7 +587,7 @@ running on the server (`docs/design.md:692-696`).
   each session (`crates/podssh-ssh/src/session.rs:159-218`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:311-317`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:337-338`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:338-339`).
 - Read: tmux is never assumed (`docs/target-environment.md:105-107`).
 
 ## Approach
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:692-696`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:3985-3987`). After the attach, send the window size again.
+   (`docs/cli.md:4000-4002`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-480` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114`), `docs/design.md:692-696`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -730,7 +730,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:251`), then Close 1009 (`docs/relay.md:315`); public
   targets only (`docs/relay.md:253`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:336`).
+  0.7 MB/s (`docs/STATUS.md:337`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -754,8 +754,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    `telnet 127.0.0.1 PORT`.
 4. Write a table "Other TCP protocols" after `README.md:182-187`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-267`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:367-374`). Link the table
+   form a to `crates/podssh-cli/src/man/examples.rs:8-272`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:372-379`). Link the table
    from `docs/design.md:1048-1051`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
@@ -787,8 +787,8 @@ were found by their manuals (read on 2026-10-12, not run here): SSVNC's
 TigerVNC's `vncviewer` takes a Unix socket's path (its synopsis,
 `vncviewer [options] [unix socket]`). The second still needs a listener,
 but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
-(`docs/STATUS.md:326`); there OpenSSH's form a fails before it binds, as
-`ssh` finds no entry for the user (`docs/STATUS.md:331`).
+(`docs/STATUS.md:327`); there OpenSSH's form a fails before it binds, as
+`ssh` finds no entry for the user (`docs/STATUS.md:332`).
 
 ## Done
 
@@ -841,7 +841,7 @@ The calls made where the Approach left a choice:
 - The example puts `-N -L` before the ProxyCommand: the start of the
   manual keeps three first steps, and its filter takes each command that
   starts with "ssh -o ProxyCommand='podssh proxy"
-  (`crates/podssh-cli/src/man/examples.rs:270`). It has no
+  (`crates/podssh-cli/src/man/examples.rs:275`). It has no
   `ServerAliveInterval`, so that its line stays within rustfmt's 120
   columns; the note of proxy asks for it
   (`crates/podssh-cli/src/man/notes.rs:188`).
@@ -1232,10 +1232,10 @@ The calls made where the Approach left a choice:
   `torvalds/linux:tools/usb/usbip/src/usbip_attach.c`), so the device's
   traffic passes podssh for as long as the pipe's session lasts; the
   README says so. `usbip` dials TCP only, so a host that refuses an
-  AF_INET bind, as sandbox A does (`docs/STATUS.md:326`), cannot run the
+  AF_INET bind, as sandbox A does (`docs/STATUS.md:327`), cannot run the
   recipe, nor can one without the modules.
 - The row states the limit by the throughput measured through sandbox A's
-  proxy (`docs/STATUS.md:333`): 64 MiB is about 2 minutes of reads at
+  proxy (`docs/STATUS.md:334`): 64 MiB is about 2 minutes of reads at
   0.5 to 0.7 MB/s.
 
 What waits:
@@ -1692,7 +1692,7 @@ refused with the forms of the other side, and not with why a command cannot be o
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1704,16 +1704,16 @@ alone, so the form of `ssh:`, with its comma before the target, is found by tria
 ## Premise
 
 - Read: the template takes `%h:%p` once and last, and refuses each other text with its forms
-  (`crates/podssh-cli/src/pipe/web.rs:63-70`); `ssh:` needs a comma before the target
-  (`crates/podssh-cli/src/pipe/web.rs:74-77`).
+  (`crates/podssh-cli/src/pipe/web.rs`, lines 63-70 at `1769d79`); `ssh:` needs a comma before
+  the target (`crates/podssh-cli/src/pipe/web.rs:83-86`).
 - Read: the other side of a proxy goes to the template alone
   (`crates/podssh-cli/src/pipe/address.rs:112-116`).
 - Read: the manual's example of the proxy is `podssh pipe http-listen:3128 relay:%h:%p`
   (`crates/podssh-cli/src/man/examples.rs:199`), and its notes give the forms in words
   (`crates/podssh-cli/src/man/notes_pipe.rs:33-36`); a test parses each example with the real
-  parser (`crates/podssh-cli/src/man/examples.rs:374`).
+  parser (`crates/podssh-cli/src/man/examples.rs:379`).
 - Read: `--help` of a verb gives its options, then its notes, and the notes have nothing for `pipe`
-  (`crates/podssh-cli/src/help.rs:240-263`).
+  (`crates/podssh-cli/src/help.rs`, lines 240-263 at `1769d79`).
 
 ## Approach
 
@@ -1731,8 +1731,8 @@ alone, so the form of `ssh:`, with its comma before the target, is found by tria
 4. (L-26.) Another kind of address on the other side (`exec:`, `stdio`, `node:`, `unix-connect:`)
    is refused with the reason first: "exec:CMD cannot be the other side of http-listen:: each
    CONNECT names its own target, which a command does not take; give relay:%h:%p, tcp:%h:%p or
-   ssh:HOPS,%h:%p" (64), where `crates/podssh-cli/src/pipe/web.rs:66-69` (with no `%h:%p`) and
-   `:76` (with one) refuse it now with the forms alone.
+   ssh:HOPS,%h:%p" (64), where `crates/podssh-cli/src/pipe/web.rs:75-78` (with no `%h:%p`) and
+   `:85` (with one) refuse it now with the forms alone.
 
 ## Decision
 
@@ -1743,6 +1743,16 @@ alone, so the form of `ssh:`, with its comma before the target, is found by tria
   target lost: the line says enough.
 - `relay` and `tcp` alone are read too, as each has one meaning for a proxy.
 - The listener is T-367's, which the user asks for (rule 2 of `AGENTS.md`); nothing new listens.
+- 2026-11-03, as drafted: the line of the reading is said once each check of the run passed, just
+  before the proxy listens (and again in the log of `--detach`'s child), and not with `-q`. A
+  trailing comma (`ssh:me@bastion,`) reads as the one hop. Lost: a line at the parse, which would
+  come before a refusal of another flag.
+- 2026-11-03, as drafted: the refusal of step 4 names what the side is (a command, stdio, a
+  descriptor, a node, a socket, a serial line, a WebSocket, a listener), then the forms; a road of
+  `relay:` or `tcp:` with a fixed target keeps its refusal of before, which names `%h:%p`.
+- 2026-11-03, as drafted: the command of the help's example is one constant
+  (`crate::help::PROXY_OF_SSH`), which the manual's examples hold too, so that their test parses
+  the help's line. Lost: a second copy in the help, which no parser reads.
 
 ## Prove
 
@@ -1750,6 +1760,7 @@ alone, so the form of `ssh:`, with its comma before the target, is found by tria
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --lib pipe::web
 cargo test -p podssh-cli --lib man::examples
+cargo test -p podssh-cli --lib help
 cargo test -p podssh-cli --test pipe_http
 ```
 
@@ -1761,3 +1772,55 @@ CONNECT through `ssh:tester@127.0.0.1:PORT` with no target gets the banner, and 
 line of the reading. `pipe --help` holds the example, which the parser of the examples takes.
 Planted (new, t483-no-target): `ssh:` with no target keeps its last word as the target; the test
 of `ssh:a,b` fails.
+
+## Correction
+
+2026-11-03, read through read.web.pkgforge.dev:
+
+- Step 2's client cannot reach the proxy: curl's `--unix-socket` connects to the server through
+  the socket, and with it "Proxy options such as CURLOPT_PROXY(3) have no effect either as these
+  are TCP-oriented" (`curl/curl:docs/libcurl/opts/CURLOPT_UNIX_SOCKET_PATH.md`); curl reaches a
+  proxy over a Unix socket for SOCKS alone (`curl/curl:docs/cmdline-opts/proxy.md`). So
+  `curl --proxy http://localhost --unix-socket /tmp/proxy.sock URL` sends no CONNECT to
+  `http-listen:/tmp/proxy.sock`. Step 2 is now the proxy on a port,
+  `podssh pipe http-listen:3128 ssh:user@bastion.example.org`, with
+  `curl --proxy http://127.0.0.1:3128 https://example.org/` and `HTTPS_PROXY` for a program; the
+  notes and `docs/cli.md` say that a client of `http-listen:PATH` must speak to a proxy at a
+  socket, which curl's `--unix-socket` does not.
+- `crates/podssh-cli/src/man/examples.rs:379` is a line of `podssh_lines`; the test that parses
+  each example with the real parser is `each_example_parses_with_the_real_parser`
+  (`crates/podssh-cli/src/man/examples.rs:388`). The Premise holds.
+
+## Done
+
+2026-11-03, drafted by an agent that does not build; merged and run by the main session the same
+day.
+
+- `crates/podssh-cli/src/pipe/web.rs`: `with_target` reads a side with no `%h` and no `%p`
+  (`ssh:HOPS` takes `,%h:%p`, `relay` and `tcp` with a colon or none take `:%h:%p`), and
+  `template` takes it; `takes_no_target` gives step 4's refusal with why first; `reading` is the
+  line, which `run_pipe` (`crates/podssh-cli/src/pipe/mod.rs`) says before the proxy listens,
+  not with `-q`. Two unit tests: the readings and their refusals, and the refusal of each kind.
+- `crates/podssh-cli/src/help.rs`: `PROXY_OF_SSH` and the notes of `pipe --help` below the
+  options (the proxy on a port, curl as its client, `HTTPS_PROXY`); a unit test that they are
+  there and outside the block of the options. `crates/podssh-cli/src/man/examples.rs`: the same
+  command as an example beside `relay:%h:%p`, which the examples' test parses.
+- The notes of `pipe` (`crates/podssh-cli/src/man/notes_pipe.rs`), `docs/cli.md` (the proxy's
+  item, and an item of a side with no target), and rows of `docs/STATUS.md`.
+- `crates/podssh-cli/tests/pipe_http.rs`:
+  `a_connect_through_ssh_with_no_target_takes_its_target_and_says_the_reading`, beside the test of
+  `ssh:...,%h:%p`, which shares its read of the banner (`banner_through`).
+- Planted defect: `scripts/plants/t483-no-target.plant` (group `cli-tests`): the hops of `ssh:`
+  lose their last word; the unit test of the readings fails.
+- The citations of the changed files are moved in each file of `TODO/` by a port of
+  `cargo todo remap` run here; the main session runs `cargo todo remap` on each changed file to
+  confirm.
+- Measured, 2026-11-03: `cargo test -p podssh-cli --lib pipe::web`, 6 passed; `--lib
+  man::examples`, 4 passed; `--lib help`, 10 passed; `--test pipe_http`, 7 passed (the live
+  test of git through the relay stays ignored), the new test through OpenSSH's sshd among them;
+  `cargo fmt --check` and `cargo clippy --all-targets -D warnings`: clean. Planted (`sh
+  scripts/plant-each.sh --here t483-no-target`): caught.
+
+What waits, UNVERIFIED: each command of the Prove; `cargo fmt --check` and `cargo clippy`;
+`cargo todo check`; `python scripts/check-repo.py`; the plant
+(`sh scripts/plant-each.sh t483-no-target`).

@@ -199,6 +199,11 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh pipe http-listen:3128 relay:%h:%p".into(),
         ),
         (
+            "the same proxy whose CONNECTs go on from an SSH server: ssh: with no target takes each one's %h:%p; \
+             a client: curl --proxy http://127.0.0.1:3128 URL",
+            crate::help::PROXY_OF_SSH.into(),
+        ),
+        (
             "a WebSocket of another service on stdin and stdout, by its URL, as websocat joins one",
             "podssh pipe stdio wss://ws.example.org/socket".into(),
         ),

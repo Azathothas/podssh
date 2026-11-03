@@ -95,6 +95,13 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         let why = "--restart and --detach-name are for a detached run; give --detach too".to_string();
         return crate::relay_settings::Refusal::usage(why).report("pipe", err);
     }
+    // A proxy's other side that named no target is read with one (T-483):
+    // the reading is said before the proxy listens, as a word of ssh: that
+    // the user meant as a target becomes a hop.
+    let texts = (args.a.as_deref().unwrap_or_default(), args.b.as_deref().unwrap_or_default());
+    if let Some(line) = web::reading(texts.0, texts.1).filter(|_| args.ssh.quiet == 0) {
+        let _ = writeln!(err, "podssh pipe: {line}");
+    }
     if args.ssh.detach && !crate::detach::is_child() {
         return crate::detach::start("pipe", args.ssh.restart, args.ssh.detach_name.as_deref(), err);
     }

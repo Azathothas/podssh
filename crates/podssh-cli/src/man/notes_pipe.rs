@@ -33,7 +33,12 @@ pub const PIPE: &[&str] = &[
     "http-listen:[ADDR:]PORT, as tcp-listen: takes it, or http-listen:PATH, a socket by the names of \
      unix-listen:, is an HTTP CONNECT proxy, for a program that knows only HTTPS_PROXY: set it to \
      http://127.0.0.1:PORT. Each CONNECT HOST:PORT opens the other side with that target, which the other \
-     side names as %h:%p: relay:%h:%p, tcp:%h:%p or ssh:[USER@]HOP[,HOP...],%h:%p. Each request is a road \
+     side names as %h:%p: relay:%h:%p, tcp:%h:%p or ssh:[USER@]HOP[,HOP...],%h:%p. A side with no %h and no \
+     %p is read with its target, and podssh says the reading before it listens: ssh:HOPS alone takes \
+     ,%h:%p at its end, each of its words a hop, and relay and tcp take :%h:%p. Another kind, as exec:, \
+     stdio or node:, is refused (64): each CONNECT names its own target, which it does not take. A client \
+     on a socket of http-listen:PATH needs one that speaks to a proxy there; curl's --unix-socket goes past \
+     its --proxy. Each request is a road \
      of its own, 32 at once, until SIGINT or SIGTERM; podssh's line names the value of HTTPS_PROXY. The \
      client hears 200 once its road is open, so that it learns whether its target was reached; 403 when \
      a policy refuses the target, with its words (the relay's, an upstream proxy's, or an SSH server's \

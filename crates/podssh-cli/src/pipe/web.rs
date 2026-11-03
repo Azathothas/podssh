@@ -60,8 +60,17 @@ pub enum Template {
     Ssh(Vec<String>),
 }
 
-/// The other side of `http-listen:`: `%h:%p` once, as the target, and last.
-pub fn template(text: &str) -> Result<Address, Refusal> {
+/// The other side of `http-listen:`: `%h:%p` once, as the target, and last;
+/// or a road with no target, which takes it at its end (`with_target`).
+pub fn template(given: &str) -> Result<Address, Refusal> {
+    if let Some(what) = takes_no_target(given) {
+        return Err(Refusal::usage(format!(
+            "{given} cannot be the other side of http-listen:: each CONNECT names its own target, which {what} \
+             does not take; give {FORMS}"
+        )));
+    }
+    let full = with_target(given).map(|(full, _)| full);
+    let text = full.as_deref().unwrap_or(given);
     let head = text.strip_suffix(TARGET).filter(|head| !head.contains("%h") && !head.contains("%p"));
     let Some(head) = head else {
         return Err(Refusal::usage(format!(
@@ -79,6 +88,60 @@ pub fn template(text: &str) -> Result<Address, Refusal> {
     // Checked now with a target, as each request's target will be.
     template.fill("example.org", 443)?;
     Ok(Address::Template(template))
+}
+
+/// A road that a proxy reads with its target at its end, when the text has
+/// no `%h` and no `%p`: `ssh:HOP[,HOP...]` takes `,%h:%p`, and `relay` and
+/// `tcp`, with a colon or none, take `:%h:%p`. The full template, and where
+/// each CONNECT's target is reached from. Each word of `ssh:` is a hop, as a
+/// proxy has no fixed target.
+fn with_target(text: &str) -> Option<(String, &'static str)> {
+    if text.contains("%h") || text.contains("%p") {
+        return None;
+    }
+    match text.strip_suffix(':').unwrap_or(text) {
+        "relay" => return Some((format!("relay:{TARGET}"), "through the relay")),
+        "tcp" => return Some((format!("tcp:{TARGET}"), "from this host")),
+        _ => {}
+    }
+    let hops = text.strip_prefix("ssh:")?.trim_end_matches(',');
+    if hops.trim().is_empty() {
+        return None;
+    }
+    Some((format!("ssh:{hops},{TARGET}"), "from the last hop"))
+}
+
+/// What an address of a kind that never takes a target is, for the refusal
+/// that says why it cannot be the other side of a proxy; `None` for the
+/// roads, whose own form is checked.
+fn takes_no_target(text: &str) -> Option<&'static str> {
+    if text == "-" || text == "stdio" {
+        return Some("stdio");
+    }
+    let kind = text.split_once(':').map_or(text, |(kind, _)| kind);
+    Some(match kind {
+        "exec" => "a command",
+        "fd" => "a descriptor",
+        "node" | "udp" | "iroh" => "a node, with its one TARGET,",
+        "unix-connect" => "a socket",
+        "serial" => "a serial line",
+        "ws" | "wss" => "a WebSocket",
+        "unix-listen" | "tcp-listen" | "http-listen" | "ws-listen" => "a listener",
+        _ => return None,
+    })
+}
+
+/// The line that says how the other side of a proxy is read when it named no
+/// target, said before the proxy listens; `None` when it named its target,
+/// or when neither side is a proxy.
+pub fn reading(a: &str, b: &str) -> Option<String> {
+    let other = match (a.starts_with("http-listen:"), b.starts_with("http-listen:")) {
+        (true, false) => b,
+        (false, true) => a,
+        _ => return None,
+    };
+    let (full, from) = with_target(other)?;
+    Some(format!("http-listen: {other} is read as {full}: each CONNECT's target is reached {from}"))
 }
 
 impl Template {
@@ -138,6 +201,51 @@ mod tests {
         let refusal = address::both(Some("stdio"), Some("relay:%h:%p")).unwrap_err();
         assert!(refusal.message.contains("http-listen:"), "{}", refusal.message);
         assert_eq!(code("http-listen:1", "http-listen:2"), 64);
+    }
+
+    /// A road with no target takes `%h:%p` at its end, and the line says
+    /// the reading; each word of `ssh:` is a hop (T-483).
+    #[test]
+    fn a_road_with_no_target_takes_each_request_s_target_at_its_end() {
+        let template = |b: &str| address::both(Some("http-listen:3128"), Some(b)).map(|(_, b)| b);
+        let ssh = |hops: &[&str]| Address::Template(Template::Ssh(hops.iter().map(|h| h.to_string()).collect()));
+        assert_eq!(template("ssh:me@bastion").unwrap(), ssh(&["me@bastion"]));
+        assert_eq!(template("ssh:a,b").unwrap(), ssh(&["a", "b"]));
+        assert_eq!(template("ssh:me@bastion,").unwrap(), ssh(&["me@bastion"]));
+        for (given, want) in [("relay", Template::Relay), ("relay:", Template::Relay), ("tcp", Template::Tcp)] {
+            assert_eq!(template(given).unwrap(), Address::Template(want), "{given}");
+        }
+        assert_eq!(template("tcp:").unwrap(), Address::Template(Template::Tcp));
+        for bad in ["ssh:me@%h", "relay:%h:443", "ssh:", "ssh:,", "relay:example.org:443"] {
+            assert_eq!(code("http-listen:3128", bad), 64, "{bad}");
+        }
+        let line = reading("http-listen:3128", "ssh:me@bastion").unwrap();
+        let want = "http-listen: ssh:me@bastion is read as ssh:me@bastion,%h:%p: each CONNECT's target is reached \
+                    from the last hop";
+        assert_eq!(line, want);
+        let line = reading("tcp", "http-listen:/tmp/proxy.sock").unwrap();
+        assert!(line.ends_with("is read as tcp:%h:%p: each CONNECT's target is reached from this host"), "{line}");
+        assert_eq!(reading("http-listen:3128", "relay:%h:%p"), None, "a target named says nothing");
+        assert_eq!(reading("stdio", "relay"), None, "no proxy");
+    }
+
+    /// Another kind of address says first why it cannot be a proxy's other
+    /// side, then the forms (T-483).
+    #[test]
+    fn a_kind_that_takes_no_target_is_refused_with_why_first() {
+        for (other, what) in [
+            ("exec:cat", "a command"),
+            ("stdio", "stdio"),
+            ("node:lab", "a node"),
+            ("unix-connect:/tmp/s.sock", "a socket"),
+            ("tcp-listen:%h:%p", "a listener"),
+        ] {
+            let refusal = address::both(Some("http-listen:3128"), Some(other)).unwrap_err();
+            assert_eq!(refusal.code, 64, "{other}");
+            let head = format!("{other} cannot be the other side of http-listen:: each CONNECT names its own target");
+            assert!(refusal.message.starts_with(&head), "{}", refusal.message);
+            assert!(refusal.message.contains(&format!("which {what}")) && refusal.message.contains(FORMS), "{other}");
+        }
     }
 
     #[test]
