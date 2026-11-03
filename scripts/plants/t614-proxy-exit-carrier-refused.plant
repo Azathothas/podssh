@@ -1,0 +1,7 @@
+# T-614: podssh proxy refuses --carrier beside --exit NAME HOST PORT again
+# (64), as a flag of a node beside a target that is no node: the test of
+# proxy through the exit over a carrier must fail.
+ENTRY=T-614
+GROUP=cli-tests
+EXPECT='test clients::proxy_carries_its_pipe_from_the_exit_at_the_other_end_of_a_carrier \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test exit -- proxy_carries_its_pipe_from_the_exit_at_the_other_end_of_a_carrier'

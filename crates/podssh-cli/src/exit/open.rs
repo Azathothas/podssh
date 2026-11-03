@@ -5,7 +5,8 @@
 //! operator` replaces it. `podssh proxy --exit`, `podssh pipe --exit` and
 //! each client of `podssh exit --listen` open theirs so. Over a carrier
 //! (T-596), a session is a leg of the command's one stream
-//! (`crate::carrier::shared`), with no pair, no relay and no expiry.
+//! (`crate::carrier::shared`), with no pair, no relay and no expiry; so for
+//! `proxy --exit` and `pipe --exit` with `--carrier` (T-614).
 //!
 //! The node's verdict comes before any answer: the channel touches the
 //! plain side of the session only once the node let the operator in and
@@ -53,7 +54,8 @@ pub struct To {
 
 impl To {
     /// The exit of `--exit NAME`, with the flags of the channel and the pair
-    /// that `args` gives.
+    /// that `args` gives, or the stream of `--carrier` in place of the pair
+    /// (T-614), as `pipe` takes them.
     pub fn of_ssh(name: &str, args: &crate::ssh::args::SshArgs) -> To {
         To {
             name: name.to_string(),
@@ -61,9 +63,7 @@ impl To {
             client_key: args.client_key.clone().or_else(|| args.iroh_key.clone()),
             node_key: args.node_key.clone(),
             ca_file: args.ca_file.clone(),
-            // `--exit` beside `--carrier` is refused for these (64): the
-            // exit over a carrier is `podssh exit --listen`'s.
-            carrier: None,
+            carrier: args.carrier.clone(),
             quiet: args.quiet > 0,
         }
     }
@@ -273,6 +273,8 @@ impl Ending for Session {
 
 /// `podssh proxy --exit NAME HOST PORT`: stdin and stdout, joined to
 /// HOST:PORT from the exit, as `podssh proxy` joins them through the relay.
+/// Over a carrier (T-614), the stream ends with the run: its node hears a
+/// Close, and the program of `exec:` ends.
 pub fn run_proxy(to: &To, host: &str, port: u16, err: &mut dyn Write) -> i32 {
     crate::session_log::target(host, Some(port), "exit");
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
@@ -282,7 +284,7 @@ pub fn run_proxy(to: &To, host: &str, port: u16, err: &mut dyn Write) -> i32 {
             return crate::exit_codes::EXIT_NOT_IMPLEMENTED;
         }
     };
-    let code = runtime.block_on(async {
+    let code = runtime.block_on(crate::ssh::transport::settled(async {
         match open(to, host, port).await {
             Ok(end) => {
                 crate::session_log::opened(None);
@@ -295,7 +297,7 @@ pub fn run_proxy(to: &To, host: &str, port: u16, err: &mut dyn Write) -> i32 {
                 refused.code
             }
         }
-    });
+    }));
     // A read on stdin may still be blocked in a helper thread.
     runtime.shutdown_background();
     code

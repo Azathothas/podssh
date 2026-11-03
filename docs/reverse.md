@@ -435,3 +435,9 @@ node's socket on such a stream, with no relay, no pair and no token
    connections is a leg; a stream of `stdio` or `fd:N` ends the proxy when
    its node leaves. The stream is no door to the egress: a member's key and
    the net's rule to `exit:NAME`, or to a range, as on each road.
+8. `ssh`, `proxy` and `pipe` take the exit on a carrier too, with `--exit
+   NAME --carrier ADDR` (T-614): each session of the command is a leg of
+   its one stream, whose channel's word is the target, as `exit --listen`'s
+   are; their stdin and stdout are their own, so they take `exec:` and
+   `fd:N` alone. A `pipe` with a `node:` side and `--exit` on one carrier
+   is refused (64), as one node is at the other end of a stream.

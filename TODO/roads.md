@@ -5528,7 +5528,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:142`).
+  port 443 answers (`docs/STATUS.md:143`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -7493,9 +7493,9 @@ puts the fallback in its `ok` column without a probe.
   (`crates/podssh-cli/src/ssh/transport.rs:214-235`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
-  (`crates/podssh-cli/src/proxy.rs:383-384`), and each other answer, the 502 of a target that the
+  (`crates/podssh-cli/src/proxy.rs:393-394`), and each other answer, the 502 of a target that the
   relay could not reach or whose name does not resolve among them, is 69
-  (`crates/podssh-cli/src/proxy.rs:377-390`); so both go to the forwarders (L-28, and #106's dead
+  (`crates/podssh-cli/src/proxy.rs:387-400`); so both go to the forwarders (L-28, and #106's dead
   target).
 - Read: the relay pool already tells these apart: another host cannot help after a refusal by
   policy or of a token, or after a 502 whose target's name fails
@@ -8104,7 +8104,7 @@ as a firewall or a wrong port; it never says that this host has no sshd, or what
   the dial's error, with 69 (`crates/podssh-cli/src/node_target.rs:24-25`); only a dial that
   worked reaches the check of the version line, whose refusal names `--sshd` (`:29-35`).
 - Read: the row of `--sshd` says that each TARGET "is a standard sshd"
-  (`crates/podssh-cli/src/flags/node.rs:114-115`), and the manual that the node "serves a standard
+  (`crates/podssh-cli/src/flags/node.rs:115-116`), and the manual that the node "serves a standard
   sshd" (`crates/podssh-cli/src/man/notes_pair.rs:28`); neither says that it must run already.
 - Read: no line of `doctor` names sshd (searched in `crates/podssh-cli/src/doctor/` at `3bb42ea`).
 - Read: T-481 (open) names the command that installs tmux, from the package managers that a probe

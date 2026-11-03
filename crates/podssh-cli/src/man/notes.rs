@@ -79,7 +79,8 @@ const CP: &[&str] = &[
      --pair-file, --client-key, --node-key and --no-e2e are those of podssh ssh. A port, -J or --direct \
      cannot reach a node (exit 64). With --carrier ADDR, as for podssh ssh, the node is at the other end of \
      a stream that exists already, with no relay and no pair: each connection of the copy is a session of \
-     its own on that one stream, which ends with the copy; each operand that is remote is then a node.",
+     its own on that one stream, which ends with the copy; each operand that is remote is then a node, or, \
+     with --exit NAME, a host that the exit at the other end of the stream dials.",
     "The destination's name never holds a file that was not verified. The bytes go to \
      .NAME.podssh-RANDOM.part beside the destination, a new file of mode 0600. The SHA-256 of what was \
      sent is compared with the far side's; then the file takes the source's permission bits and is \

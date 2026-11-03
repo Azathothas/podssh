@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**578 entries: 109 open, 2 partial, 2 blocked, 465 done.**
+**578 entries: 108 open, 2 partial, 2 blocked, 466 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 39 | 1 | 0 | 224 | 264 |
+| P2 | 38 | 1 | 0 | 225 | 264 |
 | P3 | 70 | 0 | 2 | 177 | 249 |
-| **All** | 109 | 2 | 2 | 465 | 578 |
+| **All** | 108 | 2 | 2 | 466 | 578 |
 
 ## Entries
 
@@ -653,4 +653,4 @@ repository and CI).
 | [T-611](mesh.md) | P3 | S | M10 | feature | open | A node's record of pkarr names its OpenTunnel name, and a member's client races it |
 | [T-612](resume.md) | P2 | S | M10 | feature | open | A client of a node can turn the resumable layer off: `--no-resume` |
 | [T-613](reverse.md) | P3 | S | M10 | feature | open | `operator`, `proxy` and `pipe`'s remote sides take `--timeout` and `PODSSH_TIMEOUT` as other names of `--ConnectTimeout` |
-| [T-614](mesh.md) | P2 | M | M10 | feature | open | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |
+| [T-614](mesh.md) | P2 | M | M10 | feature | done | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |

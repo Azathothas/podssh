@@ -28,12 +28,13 @@ pub const SSH_ENV_FILE: FlagRow = row(None, "env-file", Some("FILE"), FlagKind::
 pub const OWN_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
     "node://NAME and iroh:TICKET: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
 
-/// `--exit NAME` of `ssh`, `cp`, `scp` and `sftp` (T-431).
+/// `--exit NAME` of `ssh`, `cp`, `scp` and `sftp` (T-431); over a carrier
+/// too (T-614).
 pub const EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
-    "start the road at NAME, a node of your net that lends its egress (podssh node --exit): it dials the destination, or the first hop of -J, from its own host, on each road between the two; the host key is the destination's", None);
+    "start the road at NAME, a node of your net that lends its egress (podssh node --exit): it dials the destination, or the first hop of -J, from its own host, on each road between the two, or with --carrier ADDR on that stream alone; the host key is the destination's", None);
 /// `--exit NAME` of `proxy`.
 pub const PROXY_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
-    "carry the pipe from NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay: it dials HOST PORT from its own host", None);
+    "carry the pipe from NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay: it dials HOST PORT from its own host; with --carrier ADDR, NAME is the node at the other end of that stream", None);
 /// `--client-key FILE` of `proxy`, for its exit and for a node (T-587).
 pub const PROXY_CLIENT_KEY: FlagRow = row(
     None,
@@ -73,7 +74,7 @@ pub const PROXY_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), F
     "node://NAME: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
 /// `--exit NAME` of `pipe`.
 pub const PIPE_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
-    "relay:HOST:PORT and relay:%h:%p start at NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay", None);
+    "relay:HOST:PORT and relay:%h:%p start at NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay; with --carrier ADDR, NAME is the node at the other end of that stream", None);
 
 /// `exit NAME --listen ADDR:PORT` (T-431): a local proxy whose connections
 /// start at the exit NAME.
@@ -129,7 +130,7 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "with --exit: the private ranges that the exit dials too, ADDR/BITS or one address, separated by commas, each for the members that the net's policy lets reach the address", None),
     // A stream that exists already as the node's one road (T-595).
     row(None, "carrier", Some("ADDR"), FlagKind::Supported,
-        "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or proxy, ssh, cp, scp or sftp --carrier to node://NAME, or for --exit, podssh exit NAME --listen ADDR:PORT --carrier; stdin may not be a terminal", None),
+        "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or proxy, ssh, cp, scp or sftp --carrier to node://NAME, or for --exit, podssh exit NAME --listen ADDR:PORT --carrier, or ssh, proxy or pipe with --exit NAME --carrier; stdin may not be a terminal", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
     super::derp::NODE_DERP, super::opentunnel::NODE_OPENTUNNEL,

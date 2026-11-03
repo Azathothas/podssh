@@ -9,7 +9,8 @@
 //! sessions end, and the node exits 0 after its client's Close, or 69 for a
 //! stream that failed. TARGET, the routes, a roost, a UDP TARGET, the layer
 //! and the end-to-end channel are as on the pair's road, and so is the exit
-//! (`--exit`, T-596), whose client is `podssh exit --listen --carrier`.
+//! (`--exit`, T-596), whose client is `podssh exit --listen --carrier`, or
+//! `ssh`, `proxy` and `pipe` with `--exit NAME --carrier` (T-614).
 
 use std::io::Write;
 use std::sync::Arc;
@@ -33,8 +34,9 @@ const CHILD_LIMIT: Duration = Duration::from_secs(2);
 /// The flags that a node of a carrier takes none of, checked before anything
 /// else, an `--install` among them: its stream is its parent's, so it
 /// reaches no relay, has no pair, and goes to no background. `--exit` goes
-/// with it (T-596): `podssh exit --listen --carrier` is its client, and the
-/// net's rule of the exit holds as on each road.
+/// with it (T-596): `podssh exit --listen --carrier` is its client, or a
+/// client with `--exit NAME --carrier` (T-614), and the net's rule of the
+/// exit holds as on each road.
 pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     let Some(text) = args.carrier.as_deref() else { return Ok(()) };
     let refused = [
@@ -276,7 +278,7 @@ mod tests {
             assert!(refusal.message.contains(flag), "{flag}: {}", refusal.message);
         }
         assert!(check(&base()).is_ok());
-        // The exit over a carrier (T-596): its client is exit --listen --carrier.
+        // The exit over a carrier (T-596): its clients take --exit --carrier.
         assert!(check(&NodeArgs { exit: true, ..base() }).is_ok(), "--exit goes with --carrier");
         assert_eq!(check(&args(Some("tcp:127.0.0.1:22"))).unwrap_err().code, 64);
         assert!(check(&args(None)).is_ok(), "no carrier, nothing to check");

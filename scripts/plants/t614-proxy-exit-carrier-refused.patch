@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/proxy_node.rs
++++ b/crates/podssh-cli/src/proxy_node.rs
+@@ -81,7 +81,7 @@
+     /// but `--carrier` beside `--exit` (`exit`), whose exit is the node at
+     /// the other end of the stream (T-614).
+     fn refused_beside(&self, exit: bool) -> Option<&'static str> {
+-        self.given().filter(|flag| !exit || *flag != "--carrier")
++        self.given().filter(|_| exit || !exit)
+     }
+ }
+ 

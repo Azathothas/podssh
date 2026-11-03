@@ -79,5 +79,7 @@ pub const EXIT: &[&str] = &[
      and the net's rule of the exit holds as on each road. The stream starts with the proxy; one of stdio or \
      fd:N has one life, and when its node leaves, the proxy ends (0); a program of exec: is started again for \
      the next connection. Ctrl-C ends the stream with a Close, which ends the node (0). --pair-file, \
-     --relay-addr and --ca-file are refused with it (64), and so is --carrier stdio on a terminal.",
+     --relay-addr and --ca-file are refused with it (64), and so is --carrier stdio on a terminal. podssh \
+     ssh, podssh proxy and podssh pipe take --exit NAME beside --carrier ADDR too, on a stream of their own, \
+     exec:CMD or fd:N, as their stdin and stdout are their own (see their notes).",
 ];

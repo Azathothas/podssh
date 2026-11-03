@@ -7,7 +7,9 @@
 //! the relay's place, as the pair names its relay. The flags of the pair and
 //! of the channel go with `node://` alone, and so does `--carrier ADDR`,
 //! the node at the other end of a stream that exists already, with no relay
-//! and no pair, as `operator --carrier` reaches it (T-595).
+//! and no pair, as `operator --carrier` reaches it (T-595); but `--carrier`
+//! goes with `--exit NAME HOST PORT` too, whose exit is then that node
+//! (T-614, `crate::proxy`).
 
 use std::io::Write;
 
@@ -74,13 +76,20 @@ impl Flags {
         .into_iter()
         .find_map(|(given, flag)| given.then_some(flag))
     }
+
+    /// The first of these flags that a target with no node refuses: each,
+    /// but `--carrier` beside `--exit` (`exit`), whose exit is the node at
+    /// the other end of the stream (T-614).
+    fn refused_beside(&self, exit: bool) -> Option<&'static str> {
+        self.given().filter(|flag| !exit || *flag != "--carrier")
+    }
 }
 
 /// Run `podssh proxy` when its target names a node, or refuse a flag of a
 /// node beside another target (64); `None` to go on with another road.
 pub fn run(args: &ProxyArgs, err: &mut dyn Write) -> Option<i32> {
     let Some(text) = args.target.as_deref().filter(|t| names_a_node(t)) else {
-        let flag = args.node.given()?;
+        let flag = args.node.refused_beside(args.exit.name.is_some())?;
         let why = format!("{flag} goes with node://NAME, the node of a pair or of a carrier");
         return Some(Refusal::usage(why).report("proxy", err));
     };
@@ -204,6 +213,16 @@ mod tests {
         carried.node.carrier = Some("exec:cat".into());
         assert_eq!(to_operator("node://lab", &carried).unwrap().carrier.as_deref(), Some("exec:cat"));
         assert_eq!(carried.node.given(), Some("--carrier"));
+    }
+
+    #[test]
+    fn a_carrier_goes_with_an_exit_and_each_other_flag_of_a_node_with_a_node_alone() {
+        let carried = Flags { carrier: Some("exec:cat".into()), ..Flags::default() };
+        assert_eq!(carried.refused_beside(false), Some("--carrier"), "a host, with no exit");
+        assert_eq!(carried.refused_beside(true), None, "the exit at the other end of the stream (T-614)");
+        let paired = Flags { pair_file: Some("x".into()), ..carried };
+        assert_eq!(paired.refused_beside(true), Some("--pair-file"));
+        assert_eq!(Flags::default().refused_beside(true), None);
     }
 
     #[test]

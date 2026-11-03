@@ -6,7 +6,9 @@
 //! stream, which ends with the command. The carrier is the node's one road,
 //! so no other road races it, and NAME is a label alone, under which the
 //! node's key is pinned. The session runs in the layer and the end-to-end
-//! channel as on the pair's road ([`super::node::run_on`]).
+//! channel as on the pair's road ([`super::node::run_on`]). `--exit NAME`
+//! takes the stream too (T-614): the exit is the node at its other end, and
+//! the channel's word names the host (`super::exit_road`).
 
 use std::sync::Arc;
 
@@ -28,10 +30,11 @@ const PIPE: usize = 256 * 1024;
 /// Why a client of a node takes no `--carrier stdio`.
 const OWN_STDIO: &str = "stdin and stdout are this command's own here, its session's or its lines'";
 
-/// `--carrier` of a `node://NAME` destination: the flags of a relay, of a
-/// pair and of each other road have nothing to apply to (64), and stdio is
-/// this command's own. Checked as the destination resolves to a node, so
-/// that its words come before those of a node's other roads.
+/// `--carrier` of a `node://NAME` destination, or of `--exit NAME`: the
+/// flags of a relay, of a pair and of each other road have nothing to apply
+/// to (64), and stdio is this command's own. Checked as the destination
+/// resolves to a node or an exit, so that its words come before those of a
+/// node's other roads.
 pub(super) fn flags(args: &SshArgs) -> Result<(), String> {
     let Some(text) = args.carrier.as_deref() else { return Ok(()) };
     let refused = [
@@ -50,7 +53,6 @@ pub(super) fn flags(args: &SshArgs) -> Result<(), String> {
         (args.via.is_some(), "--via"),
         (args.vless.is_some(), "--vless"),
         (args.wstunnel.is_some(), "--wstunnel"),
-        (args.exit.is_some(), "--exit"),
         (args.upgrade, "--upgrade"),
     ];
     if let Some((_, flag)) = refused.into_iter().find(|(given, _)| *given) {
@@ -59,19 +61,13 @@ pub(super) fn flags(args: &SshArgs) -> Result<(), String> {
     crate::carrier::for_a_client(text, OWN_STDIO).map(|_| ()).map_err(|refusal| refusal.message)
 }
 
-/// `--carrier` beside a destination that is no node, or beside `--exit`,
-/// whose road is a node's too: the stream reaches a node alone (64).
+/// `--carrier` beside a destination that is no node, with no `--exit`: the
+/// stream reaches a node alone, or the exit at its other end (64).
 pub(super) fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
     let on_one = matches!(&resolved.transport, Transport::Node { carrier: Some(_), .. });
     if args.carrier.is_some() && !on_one {
-        // The exit over a carrier is a proxy's (T-596), which this command
-        // then reaches as it reaches any proxy.
-        let why = if args.exit.is_some() {
-            "--exit does not go with --carrier here: the exit over a carrier is podssh exit NAME --listen ADDR:PORT \
-             --carrier ADDR, a local proxy whose connections start at it"
-        } else {
-            "--carrier is for a node://NAME destination: the node at the other end of the stream"
-        };
+        let why = "--carrier is for a node://NAME destination, or for --exit NAME: the node at the other end of the \
+                   stream";
         return Err(Refusal::usage(why));
     }
     Ok(())
@@ -189,18 +185,19 @@ mod tests {
         assert!(flags(&args(None)).is_ok(), "no carrier, nothing to check");
         assert!(flags(&args(Some("exec:cat"))).is_ok());
         let base = || args(Some("exec:cat"));
-        let given: [(&str, SshArgs); 6] = [
+        let given: [(&str, SshArgs); 5] = [
             ("--pair-file", SshArgs { pair_file: Some("x".into()), ..base() }),
             ("--relay-host", SshArgs { relay_host: Some("relay.example".into()), ..base() }),
             ("--direct", SshArgs { direct: true, ..base() }),
             ("--iroh-ticket", SshArgs { iroh_ticket: Some("t".into()), ..base() }),
             ("--derp-ticket", SshArgs { derp_ticket: Some("t".into()), ..base() }),
-            ("--exit", SshArgs { exit: Some("gw".into()), ..base() }),
         ];
         for (flag, args) in given {
             let why = flags(&args).unwrap_err();
             assert!(why.starts_with(&format!("{flag} does not go with --carrier")), "{flag}: {why}");
         }
+        // The exit at the other end of the stream takes it (T-614).
+        assert!(flags(&SshArgs { exit: Some("gw".into()), ..base() }).is_ok(), "--exit goes with --carrier");
         for bad in ["stdio", "-", "tcp:127.0.0.1:22"] {
             let why = flags(&args(Some(bad))).unwrap_err();
             assert!(why.starts_with(&format!("--carrier {bad}")), "{bad}: {why}");

@@ -18,7 +18,9 @@ const ROADS: &[&str] = &[
      host's, under its own name, as on the relay. NAME is a member of the net, whose key the channel checks, and \
      the label of its pair here. A refusal of the node or of its net's policy says why, and ssh exits \
      255. --exit goes with no node://, iroh:, derp:, cf://, iap:// or eice:// destination, no --direct, no -4 \
-     or -6, no --no-e2e and no road of another server (64). podssh cp, scp and sftp take it too.",
+     or -6, no --no-e2e and no road of another server (64). With --carrier ADDR, the exit is the node at the \
+     other end of that stream, its one road, with no relay and no pair (see --carrier). podssh cp, scp and \
+     sftp take it too.",
     "--wstunnel wss://HOST[:PORT] reaches the first hop through a server of erebe/wstunnel that you run \
      (wstunnel server wss://[::]:443), in place of the relay: podssh opens the WebSocket to it, through \
      HTTPS_PROXY when one is set, checked for HOST with podssh's trust (--ca-file), and its token names the \

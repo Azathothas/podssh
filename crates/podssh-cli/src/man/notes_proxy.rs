@@ -70,5 +70,9 @@ pub const PROXY: &[&str] = &[
      (see podssh node --exit and podssh exit), in place of the relay: the node resolves HOST, checks each of its \
      addresses and dials HOST PORT from its own host, over the pair kept under NAME, in the resumable layer and \
      the end-to-end channel. A refusal of the node, or of its net's policy, is one line on stderr; no byte of \
-     stdout comes before the node reached the target.",
+     stdout comes before the node reached the target. With --carrier ADDR, the exit is the node at the other \
+     end of a stream that exists already, with no relay and no pair (podssh node NAME --exit --carrier stdio): \
+     exec:CMD, a program started with no shell, or fd:N (Unix); the net's rule of the exit holds as on each \
+     road, and at the end the node hears a Close. stdio, --relay-addr and --ca-file are refused with it (64), \
+     as stdin and stdout carry the pipe's bytes and the stream has no relay.",
 ];

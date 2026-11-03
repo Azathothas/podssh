@@ -273,8 +273,9 @@ pub(super) const NODE: &[&str] = &[
      --pair-file, --relay-addr, --ca-file, --iroh, --derp, --quick-tunnel, --relay, --temporary, --install, \
      --detach and the flags that go with them are refused with --carrier (64), as the stream is the node's \
      parent's. --exit goes with it: the client at the other end is podssh exit --listen ADDR:PORT --carrier ADDR \
-     NAME, and the net's rule of the exit holds as on each road, so a host whose one channel is a platform's \
-     exec channel gets egress through its other end.",
+     NAME, or podssh ssh, podssh proxy or podssh pipe with --exit NAME and --carrier, and the net's rule of the \
+     exit holds as on each road, so a host whose one channel is a platform's exec channel gets egress through \
+     its other end.",
 ];
 
 pub(super) const OPERATOR: &[&str] = &[
@@ -377,10 +378,14 @@ pub(super) const SSH_CARRIER: &str = "node://NAME with --carrier ADDR reaches th
      channel as on the pair's road, and no other road races it. NAME is a label alone, under which the \
      node's key is pinned at its first sight, so a stream that another key answers is refused; the host key \
      is recorded under node://NAME, as on each road. At the end the node hears a Close, and the program of \
-     exec: is waited for 5 s, then ended. --pair-file, --relay-host, --relay-failover, --relay-addr, \
-     --ca-file, --direct, --iroh-ticket, --derp-ticket, --derp-server, a server's road in the relay's \
-     place, --exit and --upgrade are refused with it (64), and so is --carrier with a destination that is \
-     no node.";
+     exec: is waited for 5 s, then ended. With --exit NAME in place of node://NAME, the exit is the node at \
+     the other end of the stream (podssh node NAME --exit --carrier stdio), its one road: the destination, or \
+     the first hop of -J, is a host that the exit dials from its own host, by the net's rule of the exit, and \
+     the host key is the host's, as on each road: podssh ssh --exit gw --carrier 'exec:ssh -T gateway podssh \
+     node gw --exit --carrier stdio' user@host.example. --pair-file, --relay-host, --relay-failover, \
+     --relay-addr, --ca-file, --direct, --iroh-ticket, --derp-ticket, --derp-server, a server's road in the \
+     relay's place and --upgrade are refused with it (64), and so is --carrier with a destination that is no \
+     node and no --exit.";
 
 /// The note of doctor's line sshd (T-590), beside the roost that it serves.
 pub(super) const DOCTOR_SSHD: &str = "The line sshd is for a roost (podssh node --sshd): where this host has an \

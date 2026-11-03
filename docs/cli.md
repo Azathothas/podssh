@@ -3531,19 +3531,21 @@ commands. The rules behind them:
   as on the pair's road (`run_on` of `crates/podssh-cli/src/ssh/node.rs`),
   and no other road races it. `stdio`, `--pair-file`, a relay's flag,
   `--direct`, `--iroh-ticket`, `--derp-ticket`, `--derp-server`, a server's
-  road, `--exit` and `--upgrade` with it, and `--carrier` with a destination
-  that is no node, are usage errors (64). `proxy --carrier ADDR
-  node://NAME` is the pipe of `operator --carrier`, with its checks and
-  codes (`run_as` of `crates/podssh-cli/src/operator.rs`), and
+  road and `--upgrade` with it, and `--carrier` with a destination that is
+  no node and no `--exit`, are usage errors (64); `--exit NAME` takes the
+  stream as its exit's one road (T-614, "The exit of the net", below).
+  `proxy --carrier ADDR node://NAME` is the pipe of `operator --carrier`,
+  with its checks and codes (`run_as` of `crates/podssh-cli/src/operator.rs`), and
   `--ConnectTimeout` bounds the open of both on a carrier: the node's read
   of the stream, its ready, then the layer and the channel. `pipe`'s
   `node:` and `udp:node:` sides take `--carrier` too
   (`crates/podssh-cli/src/pipe/node.rs`): each node side, and each client of
   a listening side, a leg of the one stream, which ends with the pipe; the
   other side keeps its road and its flags; `stdio`, `--pair-file` and a pipe
-  with no node side are usage errors (64). The exit's client over a carrier
-  is `podssh exit NAME --listen ADDR:PORT --carrier ADDR` (T-596), whose
-  `stdio` is its own to give.
+  with no node side are usage errors (64). The exit's clients over a carrier
+  are `podssh exit NAME --listen ADDR:PORT --carrier ADDR` (T-596), whose
+  `stdio` is its own to give, and `ssh`, `proxy` and `pipe` with `--exit
+  NAME --carrier ADDR` (T-614).
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended
@@ -3729,8 +3731,30 @@ own, and the forward road starts at the node.
   `exec:` is started again for the next connection. Ctrl-C closes the
   stream with 1000, which ends the node (0). `--pair-file`, `--relay-addr`
   and `--ca-file` with it, and `stdio` on a terminal, are usage errors
-  (64); `ssh`, `proxy` and `pipe` keep refusing `--exit` beside
-  `--carrier` (64), as their programs reach the exit through this proxy.
+  (64).
+- **`--exit NAME --carrier ADDR` of `ssh`, `proxy` and `pipe`** (T-614,
+  the operator's ruling Q90). Each takes the exit over a carrier itself, as
+  `exit --listen` does: the command starts the stream (`exec:CMD`) or was
+  given it (`fd:N`), serves the relay role's side of it, and each of its
+  sessions is a leg of that one stream whose channel's word is the target,
+  so that the node at the other end dials it from its own host by the net's
+  rule; at the end the node hears the Close, and the program of `exec:`
+  ends. `stdio` is refused (64), as each one's stdin and stdout are its
+  session's or its pipe's; so the closed host of GitHub #124, whose end with
+  egress starts the channel, keeps `exit --listen --carrier stdio`, and the
+  three serve a host that starts the channel itself, as `podssh ssh --exit
+  gw --carrier 'exec:ssh -T gateway podssh node gw --exit --carrier stdio'
+  user@host.example`. `ssh` resolves the exit to the node's transport with
+  the carrier as its one road (`crates/podssh-cli/src/ssh/exit_road.rs`):
+  no other road races it, a flag of another road is refused in the
+  carrier's words (64), and the host key is the host's; `cp`, `scp` and
+  `sftp` take it too, as they share the resolver. `proxy --exit NAME
+  --carrier ADDR HOST PORT` gives the stream to the exit's session
+  (`crates/podssh-cli/src/exit/open.rs`), with no `--relay-addr` or
+  `--ca-file` (64). `pipe --exit NAME --carrier ADDR` starts each `relay:`
+  side, and each `relay:%h:%p` of `http-listen:`, at the node of the
+  stream; a `node:` side beside it is refused (64), as one node is at the
+  other end of a stream.
 
 ## `podssh pipe`
 

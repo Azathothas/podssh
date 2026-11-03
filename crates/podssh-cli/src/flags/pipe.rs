@@ -28,7 +28,7 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node: the pair in FILE, a private file, not the one stored under NAME; its operator's part will do", None),
     row(None, "client-key", Some("FILE"), FlagKind::Supported,
-        "node: and iroh: this client's key in FILE, made when missing (default: client.key in the cache)", None),
+        "node:, iroh: and the exit of --exit: this client's key in FILE, made when missing (default: client.key in the cache)", None),
     row(None, "node-key", Some("KEY"), FlagKind::Supported,
         "node: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None),
     row(None, "no-e2e", None, FlagKind::Supported,

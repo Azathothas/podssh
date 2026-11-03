@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/pipe/remote.rs
++++ b/crates/podssh-cli/src/pipe/remote.rs
+@@ -96,7 +96,7 @@
+             "--carrier {text} reaches one node: the exit of --exit or the node of a node: side, not both"
+         )));
+     }
+-    if !node && args.ssh.exit.is_none() {
++    if !node {
+         return Err(Refusal::usage(format!(
+             "--carrier {text} is the road of a node: or udp:node: side, the node at the other end of the stream, or \
+              of --exit NAME: name one"

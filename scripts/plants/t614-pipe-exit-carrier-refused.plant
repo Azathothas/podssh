@@ -1,0 +1,7 @@
+# T-614: podssh pipe refuses --carrier with no node: side again, beside
+# --exit NAME too (64): the test of pipe's relay: side through the exit over
+# a carrier must fail.
+ENTRY=T-614
+GROUP=cli-tests
+EXPECT='test clients::pipe_s_relay_side_starts_at_the_exit_at_the_other_end_of_a_carrier \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test exit -- pipe_s_relay_side_starts_at_the_exit_at_the_other_end_of_a_carrier'

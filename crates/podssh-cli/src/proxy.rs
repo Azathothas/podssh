@@ -160,12 +160,16 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("proxy", err);
     }
-    // The exit of the net (T-431): the pipe starts at the node, alone.
+    // The exit of the net (T-431): the pipe starts at the node, alone, or at
+    // the node at the other end of the stream of --carrier (T-614).
     if let Some(name) = args.exit.name.as_deref() {
-        crate::connect_bound::step(format!("the exit {name} did not answer"));
+        crate::connect_bound::step(match args.node.carrier {
+            Some(_) => format!("the exit {name} did not read the carrier's stream"),
+            None => format!("the exit {name} did not answer"),
+        });
         return match exit_alone(args) {
             Ok(()) => crate::exit::open::run_proxy(&exit_to(name, args), &host, port, err),
-            Err(why) => crate::relay_settings::Refusal::usage(why).report("proxy", err),
+            Err(refusal) => refusal.report("proxy", err),
         };
     }
     crate::session_log::target(&host, Some(port), "relay");
@@ -308,7 +312,9 @@ fn run_cloudflare(host: &str, args: &ProxyArgs, err: &mut dyn Write) -> i32 {
 
 /// `--exit` takes the relay's place: no relay host, no server of another
 /// road, and no cf://HOST, iap:// or eice://, which have roads of their own.
-fn exit_alone(args: &ProxyArgs) -> Result<(), &'static str> {
+/// Over a carrier (T-614), no flag of the pair's relay either, and no stdio,
+/// which carries the pipe's bytes.
+fn exit_alone(args: &ProxyArgs) -> Result<(), crate::relay_settings::Refusal> {
     let other = args.relay_host.is_some()
         || args.relay_failover.is_some()
         || args.forwarder.is_some()
@@ -316,10 +322,13 @@ fn exit_alone(args: &ProxyArgs) -> Result<(), &'static str> {
         || args.vless.is_some()
         || args.via != crate::via::Flags::default()
         || args.wstunnel != crate::wstunnel::Flags::default();
-    match other {
-        true => Err("--exit takes the relay's place: it goes with no relay host and no server of another road"),
-        false => Ok(()),
+    if other {
+        let why = "--exit takes the relay's place: it goes with no relay host and no server of another road";
+        return Err(crate::relay_settings::Refusal::usage(why));
     }
+    let Some(text) = args.node.carrier.as_deref() else { return Ok(()) };
+    crate::exit::no_relay(&[(args.relay_addr.is_some(), "--relay-addr"), (args.ca_file.is_some(), "--ca-file")])?;
+    crate::carrier::for_a_client(text, "stdin and stdout carry the pipe's bytes here").map(|_| ())
 }
 
 /// `--client-key` is the channel's of the exit, or of a node, which takes
@@ -335,10 +344,11 @@ fn key_alone(args: &ProxyArgs) -> Result<(), crate::relay_settings::Refusal> {
 }
 
 /// The exit of `--exit NAME`, with the trust of `--ca-file` for its pair's
-/// relay.
+/// relay, or the stream of `--carrier` in place of its pair (T-614).
 fn exit_to(name: &str, args: &ProxyArgs) -> crate::exit::open::To {
     let (name, client_key, ca_file) = (name.to_string(), args.exit.client_key.clone(), args.ca_file.clone());
-    crate::exit::open::To { name, client_key, ca_file, ..Default::default() }
+    let carrier = args.node.carrier.clone();
+    crate::exit::open::To { name, client_key, ca_file, carrier, ..Default::default() }
 }
 
 /// `HOST PORT`, or one word: `HOST:PORT` or `[IPV6]:PORT`. HOST may be a

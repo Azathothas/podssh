@@ -74,9 +74,10 @@ pub const PIPE: &[&str] = &[
      exists already, with no relay and no pair, as podssh operator --carrier does (see its notes): exec:CMD, \
      a program that podssh starts with no shell, or fd:N (Unix); NAME is the label under which the node's \
      key is pinned. stdio is refused (64), as the pipe's own stdin and stdout are a side or none, and so are \
-     --pair-file and a pipe with no node side. Each node side, and each client of a listening side, is a \
-     session of its own on the one stream, which ends with the pipe: the node hears a Close, and the \
-     program of exec: ends. The other side keeps its road, so podssh pipe tcp-listen:2222 node:box --carrier \
+     --pair-file and a pipe with no node side and no --exit. Each node side, and each client of a \
+     listening side, is a session of its own on the one stream, which ends with the pipe: the node hears a \
+     Close, and the program of exec: ends. The other side keeps its road, so podssh pipe tcp-listen:2222 \
+     node:box --carrier \
      'exec:ssh -T sandbox podssh node --carrier stdio box 127.0.0.1:22' --keep-listening gives a port here \
      for the node's sshd.",
     "exec:CMD starts the program with no shell: its words split at blanks, with single and double \
@@ -125,5 +126,7 @@ pub const PIPE: &[&str] = &[
     "--exit NAME starts relay:HOST:PORT, and each relay:%h:%p of http-listen:, at NAME, a node of your net that \
      lends its egress (see podssh node --exit and podssh exit), in place of the relay, over the pair kept under \
      NAME: the node resolves HOST and dials it from its own host. A pipe with --exit and no relay: address is \
-     refused (64).",
+     refused (64). With --carrier ADDR, the exit is the node at the other end of that stream, with no pair \
+     (podssh node NAME --exit --carrier stdio), and each relay: session is a session of the one stream; a \
+     node: side beside it is refused (64), as one node is at the other end of a stream.",
 ];

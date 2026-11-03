@@ -1,0 +1,8 @@
+# T-614: podssh ssh --exit NAME --carrier ADDR given no carrier, so that the
+# exit's road is the pair's and --carrier is refused beside it (64), as
+# before T-614: the test of ssh through the exit over a carrier, whose first
+# part needs no sshd, must fail.
+ENTRY=T-614
+GROUP=cli-tests
+EXPECT='test clients::ssh_reaches_a_host_through_the_exit_at_the_other_end_of_a_carrier \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test exit -- ssh_reaches_a_host_through_the_exit_at_the_other_end_of_a_carrier'

@@ -2,7 +2,8 @@
 //! an end; the pump does not know the road (`docs/architecture.md`). The
 //! settings of the roads come from the flags of `pipe`, as `proxy` and
 //! `ssh` take them, and are read only when an address needs them. With
-//! `--exit NAME`, `relay:` starts at that exit of the net (T-431).
+//! `--exit NAME`, `relay:` starts at that exit of the net (T-431), over its
+//! pair, or over the stream of `--carrier` (T-614).
 
 use std::io::Write;
 
@@ -81,14 +82,24 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
 }
 
 /// `--carrier ADDR` (T-595): the road of a `node:` or `udp:node:` side, with
-/// no pair; stdio is refused, as the pipe's own stdin and stdout are a side
-/// or none (64). The other sides keep their roads and their flags.
+/// no pair, or of the exit of `--exit NAME`, which starts each `relay:` side
+/// (T-614, a `relay:` side checked above); stdio is refused, as the pipe's
+/// own stdin and stdout are a side or none (64). One node is at the other end
+/// of the stream, so a node side and the exit do not share it. The other
+/// sides keep their roads and their flags.
 fn carrier(args: &PipeArgs, addresses: [&Address; 2]) -> Result<(), Refusal> {
     let Some(text) = args.ssh.carrier.as_deref() else { return Ok(()) };
     crate::carrier::for_a_client(text, "stdin and stdout are the pipe's own here")?;
-    if !addresses.iter().any(|a| matches!(a, Address::Node(_) | Address::UdpNode(_))) {
+    let node = addresses.iter().any(|a| matches!(a, Address::Node(_) | Address::UdpNode(_)));
+    if node && args.ssh.exit.is_some() {
         return Err(Refusal::usage(format!(
-            "--carrier {text} is the road of a node: or udp:node: side, the node at the other end of the stream: name one"
+            "--carrier {text} reaches one node: the exit of --exit or the node of a node: side, not both"
+        )));
+    }
+    if !node && args.ssh.exit.is_none() {
+        return Err(Refusal::usage(format!(
+            "--carrier {text} is the road of a node: or udp:node: side, the node at the other end of the stream, or \
+             of --exit NAME: name one"
         )));
     }
     if args.ssh.pair_file.is_some() {

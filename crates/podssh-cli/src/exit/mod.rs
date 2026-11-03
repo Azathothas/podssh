@@ -17,7 +17,9 @@
 //! the exec channel of a platform's own SSH gets egress through that
 //! channel's other end. `stdio` is this end's to give, as its stdin and
 //! stdout carry nothing else; the net's rule of the exit holds as on each
-//! road, at the node.
+//! road, at the node. `ssh`, `proxy` and `pipe` take `--exit NAME` beside
+//! `--carrier` too (T-614), each session a leg of the command's one stream
+//! (`open`), with no stdio: theirs is their own.
 
 pub mod listen;
 pub mod open;
@@ -133,16 +135,21 @@ fn prepare(args: &ExitArgs) -> Result<(open::To, Address), Refusal> {
 /// stdout; a terminal on stdin is a person's keys, not frames. The flags of a
 /// relay and of a pair have nothing to apply to (64).
 fn carrier(args: &ExitArgs, text: &str) -> Result<(), Refusal> {
-    let flags = [
+    no_relay(&[
         (args.pair_file.is_some(), "--pair-file"),
         (args.relay_addr.is_some(), "--relay-addr"),
         (args.ca_file.is_some(), "--ca-file"),
-    ];
-    if let Some((_, flag)) = flags.into_iter().find(|(given, _)| *given) {
-        return Err(Refusal::usage(format!("{flag} is for a relay and its pair, and --carrier has neither")));
-    }
+    ])?;
     let found = crate::carrier::parse(text)?;
     crate::carrier::no_terminal(&found, crate::carrier::stdin_is_terminal())
+}
+
+/// The first flag of `flags` that was given, a relay's or a pair's beside
+/// `--carrier`, which has neither (64): `exit --listen`'s, and `proxy
+/// --exit`'s over a carrier (T-614).
+pub(crate) fn no_relay(flags: &[(bool, &'static str)]) -> Result<(), Refusal> {
+    let Some((_, flag)) = flags.iter().find(|(given, _)| *given) else { return Ok(()) };
+    Err(Refusal::usage(format!("{flag} is for a relay and its pair, and --carrier has neither")))
 }
 
 #[cfg(test)]

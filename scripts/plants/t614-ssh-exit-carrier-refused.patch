@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ssh/exit_road.rs
++++ b/crates/podssh-cli/src/ssh/exit_road.rs
+@@ -30,7 +30,7 @@
+         return Err(Refusal::usage(why));
+     }
+     crate::pairs::check_label(name)?;
+-    if let Some(text) = args.carrier.as_deref() {
++    if let Some(text) = args.carrier.as_deref().filter(|_| false) {
+         return carried(args, name, text);
+     }
+     let race = super::iroh::race(args, name)?;

@@ -62,7 +62,9 @@ fn a_client_s_carrier_takes_no_other_road_and_reaches_a_node_alone() {
         &["ssh", "--carrier", "exec:cat", "--direct", "node://tester@box", "true"],
         &["ssh", "--carrier", "exec:cat", "--derp-server", "derp.example", "node://tester@box", "true"],
         &["ssh", "--carrier", "exec:cat", "tester@example.org", "true"],
-        &["ssh", "--carrier", "exec:cat", "--exit", "gw", "tester@example.org", "true"],
+        // The exit at the other end of the stream takes it (T-614), but no
+        // other road's flag.
+        &["ssh", "--carrier", "exec:cat", "--exit", "gw", "--pair-file", "x", "tester@example.org", "true"],
         &[
             "cp",
             "--timeout",

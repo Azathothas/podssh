@@ -7010,7 +7010,7 @@ Measured at the merge (2026-11-03, Linux, `CARGO_BUILD_JOBS=4`, curl on PATH):
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7030,14 +7030,133 @@ Over a carrier, a node's egress reaches only the exit client's own listener: `ss
    each command, started again for each leg of `exec:` as T-595's legs are.
 2. The refusals go, and their words with them; the manual and `docs/cli.md` say the form.
 
+## Decision
+
+Calls of the draft (2026-11-03):
+
+- `stdio` stays refused for the three (64): their stdin and stdout are the session's or the pipe's.
+  They take `exec:CMD` and `fd:N`, for a host that starts the channel itself; the issue's case,
+  whose end with egress starts the channel, stays `exit --listen --carrier stdio`'s. Lost: none,
+  as one stdio cannot carry both the stream and the session.
+- `ssh --exit NAME --carrier ADDR` builds the exit's transport with the carrier as its one road and
+  reads no other (no iroh ticket, no DERP road, no transit or Piping Server road, no record of
+  pkarr), as `node://NAME --carrier` races none; a flag of another road is refused in the carrier's
+  words, after `--exit NAME:`. Lost: the races of the exit's other roads computed and left unused,
+  which would refuse a bad variable of a road that the run never takes.
+- The copies take it too (`cp`, `mv`, `scp`, `sftp`): they share `ssh`'s resolver, and each takes
+  `--exit` and `--carrier` already. Lost: a refusal of the pair for them alone, code with no
+  reason.
+- `proxy --exit NAME --carrier ADDR` refuses `--relay-addr` and `--ca-file` (64), as `exit --listen
+  --carrier` does, and the other flags of a node (`--pair-file`, `--node-key`, `--no-e2e`,
+  `--resume-deadline`) stay `node://NAME`'s alone. Lost: let them pass, unused.
+- A `pipe` with a `node:` side and `--exit` on one `--carrier` is refused (64): one node is at the
+  other end of a stream, which the two sides would pin under two labels. Lost: both sides on the
+  one stream; a carrier for each side, which needs a second flag. `pipe` keeps `--relay-addr` and
+  `--ca-file` beside it, for the road of its other side (an `ssh:` hop).
+
 ## Prove
 
 ```sh
+export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test exit
+cargo test -p podssh-cli --test node_carrier
+cargo test -p podssh-cli --lib -- exit_road carried proxy_node notes_tests
 ```
 
 `ssh --exit box --carrier exec:...` reaches OpenSSH's sshd through the node's egress, `proxy` an
-echo server's 1 MiB back whole, `pipe` the same; planted, the refusal kept: the tests fail.
+echo server's 1 MiB back whole, `pipe` the same; planted, the refusal kept: the tests fail
+(`t614-ssh-exit-carrier-refused`, `t614-proxy-exit-carrier-refused`,
+`t614-pipe-exit-carrier-refused`).
+
+## Correction
+
+Read at `d629249` (2026-11-03), for the draft:
+
+- T-596 is merged and done, so its refusals are in `main`, not on a draft's branch. Only `ssh`'s
+  words named `exit --listen --carrier` (`check` of `crates/podssh-cli/src/ssh/carried.rs`, and
+  `--exit` was among the flags that its `flags` refused beside `node://NAME`). `proxy` refused
+  `--carrier` as a flag of a node beside a target that is no node ("goes with node://NAME, the node
+  of a pair or of a carrier", `run` of `crates/podssh-cli/src/proxy_node.rs`), and `pipe` refused
+  it with no `node:` side (`carrier` of `crates/podssh-cli/src/pipe/remote.rs`); neither named the
+  exit. The Approach holds: each refusal goes in its own place.
+- The exit's session is a leg of the command's shared stream already (`Road` of
+  `crates/podssh-cli/src/exit/open.rs`, T-596), so `proxy` and `pipe` needed the carrier in their
+  `To` and their checks alone; `proxy`'s run of the exit now ends inside
+  `crate::ssh::transport::settled`, which closes the shared stream (the node's Close), as `pipe`'s
+  run did already. `ssh` resolves `--exit` to the node's transport
+  (`crates/podssh-cli/src/ssh/exit_road.rs`), and a node's transport with a carrier runs on it
+  alone (`run` of `crates/podssh-cli/src/ssh/node.rs`), so the exit's transport takes the carrier,
+  and the channel's word names the host, with no new road.
+- Found on the way: the plant `t595-ssh-carrier-skipped` was stale, as its patch named lines of
+  `crates/podssh-cli/src/ssh/mod.rs` from which a later merge had moved the node's dispatch to
+  `crates/podssh-cli/src/ssh/node.rs` (`git apply --check` failed); its patch plants the same defect
+  there now.
+
+## Done
+
+2026-11-03, drafted (`DRAFT T-614`), merged and measured on this machine the same day.
+
+What changed:
+
+- `crates/podssh-cli/src/ssh/exit_road.rs`: `or_exit` gives `--exit NAME --carrier ADDR` to
+  `carried`, the exit's transport with the stream as its one road (the carrier's flags first, no
+  other road read); a unit test (`the_exit_over_a_carrier_is_its_one_road`).
+- `crates/podssh-cli/src/ssh/carried.rs`: `flags` no longer refuses `--exit`; `check` refuses
+  `--carrier` with a destination that is no node and no `--exit`, in words that name both; the unit
+  test takes `--exit` as one that goes with `--carrier`.
+- `crates/podssh-cli/src/proxy_node.rs`: `Flags::refused_beside`, each flag of a node beside
+  another target but `--carrier` beside `--exit`; a unit test.
+- `crates/podssh-cli/src/proxy.rs`: the exit's arm gives the carrier to `To` (`exit_to`), names the
+  carrier's step of `--ConnectTimeout`, and `exit_alone` refuses `--relay-addr`, `--ca-file` and
+  stdio beside it (64).
+- `crates/podssh-cli/src/exit/mod.rs`: `no_relay`, the refusal of a relay's and a pair's flags
+  beside `--carrier`, which `exit --listen` and `proxy --exit` share.
+- `crates/podssh-cli/src/exit/open.rs`: `To::of_ssh` gives `pipe`'s carrier; `run_proxy` runs
+  inside `crate::ssh::transport::settled`, so that the stream ends with it.
+- `crates/podssh-cli/src/pipe/remote.rs`: `carrier` takes `--exit NAME` in place of a `node:` side,
+  and refuses both on one stream (64).
+- `crates/podssh-cli/src/node_carrier.rs`: its words name the new clients.
+- `crates/podssh-cli/src/flags/node.rs` (the rows `--exit` of `ssh` and the copies, of `proxy` and
+  of `pipe`, and the node's `--carrier`), `crates/podssh-cli/src/flags/operator.rs` (the rows
+  `--carrier` of `ssh`, `proxy` and `pipe`) and `crates/podssh-cli/src/flags/pipe.rs` (the row
+  `--client-key`, which the exit takes).
+- `crates/podssh-cli/src/man/notes_pair.rs` (`ssh`'s note of the carrier, with the form; the
+  node's note), `crates/podssh-cli/src/man/notes_roads.rs` (`ssh --exit`),
+  `crates/podssh-cli/src/man/notes_proxy.rs`, `crates/podssh-cli/src/man/notes_pipe.rs`,
+  `crates/podssh-cli/src/man/notes_net.rs` (`exit`) and `crates/podssh-cli/src/man/notes.rs`
+  (`cp`).
+- `crates/podssh-cli/tests/exit/clients.rs` (new, a module of `crates/podssh-cli/tests/exit.rs`): 3
+  tests (`ssh` to a host that speaks no SSH, 255, the node online and closed, and a member with no
+  rule refused; then OpenSSH's sshd, Unix, `echo carried` with the host key under its name and `scp`
+  up whole; `proxy`'s 1 MiB of an echo server back whole and the member with no rule refused, its
+  target never dialled; `pipe`'s `relay:` side the same 1 MiB); `crates/podssh-cli/tests/exit.rs`:
+  the row of `ssh --exit --carrier` refused goes, 8 rows of the refusals that stay (stdio, a flag
+  of another road, a node side beside the exit), and the module `live_harness` for the sshd.
+- `crates/podssh-cli/tests/node_carrier/clients.rs`: the row of `ssh --carrier --exit` refused
+  becomes one with `--pair-file`, which stays refused.
+- `scripts/plants/t614-ssh-exit-carrier-refused.patch`,
+  `scripts/plants/t614-proxy-exit-carrier-refused.patch` and
+  `scripts/plants/t614-pipe-exit-carrier-refused.patch`, each with its `.plant` (`git apply
+  --check`: each applies); `scripts/plants/t595-ssh-carrier-skipped.patch` moved to
+  `crates/podssh-cli/src/ssh/node.rs` (applies).
+- `docs/cli.md` (the carrier's item, and "The exit of the net"), `docs/mesh.md`, `docs/reverse.md`
+  (item 8 of "A carrier") and `docs/STATUS.md`.
+
+Measured at the merge (2026-11-03, Linux, `CARGO_BUILD_JOBS=4`, OpenSSH's sshd here):
+
+1. `cargo test -p podssh-cli --test exit`: 7 passed, the three tests of `clients` among them; the
+   part of OpenSSH ran (`echo carried` through the exit, the host key under `127.0.0.1`, and `scp`
+   of 300,000 bytes up, whole).
+2. `cargo test -p podssh-cli --test node_carrier`: 14 passed.
+3. `cargo test -p podssh-cli --lib`: 787 passed, `the_exit_over_a_carrier_is_its_one_road`,
+   `a_carrier_goes_with_an_exit_and_each_other_flag_of_a_node_with_a_node_alone`, the test of
+   `carried` and `each_name_in_a_note_exists` among them.
+4. `cargo test -p podssh-cli --test man_page --test man_flag_parity --test flag_table`: 9, 6 and
+   11 passed.
+5. `cargo fmt -p podssh-cli -- --check` and clippy `--all-targets -D warnings` of `podssh-cli`:
+   clean.
+6. `sh scripts/plant-each.sh --here t614-ssh-exit-carrier-refused t614-proxy-exit-carrier-refused
+   t614-pipe-exit-carrier-refused t595-ssh-carrier-skipped`: 4 caught, 0 missed, 0 stale.
 
 # T-602: The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control
 

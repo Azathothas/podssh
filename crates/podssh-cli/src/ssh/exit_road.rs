@@ -5,7 +5,9 @@
 //! as for `node://NAME`, and the session resumes on any of them; the
 //! channel's word names the first hop, `HOST:PORT`, in place of a route, and
 //! the SSH client checks that host's key under its own name, as on the
-//! relay. Here so that the resolver stays one file.
+//! relay. With `--carrier ADDR` (T-614), the exit is the node at the other
+//! end of that stream, its one road, as for `node://NAME --carrier`. Here so
+//! that the resolver stays one file.
 
 use podssh_ws::Trust;
 
@@ -28,6 +30,9 @@ pub(super) fn or_exit(args: &SshArgs, env: &Env, relay: Transport) -> Result<Tra
         return Err(Refusal::usage(why));
     }
     crate::pairs::check_label(name)?;
+    if let Some(text) = args.carrier.as_deref() {
+        return carried(args, name, text);
+    }
     let race = super::iroh::race(args, name)?;
     let derp = super::derp::race(args)?;
     crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
@@ -37,10 +42,28 @@ pub(super) fn or_exit(args: &SshArgs, env: &Env, relay: Transport) -> Result<Tra
     let trust = super::resolve::ca_file(args, env).map_or(Trust::Default, |file| Trust::File(file.into()));
     let channel = super::iroh::channel_ask(args).map_err(Refusal::usage)?;
     let (label, pair_file) = (name.to_string(), args.pair_file.clone());
-    // The exit over a carrier is `podssh exit --listen --carrier`'s (T-596):
-    // `--carrier` is refused beside `--exit` here.
     let opentunnel = Box::default();
     Ok(Transport::Node { label, pair_file, trust, race, derp, opentunnel, channel, carrier: None })
+}
+
+/// The exit at the other end of the carrier `text` (T-614): the stream is
+/// its one road, so a flag of another road is refused in the carrier's words
+/// first, and no road is read that the run would not take (a ticket kept
+/// under NAME, the transit's and DERP's variables).
+fn carried(args: &SshArgs, name: &str, text: &str) -> Result<Transport, Refusal> {
+    super::carried::flags(args).map_err(|why| Refusal::usage(format!("--exit {name}: {why}")))?;
+    let channel = super::iroh::channel_ask(args).map_err(Refusal::usage)?;
+    let derp = super::derp::Race { ticket: None, servers: Vec::new(), fallback: false };
+    Ok(Transport::Node {
+        label: name.to_string(),
+        pair_file: None,
+        trust: Trust::Default,
+        race: None,
+        derp,
+        opentunnel: Box::default(),
+        channel,
+        carrier: Some(text.to_string()),
+    })
 }
 
 /// The exit's word, the first hop of the run (`-J`'s first, else the
@@ -95,6 +118,32 @@ mod tests {
         match &r.transport {
             Transport::Node { channel, .. } => assert_eq!(channel.route.as_deref(), Some("hop.example:2200")),
             other => panic!("{other:?}"),
+        }
+    }
+
+    /// With `--carrier` (T-614), the stream is the exit's one road: no other
+    /// races it, and a flag of another road, or stdio, is refused.
+    #[test]
+    fn the_exit_over_a_carrier_is_its_one_road() {
+        let env = Env { home: None, user: Some("me".into()), ..Env::default() };
+        let on = |carrier: &str, pair_file: Option<&str>| {
+            let mut args = SshArgs { destination: Some("git@github.com".into()), ..SshArgs::default() };
+            args.exit = Some("lab".into());
+            args.carrier = Some(carrier.into());
+            args.pair_file = pair_file.map(String::from);
+            super::super::resolve::resolve_or_refuse(&args, &env)
+        };
+        match on("exec:cat", None).unwrap().transport {
+            Transport::Node { label, channel, carrier, race, .. } => {
+                assert_eq!((label.as_str(), channel.route.as_deref()), ("lab", Some("github.com:22")));
+                assert_eq!((carrier.as_deref(), race), (Some("exec:cat"), None), "the stream alone");
+            }
+            other => panic!("{other:?}"),
+        }
+        let paired = ("exec:cat", Some("x"), "--pair-file does not go with --carrier");
+        for (carrier, pair_file, says) in [paired, ("stdio", None, "--carrier stdio")] {
+            let refusal = on(carrier, pair_file).unwrap_err();
+            assert!(refusal.code == 64 && refusal.message.contains(says), "{carrier}: {}", refusal.message);
         }
     }
 

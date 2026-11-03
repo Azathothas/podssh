@@ -13,9 +13,13 @@
 //! carrier (T-596), with no relay: the node starts `podssh exit --listen
 //! --carrier stdio` as its `exec:` program, whose proxy reaches a page
 //! through the node; a member with no rule is refused, and the stream's end
-//! ends the proxy. A check that needs Python and openssl for the stand-in,
-//! or curl, says that it did not run when this host has none.
+//! ends the proxy. `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`
+//! too (T-614, `exit/clients.rs`): each starts the exit's node as its `exec:`
+//! program and carries its own session through the node's egress. A check
+//! that needs Python and openssl for the stand-in, OpenSSH's sshd, or curl,
+//! says that it did not run when this host has none.
 
+mod live_harness;
 mod ssh_harness;
 mod throughput_harness;
 
@@ -173,7 +177,16 @@ fn the_commands_of_an_exit_are_refused_as_the_manual_says_with_no_connection() {
         // The exit over a carrier (T-596) takes no relay's and no pair's flag.
         (words(&["exit", "lab", "--listen", "1080", "--carrier", "exec:cat", "--pair-file", "x"]), 64, "--carrier has"),
         (words(&["exit", "lab", "--listen", "1080", "--carrier", "tcp:127.0.0.1:1"]), 64, "--carrier tcp:"),
-        (words(&["ssh", "--exit", "lab", "--carrier", "exec:cat", "u@h.example"]), 64, "podssh exit NAME --listen"),
+        // ssh, proxy and pipe take it too (T-614), with no stdio, which is
+        // their own, and no flag of another road.
+        (words(&["ssh", "--exit", "lab", "--carrier", "stdio", "u@h.example"]), 64, "--carrier stdio"),
+        (words(&["ssh", "--exit", "lab", "--carrier", "exec:cat", "--pair-file", "x", "u@h.example"]), 64, "carrier:"),
+        (words(&["ssh", "--exit", "lab", "--carrier", "exec:cat", "node://lab"]), 64, "--exit NAME starts the road"),
+        (words(&["proxy", "--exit", "lab", "--carrier", "stdio", "h.example", "22"]), 64, "--carrier stdio"),
+        (words(&["proxy", "--exit", "lab", "--carrier", "exec:cat", "--ca-file", "x", "h", "22"]), 64, "has neither"),
+        (words(&["proxy", "--exit", "lab", "--carrier", "exec:cat", "--pair-file", "x", "h", "22"]), 64, "node://"),
+        (words(&["pipe", "--exit", "lab", "--carrier", "stdio", "-", "relay:h.example:22"]), 64, "--carrier stdio"),
+        (words(&["pipe", "--exit", "lab", "--carrier", "exec:cat", "node:box", "relay:h.example:22"]), 64, "not both"),
     ] {
         let (rc, out, err) = ran(&mut command_in(home, &args));
         assert!(rc == code && err.contains(says) && out.is_empty(), "{args:?}: {rc} {err}");
@@ -416,3 +429,6 @@ fn curl_through(proxy: u16, site: u16) {
         assert_eq!((rc, out.as_str()), (0, "ok\n"), "curl {via:?}: {err}");
     }
 }
+
+#[path = "exit/clients.rs"]
+mod clients;

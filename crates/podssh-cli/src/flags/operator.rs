@@ -27,17 +27,20 @@ pub const PAIR_FLAGS: &[FlagRow] = &[
         "reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair: exec:CMD, a program started with no shell, as exec:'ssh -T HOST podssh node --carrier stdio NAME TARGET', or fd:N (Unix); NAME is then the label under which the node's key is pinned", None),
 ];
 
-/// `--carrier ADDR` of `ssh`, `cp`, `mv`, `scp` and `sftp` (T-595).
+/// `--carrier ADDR` of `ssh`, `cp`, `mv`, `scp` and `sftp` (T-595), and of
+/// their `--exit NAME` (T-614).
 pub const SSH_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Supported,
-    "node://NAME: reach the node at the other end of ADDR, a stream that exists already, as its one road, with no relay and no pair: exec:CMD, a program started with no shell, as exec:'ssh -T HOST podssh node --carrier stdio NAME TARGET', or fd:N (Unix); NAME is then the label under which the node's key is pinned", None);
+    "node://NAME: reach the node at the other end of ADDR, a stream that exists already, as its one road, with no relay and no pair: exec:CMD, a program started with no shell, as exec:'ssh -T HOST podssh node --carrier stdio NAME TARGET', or fd:N (Unix); NAME is then the label under which the node's key is pinned; with --exit NAME, the exit at the other end of ADDR dials the host", None);
 
-/// `--carrier ADDR` of `proxy node://NAME` (T-595), as `operator` takes it.
+/// `--carrier ADDR` of `proxy node://NAME` (T-595), as `operator` takes it,
+/// and of `proxy --exit NAME` (T-614).
 pub const PROXY_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Supported,
-    "node://NAME: reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair, as podssh operator --carrier does: exec:CMD, a program started with no shell, or fd:N (Unix); NAME is then the label under which the node's key is pinned", None);
+    "node://NAME: reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair, as podssh operator --carrier does: exec:CMD, a program started with no shell, or fd:N (Unix); NAME is then the label under which the node's key is pinned; with --exit NAME HOST PORT, the exit at the other end of ADDR dials HOST PORT", None);
 
-/// `--carrier ADDR` of `pipe`'s `node:` side (T-595).
+/// `--carrier ADDR` of `pipe`'s `node:` side (T-595), and of its exit
+/// (T-614).
 pub const PIPE_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Supported,
-    "node: and udp:node:: reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair, as podssh operator --carrier does: exec:CMD, a program started with no shell, or fd:N (Unix); each client of a listening side is a session of the one stream", None);
+    "node: and udp:node:: reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair, as podssh operator --carrier does: exec:CMD, a program started with no shell, or fd:N (Unix); each client of a listening side is a session of the one stream; with --exit NAME, relay: starts at the exit at the other end of ADDR, with no node: side", None);
 
 /// `--ConnectTimeout` of `operator` (T-589).
 pub const OPERATOR_CONNECT_TIMEOUT: FlagRow = row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,
