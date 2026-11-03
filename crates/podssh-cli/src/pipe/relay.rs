@@ -238,13 +238,13 @@ impl Ending for RelayEnding {
     }
 }
 
-/// [`carry_for`] of a session that no relay host's record follows: the road
+/// `carry_for` of a session that no relay host's record follows: the road
 /// of `cloudflared`, a forwarder's.
 pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -> End {
     carry_for(session, None, target, v6, quiet_end)
 }
 
-/// [`carry_for`] of a session that `open` opened: its end goes into the
+/// `carry_for` of a session that `open` opened: its end goes into the
 /// record of the host that opened it (T-563).
 pub fn carry_opened(opened: podssh_relay::open::Opened, target: String, v6: bool) -> End {
     carry_for(opened.session, Some(opened.relay.host), target, v6, false)

@@ -300,7 +300,7 @@ The relay sends no keepalives on reverse sockets (`docs/reverse.md:37-45`).
 Read: the codecs: `encode_operator_frame` and `chunk_for_bare`
 (crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`, lines 125-133), and `parse_operator_control`
 (crates/podssh-transport/src/control.rs lines 223-230 at `e8bbd4d`). `podssh proxy` has the pump to follow: stdin and
-stdout, liveness, the close reason (`crates/podssh-cli/src/pipe/relay.rs:104-230`).
+stdout, liveness, the close reason (`crates/podssh-cli/src/pipe/relay.rs:107-239`).
 
 Read in a local copy of podbox at `5bd8cb0`: `run_operator` waits 20 s for `ready`, queues at most
 1 MiB of input before it, sends a Close after the end of input and waits 10 s for the answer, and
@@ -752,7 +752,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    has no NAME.
 4. Exit codes as `podssh proxy` (`docs/cli.md:3631`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
-   `crates/podssh-cli/src/man/facts.rs:469`.
+   `crates/podssh-cli/src/man/facts.rs:476`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:41-77` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
@@ -894,7 +894,7 @@ host, never the relay's name (`SECURITY.md:149-159`); `HostKeyAlias` exists
 
 1. `podssh operator NAME`: load the operator's part of the pair under NAME (T-078, T-083), and run
    `operator::run` (T-080) on stdin and stdout: a byte pipe as `podssh proxy`
-   (`crates/podssh-cli/src/pipe/relay.rs:104-230`). stdout carries data only; never 0 without `ready`.
+   (`crates/podssh-cli/src/pipe/relay.rs:107-239`). stdout carries data only; never 0 without `ready`.
 2. `podssh ssh node://[user@]NAME`: `parse_hop` reads `node://` as it reads `ssh://`; add
    `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-72`).
 3. For a node, `connect_and_run` opens the operator leg and waits for `ready` (T-080), then gives

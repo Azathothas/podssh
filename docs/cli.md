@@ -2115,8 +2115,8 @@ before anything else; `podssh doctor` is the report that measures.
   `socks5`), `offline`, `attachment`, `stdin_tty`, `stdout_tty`,
   and `host` for a destination (its name in `known_hosts`, whether a key is
   recorded, the key types); `session_log` (T-056) and `relay_failures`, the
-  relay hosts that each run tries last now, with `ago_s` and the `reason`
-  (T-059); `pairs`, each stored pair's `label`, `expires_ms`, whether it
+  relay hosts that each run tries last now, with `ago_s`, the `reason` and the `road` (T-059), and
+  `relay_opened`, those that opened lately, with `ago_s` and `opens` (T-563); `pairs`, each stored pair's `label`, `expires_ms`, whether it
   `expired`, and `next_now`, whether `relay pair LABEL` makes its next pair
   now, in its last 24 hours (T-395).
 - It never holds a token: it reads the cache entry without its token field

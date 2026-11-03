@@ -601,7 +601,7 @@ Read; the lines of the files that this entry changed are those of `723d90b`. `se
 `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`; `watch_liveness`
 returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs` lines 95-96 and 138-140 at `23b5d82` put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/pipe/relay.rs:112-188` prints it; `podssh-transport` makes a write error
+`crates/podssh-cli/src/pipe/relay.rs:115-191` prints it; `podssh-transport` makes a write error
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
@@ -2569,7 +2569,7 @@ met.
 - Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:41-53`),
   and DNS over HTTPS one line with each resolver's error
   (`crates/podssh-cli/src/doctor/names.rs:133`); the end of the report gives the counts alone
-  (`crates/podssh-cli/src/doctor/mod.rs:357-373`).
+  (`crates/podssh-cli/src/doctor/mod.rs:348-364`).
 - Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
   (`crates/podssh-ws/src/client.rs:115`), and `HealthError::Connect` the error's text
   (`crates/podssh-relay/src/health.rs:69`). The kind of the I/O error, a reset or a timeout, is
@@ -2614,7 +2614,7 @@ met.
 ## Decision
 
 - After the counts, not above the failures: each line goes out as its check ends
-  (`crates/podssh-cli/src/doctor/mod.rs:328-332`), so a line about them all comes once they are
+  (`crates/podssh-cli/src/doctor/mod.rs:319-323`), so a line about them all comes once they are
   known. Holding each line back until the end lost: a check of a minute would look like a hang.
 - One reference name, `github.com`, which `doctor` uses already
   (`crates/podssh-cli/src/doctor/net.rs:18-20`). A list of names that an allowlist often holds

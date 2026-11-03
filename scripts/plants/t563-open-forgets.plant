@@ -1,0 +1,7 @@
+# T-563: an open removes its host from the record again, as before T-563,
+# so a host that opened lately is not tried first; the test of the order
+# must fail.
+ENTRY=T-563
+GROUP=resume
+EXPECT='test failures::tests::a_host_that_opened_lately_is_tried_first \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib failures'

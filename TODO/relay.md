@@ -336,17 +336,17 @@ record; the second run takes 20 s, and the check fails.
 
 ## Done
 
-2026-10-12. The record in `crates/podssh-relay/src/failures.rs:1-142`: its
-file and window at `crates/podssh-relay/src/failures.rs:22-25`, its entries
-at `crates/podssh-relay/src/failures.rs:40-86`, the order of a run and its
-notes at `crates/podssh-relay/src/failures.rs:90-104`, and the reason of a
-failure at `crates/podssh-relay/src/failures.rs:116-135`. `open` orders
+2026-10-12. The record in `crates/podssh-relay/src/failures.rs:1-315`: its
+file and window at `crates/podssh-relay/src/failures.rs:26-30`, its entries
+at `crates/podssh-relay/src/failures.rs:114-220`, the order of a run and its
+notes at `crates/podssh-relay/src/failures.rs:235-255`, and the reason of a
+failure at `crates/podssh-relay/src/failures.rs:289-308`. `open` orders
 the hosts at `crates/podssh-relay/src/open.rs:207-213` and keeps the record
 after each round at `crates/podssh-relay/src/open.rs:245-251`; the race
 gives the silent hosts at `crates/podssh-relay/src/failover.rs:245-248`.
-`podssh status` at `crates/podssh-cli/src/status.rs:114-118`, `podssh
+`podssh status` at `crates/podssh-cli/src/status.rs:115-119`, `podssh
 doctor` at `crates/podssh-cli/src/doctor/mod.rs:99-109`, THE RELAY in the
-manual at `crates/podssh-cli/src/man/facts.rs:369-379`, and
+manual at `crates/podssh-cli/src/man/facts.rs:369-386`, and
 `docs/relay.md` and `docs/cli.md`.
 
 The unit tests of `crates/podssh-relay/src/failures_tests.rs`, 5: a host
@@ -2140,7 +2140,7 @@ on, and no 1003 reaches it.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2150,9 +2150,11 @@ same host on each other road, as the record is keyed by the host alone.
 
 ## Premise
 
-- `crates/podssh-relay/src/failures.rs:29` says "pub struct Records {", one map of hosts.
-- `crates/podssh-relay/src/failures.rs:35` says "pub struct Record {": a time and a reason, no success.
-- `crates/podssh-relay/src/failures.rs:82` says "self.hosts.remove(host);": an open forgets the host.
+Read, at `1769d79`, in `crates/podssh-relay/src/failures.rs`:
+
+- line 29 says "pub struct Records {", one map of hosts.
+- line 35 says "pub struct Record {": a time and a reason, no success.
+- line 82 says "self.hosts.remove(host);": an open forgets the host.
 
 ## Approach
 
@@ -2170,6 +2172,38 @@ same host on each other road, as the record is keyed by the host alone.
 Fields with defaults in the one cache file, so an older podssh and a newer one share it. Lost: a
 second file, a new permission story for no gain.
 
+Calls of the draft (2026-11-02, Q86), with what lost:
+
+- **For the operator to confirm (Q86): a strike is a session that its host's side cut, not each
+  short session.** Taken as the Approach wrote it, two runs of `git fetch` through `ProxyCommand
+  podssh proxy`, a few seconds each, would rest a host that works. A cut is the relay's Close for
+  its link to podssh (`ForwardClose::Client`: no Close, `client send failed`, `client receive
+  backlog`) or a link that failed with no Close; the target's end, the client's own, the relay's
+  limits (1001, 1009) and a close that the relay's table does not list are none, and break the
+  row. Lost: each short session, which rests a host for a command that was short; the relay's
+  limits as strikes, which would rest a host for a session that carried its 64 MiB.
+- **For the operator to confirm (Q86): a host that opened goes first with no note**, and keeps
+  its place while it opens, its last session not cut; the host before it in the list starts 2 s
+  after it in `staggered`, so it costs no wait while the first answers. Lost: a note in each run,
+  which `podssh proxy` as a `ProxyCommand` would print at each connection for as long as the host
+  works; the list's order among the hosts that did not fail, which is the defect.
+- The WebSocket road's hosts stay under `hosts`, each other road under `roads`, by its name: an
+  older podssh reads the WebSocket road's entries as before and skips the rest; `at_ms` and
+  `reason` are written always, a host that opened with `at_ms` 0, which an older podssh reads as
+  a failure long ago and drops. Lost: one map keyed by `ROAD HOST`, which an older podssh would
+  keep as hosts that never match and never clear. Each run that opens now writes the file once (a
+  few hundred bytes), where a run wrote it only when a failure changed; two runs at once keep the
+  last one's, and an entry lost costs one wait, as before.
+- The end of a session is told by the stream that SSH holds, when SSH lets it go: the relay leg
+  sets its end before its pipe ends, so the end is known then. This covers each command that
+  reaches its first hop as `podssh ssh` does (`cp`, `each`, `job`, `run`, `sftp` and the others);
+  `podssh proxy` and the relay's end of `podssh pipe` tell it at their own end; `podssh chat`,
+  `podssh doctor` and the blocking facade record their opens alone. Lost: a hook in the task of the
+  relay stream of `podssh-ssh`, a callback in a struct for no gain; a task that polls the status.
+- Two strikes in a row rest the host 300 s from the last; the row lasts across the opens between
+  the cuts, as they are what makes it a row, and goes with the entry (10 min with no open, no
+  failure and no strike).
+
 ## Prove
 
 ```sh
@@ -2180,3 +2214,58 @@ cargo test -p podssh-relay --lib failures
 A host that opened is kept and ordered first; two short sessions rest it; a failure of the iroh
 road leaves the WebSocket road's order alone; an older file reads. Planted: the open that removes
 the host again, and the test of the order fails.
+
+## Correction
+
+2026-11-02 (the drafting agent). The record is keyed by the host alone, as the Premise says, but
+at `1769d79` one road alone writes and reads it: `open`, the relay's forward road over WebSocket
+(`crates/podssh-relay/src/open.rs:208-251`), which `ssh`, `proxy`, `pipe`, `chat`, `doctor` and
+the blocking facade share; `status` and `doctor` read it. No other road (iroh, DERP, a node's
+pair, the forwarders) orders its hosts by it, so a failure on one road moves no host on another
+road yet: the key by road keeps it so once a second road records (T-563 makes the place for it),
+and the Prove's iroh road is a road that the test names. The Approach stands, with the calls of
+the Decision: a strike is a session that its host's side cut (the first call).
+
+## Done
+
+Drafted 2026-11-02 by a drafting agent, not built; the main session builds it, runs it and fills
+each UNVERIFIED.
+
+- `crates/podssh-relay/src/failures.rs`: `Record` keeps `opened_ms`, `opens`, `strikes` and
+  `struck_ms` beside `at_ms` and `reason`, each with its default
+  (`crates/podssh-relay/src/failures.rs:53-71`); `Records` keeps the WebSocket road under `hosts`
+  and each other road under `roads` (`crates/podssh-relay/src/failures.rs:41-51`); an open clears
+  the failure and keeps the host (`crates/podssh-relay/src/failures.rs:167-190`); `Records::end`
+  counts a cut within `SHORT` as a strike and breaks the row on each other end
+  (`crates/podssh-relay/src/failures.rs:192-211`), and `ended` keeps it in the cache; `order` puts
+  a host that opened lately first and one that failed or rests last, with its note
+  (`crates/podssh-relay/src/failures.rs:231-255`); `recent` gives each road's hosts with what
+  failed and what opened (`crates/podssh-relay/src/failures.rs:268-284`). `open` names the
+  WebSocket road (`crates/podssh-relay/src/open.rs:209`, `crates/podssh-relay/src/open.rs:249`).
+- `crates/podssh-cli/src/relay_ends.rs`: what a cut is (`cut_by`, `cut`), and `Told`, the relay
+  stream that tells the record how its session ended once SSH lets it go, which
+  `crates/podssh-cli/src/ssh/transport.rs:206` spawns. `podssh proxy`
+  (`crates/podssh-cli/src/proxy.rs:363`) and the relay's end of `podssh pipe` (`carry_opened`)
+  tell it at their end (`crates/podssh-cli/src/pipe/relay.rs:210-212`).
+- `podssh status`: `relay_failures` names the road, and `relay_opened` gives the hosts that opened
+  lately (`crates/podssh-cli/src/status.rs:211-218`); `podssh doctor`'s line `failed relays` says
+  each host tried last, and a line `opened relays` those tried first
+  (`crates/podssh-cli/src/doctor/mod.rs:397-425`). THE RELAY in the manual
+  (`crates/podssh-cli/src/man/facts.rs:369-386`), `docs/relay.md` (step 5 of the selection) and
+  `docs/cli.md` (`podssh status`).
+- Tests: in `crates/podssh-relay/src/failures_tests.rs`, the five of T-059 on the road, the round
+  that keeps the host that opened, and `a_host_that_opened_lately_is_tried_first`,
+  `two_short_sessions_in_a_row_rest_the_host`,
+  `a_failure_on_one_road_leaves_the_other_road_s_order_alone`,
+  `the_recent_entries_say_both_what_failed_and_what_opened`,
+  `an_older_file_reads_and_an_older_podssh_reads_this_one`; in `relay_ends`,
+  `only_an_end_on_the_host_s_side_is_a_cut`. `cargo test -p podssh-relay --lib failures`:
+  UNVERIFIED. `cargo test -p podssh-cli --lib relay_ends`: UNVERIFIED. `cargo test -p podssh-cli
+  --test status`: UNVERIFIED (the line has a new key, which no test reads).
+- Planted, `scripts/plants/t563-open-forgets.patch` (the open that removes its host again): the
+  test of the order must fail; UNVERIFIED. `scripts/plants/t059-faults-recorded.patch` is made
+  again for the new `order`; its run (`ssh-faults`): UNVERIFIED.
+- Waits for the checks of the release (T-251): the gate's `faults.recorded.*` of
+  `scripts/interop-faults.sh` in the build image, whose second run now finds `relay-a.test`
+  first, as it opened in the first run, and `relay-silent.test` last with its note: UNVERIFIED.
+- `docs/STATUS.md`: a row in "Build, tests, CI".
