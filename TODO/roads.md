@@ -7895,7 +7895,10 @@ and HTTP/2 alone.
   and a proxy's 502, 503 or 504 had the hint of a proxy that allows listed names alone, and now
   says that the proxy's own way out failed, with "it may have no IPv6 route" for an IPv6 peer
   (`crates/podssh-warp/src/road.rs`, `fault`; its test `a_refused_address_names_the_proxy_and_
-  the_case`). The repaired step's run is in `docs/STATUS.md`'s row.
+  the_case`). The repaired step at `cde307f` (run 41597035711, 2026-11-03): the record's peers
+  `162.159.198.2:443` and `[2606:4700:103::2]:443`, each tried in turn and named, the IPv6 one
+  with "could not reach [2606:4700:103::2]:443 (502 Bad Gateway): its own way out to that
+  address failed, and it may have no IPv6 route"; the step passed, and so did the run.
 
 # T-562: WARP's registration dials one name of the API, with no second route
 
@@ -8011,10 +8014,12 @@ reads of T-399); a new registration tries `PODSSH_WARP_API`, then the API's two 
 - Planted (`sh scripts/plant-each.sh --here t562-one-route`, the second route dropped): caught,
   `a_first_route_that_is_not_reached_hands_the_registration_to_the_second` failed. T-560's and
   T-561's plants, whose patches the draft moved: each caught again.
-- Waits: the live run (Q52, Q59), `warp-live.yml` by hand after the push: a throwaway device
-  registered through `api.devices.cloudflare.com` alone, its record's route that name, and
-  GitHub's banner through its tunnel. If the step fails, the second name comes out of
-  `register::API_HOSTS`, the manual and the documents, and this Done says why.
+- Live (Q52, Q59), `warp-live.yml` at `cde307f` (run 41597035711, 2026-11-03): the first device
+  registered through `api.cloudflareclient.com` ("WARP's API answered at api.cloudflareclient.com")
+  and its record kept the API's route; a second throwaway device, in a cache of its own, registered
+  through `api.devices.cloudflare.com` alone, its record's route that name, and its tunnel carried
+  GitHub's SSH banner; its cache was removed with the step. The second name is the same API, and
+  stays in `register::API_HOSTS`.
 
 # T-585: WARP's road names a proxy that re-terminates TLS on a road with no proxy
 

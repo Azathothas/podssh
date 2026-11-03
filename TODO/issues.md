@@ -174,16 +174,16 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #99 | `doctor` says once that each TLS handshake was reset | open | T-487 (the kind of each failure kept, not read from the system's words; a reference handshake with `github.com`; a diagnosis after the counts) |
 | #100 | `cp` chooses `--parallel` itself for many small files | open | T-474 (Q23 sets the default of relay sessions; the files at once are channels of one connection: T-474's Decision) |
 | #101 | `podssh mcp` offers `cp`, `job` and `health` as tools | open | T-488 (with `session`, which the issue names too; the copy's local side behind a new `--allow-dir`, the sessions behind `--allow-session`) |
-| #102 | `chat --listen --linger`, and a word on the end of stdin | open | T-489 (the listener connects out to the relay, so `--linger` adds no listener) |
+| #102 | `chat --listen --linger`, and a word on the end of stdin | closed 2026-11-03, its entry done (`ea2a70b`) | T-489 (the listener connects out to the relay, so `--linger` adds no listener) |
 | #103 | `run` reads a `.podsshignore` by default, and `--dry-run` | open | T-475 (its first ask is met already, `crates/podssh-cli/src/run_cmd/mod.rs:141-145`, as its comment found) |
 | #104 | A target that ends the connection right after the login reads as a refused session | closed 2026-11-02, its entry done (`772275c`) | T-464 (the words "Disconnected" and "Channel send error" are russh's, not the server's) |
 | #105 | `cp -r` says a skip twice, and exits 66 for a skip | closed 2026-11-03, its entry done (`a383ce9`) | T-476 (the line said twice is the first failure of the tree, not the last skip) |
 | #106 | The fallback to other products' forwarders should be asked for: 20.8 s against 0.14 s on a dead target, and the target goes to three services | closed 2026-11-03, its entry done (`b32ecef`) | T-509 (the fallback follows the relay's answer about the target too, a 502 or a refusal by policy, which no forwarder mends; the default of off is the operator's to rule, as Q56 set it on) |
 | #107 | WARP's road opens on TLS to the edge, and proves no packet through the tunnel | open | T-560 |
 | #108 | WARP's road dials one constant address, not the API's peers | closed 2026-11-03, its entry done (`c5299c2`) | T-561 |
-| #109 | WARP's registration has one API name and no second route | open | T-562 (the second name goes in once a live run shows it is the same API) |
+| #109 | WARP's registration has one API name and no second route | closed 2026-11-03, its entry done (`cde307f`) | T-562 (the second name goes in once a live run shows it is the same API) |
 | #110 | The relay's record forgets a host that opens, and keys each road's verdict by the host | closed 2026-11-03, its entry done (`7abebd2`) | T-563 |
-| #111 | podssh never raises its soft limit of open files | open | T-564 |
+| #111 | podssh never raises its soft limit of open files | closed 2026-11-03, its entry done (`5b643b1`) | T-564 |
 | #112 | A node refuses each new session once its replay budget is full, and names the budget, not its cause | closed | T-586 (inferred, which its Prove measures: OpenSSH ends its ProxyCommand `operator` with SIGHUP, and the node keeps each such session 10 minutes, charged a whole buffer) |
 | #113 | `proxy` cannot address `node://NAME` | open | T-587 (`proxy node://NAME` as the pipe of `operator NAME`, a call of Q86; the issue's prefix `podssh ssh:` is not this code's) |
 | #114 | `ssh node://` waits the whole ConnectTimeout, where `operator` to the same node reads sshd's line in 3 s | closed | T-588 (not reproduced; no test runs `ssh node://` from Windows) |
