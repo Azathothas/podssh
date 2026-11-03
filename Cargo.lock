@@ -3133,7 +3133,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "serde",
- "simple-dns",
+ "simple-dns 0.12.0",
  "smallvec",
  "strum",
  "time",
@@ -3180,7 +3180,7 @@ dependencies = [
  "portable-atomic",
  "rand 0.10.3",
  "rustls",
- "simple-dns",
+ "simple-dns 0.12.0",
  "strum",
  "tokio",
  "tracing",
@@ -3798,7 +3798,7 @@ dependencies = [
  "reqwest",
  "rustc-hash",
  "rustls",
- "simple-dns",
+ "simple-dns 0.12.0",
  "system-configuration",
  "tokio",
  "tokio-rustls",
@@ -4958,7 +4958,7 @@ dependencies = [
  "rcgen",
  "rustls",
  "sha2 0.11.1",
- "simple-dns",
+ "simple-dns 0.13.0",
  "tokio",
  "tokio-rustls",
  "url",
@@ -6658,6 +6658,15 @@ name = "simple-dns"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b6f884fa9a8d48101774bfbd3aeb81e968dd22cffd19a372da69f183db22c1a"
+dependencies = [
+ "bitflags 2.13.2",
+]
+
+[[package]]
+name = "simple-dns"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f6dbb5d714bdbc8d8f9d0f556c4e914384b794af849092033513f0898245f88"
 dependencies = [
  "bitflags 2.13.2",
 ]
