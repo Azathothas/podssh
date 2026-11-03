@@ -162,7 +162,7 @@ fn the_commands_of_an_exit_are_refused_as_the_manual_says_with_no_connection() {
         (words(&["exit", "lab", "--listen", "0.0.0.0:1080"]), 64, "a loopback address alone"),
         (words(&["exit", "--listen", "1080"]), 64, "missing NAME"),
         (words(&["proxy", "--exit", "lab", "--relay-host", "r.example", "h.example", "22"]), 64, "relay's place"),
-        (words(&["proxy", "--client-key", "k", "h.example", "22"]), 64, "give --exit too"),
+        (words(&["proxy", "--client-key", "k", "h.example", "22"]), 64, "--exit NAME or node://NAME"),
         (words(&["ssh", "--exit", "lab", "node://lab"]), 64, "--exit NAME starts the road"),
         (words(&["ssh", "--exit", "lab", "--direct", "u@h.example"]), 64, "--exit NAME starts the road"),
         (words(&["ssh", "--exit", "lab", "-4", "u@h.example"]), 64, "-4 and -6"),
