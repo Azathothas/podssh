@@ -15,14 +15,23 @@
 //! gave 0, and 255 when one could not connect or log in, as `podssh ssh`
 //! exits. A usage error is 64 and a bad setting 78, before anything
 //! connects; a file of `--output-dir` that cannot be made is 73.
+//!
+//! **A record for a program** ([`record`], T-484): with `--result-file
+//! FILE` one JSON object in FILE at the end, each host's status, failure,
+//! bytes and relay in it, the lines as they are; with `--json` the same
+//! object on stdout, each host's streams in its record and no line with a
+//! label.
 
 // `--interactive`: each line typed to the shells of many hosts (T-185).
 pub mod broadcast;
 pub mod fan;
 mod host;
 pub mod out;
+mod record;
 
 use std::io::Write;
+use std::path::Path;
+use std::sync::Mutex;
 
 use clap::ArgMatches;
 use podssh_ssh::LogLevel;
@@ -52,6 +61,9 @@ pub struct EachArgs {
     pub parallel: Option<String>,
     pub fail_fast: bool,
     pub output_dir: Option<String>,
+    /// `--json`: the record on stdout (T-484); `--result-file` is read
+    /// with the connection flags, as `ssh`'s.
+    pub json: bool,
     /// `--interactive` and `--confirm` (T-185), and `--stop-key` (T-322).
     pub interactive: bool,
     pub confirm: bool,
@@ -78,6 +90,7 @@ impl EachArgs {
             parallel: one("parallel"),
             fail_fast: flag("fail-fast"),
             output_dir: one("output-dir"),
+            json: flag("json"),
             interactive: flag("interactive"),
             confirm: flag("confirm"),
             stop_key: one("stop-key"),
@@ -95,9 +108,13 @@ pub fn parallel(text: Option<&str>) -> Result<usize, String> {
     }
 }
 
-/// Run `podssh each`; the process exit code.
-pub fn run_each(args: &EachArgs, err: &mut dyn Write) -> i32 {
+/// Run `podssh each`; the process exit code. With `--json` the record goes
+/// to `out`, the hosts' lines nowhere (T-484).
+pub fn run_each(args: &EachArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let usage = |err: &mut dyn Write, why: String| Refusal::usage(why).report("each", err);
+    if args.ssh.result_file.as_deref() == Some("-") {
+        return usage(err, "--result-file -: stdout carries the hosts' lines; name a file, or give --json".into());
+    }
     let Some(word) = args.hosts.as_deref() else {
         return usage(err, "give the hosts and the command: podssh each HOSTS -- COMMAND".into());
     };
@@ -156,9 +173,12 @@ pub fn run_each(args: &EachArgs, err: &mut dyn Write) -> i32 {
             return podssh_ssh::EXIT_FAILURE;
         }
     };
+    // What each host's session did, for the record (T-484).
+    let ran: Vec<Mutex<Option<host::Ran>>> = plans.iter().map(|_| Mutex::new(None)).collect();
     // On the heap: the future of each host is large, and Windows gives the
     // main thread 1 MiB of stack.
-    let ends = runtime.block_on(Box::pin(fan_out(&plans, files, parallel, args.fail_fast)));
+    let spread = Spread { plans: &plans, ran: &ran, parallel, fail_fast: args.fail_fast, json: args.json };
+    let ends = runtime.block_on(Box::pin(fan_out(spread, files)));
     // A read of a helper thread may still wait; the run is over.
     runtime.shutdown_background();
     if plans.iter().any(|p| p.resolved.options.log_level > LogLevel::Quiet) {
@@ -171,7 +191,23 @@ pub fn run_each(args: &EachArgs, err: &mut dyn Write) -> i32 {
     if !ends.iter().any(|end| matches!(end, Ended::Failed(_))) {
         crate::error_program::not_a_failure();
     }
-    fan::exit_status(&ends)
+    let code = fan::exit_status(&ends);
+    if args.json || args.ssh.result_file.is_some() {
+        let dir = args.output_dir.as_deref().map(Path::new);
+        let hosts = plans.iter().zip(&ends).zip(&ran).map(|((plan, ended), ran)| {
+            let ran = ran.lock().unwrap_or_else(|e| e.into_inner()).take();
+            let files = dir.map(|dir| out::paths(dir, &plan.label));
+            record::host(&plan.label, &host::destination(plan), ended, ran.as_ref(), files.as_ref())
+        });
+        let object = record::object(code, hosts.collect(), &ends);
+        if let Some(path) = &args.ssh.result_file {
+            crate::ssh::result::write("each", path, &object, err);
+        }
+        if args.json {
+            let _ = writeln!(out, "{object}");
+        }
+    }
+    code
 }
 
 /// The notes and the warnings of the hosts, each text once, with its host:
@@ -194,8 +230,20 @@ fn say_once(plans: &[Plan]) {
     }
 }
 
+/// What the fan-out takes: the hosts, a place for what each did, and the
+/// flags of the fan-out.
+struct Spread<'a> {
+    plans: &'a [Plan],
+    ran: &'a [Mutex<Option<host::Ran>>],
+    parallel: usize,
+    fail_fast: bool,
+    /// `--json`: each host's streams go into its record, not into lines.
+    json: bool,
+}
+
 /// The fan-out, with one writer for the lines of each host.
-async fn fan_out(plans: &[Plan], files: Vec<Option<out::Files>>, parallel: usize, fail_fast: bool) -> Vec<Ended> {
+async fn fan_out(spread: Spread<'_>, files: Vec<Option<out::Files>>) -> Vec<Ended> {
+    let Spread { plans, ran, parallel, fail_fast, json } = spread;
     if let Some(first) = plans.first() {
         host::first_token(&first.resolved, &first.log).await;
     }
@@ -205,9 +253,14 @@ async fn fan_out(plans: &[Plan], files: Vec<Option<out::Files>>, parallel: usize
     let ends = fan::fan_out(plans.len(), parallel, fail_fast, move |i| {
         let place = match files[i].take() {
             Some(files) => Place::Files(files),
+            None if json => Place::Kept,
             None => Place::Lines { label: plans[i].label.clone(), to: to.clone() },
         };
-        host::run(&plans[i], place)
+        async move {
+            let (ended, did) = host::ran(&plans[i], place).await;
+            *ran[i].lock().unwrap_or_else(|e| e.into_inner()) = Some(did);
+            ended
+        }
     })
     .await;
     // Each sender is gone with the closure: the writer ends with the last line.

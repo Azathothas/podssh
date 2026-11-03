@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/each/host.rs
++++ b/crates/podssh-cli/src/each/host.rs
+@@ -172,7 +172,8 @@
+     // The session's own record: hosts at once each write theirs, and none
+     // the process's (T-484).
+     let session = podssh_ssh::outcome::scoped(session);
+-    let ((ended, record), drained) = tokio::join!(Box::pin(session), out::drain(pieces, place));
++    let ((ended, _), drained) = tokio::join!(Box::pin(session), out::drain(pieces, place));
++    let record = podssh_ssh::outcome::record();
+     let kept = drained.unwrap_or_else(|why| {
+         plan.log.error(&why);
+         None

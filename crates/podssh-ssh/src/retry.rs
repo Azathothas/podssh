@@ -4,7 +4,7 @@
 //! request went out, so the try is podssh's, and the exit codes stay
 //! OpenSSH's.
 
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::Ordering;
 
 use podssh_ws::session::{forward_close, ForwardClose};
 use podssh_ws::SessionError;
@@ -25,23 +25,23 @@ pub enum Phase {
     Requested,
 }
 
-/// How far the run of this process got. A process runs one chain of
-/// connections at a time, as the handler's last disconnect assumes.
-static PHASE: AtomicU8 = AtomicU8::new(0);
+// How far a run got is kept in its session's record, beside its facts
+// ([`crate::outcome`]): the process's, as a process runs one chain of
+// connections at a time, or each host's own in `podssh each` (T-484).
 
 /// A new run starts at its handshake.
 pub(crate) fn begin() {
-    PHASE.store(Phase::Handshake as u8, Ordering::SeqCst);
+    crate::outcome::here().with(|r| r.phase.store(Phase::Handshake as u8, Ordering::SeqCst));
 }
 
 /// The run got as far as `phase`; it never goes back.
 pub(crate) fn reached(phase: Phase) {
-    PHASE.fetch_max(phase as u8, Ordering::SeqCst);
+    crate::outcome::here().with(|r| r.phase.fetch_max(phase as u8, Ordering::SeqCst));
 }
 
-/// How far the run of this process got.
+/// How far the run of this session got, or of this process.
 pub fn phase() -> Phase {
-    match PHASE.load(Ordering::SeqCst) {
+    match crate::outcome::here().with(|r| r.phase.load(Ordering::SeqCst)) {
         0 => Phase::Handshake,
         1 => Phase::Auth,
         2 => Phase::Ready,

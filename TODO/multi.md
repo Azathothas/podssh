@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:4415-4418`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:4441-4444`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4595-4704`); they cannot define a group.
+  (`docs/cli.md:4621-4730`); they cannot define a group.
 
 ## Approach
 
@@ -904,7 +904,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:140`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:340-342`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:341-343`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:246`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:4415-4418`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:4441-4444`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1812,9 +1812,9 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:90-110`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:386-427`.
+  `crates/podssh-cli/src/dispatch.rs:387-428`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:4415-4418`), which is not a failure of podssh.
+  status (`docs/cli.md:4441-4444`), which is not a failure of podssh.
 
 ## Approach
 
@@ -3018,7 +3018,7 @@ pair of a good and a dead one: `podssh each --json` is an unknown flag.
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3032,14 +3032,15 @@ failure's words, no signal and no time. The other surfaces give one object (`ssh
 
 - Read: the rows of `each` have no `--json` and no `--result-file`
   (`crates/podssh-cli/src/flags/each.rs`); its summary is lines for people on stderr, above the
-  level quiet only (`crates/podssh-cli/src/each/mod.rs:164-168`,
+  level quiet only (`crates/podssh-cli/src/each/mod.rs:184-188`,
   `crates/podssh-cli/src/each/fan.rs:75-93`).
 - Read: a host ends with its status, the first line of its failure, or not started
   (`crates/podssh-cli/src/each/fan.rs:10-20`); its signal, its end, the class of its failure, its
   bytes and its time are not kept.
 - Read: the record of a run of `ssh`, which `--result-file` writes, is the process's
-  (`crates/podssh-ssh/src/outcome.rs:1-6`), and `run_outcome` gives back a code, a retry and lines
-  only (`crates/podssh-ssh/src/run.rs:50-54`). T-183's Done says that each host's session takes
+  (`crates/podssh-ssh/src/outcome.rs`, lines 1-6 at `b02d8c4`), and `run_outcome` gives back a
+  code, a retry and lines only (`crates/podssh-ssh/src/run.rs:50-54`). T-183's Done says that
+  each host's session takes
   the process's records, so that a lost session's words may name another host's error, and that
   `each` writes no `--result-file`.
 - Read: `podssh mcp` runs each call as a child for the same reason
@@ -3074,6 +3075,32 @@ failure's words, no signal and no time. The other surfaces give one object (`ssh
 - One object, as the issue asks, and `--result-file` for a script that wants the lines too. A JSON
   line as each host ends (`--jsonl`) lost for now: a script then needs a reader of a stream for
   what one object gives.
+- 2026-11-03, the draft: the record of a session is a scope that its caller opens around it
+  (`podssh_ssh::outcome::scoped`, and `outcome::Scope` for work that a deadline may drop), a
+  task-local of tokio that each future of the session sees, in place of a value that
+  `run_outcome` gives back (step 1). Facts of a session come from outside `run_outcome` too: the
+  relay host at `transport::reach`, the relay's close after it, and the server's words from the
+  handler, which russh runs in a task of its own; a value of `run_outcome` would miss them, and
+  each of the some 40 calls that write the record would need it handed down. With no scope the
+  record is the process's, so `podssh ssh` and its `--result-file` read as they did, with nothing
+  to fill at the end. Lost: the value of `run_outcome` (it misses what comes before and after
+  it); a record handed through each call (each writer changes, and a forgotten one writes
+  nowhere).
+- 2026-11-03, the draft: the phase of a try (`podssh_ssh::retry`) and the handler's last words go
+  into the same record, as T-183's Done names all three: a `Client` takes the record of the
+  session that made it (`outcome::here`), and its task writes the server's words there. Lost: the
+  facts alone, which leave a lost session free to name another host's error.
+- 2026-11-03, the draft: the streams take `ssh_exec`'s form, `stdout_encoding` and
+  `stderr_encoding` beside `stdout` and `stderr` (the Correction); `truncated` when either stream
+  passed the cap.
+- 2026-11-03, the draft: `--result-file` with `--interactive` is refused too (64), as `--json` is:
+  the broadcast runs shells, whose ends the record of a command does not give. Lost: a flag taken
+  and ignored.
+- 2026-11-03, the draft: `counts` has `hosts`, `ok`, `failed` and `not_started`, the summary's
+  counts; each host's record has `files`, null without `--output-dir`, so that its keys are the
+  same either way, and the keys of the streams only with `--json` and no `--output-dir`. A host
+  with no session ends `failed`, with the class `connect` unless its session said another
+  (`auth`, `host-key`, `relay`), as `ssh --result-file` gives it.
 
 ## Prove
 
@@ -3091,6 +3118,62 @@ holds each host's stdout byte for byte, and bytes that are not UTF-8 as base64. 
 `scripts/interop-each.sh` (OpenSSH and Dropbear at once): the object of `exit 3` and `exit 0`.
 Planted (new, t484-shared-record): the hosts' facts read from the process's record; the test of
 the two failures at once fails.
+
+## Correction
+
+- The Decision's `stdout_base64` and `stderr_base64` are not `ssh_exec`'s form: `ssh_exec` gives
+  `stdout` with `stdout_encoding` (`utf-8` or `base64`), and `stderr` with `stderr_encoding`
+  (`crates/podssh-cli/src/mcp/tools.rs:327`). The record takes that form, which a client of
+  `podssh mcp` reads already.
+- The Prove's `exit 3` on one host and `exit 0` on another: the test's server runs one command
+  on each host, and its hosts differ by their users alone, so `cat` gives 0, and 127 for a user
+  `bare-...`, whose host has no `cat` (`crates/podssh-cli/tests/ssh_harness/mod.rs:292`), and
+  `exit 3` gives 3 on each host. In `scripts/interop-each.sh` the command by the server's port
+  gives 0 from OpenSSH and 3 from Dropbear.
+
+## Done
+
+2026-11-03, drafted by an agent and merged, built and run the same day.
+
+- `crates/podssh-ssh/src/outcome.rs`: the record of a session (`Recorder`: the bytes, the facts,
+  the phase of a try, the server's last words and the connection's last error), the process's
+  (`PROCESS`) and a task-local of a session (`scoped`, `Scope`); `Here`, the record that a call
+  writes now, which a `Client` takes along into russh's task (`crates/podssh-ssh/src/handler.rs`).
+  `crates/podssh-ssh/src/retry.rs` keeps its phase there. The tests in
+  `crates/podssh-ssh/src/outcome_tests.rs`.
+- `crates/podssh-cli/src/each/`: `record.rs`, new (each host's record and the run's object);
+  `host.rs` runs each host's session in a scope of its own, keeps the class of a road that failed
+  and the relay's close, and gives back what the session did (`Ran`); `out.rs` keeps the streams
+  for `--json` (`Place::Kept`, 1 MiB each, as `ssh_exec`) and names a host's files (`paths`);
+  `mod.rs` writes the record with `--result-file` and `--json`, refuses `--result-file -` (64),
+  and gives `each` its stdout (`crates/podssh-cli/src/dispatch.rs`); `broadcast/mod.rs` refuses
+  `--json` and `--result-file` (64). `crates/podssh-cli/src/ssh/result.rs` holds the parts of
+  `ssh`'s object that `each` gives too, and the one writer, which names its verb.
+  `crates/podssh-cli/src/mcp/mod.rs` gives the crate `text`, `Captured` and `SSH_CAP`, the form of
+  the streams and their cap, and keeps its modules its own.
+- The rows `--json` and `--result-file` of `each` (`crates/podssh-cli/src/flags/each.rs`), a note
+  of the manual (`crates/podssh-cli/src/man/notes_each.rs`), `docs/cli.md` ("`podssh each`") and a
+  row of `docs/STATUS.md`.
+- Tests: `cargo test -p podssh-ssh --lib outcome`, 3 passed (two sessions at once keep their own
+  facts, bytes, phase and words; a task apart writes the record that it took; a scope keeps what
+  its dropped work did); `cargo test -p podssh-cli --lib each::`, 26 passed (a host's record with
+  a status, with no session and its class, not started; the streams as text and as base64, the
+  cap; the counts; the files by name); `cargo test -p podssh-cli --test each`, 23 passed (the
+  file of `cat` on a host, a `bare-` host and a closed port: 0, 127, 255 with `connect` and its
+  words, in order, mode 0600; a refused key and a closed port at once, in each order, `auth` and
+  `connect` with their own words; `--json` of `exit 3` with `out` and `err!` byte for byte and
+  the bytes 4 and 5, `bytes ff00` as `/wA=` in base64, the files of `--output-dir` by name; the
+  refusals, 64); `cargo test -p podssh-cli --test ssh_result`, unchanged, 5 passed; the library
+  of `podssh-cli`, 765 passed; `man_page` 11, `man_flag_parity` 6, `flag_table` 9, `man_json` 4;
+  clippy `-p podssh-cli -p podssh-ssh --all-targets -D warnings`: clean.
+- The merge also repaired T-475's note of `run`, which named `--delete`, a flag that `run` has
+  not (`man::notes::tests::each_name_in_a_note_exists`).
+- Planted, `scripts/plants/t484-shared-record.patch` (each host's facts read from the process's
+  record): `git apply --check` passes; caught: `two_hosts_that_fail_at_once_each_name_their_own_failure` failed.
+- In the gate (`scripts/interop-each.sh`, OpenSSH and Dropbear at once): `each.json` (0 from
+  OpenSSH and 3 from Dropbear, each in its record) and `each.result_file` (`exit 3` on both and a
+  closed port: the statuses, the bytes, `connect` and its words, and the lines), in
+  `scripts/interop-baseline.txt`; the gate's step `release` runs them at the push.
 
 # T-485: `job log --follow`: a job's output as it comes, on one connection, then its status
 
@@ -3267,7 +3350,7 @@ host runs nothing anywhere.
 - Read: `podssh ssh` takes a word that is no pattern as one host
   (`crates/podssh-cli/src/hosts.rs:29-33`), so `a b` goes to the name check of the road (T-503).
 - Read: the hosts are expanded, then each is resolved, before anything connects
-  (`crates/podssh-cli/src/each/mod.rs:124-134`); the resolve of the direct road takes `a`, and the
+  (`crates/podssh-cli/src/each/mod.rs:141-151`); the resolve of the direct road takes `a`, and the
   relay road takes it too, so the blank is the only fault, and it is lost.
 
 ## Approach

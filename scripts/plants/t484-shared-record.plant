@@ -1,0 +1,8 @@
+# T-484: each host's facts are read from the process's record, not from its
+# session's own, as two hosts at once would share it; the record of a
+# refused key then has no class of its own, and the test of two failures at
+# once must fail.
+ENTRY=T-484
+GROUP=cli-tests
+EXPECT='test each_json::two_hosts_that_fail_at_once_each_name_their_own_failure \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test each -- each_json::two_hosts_that_fail_at_once_each_name_their_own_failure'

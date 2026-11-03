@@ -19,7 +19,7 @@ pub const RUN: &[&str] = &[
      left as they were, the paths that the excludes left out, and how long it took; -q silences it, and \
      -v names each path left out with its pattern.",
     "Nothing on the host is removed: an exclude leaves a path out of the copy, and what an earlier run \
-     sent stays on the host, as podssh run has no --delete. podssh cp -r has no default excludes and \
+     sent stays on the host, as podssh run removes no path there. podssh cp -r has no default excludes and \
      reads no .podsshignore: it copies what its command line names, and only --exclude and \
      --exclude-from leave paths out.",
     "--dry-run connects and makes the copy's looks, which only read, then says on stdout each action \

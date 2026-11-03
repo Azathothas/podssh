@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**573 entries: 113 open, 2 partial, 2 blocked, 456 done.**
+**573 entries: 112 open, 2 partial, 2 blocked, 457 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 41 | 1 | 0 | 219 | 261 |
-| P3 | 72 | 0 | 2 | 173 | 247 |
-| **All** | 113 | 2 | 2 | 456 | 573 |
+| P3 | 71 | 0 | 2 | 174 | 247 |
+| **All** | 112 | 2 | 2 | 457 | 573 |
 
 ## Entries
 
@@ -548,7 +548,7 @@ repository and CI).
 | [T-481](multi.md) | P2 | M | none | feature | done | `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked |
 | [T-482](multi.md) | P2 | L | none | feature | done | `health --preflight`: what the far host allows, from one login, before a long command needs it |
 | [T-483](pipe.md) | P3 | S | none | feature | done | `http-listen:` takes `ssh:[USER@]HOP` with no target, and `pipe --help` shows the proxy of an SSH server with its client |
-| [T-484](multi.md) | P3 | M | none | feature | open | `each --json` and `each --result-file`: each host's status, failure and streams in one object |
+| [T-484](multi.md) | P3 | M | none | feature | done | `each --json` and `each --result-file`: each host's status, failure and streams in one object |
 | [T-485](multi.md) | P3 | S | none | feature | done | `job log --follow`: a job's output as it comes, on one connection, then its status |
 | [T-486](machine.md) | P3 | M | none | feature | open | `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file` |
 | [T-487](ws.md) | P3 | S | none | feature | done | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |

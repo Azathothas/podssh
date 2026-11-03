@@ -13,32 +13,31 @@ use crate::hostkey::{Offer, Policy, Verdict};
 use crate::log::Log;
 use crate::options::Agent;
 
-/// The last SSH_MSG_DISCONNECT of a server in this process, made safe: a
-/// run of `-N` says it once the connection ended (T-026). A process runs
-/// one chain of connections, so one is enough.
-static LAST_DISCONNECT: Mutex<Option<String>> = Mutex::new(None);
+// The last SSH_MSG_DISCONNECT of a server, made safe, and why the last
+// connection failed after its handshake, in words, are kept in the record
+// of the session ([`crate::outcome`]): the process's, which runs one chain of
+// connections, or each host's own in `podssh each`, so that a lost session
+// never names another host's error (T-484). The handler runs in russh's own
+// task, so each `Client` takes the record of the session that made it.
 
-/// The last server's words of a disconnect, taken.
+/// The last server's words of a disconnect, taken: a run of `-N` says them
+/// once the connection ended (T-026).
 pub fn take_last_disconnect() -> Option<String> {
-    LAST_DISCONNECT.lock().unwrap_or_else(|e| e.into_inner()).take()
+    crate::outcome::take_said()
 }
 
-/// Why the last connection of this process failed after its handshake, in
-/// words: russh gives the error to the handler alone, and a lost session
-/// names it (T-227: a write that made no progress, a reset).
-static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
-
-/// The last connection's error, taken.
+/// The last connection's error, taken: russh gives the error to the
+/// handler alone, and a lost session names it (T-227: a write that made no
+/// progress, a reset).
 pub fn take_last_error() -> Option<String> {
-    LAST_ERROR.lock().unwrap_or_else(|e| e.into_inner()).take()
+    crate::outcome::take_broke()
 }
 
 /// Whether a server's words or an error are kept, untaken: russh tells the
 /// handler after it closed the queue of requests, so an open can fail first
 /// (T-464).
 pub fn cause_kept() -> bool {
-    LAST_DISCONNECT.lock().unwrap_or_else(|e| e.into_inner()).is_some()
-        || LAST_ERROR.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    crate::outcome::cause_kept()
 }
 
 pub struct Client {
@@ -65,6 +64,9 @@ pub struct Client {
     /// The handshake's record, where the host key's question is marked while
     /// it waits (T-588).
     record: crate::handshake::Record,
+    /// The record of the session that made this client, where the server's
+    /// last words and the connection's error go (T-484).
+    here: crate::outcome::Here,
 }
 
 impl Client {
@@ -79,6 +81,7 @@ impl Client {
             x11: None,
             limits: crate::algorithms::HostLimits::default(),
             record: crate::handshake::Record::default(),
+            here: crate::outcome::here(),
         }
     }
 
@@ -195,12 +198,12 @@ impl Handler for Client {
                 } else {
                     format!("{text} ({:?})", info.reason_code)
                 };
-                *LAST_DISCONNECT.lock().unwrap_or_else(|e| e.into_inner()) = Some(said.clone());
+                self.here.said(said.clone());
                 *self.disconnect.lock().unwrap_or_else(|e| e.into_inner()) = Some(said);
                 Ok(())
             }
             DisconnectReason::Error(e) => {
-                *LAST_ERROR.lock().unwrap_or_else(|e| e.into_inner()) = Some(crate::run::describe(&e));
+                self.here.broke(crate::run::describe(&e));
                 Err(e)
             }
         }

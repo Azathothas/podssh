@@ -36,6 +36,17 @@ pub const EACH: &[&str] = &[
     "At the end a summary on stderr gives each host and its status; -q leaves it out. The exit status is \
      the largest of the hosts': 0 only when each host gave 0, and 255 when one could not connect or log \
      in. With --fail-fast no host starts after one failed, and the hosts that run end as they end.",
+    "For a program: --result-file FILE writes one JSON object to FILE at the end, a new file for its \
+     owner alone, and the lines stay as they are; - is refused (64). --json writes the same object on \
+     stdout once each host ended, with each host's stdout and stderr in its record in place of the lines: \
+     1 MiB of each at most, as text when it is UTF-8 and else as base64, as stdout_encoding and \
+     stderr_encoding say, and truncated when more came; podssh's own lines stay on stderr. With \
+     --output-dir the bytes go to the files, and the record names them (files). The object has schema, \
+     podssh (the version), exit, counts (hosts, ok, failed and not_started) and hosts, in the order of the \
+     list, each with host, destination (user@host:port), exit (its part, null when it did not start), \
+     status, signal, end, failure, bytes and relay as podssh ssh --result-file gives them, error (the \
+     words of its failure), duration_ms and files. Each host's facts are its own session's, also when \
+     hosts fail at once. With --interactive, --json and --result-file are refused (64).",
     "podssh each --interactive HOSTS (T-185) opens a shell with no pty on each host, 64 hosts at most, and \
      each line typed goes to the hosts of the selection, at first each host; the output of each comes as \
      HOST: LINE. The terminal keeps its normal mode, so that its own line discipline edits the line. A line \

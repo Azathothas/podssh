@@ -1,6 +1,6 @@
 //! The flag rows of `each` (T-183): the connection flags of `ssh` that make
-//! sense for many hosts, the three of the fan-out, and the two of a snippet
-//! (T-187), shared with `ssh`. A module of its own
+//! sense for many hosts, the three of the fan-out, the two of a record
+//! (T-484), and the two of a snippet (T-187), shared with `ssh`. A module of its own
 //! so that `flags.rs` stays short; the rules of the table are in [`super`].
 
 use super::{row, FlagKind, FlagRow};
@@ -15,6 +15,11 @@ pub const EACH_FLAGS: &[FlagRow] = &[
         "start no new host after one failed; the hosts that run end as they end", None),
     row(None, "output-dir", Some("DIR"), FlagKind::Supported,
         "each host's output, unchanged, in DIR/HOST.out and DIR/HOST.err, and its status in DIR/HOST.status", None),
+    // A record for a program (T-484): each host's end in one object.
+    row(None, "json", None, FlagKind::Supported,
+        "at the end, one JSON object on stdout: each host's exit, status, failure and its stdout and stderr (1 MiB each at most), and no line with a label", None),
+    row(None, "result-file", Some("FILE"), FlagKind::Supported,
+        "at the end, one JSON object in FILE: each host's exit, status or signal, end, failure, bytes and relay; the lines stay as they are", None),
     super::snippet::SNIPPET,
     super::snippet::YES,
     // The broadcast (T-185): no command, a shell on each host.
