@@ -30,10 +30,18 @@ pub fn set_by_settings(on: bool) {
 }
 
 /// Whether the rank and the samples order the default list: not with
-/// `PODSSH_RELAY_RANK=no` (or `off`, `0`), nor with `RelayRank no`.
+/// `PODSSH_RELAY_RANK=no` (or `off`, `0`), nor with `RelayRank no` where
+/// the variable is unset or empty, as the file is below the variable.
 pub fn enabled() -> bool {
-    let off = std::env::var(ENV).is_ok_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "no" | "off" | "0"));
-    !off && !OFF_BY_SETTINGS.load(Ordering::Relaxed)
+    enabled_from(std::env::var(ENV).ok().as_deref(), !OFF_BY_SETTINGS.load(Ordering::Relaxed))
+}
+
+/// [`enabled`] with the variable and the settings file's word given.
+pub fn enabled_from(var: Option<&str>, file_on: bool) -> bool {
+    match var.map(|v| v.trim().to_ascii_lowercase()).filter(|v| !v.is_empty()) {
+        Some(word) => !matches!(word.as_str(), "no" | "off" | "0"),
+        None => file_on,
+    }
 }
 
 /// One sample: a session of the race that opened, timed from its dial to

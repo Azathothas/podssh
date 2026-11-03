@@ -134,7 +134,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-a6a21bc1a5b921742`, `330e6ed`, merged as partial on `draft/merge-253`,
   `5d0db76`, its tests of IPv6 on a runner); T-255 (`worktree-agent-ab9d837b93edc90b0`,
   `8f09eb3`, merged and closed); T-325 (`worktree-agent-ab532bbdaa9b8fe7b`, `fbda4ad`, merged and closed); T-608
-  (`worktree-agent-ab7069457e3f92567`, `be90ae1`). They wait to be merged in that order.
+  (`worktree-agent-ab7069457e3f92567`, `be90ae1`, merged and closed). They wait to be merged in that order.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -179,7 +179,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 579 entries: 98 open, 3 partial, 2 blocked, 476 done.
+`TODO/INDEX.md` holds 579 entries: 97 open, 3 partial, 2 blocked, 477 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -258,8 +258,8 @@ policy is decided and listed below for the operator to confirm (Q86). The drafts
 `docs/research/relay-measurement.md`: its harness, adapted to run podssh itself, is done
 (2026-11-03, `scripts/relay-measure.py` and `relay-measure.yml`), and so is the rank of the relay
 hosts on demand (`podssh relay rank`, 2026-11-03), and so is the default list's use of it, with
-the samples of each race (2026-11-03); a rank that podssh makes unasked (T-608) follows, with
-`RelayRank auto` alone (Q89).
+the samples of each race (2026-11-03), and so is a rank that podssh makes unasked, with
+`RelayRank auto` alone (Q89, 2026-11-03).
 
 **The holds are released** (Q92, the operator, 2026-11-03): T-085, T-107 to T-113, T-117,
 T-118, T-213, T-222, T-245 and T-248 are open and go by their priority, M5's `podssh serve`

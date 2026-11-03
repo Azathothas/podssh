@@ -81,7 +81,7 @@ impl Cell {
         Cell::relay_process(s, mode, name, cert, role.then_some(&["--allow-private"][..]), &[])
     }
 
-    fn relay_process(
+    pub(super) fn relay_process(
         s: &Session,
         mode: &str,
         name: &str,
@@ -102,6 +102,9 @@ impl Cell {
         }
         if cert == "relay-expired.pem" && !dir.join(cert).exists() {
             expired(&dir).map_err(|why| (name.clone(), why))?;
+        }
+        if cert == super::default_relay::CERT && !dir.join(cert).exists() {
+            super::default_relay::certificate(&dir).map_err(|why| (name.clone(), why))?;
         }
         let which = if role.is_some() { "-role" } else { "" };
         let port_file = dir.join(format!("port-{}-{cert}{which}", mode.replace(':', "-")));
@@ -125,7 +128,8 @@ impl Cell {
         // as the stand-in's log (T-427).
         let events = match role {
             Some(_) => log(&s.home.join(format!("fake-relay-{}-events.log", mode.replace(':', "-")))),
-            None => Stdio::null(),
+            // The stand-in's own, for a test that follows them (T-608).
+            None => log(&s.home.join(super::default_relay::events_name(mode, cert))),
         };
         let child = command
             .arg("--cert")

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**579 entries: 98 open, 3 partial, 2 blocked, 476 done.**
+**579 entries: 97 open, 3 partial, 2 blocked, 477 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 30 | 2 | 0 | 232 | 264 |
-| P3 | 68 | 0 | 2 | 180 | 250 |
-| **All** | 98 | 3 | 2 | 476 | 579 |
+| P3 | 67 | 0 | 2 | 181 | 250 |
+| **All** | 97 | 3 | 2 | 477 | 579 |
 
 ## Entries
 
@@ -647,7 +647,7 @@ repository and CI).
 | [T-605](relay.md) | P2 | M | none | measurement | done | A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research |
 | [T-606](relay.md) | P2 | M | M10 | feature | done | `podssh relay rank`: each relay host measured on demand, and the rank kept in the cache beside the record of failures |
 | [T-607](relay.md) | P2 | M | M10 | feature | done | The default list of relay hosts takes the rank: the best three of the pool in the rank's order, and samples of each session's own race |
-| [T-608](relay.md) | P3 | S | M10 | feature | open | A rank that podssh makes unasked, in the background of a session, once a day for an egress |
+| [T-608](relay.md) | P3 | S | M10 | feature | done | A rank that podssh makes unasked, in the background of a session, once a day for an egress |
 | [T-609](ssh.md) | P1 | S | none | defect | done | An ECDSA key of P-256 whose scalar OpenSSH writes in 31 bytes is refused: "SshKey: length invalid" |
 | [T-610](relay.md) | P2 | S | M10 | defect | done | `relay info` shows the relay's `rank` and `score_ms`, which change with the edge that answered, as an order |
 | [T-611](mesh.md) | P3 | S | M10 | feature | open | A node's record of pkarr names its OpenTunnel name, and a member's client races it |

@@ -80,7 +80,11 @@ Modes:
                    body, a quiet stream ended (scripts/fake_stream.py)
 
 Each mint, each upgrade and each Close from the client is a line on stdout
-(`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220).
+(`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220). Each
+connect with the token is `connect MS PATH` too, its query in PATH, and the
+end of a session that dialed `ended MS PATH`, MS on the stand-in's clock;
+with `?dial=lazy` the target is dialed on the client's first byte alone
+(scripts/fake_lazy.py), so a harness sees each probe and its time (T-608).
 """
 
 import argparse
@@ -90,8 +94,10 @@ import ssl
 import time
 import urllib.parse
 
+import fake_lazy
 import fake_reverse
 import fake_stream
+import fake_v6
 from fake_shape import SHAPED, Shaper
 from fake_ws import close_frame, frame, read_frame, response, upgraded
 
@@ -108,11 +114,17 @@ REASONS = {
 }
 
 args = None
+STARTED = time.monotonic()
 
 
 def event(line):
     """One line on stdout, as it happens, for the harness to count."""
     print(line, flush=True)
+
+
+def clock():
+    """The ms since the stand-in started, for the times of its lines."""
+    return int((time.monotonic() - STARTED) * 1000)
 
 
 async def handle(reader, writer):
@@ -232,6 +244,7 @@ async def connect(reader, writer, path, headers):
     if headers.get("x-relay-token") != TOKEN:
         writer.write(response(403, "Forbidden", b"forward: missing or wrong token"))
         return
+    event(f"connect {clock()} {path}")
     if args.mode.startswith("refuse:"):
         status = int(args.mode.split(":")[1])
         writer.write(response(status, "Refused", b"connect: refused by fault injection"))
@@ -255,7 +268,10 @@ async def connect(reader, writer, path, headers):
         return
     query = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query)
     if args.mode == "v6close" and (":" in host or query.get("family") == ["6"]):
-        await close_unreached(reader, writer, headers)
+        await fake_v6.close_unreached(reader, writer, headers, event)
+        return
+    if query.get("dial") == ["lazy"]:
+        await fake_lazy.serve(reader, writer, headers, (host, port), event, clock, pump)
         return
     try:
         t_reader, t_writer = await asyncio.wait_for(asyncio.open_connection(host, port), 10)
@@ -269,22 +285,7 @@ async def connect(reader, writer, path, headers):
     event("upgrade")
     UPGRADED["count"] += 1
     await pump(reader, writer, t_reader, t_writer, first=UPGRADED["count"] == 1)
-
-
-async def close_unreached(reader, writer, headers):
-    """v6close: the upgrade, then at the client's first payload the default
-    relay's Close of 2026-10-08 for an IPv6 target, with no dial."""
-    writer.write(upgraded(headers))
-    await writer.drain()
-    event("upgrade")
-    while True:
-        opcode, data = await read_frame(reader)
-        if opcode in (0x0, 0x2) and data:
-            break
-        if opcode == 0x8:
-            return
-    writer.write(close_frame(1011, "target closed before sending anything"))
-    await writer.drain()
+    event(f"ended {clock()} {path}")
 
 
 async def pump(reader, writer, t_reader, t_writer, first=False):

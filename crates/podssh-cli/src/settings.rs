@@ -30,7 +30,7 @@ pub const KEYWORDS: &[(&str, &str)] = &[
     ("RelayHost", "HOST[:PORT][,...]: the relay hosts, as --relay-host and PODSSH_RELAY"),
     ("RelayAddr", "HOST=IP[,...]: addresses for relay hosts, as --relay-addr; each line adds to the others"),
     ("RelayFailover", "MODE: how the relay hosts are tried, as --relay-failover"),
-    ("RelayRank", "yes or no: whether the rank of podssh relay rank, and the times of each run's own race, order the default relay hosts, as PODSSH_RELAY_RANK (default yes)"),
+    ("RelayRank", "yes, no or auto: whether the rank of podssh relay rank, and the times of each run's own race, order the default relay hosts, as PODSSH_RELAY_RANK (default yes); auto also lets a session of podssh ssh rank them in its background, once a day"),
     ("CaFile", "FILE: trust only the CA certificates in FILE, as --ca-file and SSL_CERT_FILE; ~ is the home"),
     ("SessionLog", "yes, no or FILE: a line for each session of this host, as PODSSH_SESSION_LOG; ~ is the home"),
     ("Direct", "yes or no: whether podssh tries the direct road once each relay host failed, as PODSSH_DIRECT"),
@@ -267,7 +267,10 @@ pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, St
                 d.direct.get_or_insert(value);
             }
             "relayrank" => {
-                crate::relay_settings::yes_or_no(text).ok_or_else(|| format!("{at}: RelayRank {text:?}: yes or no"))?;
+                // auto: a rank in a session's background too (T-608, Q89).
+                if !text.trim().eq_ignore_ascii_case("auto") && crate::relay_settings::yes_or_no(text).is_none() {
+                    return Err(format!("{at}: RelayRank {text:?}: yes, no or auto"));
+                }
                 d.relay_rank.get_or_insert(value);
             }
             "forwarder" => {

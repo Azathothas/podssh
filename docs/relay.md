@@ -151,7 +151,7 @@ order is the share of failed probes, then the median time to open, then the
 p95, a tie within 50 ms or 10 % kept in the order given. It is a measure of
 this host's path, which `/relays.json`'s rank is not (see "Relay facts for a
 client that selects a relay"), and podssh makes no rank unasked unless
-`RelayRank auto` asks (Q89, T-608).
+`RelayRank auto` asks (Q89, T-608, below).
 
 The default list takes the rank (T-607). While a rank holds for this egress,
 step 2's three hosts of the pool are the best three of the rank, and a run
@@ -162,8 +162,33 @@ left out), the last 8 of each host with when and the egress, in the rank's
 file; where no rank holds, they order the pool. They cost no connection. A
 list that the user named keeps its order. `PODSSH_RELAY_RANK=no`, or the
 settings file's `RelayRank no`, gives the pool's order of `/relays.json`, as
-before; `podssh status` gives `relay_order` (`rank`, `samples`, `pool` or
-`off`), and `podssh doctor` a line `rank` with the list in that order.
+before; a variable that is set, and not empty, wins over the file.
+`podssh status` gives `relay_order` (`rank`, `samples`, `pool` or `off`),
+and `podssh doctor` a line `rank` with the list in that order.
+
+A rank in a session's background (T-608) comes only when the user asks for
+it, with the settings file's `RelayRank auto` or `PODSSH_RELAY_RANK=auto`;
+never by default (Q89). Then a session of `podssh ssh` that the default list
+carries, when no rank holds for this egress, probes the default host and the
+hosts of its pool in the relay's order, 8 at most in a day, in its own
+process, one at a time: the first after the session ran 60 s, then one each
+10 s at most, none while a race of relay hosts runs (`open` counts the races
+in progress, and a race that starts drops a probe in flight), none with
+`PODSSH_OFFLINE`, and none past the session's end, which aborts the task and
+drops a probe in flight. Each probe is a session to `github.com:22` with
+`?dial=lazy` and three WebSocket pings that sends no byte, so the relay
+dials no target, and its time to open is this host's leg alone, the relay's
+dial left out, where a rank of `relay rank` keeps the dial. The rank is kept
+after each probe with the source `background`, and the default list takes
+it as it takes one of `relay rank`; a session that ended first leaves it
+partial, and the next session of the day goes on with the hosts that it
+lacks, never one twice. A rank that holds, of either source, makes no new
+one: at most once a day for each egress. `podssh proxy`, `pipe`, `cp` and
+the other commands make none, nor a list that the user named.
+`podssh status` gives `relay_rank_auto` (`asked`, `by`, `last_ms`,
+`last_age_s`, `partial`) and the rank's `source`; `podssh doctor`'s line
+`rank` names the setting and when the last background rank was made. It is
+an exception of rule 2 of `AGENTS.md`, bounded as Q89 rules.
 
 A token is cached for its relay deployment, with the host that minted it.
 The hosts of the default deployment share one token: a pool host accepts the

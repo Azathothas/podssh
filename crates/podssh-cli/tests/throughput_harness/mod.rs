@@ -8,6 +8,8 @@
 #![allow(dead_code)]
 
 mod cells;
+// The stand-in as the default relay's hosts, and its events (T-608).
+mod default_relay;
 mod relay_loop;
 mod sftp;
 

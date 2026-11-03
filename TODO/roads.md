@@ -352,7 +352,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 (`docs/design.md:1288-1294`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:60-67`). The relay opener tries one host at a time
-(`crates/podssh-relay/src/open.rs:200-281`), and no code races two roads.
+(`crates/podssh-relay/src/open.rs:200-283`), and no code races two roads.
 
 ## Approach
 
@@ -1136,7 +1136,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
 (`docs/relay.md:1-21`, `README.md:36-39`). The stand-in serves the forward
-path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:135-153`). The
+path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:147-165`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
 reverse path and its close table
@@ -1156,13 +1156,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:365-386`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:390-411`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:310`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:335`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1194,8 +1194,8 @@ read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 Lifted on 2026-11-02 by Q63: see below.
 
 The Premise is stale in one sentence: the stand-in serves more than "the forward path,
-`/v1/mint` and `/health` only". At `scripts/fake-relay.py:145-149` it also serves `/relays.json`
-and `/trace`, and `scripts/fake-relay.py:131` hands the whole reverse road to
+`/v1/mint` and `/health` only". At `scripts/fake-relay.py:157-161` it also serves `/relays.json`
+and `/trace`, and `scripts/fake-relay.py:143` hands the whole reverse road to
 `scripts/fake_reverse.py`, which is as strict as the live relay for an id that it forgot, and
 tells a frame in flight apart (`scripts/fake_reverse.py:286-298`). The rest holds; the ruling of
 2026-10-08 that it cites is changed.
@@ -1211,7 +1211,7 @@ What the role serves: the contract `2026-10-03-r2`, so that each client of podss
 with `?dial=lazy`, `?precheck` and `?family`; `/relays.json` with the five limits of
 `crates/podssh-probe/facts/relay-limits.toml`; `/trace`; and `/llms-full.txt`, podssh's own copy
 of the contract. A target is dialed only after its name resolved to a public address (the ranges
-of `docs/relay.md:310`), and port 25 is refused; the limits are the contract's (an empty frame
+of `docs/relay.md:335`), and port 25 is refused; the limits are the contract's (an empty frame
 each 25 s, 180 s idle, 12 h, 64 MiB, frames of 262144 bytes), and so are the forward close
 codes; each queue has a bound (`1013` at 2 MiB, T-336), which a write that waits gives.
 
@@ -2575,7 +2575,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:294-296`).
+   URL or in output (`docs/relay.md:319-321`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:139-148`).
@@ -4009,7 +4009,7 @@ Endpoint puts a credential in its URL.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:238`); an RSA key signs through aws-lc-rs in the
   binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
-  the relay's caps (`docs/relay.md:321-327`), as an hour of EICE would need.
+  the relay's caps (`docs/relay.md:346-352`), as an hour of EICE would need.
 - Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
 
 ## Approach

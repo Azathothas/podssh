@@ -73,6 +73,8 @@ pub mod pool;
 // The rank of the relay hosts as measured from this host (T-606).
 pub mod quick;
 pub mod rank;
+// A rank made in a session's background, with RelayRank auto alone (T-608).
+pub mod rank_auto;
 // The default list in the rank's order, and the samples of each race (T-607).
 pub mod rank_list;
 pub mod relay;

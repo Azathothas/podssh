@@ -165,6 +165,8 @@ pub mod relay_ends;
 mod relay_renew;
 // `podssh relay rank`: each relay host measured from this host, the rank kept (T-606).
 mod relay_rank;
+// The rank of a session's background, with RelayRank auto alone (T-608).
+mod relay_rank_auto;
 pub mod relay_serve;
 pub mod relay_settings;
 pub mod relay_spec;

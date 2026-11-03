@@ -1,6 +1,6 @@
 --- a/crates/podssh-relay/src/rank_list.rs
 +++ b/crates/podssh-relay/src/rank_list.rs
-@@ -80,7 +80,7 @@
+@@ -88,7 +88,7 @@
  fn by_measure(names: &[&str], kept: Option<&Rank>, egress: &str, now_ms: i64, samples: bool) -> Vec<usize> {
      let rest = |taken: &[usize]| (0..names.len()).filter(|i| !taken.contains(i)).collect::<Vec<_>>();
      let Some(kept) = kept else { return (0..names.len()).collect() };

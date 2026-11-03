@@ -177,7 +177,7 @@ Read in the tools. Each stage is one pass: each cell is measured once.
   16 MiB in 4.4 to 6.3 s, dial included, in the next stage, so the delay did
   not come again with the host. `podssh ping` times the CONNECT apart from
   the TLS and the upgrade, so its numbers keep a slow proxy out of the
-  relay's line (`crates/podssh-cli/src/ping/relay.rs:157-187`).
+  relay's line (`crates/podssh-cli/src/ping/relay.rs:161-191`).
 - **The relay's dial of the target with the client's leg.** podssh's relay
   dials the target before its `101` ([relay.md](../relay.md), "The forward
   path"), so its `upgrade_ms` holds the dial of `git.sr.ht`; through
@@ -321,7 +321,7 @@ hold podssh's own reading of each class.
 
 | The archive's stage | podssh | Where |
 | --- | --- | --- |
-| The probe's upgrade and banner | `podssh ping`, the relay leg of each host: the token, TCP or CONNECT, TLS and the upgrade, each timed, then WebSocket pings with min, p50, p95 and max, one host after another; `--json` | `crates/podssh-cli/src/ping/relay.rs:102-146`, `crates/podssh-cli/src/ping/relay.rs:191-222`, `crates/podssh-cli/src/ping/mod.rs:156-161` |
+| The probe's upgrade and banner | `podssh ping`, the relay leg of each host: the token, TCP or CONNECT, TLS and the upgrade, each timed, then WebSocket pings with min, p50, p95 and max, one host after another; `--json` | `crates/podssh-cli/src/ping/relay.rs:102-150`, `crates/podssh-cli/src/ping/relay.rs:195-226`, `crates/podssh-cli/src/ping/mod.rs:156-161` |
 | The write leg (KEXINIT, IRC) | `doctor`'s `forward`: a forward session to `github.com:22` must show one of GitHub's published host keys, which needs the key exchange both ways and that nothing between answered in GitHub's place | `crates/podssh-cli/src/doctor/relay_checks.rs:199-230` |
 | One sample | `doctor`'s samples: nine tries over at least a second, best, median, p95, jitter and loss, a refusal counted apart | `crates/podssh-cli/src/doctor/samples.rs:1-25` |
 | The relay's side | `podssh relay trace` (the relay's dial and first byte), `relay status` (each host's `/health` and edge), `relay info` (the pool and the limits) | `crates/podssh-cli/src/relay_diag.rs:1-7` |
@@ -543,7 +543,7 @@ them, rank the same way.
 | T-605 | The harness of section 7, drafted in `scripts/`, and its workflow by hand (`none`, P2). |
 | T-606 | `podssh relay rank` on demand, and `relay-rank.json` in the cache (M10, P2). |
 | T-607 | The default list takes the rank, and samples of each session's own race (M10, P2). |
-| T-608 | A rank that podssh makes unasked, in a session's background (M10, P3), blocked on Q89. |
+| T-608 | A rank that podssh makes unasked, in a session's background (M10, P3); Q89 ruled it on 2026-11-03: with `RelayRank auto` alone. |
 
 Q89, in [PROGRESS.md](../../TODO/PROGRESS.md): may podssh measure relay
 hosts that the user did not ask it to measure, by default or with the

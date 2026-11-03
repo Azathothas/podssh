@@ -2706,7 +2706,7 @@ before anything else; `podssh doctor` is the report that measures.
   and `host` for a destination (its name in `known_hosts`, whether a key is
   recorded, the key types); `session_log` (T-056) and `relay_failures`, the
   relay hosts that each run tries last now, with `ago_s`, the `reason` and the `road` (T-059), and
-  `relay_opened`, those that opened lately, with `ago_s` and `opens` (T-563); `relay_rank`, the rank that `relay rank` kept, with `age_s`, `this_egress`, `holds`, `named`, `first` and `hosts`, null with none (T-606); `open_files`, the limit of open files: podssh raises its soft limit at start to the hard one, at most 65,536 (on macOS within `kern.maxfilesperproc`, then `OPEN_MAX` if the host refuses more), and gives the `soft` limit, the `hard` one (null for none), the soft one `at_start`, whether it was `raised` and the host's `refused` answer, a line at `-v` ("open file limit: 256 -> 10240") and the limit after an error of too many open files; null on Windows (T-564); `pairs`, each stored pair's `label`, `expires_ms`, whether it
+  `relay_opened`, those that opened lately, with `ago_s` and `opens` (T-563); `relay_rank`, the rank kept, with `age_s`, `this_egress`, `holds`, `named`, `source` (`relay rank`, or `background` for a session's, T-608), `partial`, `first` and `hosts`, null with none (T-606); `relay_rank_auto`, whether a setting asks for a rank in a session's background and which (`asked`, `by`), and when the last was made (`last_ms`, `last_age_s`) and whether it is `partial` (T-608); `open_files`, the limit of open files: podssh raises its soft limit at start to the hard one, at most 65,536 (on macOS within `kern.maxfilesperproc`, then `OPEN_MAX` if the host refuses more), and gives the `soft` limit, the `hard` one (null for none), the soft one `at_start`, whether it was `raised` and the host's `refused` answer, a line at `-v` ("open file limit: 256 -> 10240") and the limit after an error of too many open files; null on Windows (T-564); `pairs`, each stored pair's `label`, `expires_ms`, whether it
   `expired`, and `next_now`, whether `relay pair LABEL` makes its next pair
   now, in its last 24 hours (T-395).
 - It never holds a token: it reads the cache entry without its token field
@@ -3106,8 +3106,19 @@ commands. The rules behind them:
   egress, the default list takes it (T-607): the default host and the best
   three other hosts of the pool, the default host at its place in the rank;
   the times of each run's own race order the pool where none holds;
-  `PODSSH_RELAY_RANK=no` or `RelayRank no` turns both off, and `status`'s
-  `relay_order` and `doctor`'s line `rank` say which order a run takes.
+  `PODSSH_RELAY_RANK=no` or `RelayRank no` turns both off (a variable that
+  is set wins over the file), and `status`'s `relay_order` and `doctor`'s
+  line `rank` say which order a run takes. With `RelayRank auto` or
+  `PODSSH_RELAY_RANK=auto` alone, never by default (Q89, T-608), a session
+  of `ssh` on the default list ranks in its background when no rank holds
+  for this egress: the default host and its pool, 8 hosts in a day, one at
+  a time, the first after 60 s, then one each 10 s at most, none during a
+  race, none past the session's end, each a session to `github.com:22` with
+  `?dial=lazy` and three pings that dials no target; kept after each probe,
+  source `background`, and gone on with by the next session of the day when
+  the first ended before it. `status` gives `relay_rank_auto` and the
+  rank's `source`, and `doctor`'s line `rank` the setting and the last
+  background rank's age.
   `relay info [HOST PORT]` reads the first host's `/relays.json`: the edge
   that this host reaches, the pool in the relay's order, the limits, and
   with a target the URL that the relay chooses for it. The relay ranks the
@@ -4630,7 +4641,10 @@ and `PODSSH_RELAY`), `RelayAddr` (as `--relay-addr` and `PODSSH_RELAY_ADDR`;
 each line adds to the flag's and the variable's pins), `RelayFailover` (as
 `--relay-failover`), `CaFile` (as `--ca-file` and `SSL_CERT_FILE`; `~` is
 the home), `SessionLog` (as `PODSSH_SESSION_LOG`, below), `Direct` (yes
-or no, as `PODSSH_DIRECT`: the direct road after the relay hosts, T-363) and
+or no, as `PODSSH_DIRECT`: the direct road after the relay hosts, T-363),
+`RelayRank` (yes, no or auto, as `PODSSH_RELAY_RANK`: the measured order of
+the default relay hosts, T-607, and with auto a rank in a session's
+background, T-608) and
 `DoctorJobs` (1 to 64, as `doctor --jobs`, T-511). It has `Keyword value` lines, `Keyword=value` too, and `#`
 comments, read as an `ssh_config` line is; the first value of a keyword
 wins. The file is the one that `PODSSH_SETTINGS` names, an absolute path

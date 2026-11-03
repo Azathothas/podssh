@@ -97,6 +97,9 @@ fn the_file_is_private_and_reads_back() {
         named: false,
         hosts: order(vec![figures("b", &[opened(500.0)]), figures("a", &[opened(100.0)])]),
         samples: Default::default(),
+        source: BACKGROUND.into(),
+        partial: true,
+        background_ms: 1,
     };
     let path = save_in(&dirs, &rank).unwrap();
     assert_eq!(load_from(&dirs), Some(rank.clone()));
@@ -110,4 +113,12 @@ fn the_file_is_private_and_reads_back() {
     cache::remove_named_from(&dirs, FILE);
     assert_eq!(load_from(&dirs), None);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A file of before T-608 names no source: a rank of `relay rank`, whole.
+#[test]
+fn a_file_of_before_the_background_rank_reads_as_one_of_relay_rank() {
+    let old: Rank = serde_json::from_str(r#"{"schema":1,"made_ms":5,"egress":"direct","hosts":[]}"#).unwrap();
+    assert!(!old.background() && !old.partial && old.background_ms == 0, "{old:?}");
+    assert!(old.holds(6, DIRECT));
 }
