@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/nofile.rs
++++ b/crates/podssh-cli/src/nofile.rs
+@@ -80,7 +80,7 @@
+ /// Raise the soft limit, once, at the start of the binary: its line goes to
+ /// the first log at `-v`, and an error of too many open files names it.
+ pub fn start() {
+-    let Some(limits) = *LIMITS.get_or_init(platform::raise) else { return };
++    let Some(limits) = *LIMITS.get_or_init(platform::read) else { return };
+     podssh_ssh::log::say_once_at_verbose(limits.line());
+     podssh_ssh::log::hint_errors(hint);
+ }

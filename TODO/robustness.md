@@ -330,7 +330,7 @@ byte test that a person wrote with the same mistake.
 
 Read:
 
-- `crates/podssh-ssh/src/log.rs:117-133` turns LF into CR LF when the terminal
+- `crates/podssh-ssh/src/log.rs:121-137` turns LF into CR LF when the terminal
   is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:141-150`) goes
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
@@ -415,7 +415,7 @@ sh scripts/dev.sh check                           # the model and tmux agree on 
 ```
 
 Each command exits 0. Planted defect: remove the CR LF conversion
-(`crates/podssh-ssh/src/log.rs:129-131`); the help case must fail. After M5,
+(`crates/podssh-ssh/src/log.rs:133-135`); the help case must fail. After M5,
 `cargo test -p podssh-terminal --test oracle` must fail while T-127 is open.
 
 ## Correction
@@ -1415,7 +1415,7 @@ failure's words, or for more runs.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1442,6 +1442,36 @@ The process's own limit, raised within the hard limit that the host set: no priv
 call's answer is the probe (rule 1 of `AGENTS.md`). Lost: a flag to ask for it, which each tester
 would have to know; nothing on Windows, whose handles have no such soft limit.
 
+Calls of the draft (2026-11-02, Q86), with what lost:
+
+- **For the operator to confirm (Q86): the raise stops at 65,536 on each Unix.** Each program that
+  podssh starts (a pager, an editor, `SSH_ASKPASS`, `LocalCommand`, a command of `pipe`, `systemctl`,
+  podssh again for `--detach`) inherits the soft limit, and a container's hard limit is often
+  1,048,576 or 2^30: a program that closes each descriptor up to its limit before it starts
+  another would take seconds there, where a run of podssh needs a few hundred descriptors. Lost:
+  the hard limit with no cap, as Go's runtime does, which needs the old soft limit put back in
+  each child, at each of the twenty places that start a program (`pre_exec` in each, which makes
+  the standard library fork and exec where it would spawn), and still gives podssh's own runs a
+  soft limit of 2^30; the old soft limit put back in each child under the cap, the same twenty
+  places for no gain.
+- **For the operator to confirm (Q86): on macOS, within `kern.maxfilesperproc`, then `OPEN_MAX`
+  (10,240) after a refusal.** Apple's `setrlimit(2)` says to ask for `min(OPEN_MAX, rlim_max)`, and
+  an older release refuses more with `EINVAL`; a newer one takes up to `kern.maxfilesperproc`,
+  which Go's runtime asks for. Lost: `OPEN_MAX` alone, the Approach's, which keeps a newer macOS at
+  10,240 where it takes more; `kern.maxfilesperproc` alone, which an older release refuses.
+- The line of `-v` and the hint go through `podssh-ssh`'s log: a line said once, before the first
+  line of the first log at `-v`, and a hint after an error line that a function of the binary's
+  explains, both set by the binary at its start; so each command that logs as `podssh ssh` does
+  (`cp`, `each`, `job`, `session`, `run`, `sftp`, `edit`, `health`, `containers`) says them with no
+  change of its own. Lost: a line in each command (the files of `cp` and `each` wait for other
+  drafts, and `crates/podssh-cli/src/ssh/resolve.rs` is at its 500 lines); the hint inside the
+  error's own line, as the Approach wrote, which would change the text of each error that tests
+  and users read: the hint is the line after it. `podssh proxy` and `podssh pipe`, which write their
+  lines with no log, say neither.
+- The hint follows an error with `(os error 24)`, `EMFILE` of the libc crate, or the words "Too
+  many open files" without "in system": `ENFILE`, the whole system's table, which no limit of the
+  process moves, gets none.
+
 ## Prove
 
 ```sh
@@ -1452,3 +1482,33 @@ cargo test -p podssh-cli --test status
 Under `ulimit -n 64` with a hard limit above it, `podssh status` shows the raised soft limit; with
 the hard limit at 64 it shows 64 and says so at `-v`. Planted: the raise skipped, and the test
 fails.
+
+## Done
+
+Drafted 2026-11-02 by a drafting agent, not built; the main session builds it, runs it and fills
+each UNVERIFIED.
+
+- `crates/podssh-cli/src/nofile.rs`: `start`, which `main` calls once after a detached child let go
+  of what it inherited, raises the soft limit to `target` (the hard limit within `CAP`, 65,536, and
+  on macOS within `kern.maxfilesperproc`; never lower than now), says its line once at `-v` ("open
+  file limit: 256 -> 10240"; "open file limit: 64, the hard limit of this host"; a refusal with the
+  host's error) and gives the log its hint of too many open files; `limits` is what `status`
+  reads. `crates/podssh-cli/src/nofile_unix.rs`: `getrlimit` and `setrlimit` of `RLIMIT_NOFILE`,
+  read again after a raise, `OPEN_MAX` asked after a refusal on macOS, and `sysctlbyname` for
+  `kern.maxfilesperproc`; on Windows, nothing.
+- `crates/podssh-ssh/src/log.rs`: `say_once_at_verbose` and `hint_errors`, which `Log::at` uses.
+- `podssh status`: `open_files` (`soft`, `hard`, null for none, `at_start`, `raised`, `refused`),
+  null on Windows. The manual's note of `status` names it, and `session_log`, `relay_failures` and
+  `relay_opened`, which it did not name (`crates/podssh-cli/src/man/notes.rs`); `docs/cli.md`
+  (`podssh status`).
+- Tests: in `crates/podssh-cli/tests/status.rs`, `open_files::a_soft_limit_below_the_hard_one_is_raised_to_it`
+  (64 under a hard limit of up to 4096: raised to it) and
+  `open_files::a_hard_limit_at_the_soft_one_keeps_it_and_v_says_so` (64 and 64: kept, and
+  `podssh ssh -v`, offline, says the line once and first), each limit set in the child by
+  `setrlimit` before exec; in `nofile`, the target, the lines and the hint (`ENFILE` gets none); in
+  `nofile_unix`, the asks and a read of this process's limits. `cargo test -p podssh-cli --test
+  status`: UNVERIFIED. `cargo test -p podssh-cli --lib nofile`: UNVERIFIED. On macOS (Actions):
+  UNVERIFIED. clippy for `x86_64-pc-windows-gnu` and `aarch64-apple-darwin`: UNVERIFIED.
+- Planted, `scripts/plants/t564-no-raise.patch` (the start reads and never raises): the test of the
+  raise must fail; UNVERIFIED.
+- `docs/STATUS.md`: a row in "Build, tests, CI".

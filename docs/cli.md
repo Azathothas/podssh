@@ -2116,7 +2116,7 @@ before anything else; `podssh doctor` is the report that measures.
   and `host` for a destination (its name in `known_hosts`, whether a key is
   recorded, the key types); `session_log` (T-056) and `relay_failures`, the
   relay hosts that each run tries last now, with `ago_s`, the `reason` and the `road` (T-059), and
-  `relay_opened`, those that opened lately, with `ago_s` and `opens` (T-563); `pairs`, each stored pair's `label`, `expires_ms`, whether it
+  `relay_opened`, those that opened lately, with `ago_s` and `opens` (T-563); `open_files`, the limit of open files: podssh raises its soft limit at start to the hard one, at most 65,536 (on macOS within `kern.maxfilesperproc`, then `OPEN_MAX` if the host refuses more), and gives the `soft` limit, the `hard` one (null for none), the soft one `at_start`, whether it was `raised` and the host's `refused` answer, a line at `-v` ("open file limit: 256 -> 10240") and the limit after an error of too many open files; null on Windows (T-564); `pairs`, each stored pair's `label`, `expires_ms`, whether it
   `expired`, and `next_now`, whether `relay pair LABEL` makes its next pair
   now, in its last 24 hours (T-395).
 - It never holds a token: it reads the cache entry without its token field

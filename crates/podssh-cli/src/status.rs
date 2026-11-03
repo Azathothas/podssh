@@ -85,6 +85,7 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "session_log": session_log,
         "relay_failures": relay_failures(),
         "relay_opened": relay_opened(),
+        "open_files": open_files(),
         "pairs": pairs_state(),
     });
     let _ = writeln!(out, "{line}");
@@ -215,4 +216,19 @@ fn relay_opened() -> Value {
     let seen = podssh_relay::failures::recent(&podssh_relay::failures::Records::load(), crate::pairs::now_ms());
     let opened = seen.iter().filter_map(|s| s.opened.map(|(ago_s, opens)| (s, ago_s, opens)));
     opened.map(|(s, ago_s, opens)| json!({ "road": s.road, "host": s.host, "ago_s": ago_s, "opens": opens })).collect()
+}
+
+/// The limit of open files (T-564), so that a report carries it: the soft
+/// limit now and at start, the hard one (null for none), and the host's
+/// refusal of a raise; null on Windows, which has no such limit.
+fn open_files() -> Value {
+    let Some(limits) = crate::nofile::limits() else { return Value::Null };
+    let refused = limits.refused.map(|errno| std::io::Error::from_raw_os_error(errno).to_string());
+    json!({
+        "soft": limits.soft,
+        "hard": limits.hard_limit(),
+        "at_start": limits.at_start,
+        "raised": limits.raised(),
+        "refused": refused,
+    })
 }
