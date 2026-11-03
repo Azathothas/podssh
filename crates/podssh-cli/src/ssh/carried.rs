@@ -64,8 +64,11 @@ pub(super) fn flags(args: &SshArgs) -> Result<(), String> {
 pub(super) fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
     let on_one = matches!(&resolved.transport, Transport::Node { carrier: Some(_), .. });
     if args.carrier.is_some() && !on_one {
+        // The exit over a carrier is a proxy's (T-596), which this command
+        // then reaches as it reaches any proxy.
         let why = if args.exit.is_some() {
-            "--exit does not go with --carrier: an exit over a carrier is not built yet"
+            "--exit does not go with --carrier here: the exit over a carrier is podssh exit NAME --listen ADDR:PORT \
+             --carrier ADDR, a local proxy whose connections start at it"
         } else {
             "--carrier is for a node://NAME destination: the node at the other end of the stream"
         };

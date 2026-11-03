@@ -37,7 +37,8 @@ pub(super) fn or_exit(args: &SshArgs, env: &Env, relay: Transport) -> Result<Tra
     let trust = super::resolve::ca_file(args, env).map_or(Trust::Default, |file| Trust::File(file.into()));
     let channel = super::iroh::channel_ask(args).map_err(Refusal::usage)?;
     let (label, pair_file) = (name.to_string(), args.pair_file.clone());
-    // The exit over a carrier is T-596's: `--carrier` is refused beside it.
+    // The exit over a carrier is `podssh exit --listen --carrier`'s (T-596):
+    // `--carrier` is refused beside `--exit` here.
     let opentunnel = Box::default();
     Ok(Transport::Node { label, pair_file, trust, race, derp, opentunnel, channel, carrier: None })
 }

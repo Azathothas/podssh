@@ -6859,7 +6859,7 @@ carrier (T-595) go with the exit (T-431).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6894,11 +6894,32 @@ The net's rule of the exit holds on a carrier too: the role exit is the owner's 
 carries the session. Lost: an exit open to whoever holds the stream, which would make a stream
 that something else reaches an open proxy.
 
+Calls of the draft (2026-11-03), for the operator to confirm with the rest (Q86):
+
+- `exit --listen --carrier` takes `stdio` (or `-`), the one client of a carrier that does, as
+  T-595's Decision foresaw: nothing else of it reads stdin or writes stdout. Lost: `exec:` and
+  `fd:N` alone, which would leave the issue's case, where the end with egress starts the channel,
+  with no client in the sandbox.
+- The proxy starts its stream with its listener, before a first connection: the node pings each
+  10 s and drops a socket that answers nothing for 30 s. Lost: a start at the first connection,
+  which would end the node while the sandbox's programs had not asked.
+- A stream of `stdio` or `fd:N` ends the proxy when its node leaves, with a line and 0, as no
+  connection could start at the exit again; one of `exec:` is started again for the next
+  connection, as for each client of T-595. Lost: a proxy that listens on and refuses each
+  connection (410), a process that the channel's end leaves behind; and 69 for a stream that
+  failed, which needs the role to keep the node's Close, where the node's own end says it.
+- Ctrl-C at the proxy closes the stream with 1000, which ends the node (0), as at each client of
+  a carrier. Lost: a node that outlives its proxy, which no client could reach on that stream.
+- `ssh`, `proxy` and `pipe` keep refusing `--exit` beside `--carrier` (64), in words that name
+  `exit --listen --carrier`: their programs reach the exit through that proxy. Lost: `--exit` of
+  each client over a carrier, which the issue did not ask for.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test exit
+cargo test -p podssh-relay --features pair,serve --test reverse_carrier
 ```
 
 New test: `an_exit_over_a_carrier_lends_its_egress` (a node of the role exit with `--carrier
@@ -6906,6 +6927,80 @@ exec:` that starts `podssh exit NAME --listen 127.0.0.1:0 --carrier stdio`: curl
 listener's CONNECT reaches an HTTP server of the test, where curl is on PATH; a member with no rule
 is refused). Planted: `t596-carrier-rule-skipped` (the exit's rule not checked on a carrier): the
 refusal fails.
+
+## Correction
+
+Read at `b02d8c4` (2026-11-03), for the draft:
+
+- The Premise holds at each cited line; the citation of the manual takes the sentence of the
+  carrier that this change adds to it.
+- The rule of the exit is checked at the node by code that each road shares: the net's verdict
+  (`crates/podssh-cli/src/net/admit.rs:70`) at the channel's admission and again for each address
+  of the dial (`crates/podssh-cli/src/node_exit.rs`). So the node of a carrier needed none of its
+  own: T-595 refused `--exit` beside `--carrier` (`node_carrier::check`), and the node's part is
+  to lift it and say the exit's line as each road does. The plant of the Prove, "the exit's rule
+  not checked on a carrier", has no seam of the carrier's own: it skips the rule in the net's
+  verdict, on each road, and the test of the carrier must catch it.
+- The proxy needs to know when the stream of one life ended: the relay role on a carrier now
+  says whether its node is joined (`Role::joined`), with a test of `reverse_carrier`, which the
+  Prove names.
+
+## Done
+
+2026-11-03, drafted (`DRAFT T-596`), merged and measured on this machine the same day.
+
+What changed:
+
+- `crates/podssh-cli/src/node_carrier.rs`: `check` no longer refuses `--exit`; `prepare` says the
+  exit's line, or why the node cannot be one (78), once its key is loaded, as each road does; the
+  unit test of the refused flags takes `--exit` as one that goes with `--carrier`.
+- `crates/podssh-cli/src/exit/mod.rs`: `--carrier ADDR` of `exit` (`ExitArgs::carrier`, read by
+  its id) and its checks (`carrier`: a relay's and a pair's flags, 64; `pipe`'s words, `stdio`
+  among them; a terminal on stdin, 64), given to `To::carrier`; a unit test.
+- `crates/podssh-cli/src/exit/open.rs`: `Road`, the pair kept under NAME or the shared client of
+  the carrier (`crate::carrier::shared`); a session over a carrier is a leg of the role, with no
+  expiry, its refusals and its end in the carrier's words (`crate::carrier::refusal_of`,
+  `crate::carrier::judged`); `To::of_ssh` gives no carrier.
+- `crates/podssh-cli/src/exit/listen.rs`: `serve` starts the carrier once the bind passed, names
+  it in its first line, ends when the node of a stream of one life left (`left`), and closes the
+  stream at each end (`crate::carrier::end_shared`).
+- `crates/podssh-cli/src/carrier.rs`: `Client::left` and the field `one_life`.
+- `crates/podssh-relay/src/serve/reverse/carrier.rs`: `Role::joined`.
+- `crates/podssh-cli/src/ssh/carried.rs`, `crates/podssh-cli/src/ssh/exit_road.rs`: the words of
+  `ssh --exit NAME --carrier ADDR` (64) name `exit --listen --carrier`.
+- `crates/podssh-cli/src/flags/node.rs`: the row `--carrier ADDR` of `exit`; the node's row names
+  the exit's client.
+- `crates/podssh-cli/src/man/notes_net.rs`: a note of `exit --carrier`, with the issue's recipe;
+  `crates/podssh-cli/src/man/notes_pair.rs`: the node's notes of the exit and of the carrier;
+  `crates/podssh-cli/src/man/examples.rs`: the recipe.
+- `crates/podssh-cli/tests/exit.rs`: `an_exit_over_a_carrier_lends_its_egress` (SOCKS5, CONNECT
+  and curl to a page through the node; a member with no rule refused, SOCKS 2 and HTTP 403, its
+  target never dialled; the node's end ends the proxy); three more rows of the refusals (`exit
+  --carrier` with `--pair-file`, with `tcp:`, and `ssh --exit --carrier`).
+- `crates/podssh-relay/tests/reverse_carrier.rs`: `the_role_says_when_its_node_left_the_stream`.
+- `scripts/plants/t596-carrier-rule-skipped.patch` and `.plant` (`git apply --check`: applies).
+- `docs/cli.md` ("The exit of the net", and the carrier's item), `docs/mesh.md`, `docs/reverse.md`
+  (item 7 of "A carrier") and `docs/STATUS.md`.
+
+Measured at the merge (2026-11-03, Linux, `CARGO_BUILD_JOBS=4`, curl on PATH):
+
+- `cargo test -p podssh-cli --test exit`: 4 passed, `an_exit_over_a_carrier_lends_its_egress`
+  among them.
+- `cargo test -p podssh-relay --features pair,serve --test reverse_carrier`: 7 passed,
+  `the_role_says_when_its_node_left_the_stream` among them.
+- `cargo test -p podssh-cli --lib` (with `exit::` and `node_carrier`): 780 passed. The check of
+  the names in the manual's notes found that the node's note named `--listen` after `podssh exit
+  NAME`, where it reads a flag of the verb just before it: the note now says `podssh exit --listen
+  ADDR:PORT --carrier ADDR NAME`, which `exit` parses as the other order (both 64 with a `tcp:`
+  carrier, measured).
+- `cargo test -p podssh-cli --test node_carrier`: 14 passed.
+- `cargo test -p podssh-cli --test man_page --test man_flag_parity --test flag_table`: 9, 6 and
+  11 passed.
+- clippy `--all-targets -D warnings` of `podssh-cli` and of `podssh-relay`
+  (`serve,pair,plain-ws,blocking`): clean.
+- The plant `t596-carrier-rule-skipped`: caught; the test failed at the refusal of the member
+  with no rule (SOCKS 2); the tree is clean again.
+- `ssh`, `proxy` and `pipe` beside `--exit` with `--carrier` are T-614's (Q90).
 
 # T-614: `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does
 

@@ -116,10 +116,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `draft/worktree-agent-aad1db2c11baba50c` and `draft/worktree-agent-a3b8eb20dc7bccfa9` can go, as
   this session's git proxy would not delete them.
 
-  On 2026-11-03 an agent drafted OpenTunnel's road, unbuilt, one commit each, on the local branch
-  `worktree-agent-a4dfa636922e7501f`: T-530 (the link in `podssh-relay`, its stand-in server and
-  `opentunnel-interop.yml`) and T-531 (the command line, `doctor`, `opentunnel-live.yml`), each
-  partial with UNVERIFIED in its Done; T-531 filed T-611. They wait for the merge, in that order.
+  On 2026-11-03 the third round of drafts is merged and closed, one at a time: T-475 (`535893e`),
+  T-484 and T-486, OpenTunnel's road T-530 and T-531 (live run 41679059624), T-592 (`5c14126`) and
+  T-596. Their worktrees and local branches are gone; their `draft/` branches on GitHub can go.
+  One draft waits: the research of the operator's relay archive, its four entries with Q89 (ruled),
+  on `draft/relay-measure` (local branch `worktree-agent-aad5d8731317daa6e`, `b57d9ad` to
+  `42fac3d`).
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -164,7 +166,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 574 entries: 109 open, 2 partial, 2 blocked, 461 done.
+`TODO/INDEX.md` holds 574 entries: 108 open, 2 partial, 2 blocked, 462 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -235,8 +237,8 @@ merged; `v1.0.1` went out with them on 2026-11-03. The defects of GitHub #112 to
 on 2026-11-03) are done and go into `v1.1.0-beta.1`. Until podssh is stable the expensive checks wait (Q88). Their
 features and documents (T-532,
 and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
-and Q82 filed; and of #112 to #124, with M10's
-T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119,
+and Q82 filed; and of #112 to #124, with M10's T-614, `--exit` beside `--carrier` in `ssh`,
+`proxy` and `pipe`) follow, by priority, beside M10 (Q85); Dependabot's #119,
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged. GitHub #125 (2026-11-03, `relay info`'s rank changes with the edge that answered) is T-610, a defect of M10 beside the research of the operator's relay archive (`draft/relay-measure`).
 
@@ -381,6 +383,10 @@ it was asked:
   (partial) adds: the node's first frame is a Ping, and no session opens before it; a stream of
   `exec:` is started again once for each wait of a leg; `--exit` with `--carrier` is refused until
   T-596.
+- T-596: `exit --listen --carrier` takes `stdio`, the one client of a carrier
+  that does; the proxy starts its stream with its listener; a stream of `stdio` or `fd:N` ends the
+  proxy (0) when its node leaves; Ctrl-C at the proxy ends the node (0); `ssh`, `proxy` and `pipe`
+  keep refusing `--exit` beside `--carrier` (64).
 
 **Confirmed (Q90):** T-503 checks each host after the first hop too (a later hop
 of `-J`, and the destination behind it), on each road, by the direct road's rule, so that

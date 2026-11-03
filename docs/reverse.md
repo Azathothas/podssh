@@ -427,3 +427,11 @@ node's socket on such a stream, with no relay, no pair and no token
    on the one stream, which ends with the command: the node hears the Close,
    and the program of `exec:` ends. `--ConnectTimeout` of `operator`,
    `proxy` and `pipe` bounds the open, the node's read of the stream first.
+7. The exit goes on a carrier too (T-596): `podssh node NAME --exit
+   --carrier ADDR` at the end with egress, and `podssh exit NAME --listen
+   ADDR:PORT --carrier ADDR` at the other, whose `stdio` is its own to give,
+   as its stdin and stdout carry nothing else. The proxy starts the stream
+   at once, so that the node's first frame is answered, and each of its
+   connections is a leg; a stream of `stdio` or `fd:N` ends the proxy when
+   its node leaves. The stream is no door to the egress: a member's key and
+   the net's rule to `exit:NAME`, or to a range, as on each road.

@@ -3504,8 +3504,9 @@ commands. The rules behind them:
   relay's limits (64 MiB a session, a pair's 72 h) do not hold. `--carrier
   stdio` on a terminal (64), `operator --carrier stdio` (its stdio is the
   session's), a relay's or a pair's flag, `--iroh`, `--derp`,
-  `--quick-tunnel`, `--install`, `--detach` and `--exit` with it are usage
-  errors (64). `ssh --carrier ADDR node://NAME`, and `cp`, `mv`, `scp` and
+  `--quick-tunnel`, `--install` and `--detach` with it are usage errors
+  (64); `--exit` goes with it (T-596, "The exit of the net", below).
+  `ssh --carrier ADDR node://NAME`, and `cp`, `mv`, `scp` and
   `sftp` with it to `node://NAME`, take the same road
   (`crates/podssh-cli/src/ssh/carried.rs`): the command serves the role's
   side, each of its connections a leg of the one stream, which ends with the
@@ -3524,7 +3525,8 @@ commands. The rules behind them:
   a listening side, a leg of the one stream, which ends with the pipe; the
   other side keeps its road and its flags; `stdio`, `--pair-file` and a pipe
   with no node side are usage errors (64). The exit's client over a carrier
-  is T-596.
+  is `podssh exit NAME --listen ADDR:PORT --carrier ADDR` (T-596), whose
+  `stdio` is its own to give.
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended
@@ -3690,6 +3692,28 @@ own, and the forward road starts at the node.
   drops the line of each. It runs until Ctrl-C or SIGTERM (0). `curl
   --proxy socks5h://127.0.0.1:1080 URL` sends the name, which the exit
   resolves.
+- **The exit over a carrier** (T-596, GitHub #124). `podssh node NAME
+  --exit --carrier ADDR` lends its egress on T-595's road, a stream that
+  exists already, and `podssh exit NAME --listen ADDR:PORT --carrier ADDR`
+  is its client at the stream's other end, with no relay and no pair: so a
+  host whose one channel is the exec channel of a platform's own SSH gets
+  egress through that channel's other end. The issue's case, at the end
+  with egress: `podssh node gw --exit --carrier 'exec:ssh -T sandbox podssh
+  exit gw --listen 127.0.0.1:1080 --carrier stdio'`, then
+  `HTTPS_PROXY=http://127.0.0.1:1080` in the sandbox. The net's rule of the
+  exit holds as on each road: a member's key, and a rule to `exit:NAME` or
+  a range; the stream is no door to the egress. `exit --carrier` takes
+  `stdio` (or `-`), as nothing else of it reads stdin or writes stdout,
+  `fd:N` and `exec:CMD`; it starts the stream with the proxy
+  (`crates/podssh-cli/src/exit/listen.rs`), as the node drops a stream that
+  answers nothing for 30 s, and each connection is a leg of the one stream
+  (`crates/podssh-cli/src/exit/open.rs`). A stream of `stdio` or `fd:N` has
+  one life: when its node leaves, the proxy says so and ends (0); one of
+  `exec:` is started again for the next connection. Ctrl-C closes the
+  stream with 1000, which ends the node (0). `--pair-file`, `--relay-addr`
+  and `--ca-file` with it, and `stdio` on a terminal, are usage errors
+  (64); `ssh`, `proxy` and `pipe` keep refusing `--exit` beside
+  `--carrier` (64), as their programs reach the exit through this proxy.
 
 ## `podssh pipe`
 

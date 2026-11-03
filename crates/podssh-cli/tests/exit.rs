@@ -9,9 +9,12 @@
 //! it). Refused, and never dialled: the loopback for `b`, whose policy names
 //! no range, by each client; an address of no range of `--routes` for `a`.
 //! A node whose net gives it no role exit does not start (78). The
-//! commands with no connection are refused as the manual says. A check that
-//! needs Python and openssl for the stand-in, or curl, says that it did not
-//! run when this host has none.
+//! commands with no connection are refused as the manual says. Over a
+//! carrier (T-596), with no relay: the node starts `podssh exit --listen
+//! --carrier stdio` as its `exec:` program, whose proxy reaches a page
+//! through the node; a member with no rule is refused, and the stream's end
+//! ends the proxy. A check that needs Python and openssl for the stand-in,
+//! or curl, says that it did not run when this host has none.
 
 mod ssh_harness;
 mod throughput_harness;
@@ -167,6 +170,10 @@ fn the_commands_of_an_exit_are_refused_as_the_manual_says_with_no_connection() {
         (words(&["ssh", "--exit", "lab", "--direct", "u@h.example"]), 64, "--exit NAME starts the road"),
         (words(&["ssh", "--exit", "lab", "-4", "u@h.example"]), 64, "-4 and -6"),
         (words(&["pipe", "--exit", "lab", "stdio", "tcp:h.example:22"]), 64, "name one of them"),
+        // The exit over a carrier (T-596) takes no relay's and no pair's flag.
+        (words(&["exit", "lab", "--listen", "1080", "--carrier", "exec:cat", "--pair-file", "x"]), 64, "--carrier has"),
+        (words(&["exit", "lab", "--listen", "1080", "--carrier", "tcp:127.0.0.1:1"]), 64, "--carrier tcp:"),
+        (words(&["ssh", "--exit", "lab", "--carrier", "exec:cat", "u@h.example"]), 64, "podssh exit NAME --listen"),
     ] {
         let (rc, out, err) = ran(&mut command_in(home, &args));
         assert!(rc == code && err.contains(says) && out.is_empty(), "{args:?}: {rc} {err}");
@@ -290,6 +297,101 @@ fn an_exit_carries_what_its_net_lets_out_and_dials_no_address_unchecked() {
             assert!(status.starts_with("HTTP/1.1 403"), "{status}");
         }
     }
+}
+
+/// A child that is ended when the test ends, pass or fail.
+struct Ended(std::process::Child);
+
+impl Drop for Ended {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+/// The port of the proxy that the line `line` names.
+fn port_of(line: &str) -> u16 {
+    let port = line.split("proxy on 127.0.0.1:").nth(1).and_then(|r| r.split(',').next()).unwrap();
+    port.parse().unwrap()
+}
+
+/// The exit over a carrier (T-596, GitHub #124), with no relay and no pair:
+/// the node gw, of the role exit, starts `podssh exit gw --listen
+/// 127.0.0.1:0 --carrier stdio` as its `exec:` program, as the end with
+/// egress starts `ssh -T sandbox podssh exit ...` in the issue; the proxy's
+/// SOCKS5 and CONNECT, and curl where this host has it, reach a page of the
+/// test through the node. A member with no rule is refused by each protocol,
+/// and its target is never dialled. When the node goes, its stream's end
+/// ends the proxy, which had one life.
+#[test]
+fn an_exit_over_a_carrier_lends_its_egress() {
+    let scratch = Scratch(throughput_harness::scratch("exit-carrier"));
+    let home = scratch.0.as_path();
+    let dir = home.join("private");
+    podssh_relay::cache::private_dir(&dir).unwrap();
+    let ((gw_key, gw), (a_key, a), (c_key, c)) =
+        (key_file(&dir, "gw.key", 0x51), key_file(&dir, "a.key", 0x61), key_file(&dir, "c.key", 0x71));
+    let owner = owner_key(&dir).display().to_string();
+    let owner_doc = dir.join("owner.doc");
+    let owner_says = |args: &[&str]| {
+        let mut args = args.to_vec();
+        args.extend(["--owner-key", owner.as_str()]);
+        let (rc, _, err) = net(home, &owner_doc, &args);
+        assert_eq!(rc, 0, "{args:?}: {err}");
+    };
+    owner_says(&["net", "init", "home"]);
+    owner_says(&["net", "add", "gw", &gw, "--roles", "node,exit"]);
+    owner_says(&["net", "add", "a", &a]);
+    owner_says(&["net", "add", "c", &c]);
+    // a goes out and reaches the loopback's range; c, a member, has no rule.
+    let policy = dir.join("policy.json");
+    std::fs::write(&policy, r#"{"rules": [{"from": ["a"], "to": ["exit:gw", "127.0.0.1/32"]}]}"#).unwrap();
+    owner_says(&["net", "policy", "set", &policy.display().to_string()]);
+    let (given, doc) = (dir.join("given.doc"), dir.join("net.doc"));
+    std::fs::copy(&owner_doc, &given).unwrap();
+    let (rc, _, err) = net(home, &doc, &["net", "take", &given.display().to_string()]);
+    assert_eq!(rc, 0, "net take: {err}");
+    let bin = env!("CARGO_BIN_EXE_podssh");
+    // The node, whose program is the proxy of `key`'s member on its stdio:
+    // both inherit HOME, the net's document and stderr.
+    let node = |key: &str| {
+        assert!(![bin, key].iter().any(|w| w.contains('\'')), "a path that the words cannot carry");
+        let program = format!("exec:'{bin}' exit gw --listen 127.0.0.1:0 --carrier stdio --client-key '{key}'");
+        let words = ["node", "gw", "--exit", "--routes", "127.0.0.1/32", "--key", gw_key.as_str(), "--carrier"];
+        let words: Vec<String> = words.iter().map(|w| w.to_string()).chain([program]).collect();
+        let mut cmd = without_proxy(command_in(home, &words));
+        cmd.env("PODSSH_NET", &doc).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
+        let mut child = cmd.spawn().unwrap();
+        let lines = lines_of(&mut child);
+        (Ended(child), lines)
+    };
+    let site = page();
+    let (mut a_node, lines) = node(&a_key);
+    let said = |lines: &std::sync::mpsc::Receiver<String>| lines.try_iter().collect::<Vec<_>>().join("\n");
+    wait_for(&lines, "an exit of the net home as gw").expect("the node says its exit");
+    let first = wait_for(&lines, "proxy on 127.0.0.1:").expect("the proxy says where it listens");
+    assert!(first.contains("over the carrier stdio"), "{first}");
+    let port = port_of(&first);
+    let (code, tunnel) = socks5(port, "127.0.0.1", site);
+    assert_eq!(code, 0, "SOCKS5 for a: {}", said(&lines));
+    assert!(fetch(tunnel.unwrap()).ends_with("ok\n"), "a's page by SOCKS5");
+    let (status, stream) = connect(port, &format!("127.0.0.1:{site}"));
+    assert!(status.starts_with("HTTP/1.1 200"), "{status}: {}", said(&lines));
+    assert!(fetch(stream).ends_with("ok\n"), "a's page by CONNECT");
+    curl_through(port, site);
+    // The node goes: the stream of stdio had one life, so the proxy ends.
+    let _ = a_node.0.kill();
+    wait_for(&lines, "the carrier's stream ended").expect("the proxy ends with its stream");
+    // c: a member that the policy names in no rule.
+    let (word, dials) = service("web\n");
+    let (_c_node, lines) = node(&c_key);
+    let port = port_of(&wait_for(&lines, "proxy on 127.0.0.1:").expect("the proxy says where it listens"));
+    let (code, _) = socks5(port, "127.0.0.1", word);
+    assert_eq!(code, 2, "SOCKS5 refuses c by the rules: {}", said(&lines));
+    let (status, _) = connect(port, &format!("127.0.0.1:{word}"));
+    assert!(status.starts_with("HTTP/1.1 403"), "{status}: {}", said(&lines));
+    wait_for(&lines, "lets c reach").expect("the refusal names the rules");
+    assert_eq!(dials.load(Ordering::SeqCst), 0, "the exit dialled a target for a member with no rule");
 }
 
 /// The page through the proxy on `proxy`, with curl as its client, by

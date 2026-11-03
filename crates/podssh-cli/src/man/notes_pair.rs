@@ -254,7 +254,8 @@ pub(super) const NODE: &[&str] = &[
      with one address that fails is refused whole. The net must give the node the role exit, signed by its \
      owner, else the node does not start (78); a key of --allow, or an operator of the connect token alone, \
      never reaches the exit. TARGET is then optional. It goes on the pair's, the iroh, the DERP, the transit and \
-     the Piping Server roads; --no-e2e, --quick-tunnel, --temporary and a udp: TARGET are refused with it (64).",
+     the Piping Server roads, and on a carrier (--carrier); --no-e2e, --quick-tunnel, --temporary and a udp: \
+     TARGET are refused with it (64).",
     "With --carrier ADDR, the node's one road is a stream that exists already, for a host whose every road out \
      is closed but that grants one channel, such as the exec channel of a platform's own SSH: stdio (or -), \
      the stdin and stdout that such a channel gives the program that it starts; fd:N, a descriptor that the \
@@ -271,7 +272,9 @@ pub(super) const NODE: &[&str] = &[
      ended. --carrier stdio refuses a terminal on stdin (64), whose keys the node would read as frames. \
      --pair-file, --relay-addr, --ca-file, --iroh, --derp, --quick-tunnel, --relay, --temporary, --install, \
      --detach and the flags that go with them are refused with --carrier (64), as the stream is the node's \
-     parent's; so is --exit, whose client takes no carrier.",
+     parent's. --exit goes with it: the client at the other end is podssh exit --listen ADDR:PORT --carrier ADDR \
+     NAME, and the net's rule of the exit holds as on each road, so a host whose one channel is a platform's \
+     exec channel gets egress through its other end.",
 ];
 
 pub(super) const OPERATOR: &[&str] = &[

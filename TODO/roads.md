@@ -5528,7 +5528,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:141`).
+  port 443 answers (`docs/STATUS.md:142`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -8104,7 +8104,7 @@ as a firewall or a wrong port; it never says that this host has no sshd, or what
   the dial's error, with 69 (`crates/podssh-cli/src/node_target.rs:24-25`); only a dial that
   worked reaches the check of the version line, whose refusal names `--sshd` (`:29-35`).
 - Read: the row of `--sshd` says that each TARGET "is a standard sshd"
-  (`crates/podssh-cli/src/flags/node.rs:111-112`), and the manual that the node "serves a standard
+  (`crates/podssh-cli/src/flags/node.rs:114-115`), and the manual that the node "serves a standard
   sshd" (`crates/podssh-cli/src/man/notes_pair.rs:28`); neither says that it must run already.
 - Read: no line of `doctor` names sshd (searched in `crates/podssh-cli/src/doctor/` at `3bb42ea`).
 - Read: T-481 (open) names the command that installs tmux, from the package managers that a probe

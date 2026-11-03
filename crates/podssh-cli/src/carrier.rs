@@ -40,6 +40,8 @@ const CLOSE_LIMIT: Duration = Duration::from_secs(3);
 const CHILD_LIMIT: Duration = Duration::from_secs(5);
 /// Each direction of the pipe between the layer and the leg.
 const PIPE: usize = 256 * 1024;
+/// How often a client of a stream with one life looks whether its node left.
+const LOOK: Duration = Duration::from_millis(250);
 
 /// The client that each leg of a command shares, once one asked for it.
 static SHARED: Mutex<Option<Arc<Client>>> = Mutex::new(None);
@@ -97,6 +99,9 @@ pub(crate) struct Client {
     relay: Relay,
     trust: Trust,
     proxy: ProxyChoice,
+    /// A stream that this end was given (`stdio`, `fd:N`), which nothing
+    /// starts again: its end is the client's (T-596).
+    one_life: bool,
 }
 
 impl Client {
@@ -124,10 +129,24 @@ impl Client {
             }
             _ => None,
         };
+        let one_life = again.is_none();
         let role = Role::new(text, again, None).map_err(Refusal::config)?;
         role.attach(link).map_err(Refusal::config)?;
         let relay = Relay { host: carrier::NAME.into(), port: 0 };
-        Ok(Client { door: Door::of(role), child, relay, trust: Trust::Default, proxy: ProxyChoice::Direct })
+        let (trust, proxy) = (Trust::Default, ProxyChoice::Direct);
+        Ok(Client { door: Door::of(role), child, relay, trust, proxy, one_life })
+    }
+
+    /// Until the node left a stream that this end cannot start again, for a
+    /// client that serves while the stream lives (`exit --listen`, T-596); a
+    /// stream of `exec:` is started again for the next leg, so never.
+    pub(crate) async fn left(&self) {
+        if !self.one_life {
+            return std::future::pending().await;
+        }
+        while self.door.role().joined() {
+            tokio::time::sleep(LOOK).await;
+        }
     }
 
     /// The operator's legs of this carrier: no relay, no token, the role in

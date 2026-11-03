@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**574 entries: 109 open, 2 partial, 2 blocked, 461 done.**
+**574 entries: 108 open, 2 partial, 2 blocked, 462 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 39 | 1 | 0 | 221 | 261 |
-| P3 | 70 | 0 | 2 | 176 | 248 |
-| **All** | 109 | 2 | 2 | 461 | 574 |
+| P3 | 69 | 0 | 2 | 177 | 248 |
+| **All** | 108 | 2 | 2 | 462 | 574 |
 
 ## Entries
 
@@ -635,7 +635,7 @@ repository and CI).
 | [T-593](relay.md) | P2 | S | none | defect | done | The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own |
 | [T-594](repo.md) | P2 | S | none | docs | done | `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none |
 | [T-595](mesh.md) | P2 | L | M10 | feature | done | A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed |
-| [T-596](mesh.md) | P3 | S | M10 | feature | open | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |
+| [T-596](mesh.md) | P3 | S | M10 | feature | done | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |
 | [T-597](repo.md) | P3 | S | none | chore | done | Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13 |
 | [T-598](ssh.md) | P3 | S | none | defect | open | On a cloud container's host, a peer that stops reading below SSH with `--direct` ends the session after 240 s on the keepalives, not after 60 s on the stuck write |
 | [T-599](roads.md) | P2 | M | none | defect | done | The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random |

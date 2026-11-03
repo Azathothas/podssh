@@ -28,8 +28,16 @@ const REQUEST_LIMIT: Duration = Duration::from_secs(30);
 const AT_ONCE: usize = 32;
 
 /// Listen on `at`, and serve each client until Ctrl-C or SIGTERM (0), or
-/// until the listener fails.
+/// until the listener fails; over a carrier, the node hears the end.
 pub async fn serve(to: To, at: Address) -> i32 {
+    let code = Box::pin(proxy(to, at)).await;
+    // The carrier's node hears a Close 1000, and its program ends (T-596).
+    crate::carrier::end_shared().await;
+    code
+}
+
+/// The proxy of [`serve`], until its end.
+async fn proxy(to: To, at: Address) -> i32 {
     let mut say = |line: &str| podssh_ssh::err_line!("podssh exit: {line}");
     let mut listener = match Listener::bind(&at, &mut say).await {
         Ok(listener) => listener,
@@ -38,10 +46,20 @@ pub async fn serve(to: To, at: Address) -> i32 {
             return code;
         }
     };
+    // The carrier's role at once (T-596): the node's first frame waits for
+    // it, and a node that hears nothing for 30 s drops the stream.
+    let carrier = match to.carrier.as_deref().map(crate::carrier::shared).transpose() {
+        Ok(carrier) => carrier,
+        Err(refusal) => {
+            say(&refusal.message);
+            return refusal.code;
+        }
+    };
     if let Some(addr) = listener.local_addr() {
+        let over = to.carrier.as_deref().map(|text| format!(" over the carrier {text}")).unwrap_or_default();
         say(&format!(
-            "a SOCKS5 and HTTP CONNECT proxy on {addr}, whose connections start at the exit {}: a program reaches it \
-             with ALL_PROXY=socks5h://{addr} or HTTPS_PROXY=http://{addr}, until Ctrl-C",
+            "a SOCKS5 and HTTP CONNECT proxy on {addr}, whose connections start at the exit {}{over}: a program \
+             reaches it with ALL_PROXY=socks5h://{addr} or HTTPS_PROXY=http://{addr}, until Ctrl-C",
             to.name
         ));
     }
@@ -50,8 +68,15 @@ pub async fn serve(to: To, at: Address) -> i32 {
     loop {
         let Ok(permit) = room.clone().acquire_owned().await else { return crate::exit_codes::EXIT_SOFTWARE };
         let accepted = tokio::select! {
-            accepted = listener.accept(&mut say) => accepted,
+            accepted = listener.accept(&mut say) => Some(accepted),
             () = crate::node::stop_signal() => return 0,
+            // A stream of stdio or fd:N has one life: its node left, so no
+            // connection could start at the exit again.
+            () = left(carrier.as_deref()) => None,
+        };
+        let Some(accepted) = accepted else {
+            say("the carrier's stream ended: its node left, so this proxy ends with it");
+            return 0;
         };
         match accepted {
             Ok(end) => {
@@ -67,6 +92,15 @@ pub async fn serve(to: To, at: Address) -> i32 {
                 return sysexits::EX_UNAVAILABLE;
             }
         }
+    }
+}
+
+/// Until the node of a carrier with one life left it; never with no
+/// carrier.
+async fn left(carrier: Option<&crate::carrier::Client>) {
+    match carrier {
+        Some(client) => client.left().await,
+        None => std::future::pending().await,
     }
 }
 

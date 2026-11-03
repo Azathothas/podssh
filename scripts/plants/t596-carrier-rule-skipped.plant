@@ -1,0 +1,8 @@
+# T-596: the exit's rule of the net's policy not checked at the node, on
+# each road and so on a carrier: a member that the policy names in no rule
+# goes out through the exit; the refusal of the test of the exit over a
+# carrier must fail.
+ENTRY=T-596
+GROUP=cli-tests
+EXPECT='test an_exit_over_a_carrier_lends_its_egress \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test exit -- an_exit_over_a_carrier_lends_its_egress'
