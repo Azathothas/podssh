@@ -23,6 +23,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use podssh_ssh::sftp::Sftp;
 use sha2::{Digest, Sha256};
 
+use super::delta::Full;
 use super::link::{Link, Road};
 use super::operand::Operand;
 use super::transfer::{self, Failed, Side};
@@ -157,6 +158,10 @@ pub struct Progress {
     pub chunk: u64,
     /// The start of each chunk past `offset` that is in the temporary file.
     pub chunks: BTreeSet<u64>,
+    /// Why `--delta` sent the whole file, once said in this run (T-470): an
+    /// attempt after a broken connection says it no more, and its result
+    /// keeps the first reason. Not in the side file.
+    pub delta_why: Option<Full>,
 }
 
 impl Progress {
@@ -185,8 +190,9 @@ impl Progress {
         match (field("state"), temp, field("target"), offset) {
             (Some(was), Some(temp), Some(target), Some(offset)) if was == state => {
                 let target = Some(target);
+                let (temp, saved) = (Some(temp), offset);
                 let progress =
-                    Progress { dirs, side, state, target, temp: Some(temp), offset, saved: offset, chunk, chunks };
+                    Progress { dirs, side, state, target, temp, offset, saved, chunk, chunks, delta_why: None };
                 (progress, None)
             }
             (_, stale, _, _) => {

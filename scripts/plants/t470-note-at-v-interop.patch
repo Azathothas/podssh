@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/cp/delta/note.rs
++++ b/crates/podssh-cli/src/cp/delta/note.rs
+@@ -99,7 +99,7 @@
+     match why {
+         Full::NoOld => log.verbose(&line(source, why)),
+         Full::Differ => {}
+-        _ => log.info(&line(source, why)),
++        _ => log.verbose(&line(source, why)),
+     }
+     Delta::Full(why)
+ }

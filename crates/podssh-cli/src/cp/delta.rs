@@ -3,17 +3,22 @@
 //! fixed, of [`BLOCK`]: the SHA-256 of each block of the far file comes from
 //! one command over exec (`dd` into the server's digest tool), and that of
 //! each local block is read here. The temporary file is made from the old
-//! one where it is (`copy-data` inside the server, or a copy on this disk),
-//! only the blocks that differ cross, and the size is set. The digest of the
-//! whole file then decides, as for each copy: a difference falls back once to
-//! a full copy, and says so. A server with no command, no `dd`, no digest
-//! tool or no `copy-data` gets a full copy, and `-v` says why.
+//! one where it is (`copy-data` inside the server, else one command there,
+//! T-470; or a copy on this disk), only the blocks that differ cross, and the
+//! size is set. The digest of the whole file then decides, as for each copy:
+//! a difference falls back once to a full copy, and says so. A server that
+//! can do neither gets a full copy, and says why at the default level
+//! ([`note`]).
+
+pub mod note;
+
+pub use note::{full, Delta, Full};
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use podssh_ssh::sftp::{FileAttributes, OpenFlags, Reads, Sftp, Writes};
+use podssh_ssh::sftp::{FileAttributes, FileHandle, OpenFlags, Reads, Sftp, Writes, DATA_WAIT};
 use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
@@ -24,6 +29,9 @@ use super::meta::{self, Stamp};
 use super::pipe::Shape;
 use super::transfer::{self, Done, Failed, Side};
 use crate::exitmap::Fault;
+
+/// What a try of the delta gave: the copy done, or why the whole file goes.
+pub type Tried = Result<Done, Full>;
 
 /// The bytes of each block.
 pub const BLOCK: u64 = 1 << 20;
@@ -113,11 +121,70 @@ pub async fn far_blocks(handle: &Connection, path: &str, size: u64) -> Option<Ve
     read_blocks(&got.stdout, blocks)
 }
 
+/// For a POSIX shell: `$1` copied over the file `$2`, which is there, then a
+/// marker, so that a server that answers each command alike (a banner and
+/// 0) made no copy. `>|` writes over the file also where the shell's
+/// `noclobber` is set.
+const COPY: &str = "cat -- \"$1\" >| \"$2\" && echo podssh-copied";
+
+/// The marker of [`COPY`].
+const COPIED: &str = "podssh-copied";
+
+/// Copy `old` over the file `temp`, each an absolute path on the server, by
+/// one command there; whether it says that it did.
+async fn far_copy(handle: &Connection, old: &str, temp: &str, size: u64) -> bool {
+    let (Some(old), Some(temp)) = (podssh_ssh::exec::shell_word(old), podssh_ssh::exec::shell_word(temp)) else {
+        return false;
+    };
+    let command = format!("sh -c '{COPY}' sh {old} {temp}");
+    // One read and one write of the file on the server's disks.
+    let limit = DATA_WAIT + Duration::from_secs(size / (16 << 20));
+    match podssh_ssh::exec::capture(handle, &command, limit, 4096).await {
+        Ok(got) => got.status == Some(0) && String::from_utf8_lossy(&got.stdout).lines().any(|l| l == COPIED),
+        Err(_) => false,
+    }
+}
+
+/// The temporary file `temp` beside `target`, made anew (mode 0600,
+/// `EXCLUDE`) and filled from the old file there, of `size` bytes: by
+/// `copy-data` inside the server, else, when `by_command` names the old file
+/// and the temporary one by their absolute paths, by [`COPY`] (T-470), which
+/// writes into the file that SFTP made, so that the command writes into no
+/// name that this copy did not make. `None` when the command made no copy
+/// of the whole old file; the caller removes `temp`.
+async fn from_old(
+    sftp: &Sftp,
+    handle: &Connection,
+    target: &str,
+    temp: &str,
+    by_command: Option<(&str, &str)>,
+    size: u64,
+) -> Result<Option<FileHandle>, Failed> {
+    let far = |e| transfer::from_sftp(e, Side::Destination);
+    let attrs = FileAttributes { permissions: Some(0o600), ..FileAttributes::default() };
+    let flags = OpenFlags::CREATE | OpenFlags::EXCLUDE | OpenFlags::WRITE;
+    let file = sftp.open_file(temp, flags, attrs).await.map_err(far)?;
+    let Some((old, temp_there)) = by_command else {
+        let from = sftp.open_file(target, OpenFlags::READ, FileAttributes::default()).await.map_err(far)?;
+        let limit = DATA_WAIT + Duration::from_secs(size / (16 << 20));
+        let copied = sftp.copy_data(&from, &file, limit).await;
+        let _ = sftp.close(&from).await;
+        copied.map_err(far)?;
+        return Ok(Some(file));
+    };
+    // The marker, and the size that SFTP then sees: a copy cut short is none.
+    if far_copy(handle, old, temp_there, size).await && sftp.stat(temp).await.is_ok_and(|a| a.size == Some(size)) {
+        return Ok(Some(file));
+    }
+    let _ = sftp.close(&file).await;
+    Ok(None)
+}
+
 /// A copy up by blocks over the older `target` on the server: the copy's
-/// result, or `None` when it goes in full (no command, no `copy-data`, or
-/// digests that differ after the delta, each said at `-v` or as a note).
-/// With `--inplace` the changed blocks go into `target` itself (T-147), and
-/// no `copy-data` is needed.
+/// result, or why it goes in full (no older file; no command, no digest of
+/// a block, or no copy of the old file there; digests that differ after the
+/// delta, said here with their tool). With `--inplace` the changed blocks go
+/// into `target` itself (T-147), and no copy of the old file is needed.
 #[allow(clippy::too_many_arguments)]
 pub async fn up(
     sftp: &Sftp,
@@ -128,25 +195,38 @@ pub async fn up(
     before: &std::fs::Metadata,
     shape: Shape,
     log: &Log,
-) -> Result<Option<Done>, Failed> {
+) -> Result<Tried, Failed> {
     let (pipe, keep, inplace) = (shape.pipe, shape.keep, shape.inplace);
     let old = match sftp.stat(target).await {
         Ok(attrs) if attrs.is_regular() && attrs.size.unwrap_or(0) > 0 => attrs,
-        _ => return Ok(None),
+        _ => return Ok(Err(Full::NoOld)),
     };
-    if !inplace && !sftp.has("copy-data") {
-        log.verbose(&format!("{source}: the server has no copy-data: a full copy"));
-        return Ok(None);
-    }
+    let old_size = old.size.unwrap_or(0);
+    // With no copy-data, a command makes the temporary file (T-470); the
+    // digests of the far blocks need one anyway, so they go first.
+    let copy_data = inplace || sftp.has("copy-data");
     let absolute = sftp.realpath(target).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-    let Some(far) = far_blocks(handle, &absolute, old.size.unwrap_or(0)).await else {
-        log.verbose(&format!("{source}: the server gives no digest of a block: a full copy"));
-        return Ok(None);
+    let Some(far) = far_blocks(handle, &absolute, old_size).await else {
+        return Ok(Err(if copy_data { Full::NoDigests } else { Full::NoCommand }));
     };
     let near = local_blocks(local).map_err(|e| Failed::new(Fault::NoInput, format!("{source}: {e}")))?;
     let plan = plan(&near, &far, before.len());
     let (dir, leaf) = transfer::split_remote(target);
-    let temp = if inplace { target.to_string() } else { format!("{dir}{}", transfer::temp_name(leaf)) };
+    let temp_leaf = transfer::temp_name(leaf);
+    let temp = if inplace { target.to_string() } else { format!("{dir}{temp_leaf}") };
+    // The command names the temporary file by the absolute path of its
+    // directory: its shell may start elsewhere than SFTP's login directory.
+    let temp_there = if copy_data {
+        None
+    } else {
+        let there = sftp.realpath(if dir.is_empty() { "." } else { dir }).await;
+        let there = there.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        Some(format!("{}/{temp_leaf}", there.trim_end_matches('/')))
+    };
+    let by_command = temp_there.as_deref().map(|t| (absolute.as_str(), t));
+    if let Some((_, t)) = by_command {
+        log.verbose(&format!("{source}: --delta: no copy-data: a command there copies the old file into {t}"));
+    }
     let made = async {
         let file = if inplace {
             sftp.open_file(target, OpenFlags::WRITE, FileAttributes::default())
@@ -154,19 +234,10 @@ pub async fn up(
                 .map_err(|e| transfer::from_sftp(e, Side::Destination))?
         } else {
             // The temporary file is the old one, made inside the server.
-            let attrs = FileAttributes { permissions: Some(0o600), ..FileAttributes::default() };
-            let flags = OpenFlags::CREATE | OpenFlags::EXCLUDE | OpenFlags::WRITE;
-            let file =
-                sftp.open_file(&temp, flags, attrs).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-            let from = sftp
-                .open_file(target, OpenFlags::READ, FileAttributes::default())
-                .await
-                .map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-            let limit = podssh_ssh::sftp::DATA_WAIT + Duration::from_secs(old.size.unwrap_or(0) / (16 << 20));
-            let copied = sftp.copy_data(&from, &file, limit).await;
-            let _ = sftp.close(&from).await;
-            copied.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-            file
+            match from_old(sftp, handle, target, &temp, by_command, old_size).await? {
+                Some(file) => file,
+                None => return Ok(false),
+            }
         };
         let reader = std::fs::File::open(local).map_err(|e| Failed::new(Fault::NoInput, format!("{source}: {e}")))?;
         for &i in &plan.send {
@@ -191,7 +262,7 @@ pub async fn up(
         sftp.setstat(&temp, size).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         sftp.fsync(&file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         sftp.close(&file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        Ok(())
+        Ok(true)
     }
     .await;
     // A failure removes the temporary file; one in the destination itself
@@ -206,8 +277,13 @@ pub async fn up(
             failed
         }
     };
-    if let Err(failed) = made {
-        return Err(gone(failed).await);
+    match made {
+        Err(failed) => return Err(gone(failed).await),
+        Ok(false) => {
+            let _ = sftp.remove(&temp).await;
+            return Ok(Err(Full::NoFarCopy));
+        }
+        Ok(true) => {}
     }
     log.verbose(&said(source, &plan, near.len()));
     let after = std::fs::metadata(local).map_err(|e| Failed::new(Fault::NoInput, format!("{source}: {e}")))?;
@@ -221,7 +297,7 @@ pub async fn up(
             let _ = sftp.remove(&temp).await;
         }
         log.info(&format!("{source}: the digests differ after the delta ({how}): a full copy follows"));
-        return Ok(None);
+        return Ok(Err(Full::Differ));
     }
     let stamp = Stamp::of_local(before);
     if let Err(failed) = meta::set_far(sftp, &temp, &stamp, keep, log).await {
@@ -232,7 +308,7 @@ pub async fn up(
         not_atomic = transfer::rename_onto(sftp, &temp, target, log).await?;
         meta::times_after_rename(sftp, target, &stamp, keep).await;
     }
-    Ok(Some(Done {
+    Ok(Ok(Done {
         source: source.into(),
         destination: target.to_string(),
         bytes: plan.size,
@@ -240,6 +316,7 @@ pub async fn up(
         verified_by: how,
         not_atomic,
         removed: None,
+        delta: Some(sent(&plan, near.len())),
     }))
 }
 
@@ -248,9 +325,14 @@ fn said(source: &str, plan: &Plan, blocks: usize) -> String {
     format!("{source}: delta: {} of {blocks} blocks sent, {} bytes", plan.send.len(), plan.bytes())
 }
 
+/// The `delta` of a copy that sent the blocks of `plan`, of `blocks`.
+fn sent(plan: &Plan, blocks: usize) -> Delta {
+    Delta::Sent { blocks: blocks as u64, sent: plan.send.len() as u64, bytes: plan.bytes() }
+}
+
 /// A copy down by blocks over the older local `target`: the copy's result,
-/// or `None` when it goes in full. With `--inplace` the changed blocks go
-/// into `target` itself (T-147).
+/// or why it goes in full. With `--inplace` the changed blocks go into
+/// `target` itself (T-147).
 #[allow(clippy::too_many_arguments)]
 pub async fn down(
     sftp: &Sftp,
@@ -261,15 +343,14 @@ pub async fn down(
     stamp: &Stamp,
     shape: Shape,
     log: &Log,
-) -> Result<Option<Done>, Failed> {
+) -> Result<Tried, Failed> {
     let (pipe, keep, inplace) = (shape.pipe, shape.keep, shape.inplace);
     if !std::fs::metadata(target).is_ok_and(|m| m.is_file() && m.len() > 0) {
-        return Ok(None);
+        return Ok(Err(Full::NoOld));
     }
     let absolute = sftp.realpath(source).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
     let Some(far) = far_blocks(handle, &absolute, size).await else {
-        log.verbose(&format!("{source}: the server gives no digest of a block: a full copy"));
-        return Ok(None);
+        return Ok(Err(Full::NoDigests));
     };
     let shown = target.display().to_string();
     let near = local_blocks(target).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
@@ -337,7 +418,7 @@ pub async fn down(
             let _ = std::fs::remove_file(&temp);
         }
         log.info(&format!("{source}: the digests differ after the delta ({how}): a full copy follows"));
-        return Ok(None);
+        return Ok(Err(Full::Differ));
     }
     if let Err(failed) = meta::set_local(&temp, stamp, keep, log) {
         if inplace {
@@ -349,7 +430,7 @@ pub async fn down(
     if !inplace {
         std::fs::rename(&temp, target).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
     }
-    Ok(Some(Done {
+    Ok(Ok(Done {
         source: source.into(),
         destination: shown,
         bytes: size,
@@ -357,6 +438,7 @@ pub async fn down(
         verified_by: how,
         not_atomic: false,
         removed: None,
+        delta: Some(sent(&plan, far.len())),
     }))
 }
 
@@ -378,7 +460,9 @@ mod tests {
     }
 
     #[test]
-    fn the_script_holds_no_single_quote() {
+    fn the_scripts_hold_no_single_quote() {
         assert!(!SCRIPT.contains('\''), "it goes between single quotes");
+        assert!(!COPY.contains('\''), "it goes between single quotes");
+        assert!(COPY.ends_with(&format!("echo {COPIED}")), "the marker comes after the copy alone");
     }
 }

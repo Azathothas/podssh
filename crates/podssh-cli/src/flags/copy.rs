@@ -27,7 +27,7 @@ pub const CP_FLAGS: &[FlagRow] = &[
     row(None, "parallel", Some("K"), FlagKind::Supported,
         "copy several files K at once, and a file of more than 8 MiB as chunks, K at once, each over a channel of its own in the one connection (1 to 16; default 1)", None),
     row(None, "delta", None, FlagKind::Supported,
-        "over an older version of the file, send only the blocks of 1 MiB that changed; a full copy when the server cannot, or when the digests then differ", None),
+        "over an older version of the file, send only the blocks of 1 MiB that changed; a full copy when the server cannot, or when the digests then differ, which a line says without -v", None),
     row(Some('r'), "recursive", None, FlagKind::Supported,
         "copy a directory and what it holds, depth first; each link as a link, and a device, FIFO or socket skipped with a note", None),
     row(None, "exclude", Some("PATTERN"), FlagKind::Supported,

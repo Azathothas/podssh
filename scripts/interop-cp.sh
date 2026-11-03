@@ -461,6 +461,9 @@ no_part cp.no_part.exec "cp by exec"
 # podssh scp and podssh sftp (T-139).
 # shellcheck source=scripts/interop-sftp.sh
 . "$HERE/interop-sftp.sh"
+# cp --delta on servers with no copy-data (T-470).
+# shellcheck source=scripts/interop-delta.sh
+. "$HERE/interop-delta.sh"
 # A copy that goes on after a broken connection (T-136).
 # shellcheck source=scripts/interop-resume.sh
 . "$HERE/interop-resume.sh"

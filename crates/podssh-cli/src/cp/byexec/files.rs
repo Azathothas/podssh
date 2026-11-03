@@ -13,6 +13,7 @@ use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
 use super::{command, failed, step_failed, Far, Kind};
+use crate::cp::delta::{self, Full};
 use crate::cp::digest::{self, Sum};
 use crate::cp::in_place;
 use crate::cp::link::Meter;
@@ -72,6 +73,13 @@ impl Far {
             let why = format!("{target}: a symbolic link or a directory; --inplace writes into a file");
             return Err(failed(Fault::Usage, why));
         }
+        // --delta: the copy by exec sends the whole file, and says so (T-470).
+        let said = if shape.delta {
+            let old = matches!(self.kind(handle, &target).await?, Kind::File(n) if n > 0);
+            Some(delta::full(source, if old { Full::ByExec } else { Full::NoOld }, progress, log))
+        } else {
+            None
+        };
         // What came before the break is what the far file holds once its
         // writer, which the break may have left running, stops adding to it.
         let mut kept = None;
@@ -174,6 +182,7 @@ impl Far {
                 verified_by: how,
                 not_atomic: false,
                 removed: None,
+                delta: said,
             })
         }
         .await;
@@ -231,6 +240,11 @@ impl Far {
             Some(target) => PathBuf::from(target),
             None => transfer::local_target(dest, name, many)?,
         };
+        // --delta: the copy by exec sends the whole file, and says so (T-470).
+        let said = shape.delta.then(|| {
+            let old = std::fs::metadata(&target).is_ok_and(|m| m.is_file() && m.len() > 0);
+            delta::full(source, if old { Full::ByExec } else { Full::NoOld }, progress, log)
+        });
         // Without `tail` no read starts past the first byte: start over.
         if !self.tools.contains("tail") {
             progress.offset = 0;
@@ -311,6 +325,7 @@ impl Far {
                 verified_by: how,
                 not_atomic: false,
                 removed: None,
+                delta: said,
             })
         }
         .await;

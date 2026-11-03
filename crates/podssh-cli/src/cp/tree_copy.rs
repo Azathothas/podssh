@@ -188,6 +188,7 @@ async fn up(
                                 verified_by,
                                 not_atomic,
                                 removed,
+                                delta: None,
                             });
                             continue;
                         }

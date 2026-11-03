@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use podssh_ssh::sftp::{FileAttributes, OpenFlags, Sftp, SftpError};
 use podssh_ssh::{Connection, Log};
 
+use super::delta::Delta;
 use super::digest::{self, Sum};
 use super::in_place;
 use super::meta::{self, Stamp};
@@ -39,6 +40,9 @@ pub struct Done {
     pub not_atomic: bool,
     /// For `mv`: whether the source is gone. `None` for `cp`.
     pub removed: Option<bool>,
+    /// With `--delta` (T-470): the blocks that went, or why the whole file
+    /// went. `None` without the flag.
+    pub delta: Option<Delta>,
 }
 
 /// What a failure leaves the copy able to do.
@@ -284,6 +288,7 @@ pub async fn within(
             verified_by: how,
             not_atomic,
             removed: None,
+            delta: None,
         })
     }
     .await;

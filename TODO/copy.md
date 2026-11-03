@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:300-318` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3678-3681`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3688-3691`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -2186,16 +2186,16 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:161-187`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:167-193`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
 (`crates/podssh-cli/src/cp/finish.rs:68-71`), but only once the read
 ends. The copy up by exec reads the same way
-(`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); the copies down read
+(`crates/podssh-cli/src/cp/byexec/files.rs:127-152`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:344-383`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:359-398`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:332-369`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:303-330`).
@@ -2231,8 +2231,8 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:161-187`) and by
-exec (`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); down by exec
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:167-193`) and by
+exec (`crates/podssh-cli/src/cp/byexec/files.rs:127-152`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by
 reading, over SFTP and by exec, stops one byte past the copy's size. One
@@ -2655,8 +2655,8 @@ waits minutes for what one archive would carry in seconds.
 - Read: a file up waits in turn for the target's stat, the temporary file's stat, its open, each
   write, `fsync`, its close, the far digest over an exec channel of its own (an open, an exec, a
   reply and a close), the times, the rename and the times again
-  (`crates/podssh-cli/src/cp/bysftp.rs:49-121` and the end of a copy up, now
-  `crates/podssh-cli/src/cp/finish.rs:32-96`).
+  (`crates/podssh-cli/src/cp/bysftp.rs:49-127` and the end of a copy up, now
+  `crates/podssh-cli/src/cp/finish.rs:32-97`).
 - Measured (this cloud session, 2026-11-01): through the stand-in relay with 50 ms each way, 0.7
   files a second each way with one task, about 14 round trips a file; 4.6 up and 3.2 down with 8.
   Through the live relay to a node: with one task, `cp --timeout 300s` passed before the 200 went
@@ -2702,7 +2702,7 @@ cargo test -p podssh-cli --test throughput_live -- --ignored --nocapture cp_smal
 ## Correction
 
 2026-11-01: a new copy makes no stat of a temporary file: only one that goes on in a temporary file
-that its side file names looks at it (`crates/podssh-cli/src/cp/bysftp.rs:93-104`). The round trips
+that its side file names looks at it (`crates/podssh-cli/src/cp/bysftp.rs:99-110`). The round trips
 of a file up, on a server with a digest command: the target's stat, the open, the write, `fsync`,
 the close, the realpath and the command's channel (some three), the mode, the rename. On the
 throughput run's server, which runs no command, the channel is refused and a second read follows
@@ -2732,7 +2732,7 @@ named where it is wanted; the default stays one task (the Decision).
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2744,22 +2744,24 @@ full copy, and said nothing. After the run, the user cannot tell whether the del
 ## Premise
 
 - Read: each reason of a server for a full copy is said with `Log::verbose`, at `-v` alone: no
-  `copy-data` for a copy up (`crates/podssh-cli/src/cp/delta.rs:137-140`), and no digest of a
-  block, up and down (`:142-145`, `:270-273`). Only digests that differ after a delta are said at
-  the default level (`:223`, `:339`).
+  `copy-data` for a copy up (`crates/podssh-cli/src/cp/delta.rs`, lines 137-140 at `582b1bf`),
+  and no digest of a block, up and down (lines 142-145 and 270-273 there). Only digests that differ
+  after a delta are said at the default level (lines 223 and 339 there).
 - Read: `Log::info` writes at the default level, and `Log::verbose` at `-v` and above
   (`crates/podssh-ssh/src/log.rs:52-58`); `-q` silences both.
 - Read: a copy that goes on in the temporary file of an earlier attempt goes in full, with no word
-  (`crates/podssh-cli/src/cp/bysftp.rs:81`, `:262`), as `docs/cli.md:1776` says. The copy by exec,
+  (`crates/podssh-cli/src/cp/bysftp.rs`, lines 81 and 262 at `582b1bf`), as `docs/cli.md` said
+  (line 1729 at `582b1bf`). The copy by exec,
   for a server with no SFTP, does not read `--delta`: `crates/podssh-cli/src/cp/byexec.rs` names no
   delta, so the flag does nothing there, and nothing says so.
 - Read: a copy up makes its temporary file from the old one with `copy-data` alone
-  (`crates/podssh-cli/src/cp/delta.rs:155-170`), though the delta already runs a command on the
-  server for the digests of the far blocks (`:101-114`), and a command could make that copy too.
+  (`crates/podssh-cli/src/cp/delta.rs`, lines 155-170 at `582b1bf`), though the delta already runs
+  a command on the server for the digests of the far blocks (lines 101-114 there), and a command
+  could make that copy too.
   The issue's server offers `hardlink@openssh.com` and `posix-rename@openssh.com`, and no
   `copy-data` (the issue; not measured here); OpenSSH's `sftp-server` offers `copy-data` (T-142).
 - Read: the `done` object of `--jsonl` has no field for a delta
-  (`crates/podssh-cli/src/cp/report.rs:43-51`).
+  (`crates/podssh-cli/src/cp/report.rs`, lines 43-51 at `582b1bf`).
 
 ## Approach
 
@@ -2792,11 +2794,31 @@ full copy, and said nothing. After the run, the user cannot tell whether the del
   hash them here, which brings the old file down whole, as many bytes through the relay as the
   full copy sends up.
 
+The calls of the draft (2026-11-02), each for the operator to confirm (Q86):
+
+- The command is `sh -c 'cat -- "$1" >| "$2" && echo podssh-copied' sh OLD TEMP`, as the digests
+  of the blocks wrap theirs in `sh -c`, so that a login shell that is not POSIX's still runs it;
+  `>|` writes over the file that SFTP made also where `noclobber` is set; and the copy counts only
+  with its marker and with the size that SFTP then reads, as the test's server answers a command
+  that it does not know with a greeting and 0. Lost: `>` alone, which a `noclobber` refuses; the
+  status alone, which would leave a temporary file of no bytes, whose blocks would then differ.
+- The digests of the far blocks come first, then the copy of the old file: with no command there,
+  nothing could make the temporary file either, and the line names both (`no-copy-data`).
+- The reason is kept for the file in the progress record (`Progress::delta_why`): a second
+  attempt after a broken connection says nothing more, and its `done` object keeps the first
+  reason, not `resumed`. Lost: a line on each attempt.
+- The copy by exec looks at the far file once (one command) when `--delta` is given, so that a
+  first copy stays at `-v`. Lost: the line at the default level for each copy by exec.
+- Each file of a tree says its own line, as item 1 says: a tree of many files on a server with no
+  `copy-data` and no command gives a line for each. Lost: one line for the run, which T-472's
+  summary may give later.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test cp_delta
+cargo test -p podssh-cli --lib cp::delta
 sh scripts/dev.sh check   # interop-cp.sh: --delta against a subsystem with no copy-data
 ```
 
@@ -2811,6 +2833,61 @@ holds `"delta"`. In the gate, `scripts/interop-cp.sh` checks the same through Op
 subsystem that drops `copy-data` from the version reply, made as its subsystem that flips a byte
 is made. Planted defect: the note back at `-v`; the test with no `-v` fails.
 
+## Correction
+
+2026-11-02: the checks through OpenSSH are in `scripts/interop-delta.sh`, which
+`scripts/interop-cp.sh` sources while its servers run, as it sources `scripts/interop-sftp.sh`:
+`scripts/interop-cp.sh` holds 476 lines, and the 500-line rule holds for scripts too. The test's
+server of `ssh_harness::start` does not refuse a command it does not know: it answers it with a
+greeting and 0. So "the command refused as well" is that server, whose answer holds no marker,
+and the copy of the old file needs one (the Decision).
+
+## Done
+
+Drafted 2026-11-02 by an agent, which built nothing; merged and measured by the main session on
+2026-11-03.
+
+- `crates/podssh-cli/src/cp/delta/note.rs` (new): the reasons (`Full`: `no-older-file`,
+  `no-copy-data`, `no-block-digests`, `no-far-copy`, `resumed`, `by-exec`, `digests-differ`), the
+  `delta` of a result (`Delta`), its JSON, the line, and `full`, which says the line once for a
+  file, at `-v` for a first copy and at the default level else, and keeps the first reason. Its
+  unit tests: a word for each reason, the line's form, the JSON, once for a file.
+- `crates/podssh-cli/src/cp/delta.rs`: `up` and `down` give the copy done or the reason; with no
+  `copy-data`, `from_old` makes the temporary file over SFTP (0600, `CREATE` and `EXCLUDE`) and one
+  command fills it from the old one by their absolute paths, with a marker and a check of the size;
+  `-v` says so. The `done` of a delta holds the blocks, those sent and their bytes.
+- `crates/podssh-cli/src/cp/bysftp.rs`: each reason for a full copy, a copy that goes on from an
+  earlier attempt included, is said by `full`, and goes into the file's `done`.
+  `crates/podssh-cli/src/cp/byexec/files.rs`: with `--delta`, the copy by exec says that it sends
+  no delta (at `-v` for a first copy). `Done::delta` (`crates/podssh-cli/src/cp/transfer.rs`) and
+  `Progress::delta_why` (`crates/podssh-cli/src/cp/resume.rs`, kept out of the side file); the
+  `done` object of `--jsonl` gains `delta` (`crates/podssh-cli/src/cp/report.rs`).
+- The row of `--delta`, the notes of `cp` (`crates/podssh-cli/src/man/notes.rs`), `docs/cli.md`
+  (the paragraph of `--delta` and the objects of `--jsonl`), and the row of `podssh cp` in
+  `docs/STATUS.md`.
+- `crates/podssh-cli/tests/cp_delta.rs`: with no `copy-data` (the user `nocopy-...`,
+  `crates/podssh-cli/tests/ssh_harness/sftp.rs`), on the server of `start_shell` (Unix) a copy up
+  of 5 MiB with 13 bytes changed sends one block of five through the command's copy, and its
+  `done` says so; on the server of `start`, the whole file goes, exit 0, the line once with no
+  `-v`, none with `-q`, `no-copy-data` with `--jsonl`, and a first copy says nothing with no `-v`.
+- `scripts/interop-delta.sh` (new, sourced by `scripts/interop-cp.sh`): OpenSSH on 2214 with a
+  subsystem that drops `copy-data` from its version reply, and on 2216 with the same as its
+  `ForceCommand` (no command runs): `delta.command`, `delta.no_command`, `.quiet` and `.jsonl`, and
+  their two `sshd`; the harness `delta`, 6 checks, floor 6, in `scripts/interop-baseline.txt`.
+- Planted defects: `scripts/plants/t470-note-at-v.plant` (group `cli-tests`, with OpenSSH's
+  `sftp-server` added in its SETUP: the test with no `-v` must fail) and
+  `scripts/plants/t470-note-at-v-interop.plant` (group `copy`: `delta.no_command` must fail), one
+  patch: the line at `-v` alone.
+- The merge: `cargo test -p podssh-cli --test cp_delta` (Unix), 7 passed; `cargo test -p
+  podssh-cli --lib cp::`, 69 passed. The plant `t470-note-at-v`, its patch applied and its RUN run
+  by hand (its SETUP is `apk` of the build image, and this host has OpenSSH's `sftp-server`):
+  caught, `with_no_copy_data_and_no_command_the_whole_file_goes_and_one_line_says_why` failed.
+  rustfmt of `podssh-cli` (a list of `note.rs`'s test) and clippy of `podssh-cli` with
+  `-D warnings`, all targets: clean. `cargo todo remap` from the tree before the draft, in place
+  of its port.
+- Waits for the build image, which this host's Docker did not run: `scripts/interop-delta.sh`
+  (`delta.*`), in the gate's step `release` at each push, and the plant `t470-note-at-v-interop`
+  (group `copy`), through `plants.yml` on a runner.
 # T-471: `sftp`'s `ls -l` is not OpenSSH's long form, and five switches of its `ls` do nothing
 
 **Source:** GitHub #89 (Nemo-010, 2026-11-02, with `podssh 1.0.0 (35a0d19d)`).
@@ -2873,7 +2950,7 @@ the names, with no word.
    reverse order, `-S` by size, `-t` by time of change, `-1` one name a line; without `-l` or
    `-1`, the names in columns, as OpenSSH's.
 4. The listing goes into a module of its own, so that `crates/podssh-cli/src/sftp/run.rs` stays
-   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:1961-1967` and
+   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:1971-1977` and
    `docs/STATUS.md`.
 
 ## Decision
@@ -3009,7 +3086,7 @@ with no word, which reads as a hang.
 ## Premise
 
 - Read: at its end, a run of `cp` or `mv` says each file done at `-v` alone
-  (`crates/podssh-cli/src/cp/report.rs:40-68`, `:66`), and at the default level only the number of
+  (`crates/podssh-cli/src/cp/report.rs:40-72`, `:70`), and at the default level only the number of
   deletes (`:37-39`) and a failure. `run` says "files sent N, unchanged M" at `-v` alone
   (`crates/podssh-cli/src/run_cmd/mod.rs:226`), the line that its test reads
   (`crates/podssh-cli/tests/run_far.rs:17-20`).
@@ -3017,7 +3094,7 @@ with no word, which reads as a hang.
   `PODSSH_PROGRESS=line` (`crates/podssh-cli/src/cp/gauge.rs:23-37`): T-145's Approach chose
   nothing in a pipe.
 - Read: a gauge is made only by the SFTP road's copy of one file in one stream
-  (`crates/podssh-cli/src/cp/bysftp.rs:155`, `:336`). The chunks of `--parallel`
+  (`crates/podssh-cli/src/cp/bysftp.rs:161`, `:351`). The chunks of `--parallel`
   (`crates/podssh-cli/src/cp/chunks.rs`) and the copy by exec (`crates/podssh-cli/src/cp/byexec.rs`)
   draw none, and each file of a tree draws a line of its own, with no count of the run's files.
 - Read: the counts that a summary needs are in the run's `Outcome` already: the files done with
@@ -3041,7 +3118,7 @@ with no word, which reads as a hang.
 4. `run` says its summary before the command starts, on stderr, so that the command's stdout stays
    its own; with T-475, the paths that the ignores left out.
 5. `scp` and `sftp` keep the output of OpenSSH's, with no summary. The manual,
-   `docs/cli.md:1830-1841`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
+   `docs/cli.md:1839-1850`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
    the summary in place of the line of `-v`.
 
 ## Decision
@@ -3092,7 +3169,7 @@ destination too.
 - Measured in the issue: `cp -n`, `--no-clobber`, `-u` and `--backup` are each an unknown flag,
   and a second copy of a changed file replaces the far one with exit 0 and nothing on stderr.
   Read: `CP_FLAGS` has no such row (`crates/podssh-cli/src/flags/copy.rs:10-82`), and each copy
-  ends with a rename over its destination (`crates/podssh-cli/src/cp/transfer.rs:196-215`), by
+  ends with a rename over its destination (`crates/podssh-cli/src/cp/transfer.rs:200-219`), by
   `posix-rename@openssh.com` where the server has it
   (`crates/podssh-ssh/src/sftp/mod.rs:414-423`).
 - Read: `hardlink@openssh.com` gives a file a second name
@@ -3107,7 +3184,7 @@ destination too.
   with the suffix `~` (`--suffix`), and with `--delete` protects the names with that suffix from
   deletion.
 - Read: `run`'s check of a file that did not change compares the size and the time of change in
-  whole seconds, as SFTP version 3 carries them (`crates/podssh-cli/src/cp/tree_copy.rs:415-423`).
+  whole seconds, as SFTP version 3 carries them (`crates/podssh-cli/src/cp/tree_copy.rs:416-424`).
 
 ## Approach
 
@@ -3264,15 +3341,15 @@ step reads as a failure, and each `podssh run`, which then runs no command.
 
 - Read: an item of a tree that fails is said at once, and the first is kept for the exit
   (`crates/podssh-cli/src/cp/tree_copy.rs:66-71`); at the end, `report` says the kept failure
-  again (`crates/podssh-cli/src/cp/report.rs:69-80`, `:79`). So the first failure of a tree is said
+  again (`crates/podssh-cli/src/cp/report.rs:73-84`, `:83`). So the first failure of a tree is said
   twice. The issue reads the line said again as the last skip; its own output shows `ft/p1`, the
   first.
 - Read, not measured: a list of sources keeps its first failure and says none when it comes
   (`crates/podssh-cli/src/cp/session.rs:136-141`), so the second failure of a list is never said,
-  and `--jsonl` gives one `error` object for a run (`crates/podssh-cli/src/cp/report.rs:69-78`).
+  and `--jsonl` gives one `error` object for a run (`crates/podssh-cli/src/cp/report.rs:73-82`).
 - Read: a device, a FIFO or a socket of a tree is an `Item::Skip`
   (`crates/podssh-cli/src/cp/tree.rs:233`, `:301`), and each skip is a failure with the code 66
-  (`crates/podssh-cli/src/cp/tree_copy.rs:243-251`, `:374-383`), "a source that is missing or
+  (`crates/podssh-cli/src/cp/tree_copy.rs:244-252`, `:375-384`), "a source that is missing or
   cannot be read" (`crates/podssh-cli/src/cp/mod.rs:13-14`). T-143 chose it (its Approach, item 3,
   and its Decision, "as `scp` does"), and `crates/podssh-cli/src/cp/tree.rs:56-57` says so. The
   row of `-r` says "a device, FIFO or socket skipped with a note"
@@ -3303,7 +3380,7 @@ step reads as a failure, and each `podssh run`, which then runs no command.
    link that cannot be read, a name that is not UTF-8, and a refused name (70).
 4. The comments that say that a skip makes the exit not zero
    (`crates/podssh-cli/src/cp/tree.rs:56-57`, and the module comment of
-   `crates/podssh-cli/src/cp/tree_copy.rs`), the row of `-r`, the manual, `docs/cli.md:1778-1794`,
+   `crates/podssh-cli/src/cp/tree_copy.rs`), the row of `-r`, the manual, `docs/cli.md:1787-1803`,
    `docs/STATUS.md`, and `scripts/interop-cp.sh`: `cp.tree.up` asks for 0 and the note once, and
    `cp.delete.failed` takes its failed copy from a far directory at the name of a source file (the
    rename onto it fails, 73, as T-297's test makes one fail).

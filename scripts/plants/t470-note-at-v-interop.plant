@@ -1,0 +1,9 @@
+# T-470: the same defect as t470-note-at-v (the line of a full copy with
+# --delta at -v alone), against OpenSSH behind a subsystem with no copy-data
+# and no command: delta.no_command, with no -v, must fail.
+ENTRY=T-470
+GROUP=copy
+EXPECT='^FAIL +delta\.no_command '
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY="faults cp" sh scripts/interop.sh "$BIN"'
+LIMIT=3600

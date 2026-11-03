@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:203-217`,
    `crates/podssh-cli/src/man/data.rs:160-167`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:178-247`).
+   notes (`crates/podssh-cli/src/man/notes.rs:184-253`).
 
 ## Decision
 

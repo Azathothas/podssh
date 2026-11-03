@@ -48,6 +48,7 @@ harness keep interop 11 scripts/interop-keep.sh
 harness inplace interop 6 scripts/interop-inplace.sh
 harness mv interop 18 scripts/interop-mv.sh
 harness sftp interop 7 scripts/interop-sftp.sh
+harness delta interop 6 scripts/interop-delta.sh
 harness resume interop 9 scripts/interop-resume.sh
 harness edit interop 8 scripts/interop-edit.sh
 harness pipe interop 9 scripts/interop-pipe.sh
@@ -534,6 +535,14 @@ sftp.batch.ends_at_failure pass
 sftp.fetch_file pass
 sftp.ls.same_as_openssh pass
 sftp.ls.numeric pass
+
+# scripts/interop-delta.sh
+delta.sshd.nocopy pass
+delta.sshd.nocopy_forced pass
+delta.command pass
+delta.no_command pass
+delta.no_command.quiet pass
+delta.no_command.jsonl pass
 
 # scripts/interop-resume.sh
 resume.cut.down.exec pass

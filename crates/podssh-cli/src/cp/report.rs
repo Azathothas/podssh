@@ -52,6 +52,10 @@ pub(super) fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &
             if let Some(removed) = done.removed {
                 line["source_removed"] = removed.into();
             }
+            // With --delta: the blocks that went, or why the whole file went.
+            if let Some(delta) = &done.delta {
+                line["delta"] = delta.json();
+            }
             let _ = writeln!(out, "{line}");
         } else {
             let how = match &sha256 {

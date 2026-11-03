@@ -77,10 +77,16 @@ pub async fn up(
         in_place::check_far(sftp, &target).await?;
     }
     // Over an older version, only the blocks that changed (T-142); a copy
-    // that broke goes on where it was instead.
-    if shape.delta && progress.temp.is_none() {
-        if let Some(done) = delta::up(sftp, handle, local, source, &target, &before, shape, log).await? {
-            return Ok(done);
+    // that broke goes on where it was instead. A full copy says why (T-470).
+    let mut said = None;
+    if shape.delta {
+        let tried = match progress.temp {
+            Some(_) => Err(delta::Full::Resumed),
+            None => delta::up(sftp, handle, local, source, &target, &before, shape, log).await?,
+        };
+        match tried {
+            Ok(done) => return Ok(done),
+            Err(why) => said = Some(delta::full(source, why, progress, log)),
         }
     }
     let chunked = shape.tasks > 1 && before.len() > chunks::CHUNK;
@@ -204,6 +210,7 @@ pub async fn up(
         Err(failed) => Err(failed),
     };
     let copied = copied.map_err(|f| if shape.inplace { in_place::damaged(f, &target) } else { f });
+    let copied = copied.map(|done| Done { delta: said, ..done });
     match &copied {
         // The next connection writes on in it.
         Err(f) if f.cause == Cause::Broke => progress.save(),
@@ -257,11 +264,18 @@ pub async fn down(
     if shape.inplace {
         in_place::check_local(&target)?;
     }
-    // Over an older version here, only the blocks that changed (T-142).
+    // Over an older version here, only the blocks that changed (T-142); a
+    // full copy says why (T-470).
     let stamp = Stamp::of_far(&attrs, 0o777);
-    if shape.delta && progress.temp.is_none() {
-        if let Some(done) = delta::down(sftp, handle, source, &target, size, &stamp, shape, log).await? {
-            return Ok(done);
+    let mut said = None;
+    if shape.delta {
+        let tried = match progress.temp {
+            Some(_) => Err(delta::Full::Resumed),
+            None => delta::down(sftp, handle, source, &target, size, &stamp, shape, log).await?,
+        };
+        match tried {
+            Ok(done) => return Ok(done),
+            Err(why) => said = Some(delta::full(source, why, progress, log)),
         }
     }
     let chunked = shape.tasks > 1 && size > chunks::CHUNK;
@@ -314,6 +328,7 @@ pub async fn down(
                 verified_by: how,
                 not_atomic: false,
                 removed: None,
+                delta: None,
             });
         }
         progress.begin_sequential();
@@ -426,11 +441,13 @@ pub async fn down(
             verified_by: how,
             not_atomic: false,
             removed: None,
+            delta: None,
         })
     }
     .await;
     drop(out);
     let copied = copied.map_err(|f| if shape.inplace { in_place::damaged(f, &shown) } else { f });
+    let copied = copied.map(|done| Done { delta: said, ..done });
     match &copied {
         Err(f) if matches!(f.cause, Cause::Broke | Cause::Spent) => progress.save(),
         Err(_) => {

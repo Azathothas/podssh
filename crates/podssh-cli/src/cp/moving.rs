@@ -168,6 +168,7 @@ fn renamed(source: &str, target: &str, bytes: u64, not_atomic: bool) -> Done {
         verified_by: "rename".into(),
         not_atomic,
         removed: Some(true),
+        delta: None,
     }
 }
 

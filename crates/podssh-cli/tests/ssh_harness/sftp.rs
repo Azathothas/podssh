@@ -7,7 +7,8 @@
 //! a server that wants a file written outside the target would (T-143). For
 //! a user `noids-...`, the version reply names no
 //! `users-groups-by-id@openssh.com`, as a server older than OpenSSH 9.1, or
-//! another's, names none (T-471).
+//! another's, names none (T-471); for a user `nocopy-...`, no `copy-data`,
+//! as the Go server of GitHub #87 names none (T-470).
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -28,8 +29,13 @@ pub struct Mangle {
 impl Mangle {
     /// What the user `user` asks.
     pub fn of(user: &str) -> Mangle {
-        let hidden: &'static [&'static str] =
-            if user.starts_with("noids-") { &["users-groups-by-id@openssh.com"] } else { &[] };
+        let hidden: &'static [&'static str] = if user.starts_with("noids-") {
+            &["users-groups-by-id@openssh.com"]
+        } else if user.starts_with("nocopy-") {
+            &["copy-data"]
+        } else {
+            &[]
+        };
         Mangle { evil: user.starts_with("evil-"), hidden }
     }
 

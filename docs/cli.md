@@ -1767,14 +1767,23 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   other side, only the blocks of 1 MiB that changed go. The SHA-256 of each
   far block comes from one command over exec (`dd` into `sha256sum`,
   `shasum` or `openssl`), that of each local block is read here. The
-  temporary file is made from the old one where it is (`copy-data` inside
-  the server for a copy up, a copy on this disk for a copy down), only the
-  blocks that differ cross, and the size is set. The digest of the whole
-  file then decides: a difference falls back once to a full copy, and says
-  so. A server with no command, no `dd`, no digest tool, or for a copy up
-  no `copy-data`, gets a full copy, and `-v` says why; `-v` says the blocks
-  sent and their bytes. A copy that broke goes on in full where it was. The
-  full copy stays the default.
+  temporary file is made from the old one where it is (for a copy up
+  `copy-data` inside the server, else, T-470, the file made over SFTP as
+  for any copy and filled by one command there, `cat -- OLD >| TEMP`, so no
+  byte of the old file crosses; for a copy down a copy on this disk), only
+  the blocks that differ cross, and the size is set. The digest of the
+  whole file then decides: a difference falls back once to a full copy,
+  and says so. Each other reason for a full copy is one line at the default
+  level, once for each file (`-q` silences it): no `copy-data` and no
+  command; no command, `dd` or digest tool for the blocks; a command that
+  made no copy of the old file; a copy by exec, which sends no delta; a
+  copy that goes on from an earlier attempt's temporary file, in full where
+  it was. A destination that is not there, or is empty, says it at `-v`
+  alone. With `--jsonl` the `done` object gains `"delta"`:
+  `{"blocks": N, "sent": K, "bytes": B}`, or `{"full": "REASON"}` with
+  `no-older-file`, `no-copy-data`, `no-block-digests`, `no-far-copy`,
+  `by-exec`, `resumed` or `digests-differ`. `-v` says the blocks sent and
+  their bytes. The full copy stays the default.
 - **`-r`** (T-143) copies a directory and what it holds, depth first with
   `lstat`, 64 levels at most: each file as one copy goes (a temporary name,
   the digest, the rename), each symbolic link as a link, and a device, a
@@ -1869,7 +1878,8 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   copy keeps on the temporary file before `mv`. A copy within one server
   goes through this host. Each step with no file data waits 15 s at most.
 - `--jsonl` prints one object per file: `{"event":"done", "source",
-  "destination", "bytes", "sha256", "verified_by", "atomic"}`, or
+  "destination", "bytes", "sha256", "verified_by", "atomic"}`, with
+  `"delta"` too after `--delta` (T-470), or
   `{"event":"error", "source", "message", "code"}`.
 - Each SFTP reply with no file data waits 30 s at most, each read or write
   60 s (T-133); `--timeout` bounds the whole copy, the login included.

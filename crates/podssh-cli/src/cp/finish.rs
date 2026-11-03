@@ -91,6 +91,7 @@ pub(super) async fn finish_up(
             verified_by: how,
             not_atomic,
             removed: None,
+            delta: None,
         })
     }
 }

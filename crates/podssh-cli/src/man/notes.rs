@@ -97,6 +97,12 @@ const CP: &[&str] = &[
      failure in that order. The copy by exec goes one file at a time. Each file waits for its own round \
      trips, so a tree of small files through the relay takes their sum: a tree of 50 files or more that \
      go one at a time over SFTP says once that --parallel 8 copies 8 at once.",
+    "--delta sends only the blocks of 1 MiB that changed, over an older version of the file on the other \
+     side: one command on the server gives the digest of each of its blocks (dd and a digest tool), and \
+     the temporary file is made from the old one there (copy-data, else cat). Where that cannot be, the \
+     copy goes in full, and a line says why once for each file, without -v (-q silences it); a first \
+     copy, with no older version, says it at -v. The copy by exec sends no delta, and says so. With \
+     --jsonl the done object holds delta: the blocks, those sent and their bytes, or full and the reason.",
     "A copy keeps the source's permission bits. -p keeps the access and the modification times too, \
      and with -r each directory's, set after its files; --owner keeps the owner and the group by number \
      where the side that writes may give a file away (root), and says where it could not. A block of 64 \
