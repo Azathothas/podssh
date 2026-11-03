@@ -59,6 +59,8 @@ pub const SCP_FLAGS: &[FlagRow] = &[
     row(Some('X'), "sftp-option", Some("OPTION"), FlagKind::Supported,
         "an SFTP option, repeatable: buffer=BYTES (each read or write, at most 256K) or nrequests=COUNT (in flight at once)", None),
     row(None, "jsonl", None, FlagKind::Supported, "one JSON object per event on stdout", None),
+    // The record of the run (T-486), as for `cp`.
+    super::copy::RESULT_FILE,
     TIMEOUT,
     row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
         "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
@@ -134,6 +136,9 @@ pub const SFTP_FLAGS: &[FlagRow] = &[
         "the subsystem of the SFTP server (default: sftp)", None),
     row(Some('X'), "sftp-option", Some("OPTION"), FlagKind::Supported,
         "an SFTP option, repeatable: buffer=BYTES (as -B) or nrequests=COUNT (as -R)", None),
+    // The record of the run (T-486).
+    row(None, "result-file", Some("FILE"), FlagKind::Supported,
+        "at the end, one JSON object in FILE: the exit, the failure and its words, the commands run and failed, the command that ended the batch, and the relay", None),
     TIMEOUT,
     row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
         "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),

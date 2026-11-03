@@ -32,4 +32,9 @@ pub const RUN: &[&str] = &[
      the copy used most of what the relay carries in one session, the command runs on a new session. A \
      copy that failed exits 255 and runs nothing; else the exit status is the command's, with the rules \
      of podssh ssh.",
+    "--result-file FILE writes one JSON object to FILE at the end, also of a run refused before it \
+     connected: the keys of podssh cp, its verb run, files and transferred of the copy (up alone), and \
+     the status, signal, end and bytes of the command as podssh ssh --result-file gives them; bytes is \
+     null when the command did not run, as after a copy that failed. - is refused (exit 64), as stdout \
+     is the command's.",
 ];

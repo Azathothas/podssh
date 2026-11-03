@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**573 entries: 112 open, 2 partial, 2 blocked, 457 done.**
+**573 entries: 111 open, 2 partial, 2 blocked, 458 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 41 | 1 | 0 | 219 | 261 |
-| P3 | 71 | 0 | 2 | 174 | 247 |
-| **All** | 112 | 2 | 2 | 457 | 573 |
+| P3 | 70 | 0 | 2 | 175 | 247 |
+| **All** | 111 | 2 | 2 | 458 | 573 |
 
 ## Entries
 
@@ -550,7 +550,7 @@ repository and CI).
 | [T-483](pipe.md) | P3 | S | none | feature | done | `http-listen:` takes `ssh:[USER@]HOP` with no target, and `pipe --help` shows the proxy of an SSH server with its client |
 | [T-484](multi.md) | P3 | M | none | feature | done | `each --json` and `each --result-file`: each host's status, failure and streams in one object |
 | [T-485](multi.md) | P3 | S | none | feature | done | `job log --follow`: a job's output as it comes, on one connection, then its status |
-| [T-486](machine.md) | P3 | M | none | feature | open | `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file` |
+| [T-486](machine.md) | P3 | M | none | feature | done | `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file` |
 | [T-487](ws.md) | P3 | S | none | feature | done | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |
 | [T-488](machine.md) | P3 | L | none | feature | done | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
 | [T-489](irc.md) | P3 | S | none | feature | done | `chat --listen --linger`: a listener that stays for each peer after its input ended |

@@ -30,6 +30,9 @@ pub struct Facts {
     pub failure: Option<&'static str>,
     /// The relay host that opened the session.
     pub relay_host: Option<String>,
+    /// The relay sessions that the run opened: a copy past the relay's
+    /// limits opens more than one (T-137, T-486).
+    pub relay_sessions: u32,
     /// The relay's close: its code, and its reason.
     pub relay_close: Option<(Option<u16>, String)>,
     /// The run handed its stdin, stdout and stderr to a control master
@@ -50,6 +53,7 @@ impl Facts {
             end: None,
             failure: None,
             relay_host: None,
+            relay_sessions: 0,
             relay_close: None,
             shared: false,
             server_version: None,
@@ -270,8 +274,13 @@ pub fn fresh() {
     facts(|f| f.failure = None);
 }
 
+/// A relay session that `host` opened: the last host, and one more
+/// session of the run.
 pub fn relay_host(host: &str) {
-    facts(|f| f.relay_host = Some(host.to_string()));
+    facts(|f| {
+        f.relay_host = Some(host.to_string());
+        f.relay_sessions += 1;
+    });
 }
 
 /// The destination's login: the version line that its server sent, and

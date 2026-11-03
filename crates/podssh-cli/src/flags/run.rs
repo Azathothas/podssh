@@ -20,6 +20,9 @@ pub const RUN_FLAGS: &[FlagRow] = &[
         "send target/, node_modules/, .git/ and what .podsshignore names too; --exclude and --exclude-from still apply", None),
     row(None, "dry-run", None, FlagKind::Supported,
         "say on stdout what the copy would change (mkdir, copy, link, skip), then the command as run cd DIR && COMMAND; change nothing on either side, and run nothing", None),
+    // The record of the run (T-486): the copy's, and the command's as ssh's.
+    row(None, "result-file", Some("FILE"), FlagKind::Supported,
+        "at the end, one JSON object in FILE: the exit, the command's status or signal, end and bytes, the files of the copy and their bytes, the failure and the relay", None),
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,

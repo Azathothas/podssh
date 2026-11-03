@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 573 entries: 112 open, 2 partial, 2 blocked, 457 done.
+`TODO/INDEX.md` holds 573 entries: 111 open, 2 partial, 2 blocked, 458 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -228,7 +228,7 @@ and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones b
 (T-465, a test that failed once, 100 runs in a row passed since), each other one done and
 merged; `v1.0.1` went out with them on 2026-11-03. The defects of GitHub #112 to #124 (triaged
 on 2026-11-03) are done and go into `v1.1.0-beta.1`. Until podssh is stable the expensive checks wait (Q88). Their
-features and documents (T-486, T-530
+features and documents (T-530
 to T-532, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed; and of #112 to #124, with M10's T-592 and
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119,

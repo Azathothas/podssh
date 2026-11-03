@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:380`).
+  do not run programs (`docs/STATUS.md:381`).
 
 ## Approach
 
@@ -161,7 +161,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:188-194`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:302`).
+  (`docs/STATUS.md:303`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:14-22`
   after the hops of `crates/podssh-ssh/src/run.rs:157-174`, but that code is
   private and gives only an exit code.
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:4445`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:4493`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:339-443` a typed error, so that 77 is not
    guessed from a message.
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:99-103` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:204-213`,
   `crates/podssh-cli/src/doctor/unix.rs:227-232`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:380`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:381`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -415,7 +415,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1045-1047`).
   `AGENTS.md:276-282`, `docs/architecture.md:208-223`,
   `docs/target-environment.md:99-103`, `SECURITY.md:170-197`, `README.md:44-53`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:380`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:381`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs` lines 137-231 at `48a8744`). A bind that works does
@@ -587,7 +587,7 @@ running on the server (`docs/design.md:692-696`).
   each session (`crates/podssh-ssh/src/session.rs:159-218`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:311-317`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:388-389`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:389-390`).
 - Read: tmux is never assumed (`docs/target-environment.md:116-118`).
 
 ## Approach
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:692-696`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:4540-4542`). After the attach, send the window size again.
+   (`docs/cli.md:4588-4590`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-484` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119`), `docs/design.md:692-696`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -724,13 +724,13 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:218-226`); a client that calls
+  (`crates/podssh-cli/src/man/notes.rs:234-244`); a client that calls
   `connect()` itself needs a listener (`docs/design.md:1048-1051`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:251`), then Close 1009 (`docs/relay.md:315`); public
   targets only (`docs/relay.md:253`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:387`).
+  0.7 MB/s (`docs/STATUS.md:388`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -787,8 +787,8 @@ were found by their manuals (read on 2026-10-12, not run here): SSVNC's
 TigerVNC's `vncviewer` takes a Unix socket's path (its synopsis,
 `vncviewer [options] [unix socket]`). The second still needs a listener,
 but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
-(`docs/STATUS.md:377`); there OpenSSH's form a fails before it binds, as
-`ssh` finds no entry for the user (`docs/STATUS.md:382`).
+(`docs/STATUS.md:378`); there OpenSSH's form a fails before it binds, as
+`ssh` finds no entry for the user (`docs/STATUS.md:383`).
 
 ## Done
 
@@ -844,7 +844,7 @@ The calls made where the Approach left a choice:
   (`crates/podssh-cli/src/man/examples.rs:308`). It has no
   `ServerAliveInterval`, so that its line stays within rustfmt's 120
   columns; the note of proxy asks for it
-  (`crates/podssh-cli/src/man/notes.rs:227`).
+  (`crates/podssh-cli/src/man/notes.rs:245`).
 - Form b runs with `--direct`, as `scripts/interop-pipe.sh` runs `ssh:`;
   forms a and c go through the stand-in relay.
 - The citations of `crates/podssh-cli/src/man/examples.rs` in
@@ -1232,10 +1232,10 @@ The calls made where the Approach left a choice:
   `torvalds/linux:tools/usb/usbip/src/usbip_attach.c`), so the device's
   traffic passes podssh for as long as the pipe's session lasts; the
   README says so. `usbip` dials TCP only, so a host that refuses an
-  AF_INET bind, as sandbox A does (`docs/STATUS.md:377`), cannot run the
+  AF_INET bind, as sandbox A does (`docs/STATUS.md:378`), cannot run the
   recipe, nor can one without the modules.
 - The row states the limit by the throughput measured through sandbox A's
-  proxy (`docs/STATUS.md:384`): 64 MiB is about 2 minutes of reads at
+  proxy (`docs/STATUS.md:385`): 64 MiB is about 2 minutes of reads at
   0.5 to 0.7 MB/s.
 
 What waits:

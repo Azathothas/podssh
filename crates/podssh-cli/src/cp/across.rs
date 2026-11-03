@@ -80,6 +80,8 @@ pub(super) async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, a
             .expect("a copy up needs no copy-data");
     }
     let _ = std::fs::remove_dir_all(&dir);
+    // Down to this host, then up: the record counts its bytes both ways.
+    outcome.through = true;
     // A file that the look kept is no copy: its source stays.
     let copied = outcome.done.last().cloned();
     if let (true, true, Some(before), Some(copied)) = (moving, outcome.failed.is_none(), recorded.first(), copied) {

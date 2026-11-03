@@ -40,6 +40,9 @@ pub(super) struct Outcome {
     /// The paths of a tree's source that the excludes left out, each the
     /// top of what it left out (T-475).
     pub(super) left_out: usize,
+    /// A copy between servers came down to this host and went up again,
+    /// so its bytes went both ways (T-486).
+    pub(super) through: bool,
 }
 
 impl Outcome {

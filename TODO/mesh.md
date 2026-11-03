@@ -3132,11 +3132,11 @@ relay. Planted, the net's lookup skipped, and the test fails.
 
 The copies do ask the net (read 2026-11-02). Each reads its operand with its own parser
 (`crates/podssh-cli/src/cp/operand.rs:114`), and hands the server to `ssh`'s resolution
-(`crates/podssh-cli/src/cp/mod.rs:264`, `crates/podssh-cli/src/sftp/mod.rs:169`,
+(`crates/podssh-cli/src/cp/mod.rs:296`, `crates/podssh-cli/src/sftp/mod.rs:213`,
 `crates/podssh-cli/src/edit/mod.rs:153`), which reads the destination's node before its host
 (`crates/podssh-cli/src/ssh/resolve.rs:144`), and a name alone there in the net
 (`crates/podssh-cli/src/ssh/node.rs:44` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
-(`crates/podssh-cli/src/cp/link.rs:157-158`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
+(`crates/podssh-cli/src/cp/link.rs:161-162`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
 already resolve to the member's node. What was missing: a test that proves it, the manual's and
 the documents' words, and the copies' own test of one server, which compared the operands as
 typed (`crates/podssh-cli/src/cp/operand.rs`, lines 59-64 at `f8d15bf`), so that `lab:` and
@@ -4389,7 +4389,7 @@ where `ssh` would reach it.
 
 ## Premise
 
-- `crates/podssh-cli/src/cp/link.rs:157` says "Transport::Node { label, pair_file, trust, channel, .. } => {",
+- `crates/podssh-cli/src/cp/link.rs:161` says "Transport::Node { label, pair_file, trust, channel, .. } => {",
   and the copy reaches the node by `crate::ssh::node::reach`, the pair's road.
 - `crates/podssh-cli/src/ssh/roads.rs:1` says "`podssh ssh node://NAME` over more roads than the pair's (T-164, T-379):".
 
