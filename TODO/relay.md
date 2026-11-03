@@ -2537,6 +2537,10 @@ fails.
   scripts/plant-each.sh --here t610-pool-as-advice`, caught.
 - An order that podssh measures and keeps is T-606's (`podssh relay rank`), and its use by the
   default list T-607's; once they are done, the line names the rank too.
+- 2026-11-03, after: the gate's step `release` failed at `e0a2496` and `5f0165b` (runs 41694485243
+  and 41698555205): the interop check `relay.info` (`scripts/interop-relay.sh`) still read the old
+  line `pool, best first: 1 hosts`. It now reads the new line of the pool and the line of the
+  measures from this host; its greps were run here on the lines of that run's log.
 
 
 # T-605: A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research
