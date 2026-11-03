@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`crates/podssh-relay/src/token.rs:95-100`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:177-185`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:403`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:428`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -1671,6 +1671,9 @@ sh scripts/plant-each.sh --here t325-chunk-times-ignored t325-parts-times-ignore
   t325-cap-not-doubled t325-quiet-end-ignored`): 4 caught.
 - `cargo clippy` of both crates with `-D warnings`: clean; `cargo fmt --check`: clean after one file
   of the draft was formatted.
+- Repaired after the merge, 2026-11-03: a test of the verdicts named the default relay by its literal,
+  which `crates/podssh-relay/tests/default_relay.rs` allows in one place of the sources alone; it
+  takes `DEFAULT_RELAY_HOST` now (`--test default_relay`, 1 passed; `--lib doctor::stream`, 12).
 - Waits (Q88): the live run from a GitHub runner, `doctor --stream` through a quick tunnel of the
   run and at `podssh relay serve` on the runner, which no workflow runs; T-319's use of the numbers.
 
@@ -2160,7 +2163,7 @@ and each other command print rustls's words alone. An error should tell what to 
   yet") holds for both.
 - Read: the expiry of a cached token is read against the local clock, and a token that the relay
   refuses is minted again once (`crates/podssh-relay/src/cache.rs:97`;
-  `crates/podssh-relay/src/open.rs:356-368`): that case needs no hint.
+  `crates/podssh-relay/src/open.rs:358-370`): that case needs no hint.
 
 ## Approach
 

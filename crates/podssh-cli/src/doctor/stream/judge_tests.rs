@@ -151,10 +151,10 @@ fn a_quiet_stream_is_judged_by_when_and_how_it_ended() {
 #[test]
 fn the_quiet_socket_names_its_hold_or_its_end() {
     let hold = Duration::from_secs(130);
-    let line = detail(socket("tcp.ssh.relay.ajam.dev", hold, &Ok(None)));
+    let line = detail(socket(podssh_relay::relay::DEFAULT_RELAY_HOST, hold, &Ok(None)));
     assert!(line.contains("stayed open 130.0 s"), "{line}");
     let ended = Ok(Some((Duration::from_millis(60_200), "an end with no Close".into())));
-    let line = detail(socket("tcp.ssh.relay.ajam.dev", hold, &ended));
+    let line = detail(socket(podssh_relay::relay::DEFAULT_RELAY_HOST, hold, &ended));
     assert!(line.contains("ended after 60.2 s (an end with no Close)") && line.contains("or the relay dropped it"));
     assert!(line.contains("; looks like nginx's") && line.contains("or an AWS Application Load Balancer's"), "{line}");
     assert!(unknown(socket("r", hold, &Err("no pair: 429".into()))).ends_with("no pair: 429"));
