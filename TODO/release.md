@@ -889,6 +889,16 @@ at `refs/tags/v1.0.0-beta.3` (cosign 3.1.4 and 2.6.5; Rekor entry 3617465347), a
 branch's identity refused; the short form on the published x86_64 binary; and that binary's
 `podssh update` to its own release, which replaced it with its download.
 
+2026-11-02: `v1.0.0-beta.4` is published, a prerelease at `4e79a1f`
+(https://github.com/Azathothas/podssh/releases/tag/v1.0.0-beta.4, 01:59:36 UTC), by the run by
+hand with `publish` on the branch `beta/v1.0.0-beta.4` at that commit (41374117059), as `main`
+held newer commits, and the tag's run (41374153018, 01:45 to 01:59 UTC), after the gate (run
+41346809898), the dry run (41346815789), the plants (41346818739) and the changelog (41374113963)
+passed on that commit, and the release check's rows before its tag (T-251's Done, the runs before
+`v1.0.0-beta.4`'s tag). Twelve files: eight binaries, `SHA256SUMS`, its signature, the provenance
+and the licenses. After it, `release-proofs.yml` (run 41375376913) and `update-live.yml` (run
+41375379843) passed.
+
 # T-375: `podssh update`: the release for its own target, checked, in place of the binary
 
 **Source:** the operator, 2026-10-31: "we will add self update soon", as an explicit command.
@@ -1237,6 +1247,15 @@ update`, still get each defect.
    `update-live.yml` and the release check on the published files.
 4. The README's install lines and `docs/STATUS.md`; then `v1.1.0-beta.1` (T-446), no earlier
    than a day after the beta before it.
+
+## Decision
+
+The issues that the testers filed after the triage of #83 to #111 (GitHub #112 to #124, from
+2026-11-02 17:53 UTC, among them two defects of the reverse road, #112 and #114) go into the
+release after `v1.0.1`, not into it: `v1.0.1` goes out with the repairs that its commit holds,
+which have passed their checks. Holding it for them lost: the repairs of the defects of #83 to
+#111 would reach no user for another day or more, while Q87 names the defects of that triage, and
+a tag that never moves makes the next release the place of a later repair either way.
 
 ## Prove
 
