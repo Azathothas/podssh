@@ -185,7 +185,7 @@ Read in the tools. Each stage is one pass: each cell is measured once.
   results/probe.json), so that Worker dials after its 101 (Inferred). The
   upgrade times of the two kinds are not the same measure. `podssh relay
   trace` gives the relay's own dial time, which tells the two legs apart
-  (`crates/podssh-cli/src/relay_diag.rs:166-239`).
+  (`crates/podssh-cli/src/relay_diag.rs:168-241`).
 - **The target's path with the relay.** The download goes to one mirror in
   the US on port 80. A pool host is the same Worker placed near a cloud's
   region ([carriers.md](../carriers.md), the pool), so its MiB/s is mostly

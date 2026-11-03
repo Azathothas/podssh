@@ -1,0 +1,8 @@
+# T-610: relay info's pool says "best first" again, with no word of whose
+# order it is or of the edge that made it (GitHub #125); the unit test of two
+# edges that rank the pool the other way round must fail.
+ENTRY=T-610
+GROUP=cli-tests
+EXPECT='test relay_diag_text::tests::the_pool_is_the_relays_order_from_the_edge_that_answered \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib relay_diag_text'
+LIMIT=1800

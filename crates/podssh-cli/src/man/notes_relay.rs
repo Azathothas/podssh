@@ -43,8 +43,12 @@ pub const RELAY: &[&str] = &[
      prints a line for each as it answers: the relay's version, the edge that answered, the time, the \
      TLS version and how the connection was made, or why it failed. It needs one host that answers.",
     "podssh relay info reads /relays.json from the first relay host: the edge that this host reaches, \
-     the pool best first with the relay's estimate of each round trip, and the limits of a session. \
-     With HOST PORT, also the URL that the relay chooses for that target.",
+     the pool in the relay's order with its rank and its estimate of each round trip, and the limits of \
+     a session. The relay makes that order from the edge that served the request, so two calls can \
+     disagree, and neither measures this host's path: podssh relay status times the hosts that podssh \
+     tries, and podssh ping --relay-host HOST times one, from this host. With --json, the relay's fields \
+     are unchanged, and pool_order says whose order it is and from which edge. With HOST PORT, also the \
+     URL that the relay chooses for that target.",
     "podssh relay trace HOST PORT asks the first relay host to dial the target and to read its first \
      line, with a forward token in a header and never in the URL: the relay's verdict (live, or \
      silent-or-unreachable for a target that sent nothing), the address that it dialed, the times of \

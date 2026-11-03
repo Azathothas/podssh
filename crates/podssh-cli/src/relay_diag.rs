@@ -153,7 +153,9 @@ pub fn info(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         Err(refusal) => return refusal.report("relay", err),
     };
     if args.json {
-        let doc = json!({ "schema": 1, "podssh": crate::help::version(), "relay": relay.host, "info": doc });
+        let order = crate::relay_diag_text::pool_order(&doc);
+        let doc = json!({ "schema": 1, "podssh": crate::help::version(), "relay": relay.host, "info": doc,
+            "pool_order": order });
         let _ = writeln!(out, "{doc}");
     } else {
         for line in crate::relay_diag_text::info_lines(&relay.host, &doc) {

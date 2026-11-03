@@ -30,8 +30,21 @@ fn size(bytes: u64) -> String {
     }
 }
 
+/// Where a user gets an order measured from this host, after the relay's.
+const MEASURED_HERE: &str =
+    "measured from this host: podssh relay status (the hosts that podssh tries), podssh ping --relay-host HOST (one)";
+
+/// Whose order the pool of `doc` is in, for `relay info --json`: the
+/// relay's, from the edge that answered; null with no pool.
+pub fn pool_order(doc: &Value) -> Value {
+    if !doc["pool"].is_array() {
+        return Value::Null;
+    }
+    serde_json::json!({ "by": "relay", "edge": text(&doc["you"]["edge_colo"]), "measured_here": false })
+}
+
 /// The relay and its edge, the URL for the target when one was given, the
-/// pool best first, the limits and the relay's note.
+/// pool in the relay's order, the limits and the relay's note.
 pub fn info_lines(host: &str, doc: &Value) -> Vec<String> {
     let mut lines = Vec::new();
     let service = text(&doc["service"]).unwrap_or_else(|| "(no service)".into());
@@ -51,7 +64,16 @@ pub fn info_lines(host: &str, doc: &Value) -> Vec<String> {
         lines.push(format!("for {}: {connect}", authority(&name, port)));
     }
     if let Some(pool) = doc["pool"].as_array() {
-        lines.push(format!("pool, best first: {} hosts", pool.len()));
+        // The relay ranks its pool from the edge that served this request,
+        // so two calls disagree (GitHub #125): the line says whose order it
+        // is, lest it read as podssh's advice for this host.
+        let from = text(&doc["you"]["edge_colo"]).map(|e| format!("edge {e}"));
+        let from = from.unwrap_or_else(|| "the edge that answered".into());
+        lines.push(format!(
+            "pool, in the relay's order: {} hosts; the rank and the score are the relay's estimate from {from}, \
+             which changes with the edge, not a measure of this host's path",
+            pool.len()
+        ));
         for entry in pool {
             let rank = entry["rank"].as_u64().map(|r| r.to_string()).unwrap_or_else(|| "-".into());
             let name = text(&entry["name"]).unwrap_or_else(|| "-".into());
@@ -60,6 +82,7 @@ pub fn info_lines(host: &str, doc: &Value) -> Vec<String> {
             let score = entry["score_ms"].as_u64().map(|v| format!("{v} ms")).unwrap_or_else(|| "-".into());
             lines.push(format!("  {rank:>3}  {name:<24} {at:<42} {region:<26} {score}"));
         }
+        lines.push(MEASURED_HERE.into());
     }
     let limits = &doc["limits"];
     let mut parts = Vec::new();
@@ -150,6 +173,37 @@ mod tests {
         assert_eq!(size(67_108_864), "64 MiB");
         assert_eq!(size(262_144), "256 KiB");
         assert_eq!(size(1000), "1000 bytes");
+    }
+
+    /// Two answers of the relay, from two edges that rank the pool the other
+    /// way round (GitHub #125): each says that its order is the relay's,
+    /// from its edge, and where an order measured from this host is.
+    #[test]
+    fn the_pool_is_the_relays_order_from_the_edge_that_answered() {
+        let pool = |a: u64, b: u64| {
+            json!([
+                { "rank": a, "name": "a", "host": "tcp-a.example", "score_ms": 40 + a },
+                { "rank": b, "name": "b", "host": "tcp-b.example", "score_ms": 40 + b },
+            ])
+        };
+        for (edge, a, b) in [("NRT", 0, 1), ("SIN", 1, 0)] {
+            let doc = json!({ "service": "tcp-ssh-relay", "version": "1", "you": { "edge_colo": edge },
+                "pool": pool(a, b) });
+            let lines = info_lines("relay.example", &doc);
+            assert_eq!(
+                lines[1],
+                format!(
+                    "pool, in the relay's order: 2 hosts; the rank and the score are the relay's estimate from \
+                     edge {edge}, which changes with the edge, not a measure of this host's path"
+                ),
+                "{lines:?}"
+            );
+            assert_eq!(lines[4], MEASURED_HERE, "{lines:?}");
+            assert_eq!(pool_order(&doc), json!({ "by": "relay", "edge": edge, "measured_here": false }));
+        }
+        let doc = json!({ "pool": [] });
+        assert!(info_lines("relay.example", &doc)[1].contains("estimate from the edge that answered"));
+        assert_eq!(pool_order(&json!({})), Value::Null);
     }
 
     /// The shape that the live relay answered on 2026-10-11, with the caller's

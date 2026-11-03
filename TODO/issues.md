@@ -193,7 +193,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #118 | The node's key under `HOME/.cache` when `HOME` is another user's | closed | T-593 |
 | #121 | `docs/STATUS.md` describes `main`, and the release has no exit node | closed 2026-11-03, its entry done (`c2c4f94`) | T-594 (the exit is in `v1.0.1`'s notes, T-584) |
 | #124 | A carrier over stdio or exec for a node and its client | open: T-595 and T-596 done, T-614 remains | T-595, T-596 (the exit over it), T-614 (`--exit` beside `--carrier` in `ssh`, `proxy` and `pipe`, Q90) |
-| #125 | `relay info`: `score_ms` and `rank` are the edge's, so the pool's order changes between calls | open | T-610 |
+| #125 | `relay info`: `score_ms` and `rank` are the edge's, so the pool's order changes between calls | closed 2026-11-03, its entry done | T-610 |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,

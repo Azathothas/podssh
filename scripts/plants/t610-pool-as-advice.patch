@@ -1,0 +1,16 @@
+--- a/crates/podssh-cli/src/relay_diag_text.rs
++++ b/crates/podssh-cli/src/relay_diag_text.rs
+@@ -69,11 +69,8 @@
+         // is, lest it read as podssh's advice for this host.
+         let from = text(&doc["you"]["edge_colo"]).map(|e| format!("edge {e}"));
+         let from = from.unwrap_or_else(|| "the edge that answered".into());
+-        lines.push(format!(
+-            "pool, in the relay's order: {} hosts; the rank and the score are the relay's estimate from {from}, \
+-             which changes with the edge, not a measure of this host's path",
+-            pool.len()
+-        ));
++        let _ = from;
++        lines.push(format!("pool, best first: {} hosts", pool.len()));
+         for entry in pool {
+             let rank = entry["rank"].as_u64().map(|r| r.to_string()).unwrap_or_else(|| "-".into());
+             let name = text(&entry["name"]).unwrap_or_else(|| "-".into());

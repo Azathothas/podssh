@@ -230,10 +230,19 @@ fn info_gives_the_pool_the_limits_and_the_url_for_a_target() {
     let edge = w.edge.map(|e| format!("; this host reaches it at edge {e}")).unwrap_or_default();
     assert_eq!(lines[0], format!("relay relay-a.test: tcp-ssh-relay {}{edge}", w.version), "{stdout}");
     assert_eq!(lines[1], format!("for 127.0.0.1:2222: wss://{host}/connect/127.0.0.1/2222"), "{stdout}");
-    assert_eq!(lines[2], "pool, best first: 1 hosts", "{stdout}");
-    assert!(lines[3].contains(w.pool) && lines[3].contains("relay-a.test"), "{stdout}");
+    let from = w.edge.map(|e| format!("edge {e}")).unwrap_or_else(|| "the edge that answered".into());
     assert_eq!(
-        lines[4],
+        lines[2],
+        format!(
+            "pool, in the relay's order: 1 hosts; the rank and the score are the relay's estimate from {from}, \
+             which changes with the edge, not a measure of this host's path"
+        ),
+        "{stdout}"
+    );
+    assert!(lines[3].contains(w.pool) && lines[3].contains("relay-a.test"), "{stdout}");
+    assert!(lines[4].starts_with("measured from this host: podssh relay status"), "{stdout}");
+    assert_eq!(
+        lines[5],
         "limits: connect 10 s, idle 3 min, a session 12 h, a session 64 MiB, a frame 256 KiB, UDP unsupported",
         "{stdout}"
     );
@@ -245,6 +254,8 @@ fn info_gives_the_pool_the_limits_and_the_url_for_a_target() {
     assert_eq!(doc["relay"], "relay-a.test");
     assert_eq!(doc["info"]["limits"]["max_frame_bytes"], 262144);
     assert!(doc["info"]["target"].is_null(), "no target was given: {doc}");
+    assert_eq!(doc["pool_order"]["by"], "relay", "{doc}");
+    assert_eq!(doc["pool_order"]["measured_here"], false, "{doc}");
 }
 
 #[test]

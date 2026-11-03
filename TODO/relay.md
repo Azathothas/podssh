@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:299`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:300`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -1762,8 +1762,8 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
 - Read: podssh fetches `/relays.json` at a mint for its pool, and keeps `pool[].host` alone
   (`crates/podssh-relay/src/pool.rs:150-222`). `podssh relay info` reads its `limits`
   (`connect_timeout_ms`, `idle_timeout_ms`, `max_session_ms`, `max_session_bytes` and
-  `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:64-77`), and a test asserts a
-  stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:246`).
+  `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:87-100`), and a test asserts a
+  stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:255`).
 - Read: to a node, the resumable layer resumes after the relay's `1009` at the cap
   (`docs/relay.md:272-278`); a forward session has no layer.
 
@@ -2472,7 +2472,7 @@ rank 22.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2505,6 +2505,40 @@ Two documents of the stand-in relay, answered by two edges with opposite ranks: 
 edge and says that the rank is the relay's estimate from it; planted, the line dropped: the test
 fails.
 
+## Correction
+
+- 2026-11-03: the Prove's test file `relay_info` does not exist: `relay info`'s test is
+  `info_gives_the_pool_the_limits_and_the_url_for_a_target` in `crates/podssh-cli/tests/relay.rs`,
+  against the stand-in relay, which answers from one edge. The two edges with opposite ranks are a
+  unit test of the text, `crates/podssh-cli/src/relay_diag_text.rs`, which reads the relay's JSON
+  alone.
+
+## Done
+
+2026-11-03:
+
+- `crates/podssh-cli/src/relay_diag_text.rs`: the pool's line says "in the relay's order", and
+  that the rank and the score are the relay's estimate from the edge that answered (named when the
+  document names it), which changes with the edge, not a measure of this host's path; after the
+  pool, a line names `podssh relay status` (the hosts that podssh tries) and `podssh ping
+  --relay-host HOST` (one), which measure from this host. `pool_order`, for `--json`.
+- `crates/podssh-cli/src/relay_diag.rs`: `relay info --json` keeps the relay's document unchanged
+  under `info` and adds `pool_order`: `{"by": "relay", "edge": ..., "measured_here": false}`, null
+  with no pool.
+- The manual's note of `relay info` (`crates/podssh-cli/src/man/notes_relay.rs`) and
+  `docs/cli.md` say the same.
+- Tests: `the_pool_is_the_relays_order_from_the_edge_that_answered` (two documents from NRT and
+  SIN with opposite ranks: each line names its edge, the line of the measures follows the pool,
+  `pool_order` names the edge; no edge: "the edge that answered"); the stand-in's test of `relay
+  info` reads the new lines and `pool_order`. `cargo test -p podssh-cli --lib`: 781 passed;
+  `--test relay`: 11 passed; `--test man_page --test man_flag_parity`: 6 and 12 passed; clippy
+  `--all-targets -D warnings`: clean.
+- Planted (`scripts/plants/t610-pool-as-advice.plant`, the old line "pool, best first"): `sh
+  scripts/plant-each.sh --here t610-pool-as-advice`, caught.
+- An order that podssh measures and keeps is T-606's (`podssh relay rank`), and its use by the
+  default list T-607's; once they are done, the line names the rank too.
+
+
 # T-605: A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research
 
 **Source:** The operator, 2026-11-03: an archive of relay research that the operator's agent
@@ -2536,7 +2570,7 @@ URL written into each result, and a download target that is no test target of `A
   (`crates/podssh-cli/src/doctor/relay_checks.rs:183-214`); `--quick` keeps the relay's sections and
   `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:98-102`).
 - Read: `podssh relay trace` asks the relay to dial a target and gives its own times
-  (`crates/podssh-cli/src/relay_diag.rs:166-169`); `relay info` gives the pool
+  (`crates/podssh-cli/src/relay_diag.rs:168-171`); `relay info` gives the pool
   (`crates/podssh-cli/src/relay_diag.rs:125-127`).
 - Read: the archive's harness and its defects, each at its file
   (`docs/research/relay-measurement.md`, section 3); its license, 0BSD, as podssh's (`LICENSE`).

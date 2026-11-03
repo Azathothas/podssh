@@ -3034,8 +3034,12 @@ commands. The rules behind them:
   after the other, a line for each as it answers (the code that `doctor`
   uses, in `podssh-relay`): 0 when a host answered, 69 when none did.
   `relay info [HOST PORT]` reads the first host's `/relays.json`: the edge
-  that this host reaches, the pool best first, the limits, and with a
-  target the URL that the relay chooses for it. `relay trace HOST PORT`
+  that this host reaches, the pool in the relay's order, the limits, and
+  with a target the URL that the relay chooses for it. The relay ranks the
+  pool from the edge that served the request, so the line says so, names
+  the edge, and points to `relay status` and `ping --relay-host HOST`,
+  which measure from this host; `--json` keeps the relay's fields and adds
+  `pool_order` (`by`, `edge`, `measured_here`) (T-610, GitHub #125). `relay trace HOST PORT`
   asks the first host to dial the target and read its first line: the
   verdict, the address dialed, the times and the banner, cleaned to one
   line. The token goes in `X-Relay-Token`, never in the URL, and a cached
