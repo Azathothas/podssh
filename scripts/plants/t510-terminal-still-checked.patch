@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/edit/mod.rs
++++ b/crates/podssh-cli/src/edit/mod.rs
+@@ -79,6 +79,9 @@
+ /// required with no terminal, `PODSSH_TIMEOUT` its default, as `cp`'s.
+ pub fn how_of(args: &EditArgs, tty: Tty, var: impl Fn(&str) -> Option<String>) -> Result<editor::How, (Fault, String)> {
+     let terminal = tty.stdin && tty.stdout;
++    if !terminal {
++        return Err((Fault::Usage, "podssh edit: it needs a terminal on stdin and stdout".to_string()));
++    }
+     if !args.no_terminal {
+         if args.timeout.is_some() {
+             let why = "podssh edit: --timeout goes with --no-terminal: on a terminal a person decides how long an \

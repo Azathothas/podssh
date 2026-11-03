@@ -1,0 +1,8 @@
+# T-510: --no-terminal that still checks the terminal, as edit did: with no
+# terminal each run exits 64, and the test that --no-terminal with a bound
+# gets past the terminal must fail. Offline, so no SETUP: it runs natively
+# too.
+ENTRY=T-510
+GROUP=cli-tests
+EXPECT='test no_terminal_needs_a_bound_and_gets_past_the_terminal \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test edit_args -- no_terminal_needs_a_bound_and_gets_past_the_terminal'

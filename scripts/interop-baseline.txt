@@ -51,7 +51,7 @@ harness mv interop 18 scripts/interop-mv.sh
 harness sftp interop 7 scripts/interop-sftp.sh
 harness delta interop 6 scripts/interop-delta.sh
 harness resume interop 9 scripts/interop-resume.sh
-harness edit interop 8 scripts/interop-edit.sh
+harness edit interop 9 scripts/interop-edit.sh
 harness pipe interop 9 scripts/interop-pipe.sh
 harness desktop interop 7 scripts/interop-desktop.sh
 harness usbip interop 1 scripts/interop-usbip.sh
@@ -566,6 +566,7 @@ edit.far_changed pass
 edit.editor_failed pass
 edit.link pass
 edit.no_terminal pass
+edit.no_terminal_script pass
 
 # scripts/interop-pipe.sh
 pipe.exec_cat pass

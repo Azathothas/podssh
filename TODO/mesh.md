@@ -3133,7 +3133,7 @@ relay. Planted, the net's lookup skipped, and the test fails.
 The copies do ask the net (read 2026-11-02). Each reads its operand with its own parser
 (`crates/podssh-cli/src/cp/operand.rs:114`), and hands the server to `ssh`'s resolution
 (`crates/podssh-cli/src/cp/mod.rs:264`, `crates/podssh-cli/src/sftp/mod.rs:169`,
-`crates/podssh-cli/src/edit/mod.rs:108`), which reads the destination's node before its host
+`crates/podssh-cli/src/edit/mod.rs:153`), which reads the destination's node before its host
 (`crates/podssh-cli/src/ssh/resolve.rs:142`), and a name alone there in the net
 (`crates/podssh-cli/src/ssh/node.rs:41` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
 (`crates/podssh-cli/src/cp/link.rs:152-153`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`

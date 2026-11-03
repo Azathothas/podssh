@@ -2293,8 +2293,8 @@ renamed.
 ## `podssh edit`
 
 `podssh edit [user@]host:PATH` changes one file of a server in an editor
-here (`crates/podssh-cli/src/edit/`), with the connection flags of `cp`
-and no `--timeout`: a person decides how long an edit takes.
+here (`crates/podssh-cli/src/edit/`), with the connection flags of `cp`;
+on a terminal no `--timeout`: a person decides how long an edit takes.
 
 - **The fetch** is the copy down of `cp` (a temporary name, the digests, a
   rename; a new connection after a break), into a new directory of mode
@@ -2314,8 +2314,22 @@ and no `--timeout`: a person decides how long an edit takes.
   blanks with no shell, or one program whose path has a blank. The editor
   runs on this terminal: `edit` needs a terminal on stdin and stdout (else
   64, checked after the editor's choice, so that a test with no terminal
-  reaches both refusals). While it runs, SIGINT and SIGQUIT are ignored
-  here (on Windows a listener holds Ctrl-C), so the keys are the editor's.
+  reaches both refusals; the refusal names `--no-terminal`). While it runs,
+  SIGINT and SIGQUIT are ignored here (on Windows a listener holds Ctrl-C),
+  so the keys are the editor's.
+- **`--no-terminal`** (T-510) runs an editor that needs no terminal, a
+  script that changes the file in place (`EDITOR='sed -i s/a/b/'`): its
+  stdin is `/dev/null` (`Stdio::null`), its stdout goes to podssh's stderr,
+  so podssh's stdout stays empty, and the check of the far file before the
+  send is the same, so an agent gets the check that `cp` has not. With no
+  terminal it needs `--timeout` or `PODSSH_TIMEOUT` (64 with neither, the
+  gate's words of `cp`), which bounds the editor's run: when it passes,
+  podssh kills the editor, sends nothing and exits 75; the first SIGINT or
+  SIGTERM does the same with 130; a copy that holds a change then stays,
+  named. `--timeout` without `--no-terminal` is 64, and `PODSSH_TIMEOUT` is
+  read only with it: on a terminal a person decides. A flag, not a guess
+  from `EDITOR`: podssh cannot tell an editor that needs a terminal from
+  one that needs none, and `vi` with no terminal waits for ever.
   An editor whose program returns while its window stays open leaves no
   change when it returns, and the copy goes: give it its flag to wait, as
   `code --wait`.
@@ -2335,7 +2349,12 @@ and no `--timeout`: a person decides how long an edit takes.
   `realpath` names the file that the edit changes; by exec, where no
   portable command names that file, a link is refused (66).
 - **The copy here** goes after a success. After a failure it stays and is
-  named when it holds a change, and goes when it holds none. An editor that
+  named when it holds a change, with its directory: `your copy stays at P;
+  rm -r DIR once you merged it`; and goes when it holds none. A later run
+  says once, at the default level, which kept copies are more than 7 days
+  old (the newest file in each `edit-*` directory of the cache), with their
+  directories, and removes none: each holds a change of the user's. An
+  editor that
   ends with a status other than 0 sends nothing, and `edit` exits with that
   status (128 + N for signal N). The first SIGINT or SIGTERM while a file
   moves ends the run with 130: during the fetch nothing stays here; during

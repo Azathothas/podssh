@@ -9,13 +9,21 @@
 //! **A change on the server is never lost**: when the far file's size, time
 //! of change or SHA-256 is not the one fetched, nothing is sent, and the
 //! exit is 73. **A change here is never lost either**: after a failure, a
-//! copy that holds a change stays and is named; a copy with no change goes.
+//! copy that holds a change stays and is named, with its directory to
+//! remove once it is merged; a copy with no change goes. A later run says
+//! once which kept copies are more than 7 days old, and removes none.
+//!
+//! **`--no-terminal`** (T-510) runs an editor that needs no terminal, a
+//! script as `sed -i`, with no input and its output on stderr; with no
+//! terminal it needs `--timeout` (or `PODSSH_TIMEOUT`), which bounds the
+//! editor's run, as `cp` needs one.
 //!
 //! **Exit codes are the sysexits of `cp`**: 64 a usage error or no terminal;
 //! 78 no editor, an editor that does not start, or `PODSSH_CACHE_DIR` set to
 //! none; 73 the far file changed, or no cache directory takes the copy; the
-//! status of an editor that failed; 130 an interruption while a file moves;
-//! else the code of the copy that failed.
+//! status of an editor that failed; 75 the `--timeout` passed while the
+//! editor ran; 130 an interruption while a file moves, or while an editor
+//! with no terminal runs; else the code of the copy that failed.
 
 pub mod editor;
 pub mod far;
@@ -50,13 +58,45 @@ pub struct EditArgs {
     /// `(flag as written, what to use instead, why)`, as each verb carries
     /// them, so that a `Refused` row added later refuses.
     pub refused: Vec<(String, &'static str, &'static str)>,
+    /// `--no-terminal` and its `--timeout` (T-510).
+    pub no_terminal: bool,
+    pub timeout: Option<String>,
 }
 
 impl EditArgs {
     /// Read the values out of `edit`'s matches.
     pub fn from_matches(m: &ArgMatches, refused: Vec<(String, &'static str, &'static str)>) -> Self {
         let file = if m.try_contains_id("file").unwrap_or(false) { m.get_one::<String>("file").cloned() } else { None };
-        EditArgs { file, ssh: SshArgs::from_matches(m), refused }
+        let no_terminal = m.try_get_one::<bool>("no-terminal").ok().flatten().copied().unwrap_or(false);
+        let timeout = m.try_get_one::<String>("timeout").ok().flatten().cloned();
+        EditArgs { file, ssh: SshArgs::from_matches(m), refused, no_terminal, timeout }
+    }
+}
+
+/// How the editor runs, from the command line and the terminal: with no
+/// `--no-terminal`, on the terminal and with no limit, as a person decides,
+/// so `--timeout` goes with `--no-terminal` alone; with it, a bound that is
+/// required with no terminal, `PODSSH_TIMEOUT` its default, as `cp`'s.
+pub fn how_of(args: &EditArgs, tty: Tty, var: impl Fn(&str) -> Option<String>) -> Result<editor::How, (Fault, String)> {
+    let terminal = tty.stdin && tty.stdout;
+    if !args.no_terminal {
+        if args.timeout.is_some() {
+            let why = "podssh edit: --timeout goes with --no-terminal: on a terminal a person decides how long an \
+                       edit takes.\n  Nothing has been attempted.";
+            return Err((Fault::Usage, why.to_string()));
+        }
+        if !terminal {
+            let why = "podssh edit: it needs a terminal on stdin and stdout, where the editor runs; \
+                       --no-terminal runs an editor that needs none, as EDITOR='sed -i s/a/b/', with --timeout.\n  \
+                       Nothing has been attempted.";
+            return Err((Fault::Usage, why.to_string()));
+        }
+        return Ok(editor::How { terminal: true, limit: None });
+    }
+    let attachment = crate::non_interactive::resolve(tty.stdin, tty.stdout, false);
+    match crate::non_interactive::require_timeout_or_env("edit", attachment, args.timeout.as_deref(), var) {
+        Ok(limit) => Ok(editor::How { terminal: false, limit }),
+        Err(refusal) => Err((refusal.fault, refusal.message)),
     }
 }
 
@@ -93,9 +133,14 @@ pub fn run_edit(args: &EditArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         Ok(editor) => editor,
         Err(why) => return refuse(err, Fault::Config, &why),
     };
-    if !(tty.stdin && tty.stdout) {
-        return refuse(err, Fault::Usage, "it needs a terminal on stdin and stdout, where the editor runs");
-    }
+    // A terminal, or --no-terminal and its bound (T-510).
+    let how = match how_of(args, tty, |n| std::env::var(n).ok()) {
+        Ok(how) => how,
+        Err((fault, message)) => {
+            let _ = writeln!(err, "{message}");
+            return fault.code();
+        }
+    };
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
         return refusal.report("edit", err);
     }
@@ -115,7 +160,8 @@ pub fn run_edit(args: &EditArgs, tty: Tty, err: &mut dyn Write) -> i32 {
     resolved.options.host_key_pin = Some(podssh_ssh::hostkey::Pin::default());
     resolved.options.remembered = Some(podssh_ssh::remember::Remembered::default());
     resolved.options.forward_agent = podssh_ssh::Agent::Off;
-    let local = match Local::make(&remote.path) {
+    let dirs = podssh_relay::cache::candidate_dirs();
+    let local = match Local::make_in(&dirs, &remote.path) {
         Ok(local) => local,
         Err((fault, why)) => return refuse(err, fault, &why),
     };
@@ -128,6 +174,12 @@ pub fn run_edit(args: &EditArgs, tty: Tty, err: &mut dyn Write) -> i32 {
     for warning in &resolved.warnings {
         log.info(warning);
     }
+    // The copies that earlier runs kept, each with a change: said once,
+    // and none removed.
+    let old = self::local::stale(&dirs, std::time::SystemTime::now(), self::local::STALE);
+    if let Some(line) = self::local::stale_line(&old) {
+        log.info(&line);
+    }
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
@@ -136,22 +188,27 @@ pub fn run_edit(args: &EditArgs, tty: Tty, err: &mut dyn Write) -> i32 {
             return Fault::SessionFault.code();
         }
     };
-    let code = edit(&runtime, &remote, &resolved, &local, &editor, &log);
+    let code = edit(&runtime, &remote, &resolved, &local, &editor, how, &log);
     runtime.shutdown_background();
     code
 }
 
 /// Fetch, edit, check and send; the exit code. The copy here goes after a
-/// success, and after a failure it stays, named, when it holds a change.
+/// success, and after a failure it stays, named, when it holds a change,
+/// with the directory to remove once it is merged.
 fn edit(
     runtime: &Runtime,
     remote: &Remote,
     resolved: &Resolved,
     local: &Local,
     editor: &Editor,
+    how: editor::How,
     log: &Arc<Log>,
 ) -> i32 {
-    let kept = |why: &str| format!("{why}; your copy stays at {}", local.file.display());
+    let kept = |why: &str| {
+        let (file, dir) = (local.file.display(), local.dir.display());
+        format!("{why}; your copy stays at {file}; rm -r {dir} once you merged it")
+    };
     log.verbose(&format!("{}: the copy here is {}", remote.path, local.file.display()));
     let (target, record) = match until_interrupted(runtime, Box::pin(far::fetch(resolved, remote, &local.file, log))) {
         Some(Ok(fetched)) => fetched,
@@ -174,8 +231,8 @@ fn edit(
         return Fault::CantCreate.code();
     }
     log.verbose(&format!("the editor: {} (from {})", editor.shown(), editor.from));
-    let status = match editor::run(runtime, editor, &local.file) {
-        Ok(status) => status,
+    let ended = match editor::run(runtime, editor, &local.file, how) {
+        Ok(ended) => ended,
         Err(e) => {
             local.remove();
             log.error(&format!("{} names {}, which did not start: {e}; nothing was sent", editor.from, editor.shown()));
@@ -187,6 +244,28 @@ fn edit(
         Err(e) => {
             log.error(&format!("{}: {e}; nothing was sent, and {} stays", local.file.display(), local.dir.display()));
             return Fault::NoInput.code();
+        }
+    };
+    // The editor that podssh ended: its bound passed, or a signal came with
+    // no terminal (T-510). Nothing is sent of a copy that it may have left
+    // half written.
+    let status = match ended {
+        editor::Ended::Status(status) => status,
+        stopped => {
+            let (code, why) = match stopped {
+                editor::Ended::TimedOut(limit) => (
+                    Fault::TimedOut.code(),
+                    format!("the --timeout of {} s passed while the editor ran", limit.as_secs()),
+                ),
+                _ => (130, "interrupted while the editor ran".to_string()),
+            };
+            if changed {
+                log.error(&kept(&format!("{why}, so nothing was sent")));
+            } else {
+                local.remove();
+                log.error(&format!("{why}; nothing was changed"));
+            }
+            return code;
         }
     };
     if !status.success() {
@@ -275,5 +354,32 @@ mod tests {
             let why = far_file(text).expect_err("a refusal");
             assert!(why.contains(says), "{text:?}: {why}");
         }
+    }
+
+    /// `--no-terminal` (T-510): a bound required with no terminal, the
+    /// flag's or `PODSSH_TIMEOUT`'s; on a terminal none, and `--timeout`
+    /// without the flag refused; no terminal without the flag refused by
+    /// its name.
+    #[test]
+    fn no_terminal_takes_a_bound_and_a_terminal_takes_none() {
+        let args = |no_terminal, timeout: Option<&str>| EditArgs {
+            no_terminal,
+            timeout: timeout.map(str::to_string),
+            ..EditArgs::default()
+        };
+        let (pipe, terminal) = (Tty { stdin: false, stdout: false }, Tty { stdin: true, stdout: true });
+        let none = |_: &str| None;
+        let thirty = |name: &str| (name == "PODSSH_TIMEOUT").then(|| "30s".to_string());
+        let secs = |s| Some(std::time::Duration::from_secs(s));
+        assert_eq!(how_of(&args(false, None), terminal, thirty), Ok(editor::How { terminal: true, limit: None }));
+        let (fault, why) = how_of(&args(false, None), pipe, none).unwrap_err();
+        assert!(fault == Fault::Usage && why.contains("--no-terminal"), "{why}");
+        let (fault, why) = how_of(&args(false, Some("5s")), terminal, none).unwrap_err();
+        assert!(fault == Fault::Usage && why.contains("goes with --no-terminal"), "{why}");
+        assert_eq!(how_of(&args(true, Some("5s")), pipe, none), Ok(editor::How { terminal: false, limit: secs(5) }));
+        assert_eq!(how_of(&args(true, None), pipe, thirty), Ok(editor::How { terminal: false, limit: secs(30) }));
+        assert_eq!(how_of(&args(true, None), terminal, none), Ok(editor::How { terminal: false, limit: None }));
+        let (fault, why) = how_of(&args(true, None), pipe, none).unwrap_err();
+        assert!(fault == Fault::Usage && why.contains("--timeout DURATION is required"), "{why}");
     }
 }

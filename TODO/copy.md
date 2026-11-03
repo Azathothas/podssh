@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:348`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:349`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:347`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:348`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -657,7 +657,7 @@ old writer can race the new one.
    ways; 11 h 30 min) go in `crates/podssh-relay/src/relay.rs`, beside
    `RELAY_IDLE_SECS`. A variable `PODSSH_SESSION_BUDGET` can lower the byte
    budget (a relay with smaller caps, the tests), never raise it; add it to
-   `crates/podssh-cli/src/man/facts.rs:46-297`.
+   `crates/podssh-cli/src/man/facts.rs:46-298`.
 2. Count the payload bytes both ways in the relay stream (an atomic counter
    beside `RelayStatus`), and keep the session's start time.
 3. Invariant: no session passes a budget. Before a data request that would
@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:317-481`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:318-482`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:308-329` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:4214-4217`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:4233-4236`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:26-29`): `docs/relay.md:328-340` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:346`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:347`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1273,7 +1273,7 @@ differ", and the destination was not changed. The measurement:
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:346`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:347`).
 
 ## Premise
 
@@ -1546,7 +1546,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:346`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:347`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -2012,7 +2012,7 @@ host, and the copy back then destroys that change with no word.
   probe (`crates/podssh-cli/src/pager.rs:96`) and runs it with
   `run_program` (`crates/podssh-cli/src/pager.rs:134`).
 - Read: `VISUAL` and `EDITOR` are not in the manual's variables
-  (`crates/podssh-cli/src/man/facts.rs:46-297`).
+  (`crates/podssh-cli/src/man/facts.rs:46-298`).
 - Read: the relay cuts a session after 180 s with no payload
   (`crates/podssh-relay/src/relay.rs:19-21`); an editor stays open longer.
 
@@ -3839,7 +3839,7 @@ removes. Read at `01e371e`.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3850,14 +3850,14 @@ conflict leaves a directory in the cache with no end.
 ## Premise
 
 - Read, against the report's order: the editor is chosen first, and the terminal checked after it
-  (`crates/podssh-cli/src/edit/mod.rs:90-98`): with no terminal, each editor is refused, whatever
-  it is.
+  (`crates/podssh-cli/src/edit/mod.rs`, lines 90-98 at `0548810`): with no terminal, each editor is
+  refused, whatever it is.
 - Read: the editor runs on the copy with podssh's own terminal
-  (`crates/podssh-cli/src/edit/editor.rs:89`); the check of the far file and the copy up need no
-  terminal (`crates/podssh-cli/src/edit/mod.rs:1-12`).
+  (`crates/podssh-cli/src/edit/editor.rs`, line 89 at `0548810`); the check of the far file and the
+  copy up need no terminal (`crates/podssh-cli/src/edit/mod.rs`, lines 1-12 there).
 - Read: a copy that holds a change stays and is named, by design
-  (`crates/podssh-cli/src/edit/mod.rs:9-12`, `crates/podssh-cli/src/edit/mod.rs:154`), in a new
-  directory of the cache for each run (`crates/podssh-cli/src/edit/local.rs:52-54`).
+  (`crates/podssh-cli/src/edit/mod.rs`, lines 9-12 and 154 at `0548810`), in a new directory of the
+  cache for each run (`crates/podssh-cli/src/edit/local.rs`, lines 52-54 there).
 
 ## Approach
 
@@ -3879,6 +3879,31 @@ A flag, not a guess from `EDITOR`: podssh cannot tell an editor that needs a ter
 does not, and `vi` with no terminal waits for ever. Lost: the editor run with no terminal whenever
 there is none. A kept copy is never removed by podssh: each holds a change of the user's.
 
+The calls of the draft (2026-11-03):
+
+- `edit` has a dispatch of its own (`Parsed::Edit`), which the gate of `cp` does not see, so the
+  rule is `edit`'s, in the gate's words: with `--no-terminal` and no terminal,
+  `require_timeout_or_env`, as for `cp` (64, and 78 for a bad `PODSSH_TIMEOUT`). The refusal of no
+  terminal comes first and names `--no-terminal`, so a run with neither flag is told of the flag
+  that it lacks, not of a bound for a mode it did not ask for.
+- `--timeout` without `--no-terminal` is refused (64), and `PODSSH_TIMEOUT` is read with
+  `--no-terminal` alone: on a terminal a person decides how long an edit takes (T-149), and a
+  `PODSSH_TIMEOUT` that a script set for `cp` must not end a person's edit. Lost: the bound on a
+  terminal too.
+- The bound covers the editor's run only, as item 1 says; the fetch and the send keep their own
+  limits. When it passes, or the first SIGINT or SIGTERM comes, podssh ends the editor, on Unix
+  with its process group, which it gets at its start, so that what a script started dies too
+  and holds stderr open no more; the exit is 75, or 130; a copy that holds a change stays,
+  named, and one with none goes. Lost: the editor's own process alone (a shell's `sleep` lives
+  on and holds podssh's stderr).
+- The line of a kept copy names its directory after each failure that keeps one, not after a
+  conflict alone, in one helper: each such copy needs the same removal.
+- The age of a kept copy is that of the newest file in its `edit-*` directory, else of the
+  directory; the line is at the default level, so `-q` silences it.
+- `scripts/interop-edit.sh`: `kept` reads the path before `; rm -r`, `edit.far_changed` asks for
+  the directory in the line, and a new check, `edit.no_terminal_script`, runs the script editor
+  with `--no-terminal` against OpenSSH, with no pty (`scripts/interop-baseline.txt`, the floor 9).
+
 ## Prove
 
 ```sh
@@ -3889,3 +3914,41 @@ cargo test -p podssh-cli --lib edit
 
 Planted: `--no-terminal` that still checks the terminal: the test of the editor of the test fails
 with 64.
+
+## Done
+
+2026-11-03, drafted by an agent, which built nothing and ran no test: each result below is
+UNVERIFIED until the main session merges it.
+
+- `crates/podssh-cli/src/edit/mod.rs`: `EditArgs` gains `no_terminal` and `timeout`; `how_of`
+  gives how the editor runs, or the refusal (the Decision's order); the run passes it to the
+  editor, takes `Ended` (75 and 130 with a copy kept or gone), names the directory of a kept copy
+  (`rm -r DIR once you merged it`), and says the kept copies older than 7 days; its unit test,
+  `no_terminal_takes_a_bound_and_a_terminal_takes_none`. UNVERIFIED.
+- `crates/podssh-cli/src/edit/editor.rs`: `How` and `Ended`; with no terminal the editor gets
+  `Stdio::null()` and podssh's stderr for its stdout, on Unix a process group of its own, and a
+  wait of 50 ms steps until its end, the bound or the first SIGINT or SIGTERM, which kill the
+  group. `crates/podssh-cli/src/edit/local.rs`: `stale`, `stale_line` and `STALE`, and their test,
+  `a_kept_copy_older_than_seven_days_is_named_and_stays`. UNVERIFIED.
+- `crates/podssh-cli/src/flags/edit.rs`: the rows of `--no-terminal` and `--timeout`.
+  `crates/podssh-cli/src/man/notes_edit.rs`: a note of `--no-terminal`, and the kept copies.
+  `crates/podssh-cli/src/man/facts.rs`: `PODSSH_TIMEOUT` is `edit`'s with `--no-terminal` alone.
+  `docs/cli.md`: the section of `podssh edit`. `docs/STATUS.md`: a row.
+- Tests: `crates/podssh-cli/tests/edit_args.rs`, offline: `with_no_terminal_it_is_64` asks for the
+  flag's name; `no_terminal_needs_a_bound_and_gets_past_the_terminal` (64 with no bound, 64 for
+  `30x`, 78 for a bad `PODSSH_TIMEOUT`, 64 for `--timeout` alone, and with a bound past the
+  terminal to the copy's directory, 78 of `PODSSH_CACHE_DIR=none`);
+  `the_help_shows_the_connection_flags_and_no_terminal` in place of
+  `the_help_shows_the_connection_flags_and_no_timeout`. Against the test's server and OpenSSH's
+  `sftp-server` (Unix): `no_terminal_runs_an_editor_that_is_a_script`, the editor `sh SCRIPT`: a
+  line added, 0, stdout empty, no copy left; the far file changed by the script meanwhile, 73,
+  the far file as the script left it, the copy kept and its directory named; `sleep 30` under
+  `--timeout 2s`, 75 within 20 s. UNVERIFIED.
+- `scripts/interop-edit.sh` and `scripts/interop-baseline.txt`, as the Decision says; `podssh-todo
+  interop`: the ids meet the baseline. Their run, in the gate's interop: UNVERIFIED.
+- Planted defect: `scripts/plants/t510-terminal-still-checked.patch` and `.plant` (group
+  `cli-tests`, no SETUP, offline): `how_of` refuses each run with no terminal first;
+  `no_terminal_needs_a_bound_and_gets_past_the_terminal` must fail. `git apply --check` of the
+  patch: passed. Its run: UNVERIFIED.
+- Not run: rustfmt ran on `crates/podssh-cli/src/edit/mod.rs` and its modules; the build, clippy
+  and the tests did not.
