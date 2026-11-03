@@ -1602,6 +1602,12 @@ Waits for T-251: step 1's measurement and step 4's fault in the gate,
 2026-10-11, in the build image (`sh scripts/dev.sh run`, a debug build of the binary): `scripts/interop.sh` 237 passed, 0 failed, in 480 s: the fault ends with 255 in 60 s, and names the
 stuck write. The run on an unchanged tree waits for T-251.
 
+2026-11-03, on a cloud container's host (TCP buffers that grow to 32 MiB to read and 4 MiB to
+write): `faults.stuck_write` failed, 255 after 240 s on the keepalives, not the stuck write, as the
+20 MB fit in the kernel's buffers and each write went on; the gate's runners passed it. The file
+is now the two buffers' ceilings and 16 MiB more, 20 MB at least. In the build image with the dry
+run's static binary of `3bb42ea`, `INTEROP_ONLY=faults sh scripts/interop.sh BIN`: UNVERIFIED.
+
 # T-228: A credential helper inside podssh, for passphrases and passwords
 
 **Source:** the operator's ruling of 2026-10-08 on Q5 (`docs/decisions.md`);

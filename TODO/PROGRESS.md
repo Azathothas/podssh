@@ -229,7 +229,8 @@ T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); D
 to #123 are T-597, a `none` entry in its turn; `v1.0.1`
 goes out unattended once the defects pass the checks of a release (Q87). Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts wait to be merged
-(`.claude/worktrees/agent-*`): the features T-561, T-562, T-564, T-483, T-488 and T-489.
+(`.claude/worktrees/agent-*`): the defects T-586, T-588 and T-593 (after `v1.0.1`), then the
+features T-561, T-562, T-564, T-483, T-488 and T-489.
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):
