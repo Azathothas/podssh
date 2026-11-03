@@ -13,6 +13,8 @@ use podssh_ssh::{Agent, LogLevel, Method, Request, RequestTty, StdioTarget, Stri
 mod ssh_picker;
 // `--idle-warn` (T-463), for the same reason.
 mod ssh_idle;
+// The login name from the user database (T-500), against the binary.
+mod ssh_user;
 
 fn ssh(words: &[&str]) -> SshArgs {
     let argv: Vec<std::ffi::OsString> = std::iter::once("ssh").chain(words.iter().copied()).map(Into::into).collect();
@@ -29,6 +31,7 @@ fn env() -> Env {
     Env {
         home: Some(PathBuf::from("/home/u")),
         user: Some("envuser".into()),
+        user_from: Default::default(),
         relay: None,
         relay_failover: None,
         // No PODSSH_DIRECT: the direct road follows the relay hosts (T-363).

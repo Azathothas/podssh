@@ -1711,7 +1711,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
   `schannel` and `security-framework` are in the lock through other crates
   (`Cargo.lock:4857-4858`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
-  system's store of Linux (`docs/target-environment.md:57-63`).
+  system's store of Linux (`docs/target-environment.md:61-67`).
 - Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
   on Windows, no path of the list exists. No Windows or macOS host behind such a proxy was
   measured.

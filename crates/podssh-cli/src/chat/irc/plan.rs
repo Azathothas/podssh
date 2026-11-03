@@ -94,7 +94,7 @@ pub fn nick(given: Option<&str>) -> Result<String, Refusal> {
             Refusal::config(format!("PODSSH_NICK={nick:?}: not an IRC nick; --nick NICK gives another"))
         });
     }
-    let account = ["USER", "LOGNAME", "USERNAME"].iter().find_map(|name| std::env::var(name).ok());
+    let account = crate::ssh::resolve::local_user().name;
     Ok(account.map(|a| made_valid(&a)).filter(|n| valid(n)).unwrap_or_else(|| "podssh".to_string()))
 }
 

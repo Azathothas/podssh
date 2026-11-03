@@ -209,7 +209,7 @@ fn nick(given: Option<&str>) -> Result<String, Refusal> {
     let given =
         given.map(str::to_string).or_else(|| std::env::var("PODSSH_NICK").ok().filter(|n| !n.trim().is_empty()));
     let Some(nick) = given.as_deref() else {
-        let account = ["USER", "LOGNAME", "USERNAME"].iter().find_map(|name| std::env::var(name).ok());
+        let account = crate::ssh::resolve::local_user().name;
         let usable =
             account.filter(|n| !n.trim().is_empty() && n.len() <= MAX_NICK && !n.chars().any(char::is_control));
         return Ok(usable.unwrap_or_else(|| "podssh".to_string()));

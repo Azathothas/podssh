@@ -45,6 +45,7 @@ pub const KEYGEN: &[&str] = &[
     "podssh asks for the passphrase two times, on the terminal or through SSH_ASKPASS. -N '' makes a key \
      with no passphrase. A passphrase given with -N is refused, because each process on the host can \
      read a command line. With no terminal and no SSH_ASKPASS, podssh stops at once and names -N ''.",
-    "DSA keys are refused: OpenSSH 10 removed them. The default comment is USER@HOST from the \
-     environment, never from the user database.",
+    "DSA keys are refused: OpenSSH 10 removed them. The default comment is USER@HOST, with the local \
+     user's name as podssh ssh takes it: PODSSH_USER, USER, LOGNAME or USERNAME, else the user database's \
+     entry (see ENVIRONMENT).",
 ];

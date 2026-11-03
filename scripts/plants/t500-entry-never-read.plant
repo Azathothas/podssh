@@ -1,0 +1,8 @@
+# T-500: podssh never reads the user database, as before: with no USER,
+# LOGNAME, USERNAME or PODSSH_USER, `podssh ssh -G` of a uid that has an entry
+# is refused (64) where its entry's name is due. As root the test runs the
+# binary as another uid of /etc/passwd, as uid 0 falls back to root anyway.
+ENTRY=T-500
+GROUP=cli-tests
+EXPECT='with_no_variable_the_login_name_is_the_user_database_entry_of_the_uid'
+RUN='cargo test --locked -p podssh-cli --test ssh_args -- user_database'

@@ -187,7 +187,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:358-359`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:992`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:153-416`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-291`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-295`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-291`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-295`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:310-468`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:314-472`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -5048,8 +5048,8 @@ does not depend on them.
   `crates/podssh-cli/src/each/host.rs`).
 - Read: on the hosts that podssh is built for, the proxy refuses port 22 and a direct dial is
   dropped with no answer (`docs/target-environment.md:21-22`); a cloud container's proxy takes
-  `CONNECT github.com:22` and carries no SSH (`docs/target-environment.md:57-66`; the issue cited
-  `:66-73`).
+  `CONNECT github.com:22` and carries no SSH (`docs/target-environment.md:61-70`; the issue cited
+  `:70-77`).
 - Read: each road of the release binaries but `--direct` depends on Cloudflare and on one domain
   (`docs/carriers.md:23-25`; T-346).
 - Read: the opener tries the relay hosts in turn, and stops at once on a failure that each host
@@ -5654,7 +5654,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
   (`crates/podssh-ws/src/client.rs:184-199`), with no ALPN and no client certificate
   (`crates/podssh-ws/src/tls.rs:315-318`).
 - Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
-  `SSL_CERT_FILE` (`docs/target-environment.md:57-66`), and reset SSH on port 443
+  `SSL_CERT_FILE` (`docs/target-environment.md:61-70`), and reset SSH on port 443
   (`TODO/ws.md:1158-1161`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
   proxy's CA.
 - Read in GitHub #61 (a tester's report, which the tester's own run did not reproduce):

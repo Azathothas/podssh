@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:3858-3954`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:3860-3956`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -103,7 +103,7 @@ checks of files with the client of Alpine in the build image), where the Premise
 Approach read otherwise:
 
 - "An unknown `%` token stays as text" held at `3ee70dc`. Since `5521cbf` (T-238) an unknown
-  token of a file name is refused: `crates/podssh-cli/src/ssh/tokens.rs:155` says "is not a
+  token of a file name is refused: `crates/podssh-cli/src/ssh/tokens.rs:153` says "is not a
   token". `HostName` took no token at all; OpenSSH gives it `%h`, the host as typed, and `%%`,
   refuses each other token, and lowercases the result. This entry adds them. `User` (from `-o`
   and from a file, not from `-l`) and `RemoteCommand` take tokens in OpenSSH too, and podssh
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:3858-3963`, FILES (`crates/podssh-cli/src/man/data.rs:153-416`) and the
+7. Change `docs/cli.md:3860-3965`, FILES (`crates/podssh-cli/src/man/data.rs:153-416`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -447,7 +447,7 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:126-500`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:126-498`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach
@@ -702,7 +702,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:46-291`, 98-142), `docs/relay.md:84-143` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:46-295`, 98-142), `docs/relay.md:84-143` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision
@@ -929,7 +929,7 @@ the check fail.
 
 ## Done
 
-2026-10-11. Each hop reads its own blocks in `crates/podssh-cli/src/ssh/jump.rs:1-271`, and its
+2026-10-11. Each hop reads its own blocks in `crates/podssh-cli/src/ssh/jump.rs:1-269`, and its
 login, made as the destination's, in `crates/podssh-cli/src/ssh/login.rs:1-93`. The options of
 each hop are `Options::jump_options` (`crates/podssh-ssh/src/options.rs:220-224`), which
 `connect_hops` gives each hop with the run's memory of its logins
@@ -946,7 +946,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:342-350`
 - `scripts/interop.sh:325-335`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:87-93` and `docs/cli.md:3887-3899`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:87-93` and `docs/cli.md:3889-3901`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.

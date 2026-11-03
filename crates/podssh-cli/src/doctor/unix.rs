@@ -24,7 +24,7 @@ fn ok(detail: impl Into<String>) -> Verdict {
 pub(super) fn user() -> Verdict {
     // SAFETY: getuid has no preconditions and cannot fail.
     let uid = unsafe { libc::getuid() };
-    let named = ["USER", "LOGNAME"]
+    let named = crate::ssh::resolve::USER_VARIABLES
         .iter()
         .find_map(|n| std::env::var(n).ok().filter(|v| !v.trim().is_empty()).map(|v| format!("{n}={v}")));
     match passwd_entry(uid) {
@@ -38,7 +38,7 @@ pub(super) fn user() -> Verdict {
             let podssh = match (named, uid) {
                 (Some(var), _) => format!("podssh takes the user name from {var}"),
                 (None, 0) => "podssh takes uid 0 to be root".to_string(),
-                (None, _) => "podssh ssh needs user@host or -l USER here".to_string(),
+                (None, _) => "podssh ssh needs user@host, -l USER, PODSSH_USER or USER here".to_string(),
             };
             ok(format!(
                 "uid {uid} {missing}: OpenSSH's ssh, scp and ssh-keygen refuse to run without an entry; {podssh}"
