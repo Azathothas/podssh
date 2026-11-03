@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/doctor/sections.rs
++++ b/crates/podssh-cli/src/doctor/sections.rs
+@@ -99,7 +99,8 @@
+         kinds.push(Kind::Iroh);
+         #[cfg(feature = "tor")]
+         kinds.push(Kind::Tor);
+-        kinds.extend([Kind::Derp, Kind::Pairs]);
++        kinds.push(Kind::Pairs);
+     }
++    kinds.push(Kind::Derp);
+     kinds
+ }

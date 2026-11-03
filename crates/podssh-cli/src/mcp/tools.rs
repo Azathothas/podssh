@@ -76,6 +76,7 @@ pub fn list(settings: &Settings) -> Vec<Value> {
              works, with ok, FAIL or ???? for each check, as one JSON object.",
         "inputSchema": object(json!({
             "full": { "type": "boolean", "description": "also log in to github.com through the relay, with a key made for the check, and, with no proxy set, make a QUIC handshake with the quick tunnel's edge" },
+            "quick": { "type": "boolean", "description": "this host, the egress and the relay alone, what each ssh and proxy needs; a line names the sections left out" },
         })),
         "annotations": { "readOnlyHint": true, "openWorldHint": true },
     }));
@@ -205,12 +206,14 @@ pub fn plan(settings: &Settings, name: &str, arguments: &Map<String, Value>, fil
             Ok(Plan { argv, stdin: Vec::new(), limit: Duration::from_secs(60), cap: OWN_CAP })
         }
         "doctor" => {
-            known(arguments, &["full"])?;
+            known(arguments, &["full", "quick"])?;
             let mut argv = words(&["doctor", "--json"]);
-            match arguments.get("full") {
-                None | Some(Value::Bool(false)) => {}
-                Some(Value::Bool(true)) => argv.push("--full".into()),
-                Some(_) => return Err("full: expected true or false".into()),
+            for name in ["full", "quick"] {
+                match arguments.get(name) {
+                    None | Some(Value::Bool(false)) => {}
+                    Some(Value::Bool(true)) => argv.push(format!("--{name}").into()),
+                    Some(_) => return Err(format!("{name}: expected true or false")),
+                }
             }
             Ok(Plan { argv, stdin: Vec::new(), limit: Duration::from_secs(180), cap: OWN_CAP })
         }

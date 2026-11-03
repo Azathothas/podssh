@@ -167,6 +167,9 @@ pub enum Parsed {
         via: crate::via::Flags,
         /// `--vless`: the VLESS servers to check too (T-440).
         vless: Option<String>,
+        /// `--quick` and `--jobs N` (T-511).
+        quick: bool,
+        jobs: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// **`podssh ts`, and it is its own variant because it carries behaviour

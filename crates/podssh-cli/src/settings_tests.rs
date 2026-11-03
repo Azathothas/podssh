@@ -28,6 +28,8 @@ fn a_file_gives_each_setting_and_the_first_value_wins_but_for_relay_addr() {
     assert_eq!(d.forwarder_fallback.unwrap().text, "no");
     // A word of T-370 is a forwarder of the list too.
     assert_eq!(read("Forwarder mudlet,ssheasy\n").forwarder.unwrap().text, "mudlet,ssheasy");
+    // How many sections of doctor run at once (T-511).
+    assert_eq!(read("DoctorJobs 2\ndoctorjobs 5\n").doctor_jobs.unwrap().text, "2");
 }
 
 #[test]
@@ -69,6 +71,8 @@ fn a_bad_value_of_the_file_names_its_line() {
         ("CaFile /c.pem\nRelayFailover sideways\n", "f:2: RelayFailover \"sideways\" is not a mode"),
         ("Forwarder wss://f.example/?host={host}\n", "f:1: Forwarder a forwarder's template has {host} and {port}"),
         ("ForwarderFallback maybe\n", "f:1: ForwarderFallback \"maybe\": yes or no"),
+        ("DoctorJobs 0\n", "f:1: DoctorJobs \"0\": a number of sections from 1 to 64"),
+        ("DoctorJobs all\n", "f:1: DoctorJobs \"all\": a number of sections from 1 to 64"),
     ] {
         let err = parse(text, "f", None).unwrap_err();
         assert!(err.starts_with(says), "{text:?}: {err}");

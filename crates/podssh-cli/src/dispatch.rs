@@ -199,6 +199,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             shadowsocks,
             via,
             vless,
+            quick,
+            jobs,
             refused,
         } => {
             if refusals("doctor", refused, s.err) {
@@ -217,6 +219,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     shadowsocks: shadowsocks.clone(),
                     via: via.clone(),
                     vless: vless.clone(),
+                    quick: *quick,
+                    jobs: jobs.clone(),
                 },
                 s.out,
                 s.err,

@@ -12,6 +12,9 @@
 //! published host key), never by the shape of a banner. The token is used and
 //! never shown, and proxy credentials never appear.
 //!
+//! The sections that connect run at once, each into a part of its own, and
+//! the report keeps their order (`parts.rs`, `sections.rs`; T-511).
+//!
 //! The bind probes here listen once, accept nothing and close at once (T-358).
 //! Each other bind of podssh is a listener that the user asks for, or the UDP
 //! socket of a road; the listener scan of `scripts/check-repo.py` holds their
@@ -19,8 +22,7 @@
 
 use std::io::Write;
 
-use podssh_relay::failover::Mode;
-use podssh_relay::relay::{self, RelayList};
+use podssh_relay::relay;
 use podssh_ws::{Trust, Verdict};
 
 // Whether the way out takes an address as well as a name (T-366).
@@ -39,9 +41,13 @@ pub mod listeners;
 mod names;
 mod net;
 mod pairs;
+// The sections that run at once, each into its own part (T-511).
+mod parts;
 mod quick;
 mod relay_checks;
 mod samples;
+// Which sections connect, in their order, and how many start together.
+mod sections;
 // The first server of --shadowsocks (T-373).
 mod shadowsocks;
 // The sshd of a roost, on this host (T-590).
@@ -54,6 +60,9 @@ mod unix;
 mod via;
 // The servers of --vless (T-440).
 mod vless;
+
+// The words of `DoctorJobs`, which the settings file checks as it is read.
+pub(crate) use sections::{count as jobs_count, MOST_JOBS};
 
 /// The exit when at least one check failed.
 pub const EXIT_FAILED: i32 = 1;
@@ -82,6 +91,11 @@ pub struct DoctorArgs {
     pub via: crate::via::Flags,
     /// `--vless`: the file whose servers are checked (T-440).
     pub vless: Option<String>,
+    /// `--quick`: this host, the egress and the relay, with the roads that
+    /// the run names, and none of the others (T-511).
+    pub quick: bool,
+    /// `--jobs N`: at most N sections at once, as typed (T-511).
+    pub jobs: Option<String>,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
@@ -124,6 +138,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     };
     let cert_env = std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty());
     let settings = crate::settings::here();
+    let jobs = match sections::jobs(args.jobs.as_deref(), settings) {
+        Ok(jobs) => jobs,
+        Err(refusal) => return refusal.report("doctor", err),
+    };
     let (trust, trust_from) = match (&args.ca_file, cert_env, &settings.ca_file) {
         (Some(file), ..) => (Trust::File(file.into()), "--ca-file"),
         (None, Some(file), _) => (Trust::File(file.into()), "SSL_CERT_FILE"),
@@ -151,11 +169,18 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     relay_record(&mut report);
     agent::check(&mut report);
     #[cfg(feature = "iroh")]
-    iroh::udp(&mut report);
+    {
+        if !args.quick {
+            iroh::udp(&mut report);
+        }
+    }
 
     report.section("egress");
     net::check_local(&mut report, &relays, &trust, trust_from);
-    quick::check(&mut report);
+    // The day of cloudflared's roots belongs to the quick tunnel's edge.
+    if !args.quick {
+        quick::check(&mut report);
+    }
     if podssh_relay::open::offline() {
         report.unknown("network", "not attempted: PODSSH_OFFLINE is set");
         if args.full {
@@ -173,6 +198,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         if links.is_some() {
             report.unknown("vless", "not attempted: PODSSH_OFFLINE is set");
         }
+        if args.quick {
+            sections::left_out_line(&mut report);
+            return report.finish();
+        }
         report.section("pairs");
         let stored = pairs::stored(&mut report);
         pairs::not_asked(&mut report, &stored, "not asked: PODSSH_OFFLINE is set");
@@ -180,7 +209,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     }
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => {
-            let checks = Checks {
+            let checks = sections::Checks {
                 relays: &relays,
                 trust: &trust,
                 failover,
@@ -189,74 +218,20 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
                 servers: servers.as_ref(),
                 road: road.as_ref(),
                 links: links.as_ref(),
+                quick: args.quick,
+                jobs,
             };
-            runtime.block_on(network(&mut report, &checks));
+            runtime.block_on(sections::network(&mut report, &checks));
             // A probe may have left a task behind (a relay leg still closing);
             // the report is done, so none is waited for.
             runtime.shutdown_background();
         }
         Err(e) => report.fail("network", format!("could not start the async runtime: {e}")),
     }
+    if args.quick {
+        sections::left_out_line(&mut report);
+    }
     report.finish()
-}
-
-/// What the checks of the network take.
-struct Checks<'a> {
-    relays: &'a RelayList,
-    trust: &'a Trust,
-    failover: Mode,
-    full: bool,
-    forwarders: &'a [crate::forwarder::Forwarder],
-    /// The servers of `--shadowsocks`, when it names a file.
-    servers: Option<&'a crate::shadowsocks::Servers>,
-    /// The second proxy of `--via` or `PODSSH_VIA`.
-    road: Option<&'a crate::via::Road>,
-    /// The servers of `--vless`, when it names a file.
-    links: Option<&'a crate::vless::Servers>,
-}
-
-async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
-    let Checks { relays, trust, failover, full, forwarders, servers, road, links } = *checks;
-    net::check_network(report, relays, trust).await;
-    // Whether UDP reaches the quick tunnel's edge, Cloudflare's, with --full
-    // alone (T-359).
-    quick::udp_out(report, full).await;
-    // And which road over TCP reaches it, inside WARP's tunnel too (T-374).
-    quick::edge_road(report, full).await;
-    report.section("relay");
-    relay_checks::check(report, relays, trust, failover, full).await;
-    report.section("forwarders");
-    match forwarders.is_empty() {
-        true => forwarder::fallback_line(report, relays),
-        false => forwarder::check(report, forwarders, trust).await,
-    }
-    if let Some(servers) = servers {
-        report.section("shadowsocks");
-        shadowsocks::check(report, servers, trust).await;
-    }
-    if let Some(road) = road {
-        report.section("via");
-        via::check(report, road).await;
-    }
-    if let Some(servers) = links {
-        report.section("vless");
-        vless::check(report, servers, trust).await;
-    }
-    #[cfg(feature = "iroh")]
-    {
-        report.section("iroh");
-        iroh::relay(report, trust).await;
-    }
-    #[cfg(feature = "tor")]
-    {
-        report.section("tor");
-        tor::check(report, trust, full).await;
-    }
-    report.section("derp");
-    derp::check(report, trust).await;
-    report.section("pairs");
-    let stored = pairs::stored(report);
-    pairs::presence(report, &stored, trust).await;
 }
 
 /// One check, as the report keeps it for `--json`.
@@ -345,6 +320,20 @@ impl<'a> Report<'a> {
 
     pub(crate) fn unknown(&mut self, name: &str, why: impl Into<String>) {
         self.line(name, Verdict::Unknown { why: why.into() });
+    }
+
+    /// A part's lines and counts, once its section has run (T-511).
+    fn ended(self) -> parts::Ended {
+        parts::Ended { lines: self.lines, ok: self.ok, failed: self.failed, unknown: self.unknown }
+    }
+
+    /// The lines of a part that ran apart, in their order; its text went
+    /// out as the part ran.
+    fn absorb(&mut self, part: parts::Ended) {
+        self.lines.extend(part.lines);
+        self.ok += part.ok;
+        self.failed += part.failed;
+        self.unknown += part.unknown;
     }
 
     fn finish(self) -> i32 {
