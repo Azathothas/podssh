@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:624`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:625`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -289,7 +289,7 @@ Read:
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
    (`crates/podssh-relay/src/open.rs:379-393`). Bound the whole by the rounds
-   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:465`) and
+   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:466`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
@@ -997,7 +997,7 @@ and no other.
   needs an askpass program that it can run, which a noexec sandbox can
   refuse.
 - Read: OpenSSH has no keyword for this. podssh refuses
-  `KnownHostsCommand` (`crates/podssh-cli/src/ssh/options.rs:249-253`,
+  `KnownHostsCommand` (`crates/podssh-cli/src/ssh/options.rs:263-267`,
   `crates/podssh-cli/src/ssh/keywords.rs:110`).
 - Measured, offline (`PODSSH_OFFLINE=1`):
   `podssh ssh --host-key-fingerprint SHA256:abc example.invalid true` gives
@@ -2942,7 +2942,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
 - Read: keepalives are on by default, each 60 s (`crates/podssh-ssh/src/options.rs:380`), as
   russh's own (`crates/podssh-ssh/src/run_config.rs:63-64`), so that the relay's idle cut never
   meets a quiet session; `-o ServerAliveInterval=0` turns them off, with the warning of the cut
-  (`crates/podssh-cli/src/ssh/resolve.rs:396-399`) that #83's comment reads. T-332's question on
+  (`crates/podssh-cli/src/ssh/resolve.rs:397-400`) that #83's comment reads. T-332's question on
   `--direct` sends russh's ping (`crates/podssh-ssh/src/io.rs:239`), which the same reply ends.
 - Read: the handler keeps russh's error in podssh's words, and a lost session names it
   (`crates/podssh-ssh/src/handler.rs:175`, `crates/podssh-ssh/src/session.rs:30-33`); a decode
@@ -3414,7 +3414,7 @@ first word is the cut's. A warning 30 s before would let the user press a key, o
 ## Premise
 
 - Read: the warning at the connect, on the relay's road when ServerAliveInterval is off or at least
-  the cut (`crates/podssh-cli/src/ssh/resolve.rs:396-399`); after the cut, the relay's close with
+  the cut (`crates/podssh-cli/src/ssh/resolve.rs:397-400`); after the cut, the relay's close with
   its remedy (`crates/podssh-ws/src/close.rs:88-90`). The cut is the relay's, from its limits
   (`crates/podssh-relay/src/relay.rs:70-73`), counted on payload alone (`docs/relay.md:232`).
 - Read: the relay stream counts the payload both ways
@@ -3734,7 +3734,7 @@ name to give. OpenSSH on the same host connects.
   (`crates/podssh-cli/src/ssh/resolve_env.rs:40`, `crates/podssh-cli/src/ssh/resolve_env.rs:63-70`);
   with none, a destination with no user, no `-l` and no `User` is refused
   (`crates/podssh-cli/src/ssh/resolve.rs:263`), and so is a jump host
-  (`crates/podssh-cli/src/ssh/jump.rs:231-232`). Each verb of the report resolves its destination
+  (`crates/podssh-cli/src/ssh/jump.rs:233-234`). Each verb of the report resolves its destination
   there, so one change serves all eleven.
 - Read: the manual says that podssh never reads the user database
   (`crates/podssh-cli/src/man/facts.rs:197-200`); the reason is in
@@ -4158,9 +4158,9 @@ would still say why the pause comes.
 
 ## Premise
 
-- `crates/podssh-cli/src/ssh/mod.rs:333-335` says "if let Some(kept) = resolved.persist.clone() {",
+- `crates/podssh-cli/src/ssh/mod.rs:337-339` says "if let Some(kept) = resolved.persist.clone() {",
   and returns from `persist::run` before the watch of the relay's road starts.
-- `crates/podssh-cli/src/ssh/mod.rs:337-338` says "if let Some(upgrade) = resolved.upgrade.clone() {",
+- `crates/podssh-cli/src/ssh/mod.rs:341-342` says "if let Some(upgrade) = resolved.upgrade.clone() {",
   and so does `upgrade::run`.
 - `docs/cli.md:581` says "`--direct`; with `--persist`, which attaches again after the cut, and",
   and the next line "`--upgrade`, not before T-583."

@@ -6,7 +6,15 @@
 
 use podssh_ssh::{LogLevel, Method, RequestTty, StrictHostKeyChecking};
 
+use super::given::{Given, Place};
 use super::keywords;
+
+// The values of the keywords, apart for the length of this file.
+#[path = "options_values.rs"]
+mod values;
+pub(super) use values::words;
+pub use values::{parse_port, yes_no};
+use values::{parse_seconds, unknown, unquote};
 
 /// What `-o` set, before defaults. For single values the first one given
 /// wins, as in OpenSSH; lists accumulate.
@@ -55,6 +63,10 @@ pub struct Settings {
     pub local_command: Option<String>,
     pub permit_local_command: Option<bool>,
     pub proxy_jump: Option<String>,
+    /// `ProxyCommand` (T-502): the first value given, `none` or podssh's own
+    /// proxy, which podssh takes as its own road; a later one is not read,
+    /// nor a later `ProxyJump`, as in OpenSSH.
+    pub proxy_command: Option<Given>,
     /// 4 or 6 from `AddressFamily`; `Some(0)` for `any`.
     pub address_family: Option<u8>,
     pub stdin_null: Option<bool>,
@@ -87,6 +99,12 @@ pub struct Settings {
 impl Settings {
     /// Apply one `-o` argument: `Name=Value`, `Name Value` or `Name = Value`.
     pub fn apply(&mut self, raw: &str) -> Result<(), String> {
+        self.apply_at(raw, &Place::CommandLine)
+    }
+
+    /// Apply one keyword and its value, given at `place`, which a note and a
+    /// refusal name: a line of a file is applied as `-o` is.
+    pub fn apply_at(&mut self, raw: &str, place: &Place) -> Result<(), String> {
         let raw = raw.trim();
         let split = raw.find(|c: char| c == '=' || c.is_whitespace()).unwrap_or(raw.len());
         let (name, rest) = raw.split_at(split);
@@ -192,6 +210,9 @@ impl Settings {
             "permitlocalcommand" => {
                 set(&mut self.permit_local_command, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
             }
+            // A ProxyCommand that holds goes before a later ProxyJump, which
+            // OpenSSH 10.3p1 does not read then (readconf.c, parse_jump).
+            "proxyjump" if self.proxy_command.is_some() => {}
             "proxyjump" => set(&mut self.proxy_jump, value.to_string()),
             "addressfamily" => set(
                 &mut self.address_family,
@@ -208,22 +229,15 @@ impl Settings {
                 v @ ("none" | "subsystem" | "default") => set(&mut self.session_type, v.to_string()),
                 _ => return Err(bad("expected none, subsystem or default")),
             },
-            "proxycommand" if value.eq_ignore_ascii_case("none") => {}
-            // The ssh_config of OpenSSH users names podssh itself; podssh ssh
-            // takes that road anyway, so the line must not stop it.
-            "proxycommand" if runs_podssh_proxy(value) == Some(true) => add(&mut self.ignored, name.to_string()),
-            "proxycommand" if runs_podssh_proxy(value) == Some(false) => {
-                return Err(format!(
-                    "-o {name}={value}: podssh ssh reaches the host through the relay itself; it accepts \
-                     `podssh proxy %h %p` alone here, so give podssh ssh the other flags"
-                ))
+            // The first ProxyCommand holds, as OpenSSH reads the first alone:
+            // a later one, as of a `Host *` block, is not read (T-502).
+            "proxycommand" if self.proxy_command.is_some() => {}
+            // `none`, and the ssh_config of OpenSSH users that names podssh
+            // itself: podssh ssh takes that road anyway, so neither stops it.
+            "proxycommand" if value.eq_ignore_ascii_case("none") || runs_podssh_proxy(value) == Some(true) => {
+                self.proxy_command = Some(Given::new(name, value, place))
             }
-            "proxycommand" => {
-                return Err(format!(
-                    "-o {name}: podssh ssh reaches the host through the relay itself and runs no ProxyCommand; \
-                     to use OpenSSH with a relay, give ssh `-o ProxyCommand='podssh proxy %h %p'`"
-                ))
-            }
+            "proxycommand" => return Err(proxy_refused(name, value, runs_podssh_proxy(value).is_some(), place)),
             "localforward" => self.local_forwards.push(super::local_spec::local_keyword(value)?),
             "dynamicforward" => self.local_forwards.push(super::local_spec::dynamic_keyword(value)?),
             "gatewayports" => set(&mut self.gateway_ports, yes_no(value).ok_or_else(|| bad("expected yes or no"))?),
@@ -278,6 +292,30 @@ impl Settings {
             }
         }
         matched
+    }
+}
+
+/// The refusal of a `ProxyCommand` that runs another program, or podssh's
+/// proxy with flags that podssh ssh would not see (T-043). A file's names
+/// the flag that goes past it and keeps the file's other settings (Q70).
+fn proxy_refused(name: &str, value: &str, podssh: bool, place: &Place) -> String {
+    let why = if podssh {
+        format!(
+            "-o {name}={value}: podssh ssh reaches the host through the relay itself; it accepts \
+             `podssh proxy %h %p` alone here, so give podssh ssh the other flags"
+        )
+    } else {
+        format!("-o {name}: podssh ssh reaches the host through the relay itself and runs no ProxyCommand")
+    };
+    match place {
+        Place::CommandLine if podssh => why,
+        Place::CommandLine => {
+            format!("{why}; to use OpenSSH with a relay, give ssh `-o ProxyCommand='podssh proxy %h %p'`")
+        }
+        Place::Line { .. } => format!(
+            "{why}; -o ProxyCommand=none makes podssh ssh take its own road for this run, with the file's other \
+             settings"
+        ),
     }
 }
 
@@ -353,6 +391,7 @@ impl Settings {
             local_command: self.local_command.or(file.local_command),
             permit_local_command: self.permit_local_command.or(file.permit_local_command),
             proxy_jump: self.proxy_jump.or(file.proxy_jump),
+            proxy_command: self.proxy_command.or(file.proxy_command),
             address_family: self.address_family.or(file.address_family),
             stdin_null: self.stdin_null.or(file.stdin_null),
             session_type: self.session_type.or(file.session_type),
@@ -372,6 +411,19 @@ impl Settings {
     }
 }
 
+impl Settings {
+    /// What the command line gives the reading of a file before its first
+    /// line: its `IgnoreUnknown`, which holds for the files too, and its
+    /// `ProxyCommand`, which holds, so that a file's is not read (T-502).
+    pub fn for_files(&self) -> Settings {
+        Settings {
+            ignore_unknown: self.ignore_unknown.clone(),
+            proxy_command: self.proxy_command.clone(),
+            ..Settings::default()
+        }
+    }
+}
+
 fn set<T>(slot: &mut Option<T>, value: T) {
     if slot.is_none() {
         *slot = Some(value);
@@ -383,79 +435,6 @@ fn add<T: PartialEq>(list: &mut Vec<T>, item: T) {
     if !list.contains(&item) {
         list.push(item);
     }
-}
-
-pub fn yes_no(value: &str) -> Option<bool> {
-    match value.to_ascii_lowercase().as_str() {
-        "yes" | "true" => Some(true),
-        "no" | "false" => Some(false),
-        _ => None,
-    }
-}
-
-pub fn parse_port(value: &str) -> Option<u16> {
-    value.trim().parse::<u16>().ok().filter(|p| *p != 0)
-}
-
-/// Whole seconds; the whole string must be a number (no `30x`).
-fn parse_seconds(value: &str) -> Option<u64> {
-    let v = value.trim();
-    let v = v.strip_suffix('s').unwrap_or(v);
-    v.parse::<u64>().ok()
-}
-
-/// Space-separated values, as OpenSSH splits them: a space inside double
-/// quotes belongs to its value, and the quotes go.
-pub(super) fn words(value: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut word: Option<String> = None;
-    let mut quoted = false;
-    for c in value.chars() {
-        match c {
-            '"' => {
-                quoted = !quoted;
-                word.get_or_insert_with(String::new);
-            }
-            c if c.is_whitespace() && !quoted => out.extend(word.take()),
-            c => word.get_or_insert_with(String::new).push(c),
-        }
-    }
-    out.extend(word);
-    out
-}
-
-fn unquote(value: &str) -> String {
-    let v = value.trim();
-    v.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(v).to_string()
-}
-
-/// "unknown option", naming the nearest known keyword when one is close.
-fn unknown(name: &str) -> String {
-    let lower = name.to_ascii_lowercase();
-    let best = keywords::known_names()
-        .map(|k| (distance(&lower, &k.to_ascii_lowercase()), k))
-        .min_by_key(|(d, _)| *d)
-        .filter(|(d, _)| *d <= 3);
-    match best {
-        Some((_, k)) => format!("-o {name}: unknown option; did you mean {k}?"),
-        None => format!("-o {name}: unknown option"),
-    }
-}
-
-/// Levenshtein distance, for suggestions only.
-fn distance(a: &str, b: &str) -> usize {
-    let b: Vec<char> = b.chars().collect();
-    let mut row: Vec<usize> = (0..=b.len()).collect();
-    for (i, ca) in a.chars().enumerate() {
-        let mut prev = row[0];
-        row[0] = i + 1;
-        for (j, cb) in b.iter().enumerate() {
-            let cur = row[j + 1];
-            row[j + 1] = (prev + usize::from(ca != *cb)).min(row[j] + 1).min(cur + 1);
-            prev = cur;
-        }
-    }
-    row[b.len()]
 }
 
 #[cfg(test)]

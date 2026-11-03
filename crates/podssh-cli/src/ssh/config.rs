@@ -17,6 +17,7 @@ pub use matching::Given;
 
 use std::path::{Path, PathBuf};
 
+use super::given::Place;
 use super::options::Settings;
 use super::tokens::Tokens;
 
@@ -73,17 +74,17 @@ pub struct Context<'a> {
 /// A chain of includes stops here, as in OpenSSH (`READCONF_MAX_DEPTH`).
 const MAX_DEPTH: usize = 16;
 
-/// The settings of the blocks of `source` that apply. `ignore_unknown` is
-/// the command line's `IgnoreUnknown`, which holds for the files too and
-/// beats theirs.
-pub fn read(source: &Source, ctx: &Context, ignore_unknown: Option<String>) -> Result<Settings, String> {
+/// The settings of the blocks of `source` that apply, read on `seed`: what
+/// the command line gives the files ([`Settings::for_files`]), its
+/// `IgnoreUnknown` and its `ProxyCommand`, which beat theirs.
+pub fn read(source: &Source, ctx: &Context, seed: Settings) -> Result<Settings, String> {
     if *source == Source::None {
         return Ok(Settings::default());
     }
     let files = files_of(source, ctx.system);
     let mut reader = Reader {
         ctx,
-        out: Settings { ignore_unknown, ..Settings::default() },
+        out: seed,
         pass: Pass::First,
         wants_final: false,
         final_host: String::new(),
@@ -223,7 +224,10 @@ impl Reader<'_> {
                 // The final pass keeps the host of the first, as OpenSSH sets
                 // it before it reads again: a `HostName` there is not taken.
                 "hostname" if self.pass == Pass::Final => {}
-                _ if active => self.out.apply(&format!("{keyword}={value}")).map_err(|why| at(&why))?,
+                _ if active => {
+                    let place = Place::line(file, n, system);
+                    self.out.apply_at(&format!("{keyword}={value}"), &place).map_err(|why| at(&why))?
+                }
                 _ => {}
             }
         }

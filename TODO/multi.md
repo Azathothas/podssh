@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:286-397`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:290-401`,
    `crates/podssh-ssh/src/run.rs:34-79`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:171-465` (and `crates/podssh-ssh/src/io/msg.rs:11-95`) a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -57,7 +57,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/login.rs:86`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:434`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:435`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:3879-3972`); they cannot define a group.
+  (`docs/cli.md:3879-3983`); they cannot define a group.
 
 ## Approach
 
@@ -1360,7 +1360,7 @@ expect rule.
 
 1. `LocalCommand`: move it and `PermitLocalCommand` from IGNORED to
    HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:25-84`), with fields in
-   `crates/podssh-cli/src/ssh/options.rs:13-85`. Run it when OpenSSH runs it
+   `crates/podssh-cli/src/ssh/options.rs:21-97`. Run it when OpenSSH runs it
    (check the order in the container). Expand the tokens with `Tokens::expand`
    (`crates/podssh-cli/src/ssh/tokens.rs:69-157`), which has `%p` and `%n`
    since T-238.

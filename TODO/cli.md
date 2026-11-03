@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:317`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:318`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2135-2138`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:317`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:318`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -3591,7 +3591,7 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
   it. Inferred: a line shaped as OpenSSH's would make OpenSSH's server apply the quirks of its own
   client's versions to podssh, so the line stays podssh's. Against the report: the README says
   that podssh has "the options of OpenSSH" (`README.md:120`), not that it is OpenSSH.
-- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:206-207`)
+- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:210-211`)
   and in the notes (`crates/podssh-cli/src/man/notes.rs:131`), and in no row of `cp --help`
   (`crates/podssh-cli/src/flags/copy.rs:15-48`).
 - Read (L-17): `job fetch` of a job that runs exits 75, as EXIT STATUS says

@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:358-359`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:992`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:153-416`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:153-420`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-295`).
 
 ## Decision
@@ -5026,7 +5026,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:272`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:276`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:272-316`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:340-343`.

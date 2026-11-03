@@ -28,6 +28,8 @@ pub mod exit_road;
 // `--expect` and `--send` (T-191).
 pub mod expect;
 pub mod forward;
+// Where a keyword's value was given, for its notes and refusals (T-502).
+pub mod given;
 pub(crate) mod hop;
 // A warning before the relay's idle cut (T-463).
 pub mod idle_warn;
@@ -42,6 +44,8 @@ mod login;
 // A line before the relay's cap ends the session (T-461).
 mod near_cap;
 pub mod node;
+// The notes of what podssh accepts and does not use (T-502, T-505).
+mod noted;
 pub mod options;
 pub mod persist;
 pub mod picker;

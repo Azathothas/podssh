@@ -887,7 +887,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:272-278`); the
 operator leg receives text frames (`docs/relay.md:377-380`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:149-159`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:416`). `podssh ssh` uses the exit codes of OpenSSH, and
+(`crates/podssh-cli/src/ssh/resolve.rs:417`). `podssh ssh` uses the exit codes of OpenSSH, and
 `podssh proxy` sysexits (`docs/cli.md:3727-3731`).
 
 ## Approach

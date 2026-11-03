@@ -1,6 +1,16 @@
 //! `ssh_config` files (T-043): `~/.ssh/config`, `-F FILE` and
 //! `PODSSH_SSH_CONFIG`, read as OpenSSH 10.3p1 reads them (`docs/cli.md`,
-//! section "ssh_config"). Nothing connects.
+//! section "ssh_config"). Nothing connects, but for the logins of the
+//! modules below to the test's SSH server on the loopback, with --direct.
+
+mod ssh_harness;
+
+// A login to the test's server, for the modules below.
+#[path = "ssh_config_file/login.rs"]
+mod login;
+// The first ProxyCommand (T-502), apart for the length of this file.
+#[path = "ssh_config_file/proxy_command.rs"]
+mod proxy_command;
 
 use std::path::PathBuf;
 

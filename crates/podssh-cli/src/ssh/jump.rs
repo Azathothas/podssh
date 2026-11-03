@@ -81,6 +81,8 @@ fn for_hop(cli: &Settings) -> Settings {
         connect_timeout: cli.connect_timeout,
         log_level: cli.log_level,
         ignore_unknown: cli.ignore_unknown.clone(),
+        // `-o ProxyCommand=none` goes past each hop's file too (T-502).
+        proxy_command: cli.proxy_command.clone(),
         ..Settings::default()
     }
 }
@@ -190,7 +192,7 @@ impl Chain<'_> {
             tokens: &so_far,
             given,
         };
-        let file = super::config::read(&source, &ctx, self.cli.ignore_unknown.clone()).map_err(Refusal::config)?;
+        let file = super::config::read(&source, &ctx, self.cli.for_files()).map_err(Refusal::config)?;
         let (user, port) = (file.user.clone(), file.port);
         Ok(Filed { settings: self.cli.clone().then_file(file), user, port })
     }

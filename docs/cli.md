@@ -3891,7 +3891,18 @@ and an error names the file and the line. The command line beats the file:
 root's, and no one else may change it, checked on the file that a link
 names; a file that `-F` names is the user's choice, and is not checked.
 `ProxyCommand podssh proxy %h %p`, which a user of OpenSSH writes for
-podssh, is accepted, as `podssh ssh` takes that road anyway. `Include` is
+podssh, is accepted, as `podssh ssh` takes that road anyway, and so is
+`ProxyCommand none`; `-v` names the file and the line of one that podssh
+does not run. The first `ProxyCommand` holds, as OpenSSH reads the first
+alone (T-502): either value, on the command line or in an earlier block,
+goes past a later block's command, so `-o ProxyCommand=none` goes past a
+`Host *` that names a jump host for OpenSSH, and keeps each other setting
+of the file; it holds for each hop of `-J` too. A `ProxyJump` after the
+`ProxyCommand` that holds is not read, as OpenSSH 10.3p1's `parse_jump`
+does not read it then (`readconf.c`); one given before it keeps its hops.
+A command with no value before it is refused with its file and line (78),
+and the refusal names `-o ProxyCommand=none` (Q70); `cp`, `mv`, `scp`,
+`sftp` and each verb that reaches a host read it the same way. `Include` is
 read where it stands, with each file that it reads checked as
 `~/.ssh/config` is. A `Match` line starts a block that applies when each of
 its criteria holds (T-045): `all`, `host`, `originalhost`, `user`,
