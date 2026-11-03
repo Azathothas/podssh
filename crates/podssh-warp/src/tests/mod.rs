@@ -8,6 +8,7 @@
 
 mod api;
 mod api_routes;
+mod driver;
 mod edge;
 mod peers;
 mod proxies;

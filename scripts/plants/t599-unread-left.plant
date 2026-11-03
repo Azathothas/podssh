@@ -1,0 +1,7 @@
+# T-599: the driver sleeps with packets in that smoltcp left while the queue
+# out was full, as before the repair; the test of three queues' worth of
+# SYNs must fail, a RST for the first queue's worth alone.
+ENTRY=T-599
+GROUP=resume
+EXPECT='test tests::driver::packets_left_while_the_queue_out_was_full_are_read_once_it_has_room \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-warp --features stand-in --lib tests::driver'

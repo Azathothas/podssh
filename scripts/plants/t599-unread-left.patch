@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-warp/src/stack.rs b/crates/podssh-warp/src/stack.rs
+index ecc5553..cb7598e 100644
+--- a/crates/podssh-warp/src/stack.rs
++++ b/crates/podssh-warp/src/stack.rs
+@@ -328,7 +328,7 @@ async fn drive(shared: Arc<Shared>, mut inbound: mpsc::Receiver<Vec<u8>>, out: m
+         // smoltcp leaves the packets in while the queue out is full; once it
+         // has room again, no packet and no timer would wake the driver for
+         // them, and a busy host's timers back off for up to a minute (T-599).
+-        if unread && !waiting {
++        if unread && !waiting && false {
+             tokio::task::yield_now().await;
+             continue;
+         }

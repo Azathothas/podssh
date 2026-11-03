@@ -8162,7 +8162,7 @@ passed) and passed at the gates before and after; that push changed no file of `
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -8174,7 +8174,7 @@ road until a measurement says otherwise.
 ## Premise
 
 - `crates/podssh-warp/src/tests/edge.rs:35` writes 1 MiB, shuts the writer and reads to the end
-  within `LIMIT * 3` (`crates/podssh-warp/src/tests/mod.rs:23`, 20 s).
+  within `LIMIT * 3` (`crates/podssh-warp/src/tests/mod.rs:24`, 20 s).
 - T-398 made the tunnel read while a packet waits and take small frames up to its whole window
   (`66044bd`); a lost wakeup between the stack's queue and the HTTP/2 stream's window would stall
   the transfer with no error, as seen.
@@ -8197,3 +8197,33 @@ for i in $(seq 1 200); do cargo test -q -p podssh-warp --lib -- tests::edge || b
 
 200 runs in a row pass under the load that reproduced the stall; planted, the repair removed: the
 stall comes back within the loop.
+
+## Correction
+
+2026-11-03: the lost wakeup is in the stack's driver, not between smoltcp and HTTP/2's window. The
+device's `receive` (`crates/podssh-warp/src/phy.rs`) refuses a packet in while 64 packets wait to
+go out (`MAX_OUT`), so that nothing grows while the tunnel takes nothing; the driver then hands the
+queue out to the tunnel's channel, which holds 256 (`PACKETS`), and with each packet handed over it
+slept for smoltcp's next timer (`poll_delay`), which knows nothing of the packets still waiting in.
+No new packet and no stream woke it, and smoltcp's timers back off for up to 60 s (`RTTE_MAX_RTO`),
+the test's whole bound, on a host whose load makes the round trips long. The planted defect is
+the repair removed, not the stall itself, as the new test makes it come every time.
+
+## Done
+
+2026-11-03.
+
+- Reproduced: `tests::edge::a_session_passes_both_ways_inside_the_tunnel`, 8 loops of 25 at once on
+  this cloud session's 4 CPUs: 1 of 200 failed, "the echo in time: Elapsed(())" after 60.8 s, as
+  on the runner.
+- `crates/podssh-warp/src/stack.rs`, `drive`: after the queue out is handed over whole, packets in
+  that smoltcp left are polled at once (after a yield), in place of a sleep.
+- `crates/podssh-warp/src/tests/driver.rs` (new):
+  `packets_left_while_the_queue_out_was_full_are_read_once_it_has_room`, 200 SYNs to a closed port
+  in the stack's channel before its first poll, each answered with a RST, one packet out for each
+  in: each RST within 5 s (0.01 s here); before the repair, 64 came, and the rest waited a minute.
+- Planted (`sh scripts/plant-each.sh --here t599-unread-left`, the repair turned off): caught, the
+  new test failed. `cargo test -p podssh-warp --features stand-in`: 69 passed in the lib, 5 in
+  `road`, 3 in the rest; clippy `--all-targets -D warnings`: clean.
+- Waits: the Prove's loop, the echo test 480 times under the load that reproduced the stall (8
+  loops of 60 at once), runs at this commit.

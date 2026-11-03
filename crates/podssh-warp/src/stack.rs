@@ -310,20 +310,28 @@ impl Stack {
 /// ends the connection.
 async fn drive(shared: Arc<Shared>, mut inbound: mpsc::Receiver<Vec<u8>>, out: mpsc::Sender<Vec<u8>>, why: Why) {
     loop {
-        let (handed, wait) = {
+        let (handed, wait, unread) = {
             let mut guard = shared.lock();
             let now = guard.now();
             let inner = &mut *guard;
             inner.iface.poll(now, &mut inner.phy, &mut inner.sockets);
             let wait = inner.iface.poll_delay(now, &inner.sockets).map(Duration::from).unwrap_or(IDLE);
             inner.reap();
-            (hand_over(&mut inner.phy.outbound, &out), wait)
+            let handed = hand_over(&mut inner.phy.outbound, &out);
+            (handed, wait, !inner.phy.inbound.is_empty())
         };
         let waiting = match handed {
             Handed::All => false,
             Handed::Waiting => true,
             Handed::Closed => return stop(&shared, &why, "the tunnel stopped taking packets"),
         };
+        // smoltcp leaves the packets in while the queue out is full; once it
+        // has room again, no packet and no timer would wake the driver for
+        // them, and a busy host's timers back off for up to a minute (T-599).
+        if unread && !waiting {
+            tokio::task::yield_now().await;
+            continue;
+        }
         // What TCP's timers would send cannot go while a packet waits, and a
         // timer that is due at once would spin.
         let wait = if waiting { wait.max(BLOCKED) } else { wait };
