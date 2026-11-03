@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/session.rs
++++ b/crates/podssh-ssh/src/session.rs
+@@ -127,7 +127,7 @@
+                     let markers = crate::elevate::Markers::new();
+                     let line = crate::elevate::command(how, command, &markers);
+                     let may_ask = !opts.batch_mode && crate::prompt::can_ask();
+-                    let end = crate::elevate::end_keys(how, pty, &modes);
++                    let end = Vec::new();
+                     let words = question(how, opts, host);
+                     elevated = Some(crate::elevate::Elevated::new(how, markers, words, may_ask, end));
+                     line

@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:152-158`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:3792-3847`
+   so that only the notes change. No document changes: `docs/cli.md:3800-3855`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:622`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:623`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -263,7 +263,7 @@ Read:
   which only the SSH handshake prints (`crates/podssh-ssh/src/run.rs:395-417`).
   At that point no request has reached the server.
 - The command starts with the exec, shell or subsystem request
-  (`crates/podssh-ssh/src/session.rs:125-152`). `-W` reads stdin only after its
+  (`crates/podssh-ssh/src/session.rs:126-155`). `-W` reads stdin only after its
   channel opens (`crates/podssh-ssh/src/forward.rs:39-70`). `-N` never reads
   stdin (`crates/podssh-ssh/src/run.rs:212-254`).
 - Measured by the reporter (read in the reports, not verified here): on one
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:3698-3766`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:3706-3774`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:3708-3711`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:3716-3719`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:3698-3766`, and the measurement in
+5. Write the measured rule in `docs/cli.md:3706-3774`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:3792-3847` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:3800-3855` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -993,7 +993,7 @@ and no other.
 
 - Read: the host-key question accepts a typed fingerprint
   (`crates/podssh-ssh/src/hostkey.rs:223-240`), and an `SSH_ASKPASS` program
-  can answer it (`crates/podssh-ssh/src/prompt.rs:47-70`). A script then
+  can answer it (`crates/podssh-ssh/src/prompt.rs:50-73`). A script then
   needs an askpass program that it can run, which a noexec sandbox can
   refuse.
 - Read: OpenSSH has no keyword for this. podssh refuses
@@ -1022,7 +1022,7 @@ and no other.
    `known_hosts` cannot be read (`unverifiable` in
    `crates/podssh-ssh/src/hostkey.rs`, T-028), next to
    `-o UserKnownHostsFile=FILE`.
-6. The flag's row gives the help and the manual. Update `docs/cli.md:48-694`,
+6. The flag's row gives the help and the manual. Update `docs/cli.md:48-702`,
    and add an example to `crates/podssh-cli/src/man/examples.rs`.
 
 ## Decision
@@ -1101,9 +1101,9 @@ acceptable.
 ## Premise
 
 - Read: podssh asks for passwords on the terminal or through `SSH_ASKPASS`
-  (`crates/podssh-ssh/src/prompt.rs:47-70`), and refuses when nobody can
-  answer (`crates/podssh-ssh/src/prompt.rs:80-90`). A remote command is one
-  string for the remote shell (`crates/podssh-ssh/src/session.rs:130-143`).
+  (`crates/podssh-ssh/src/prompt.rs:50-73`), and refuses when nobody can
+  answer (`crates/podssh-ssh/src/prompt.rs:83-93`). A remote command is one
+  string for the remote shell (`crates/podssh-ssh/src/session.rs:131-146`).
   Local stdin goes to the channel only after the exec request
   (`crates/podssh-ssh/src/io.rs`, lines 148-157 at `3e42773`).
 - Measured, offline: `podssh ssh --sudo example.invalid id` gives
@@ -1171,11 +1171,11 @@ M1, and the NOPASSWD check fails.
 ## Done
 
 2026-10-11. The markers, the command and the filter in
-`crates/podssh-ssh/src/elevate.rs:1-290`. The session wraps the command
-(`crates/podssh-ssh/src/session.rs:130-143`, the question at
-`crates/podssh-ssh/src/session.rs:237-246`), and the pump filters the output,
+`crates/podssh-ssh/src/elevate.rs:1-395`. The session wraps the command
+(`crates/podssh-ssh/src/session.rs:131-146`, the question at
+`crates/podssh-ssh/src/session.rs:240-249`), and the pump filters the output,
 asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:178-192`,
-`crates/podssh-ssh/src/io.rs:406-413`). The flags at
+`crates/podssh-ssh/src/io.rs:405-412`). The flags at
 `crates/podssh-cli/src/flags.rs:217-222`, and their check in
 `crates/podssh-cli/src/ssh/elevate.rs:1-43`.
 - `cargo test -p podssh-ssh -- elevate`: 5 passed: the quoting of the
@@ -1189,11 +1189,11 @@ asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:178-192`
   Planted, each restored: the password asked at once (the Prove's plant)
   failed three tests, the NOPASSWD one among them; the input not held failed
   three; the markers left in the output failed two.
-- `scripts/interop-sudo.sh:1-48`, a new harness of three checks against
+- `scripts/interop-sudo.sh:1-50`, a new harness of three checks against
   OpenSSH's sshd and Alpine's sudo in the box: `sudo.password`, `sudo.wrong`
   and `sudo.nopass`. The gate runs them at this push; their plant in the box
   waits for T-251.
-- `docs/cli.md:572-587` and a note of the manual say what the flags do.
+- `docs/cli.md:572-595` and a note of the manual say what the flags do.
 - `cargo test -p podssh-ssh`: 147 passed; `cargo test -p podssh-cli`:
   570 passed, 0 failed, 31 ignored; clippy; rustfmt.
 
@@ -1219,7 +1219,7 @@ and no player.
 
 - Read: each output of a session passes `handle_msg`
   (`crates/podssh-ssh/src/io/msg.rs:11-34`), and each window change passes the
-  resize branch (`crates/podssh-ssh/src/io.rs:315-320`). The size at the start
+  resize branch (`crates/podssh-ssh/src/io.rs:314-319`). The size at the start
   is `terminal::size` (`crates/podssh-ssh/src/terminal/mod.rs:80`).
   `podssh-ssh` has no JSON dependency
   (`crates/podssh-ssh/Cargo.toml:17-33`).
@@ -1240,7 +1240,7 @@ and no player.
    hold a secret.
 4. Playback: a new verb `podssh play FILE`, with `--speed` and
    `--idle-limit`. Not `replay`: it is one edit from `relay`, and the
-   suggestion step would mix them (`docs/cli.md:1670-1679`). Add it to `VERBS`
+   suggestion step would mix them (`docs/cli.md:1678-1687`). Add it to `VERBS`
    (`crates/podssh-cli/src/flags.rs:366-430`), to
    `crates/podssh-cli/src/positionals.rs`, to dispatch, and to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-143`).
@@ -1281,7 +1281,7 @@ byte boundary, and the UTF-8 test fails.
 
 2026-10-11. The recorder in `crates/podssh-ssh/src/record.rs:1-153`, which a
 session starts with the size of its start
-(`crates/podssh-ssh/src/session.rs:176-183`) and its output passes through
+(`crates/podssh-ssh/src/session.rs:179-186`) and its output passes through
 (`crates/podssh-ssh/src/io.rs:113-168`). The flag at
 `crates/podssh-cli/src/flags.rs:219-220`, its check and its file in
 `crates/podssh-cli/src/ssh/recording.rs:1-42`; the verb in
@@ -1308,7 +1308,7 @@ session starts with the size of its start
   place of the one of `scripts/interop.sh`. The next commit names that helper
   `ping_via` (`scripts/interop-ping.sh:10-16`), so that each later harness
   gets `podssh ssh`.
-- `docs/cli.md:588-599` and `docs/cli.md:3269-3281`, the manual's notes and an
+- `docs/cli.md:596-607` and `docs/cli.md:3277-3289`, the manual's notes and an
   example, say what the flag and the verb do, and their risks.
 - `cargo test -p podssh-ssh`: 151 passed; `cargo test -p podssh-cli`:
   574 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1628,9 +1628,9 @@ clients store credentials; podssh stores none.
 
 Read, at `4cfbd5f`:
 - A prompt goes to `SSH_ASKPASS` or to the terminal; with neither, podssh
-  refuses and names the remedy (`crates/podssh-ssh/src/prompt.rs:47-90`).
+  refuses and names the remedy (`crates/podssh-ssh/src/prompt.rs:50-93`).
   The askpass program's answer is zeroized
-  (`crates/podssh-ssh/src/prompt.rs:102-119`).
+  (`crates/podssh-ssh/src/prompt.rs:105-122`).
 - The prompts for a credential: the passphrase of a key file
   (`crates/podssh-ssh/src/keys.rs`, lines 211-236), the password
   (`crates/podssh-ssh/src/auth.rs`, lines 231-274), and the answers of
@@ -2037,7 +2037,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:232`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:3815-3818`). A person who types slowly must not meet a limit
+  `docs/cli.md:3823-3826`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -2061,7 +2061,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:3845-3847` asks for a limit on the whole operation.
+   `docs/cli.md:3853-3855` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2268,7 +2268,7 @@ files, the `known_hosts` files, `IdentityAgent` and `-E` (lines 118-130,
    it.
 5. Do not expand `-E`, as OpenSSH does not.
 6. T-043 uses the same function for `ssh_config`. Name the tokens in the
-   manual's notes and in `docs/cli.md:48-694`.
+   manual's notes and in `docs/cli.md:48-702`.
 
 ## Prove
 
@@ -2510,7 +2510,7 @@ constraint of a key (lines 296-297), and when a request to sign names such a key
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
 Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:173-176`), and is never
-called. `docs/cli.md:3178-3179` says that the key "is never used".
+called. `docs/cli.md:3186-3187` says that the key "is never used".
 
 ## Approach
 
@@ -3869,7 +3869,7 @@ no helper and no terminal, `--su` says at once that podssh may ask none, and end
 **Milestone:** none
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3885,19 +3885,19 @@ asked.
   (`crates/podssh-cli/src/ssh/elevate.rs:32-36`); `sudo -S` reads the channel
   (`crates/podssh-ssh/src/elevate.rs:1-10`).
 - Read: at su's prompt, podssh drops the deadline of the start and asks on a thread
-  (`crates/podssh-ssh/src/elevate.rs:229-233`). A cancelled answer (a helper that exits not 0 is
-  `Cancelled`, `crates/podssh-ssh/src/prompt.rs:27-29`), and each other failure of the question,
+  (`crates/podssh-ssh/src/elevate.rs:333-337`). A cancelled answer (a helper that exits not 0 is
+  `Cancelled`, `crates/podssh-ssh/src/prompt.rs:27-31`), and each other failure of the question,
   give a line and the end of the channel's input, and no new deadline
-  (`crates/podssh-ssh/src/elevate.rs:272-278`); with no deadline the wait has no end
-  (`crates/podssh-ssh/src/elevate.rs:166-171`, `crates/podssh-ssh/src/elevate.rs:251-257`).
+  (`crates/podssh-ssh/src/elevate.rs:378-384`); with no deadline the wait has no end
+  (`crates/podssh-ssh/src/elevate.rs:222-227`, `crates/podssh-ssh/src/elevate.rs:355-361`).
 - Inferred, from the report's controls: the end of the input stops `sudo -S`, whose stdin is the
   channel, and does not reach `su`, which reads the pty: OpenSSH's server takes the EOF of a pty's
   channel and keeps the pty open, so su waits, and podssh with it.
 - Read: with no way to ask, podssh says so, ends the input and keeps the deadline
-  (`crates/podssh-ssh/src/elevate.rs:225-228`); at 30 s its line says that the command "neither
-  asked for a password nor started" (`crates/podssh-ssh/src/io.rs:308-313`), though it asked.
+  (`crates/podssh-ssh/src/elevate.rs:325-332`); at 30 s its line says that the command "neither
+  asked for a password nor started" (`crates/podssh-ssh/src/io.rs:308-312`), though it asked.
 - Read: the tests run `--su` with a right and a wrong password, and with no helper that fails
-  (`crates/podssh-cli/tests/ssh_sudo.rs:143-155`).
+  (`crates/podssh-cli/tests/ssh_sudo.rs:202-264`).
 - Read (L-11): `--sudo` under a `NOPASSWD` rule sends no password, by design
   (`crates/podssh-ssh/src/elevate.rs:6-7`); no change.
 
@@ -3928,6 +3928,27 @@ asked.
 - A cancelled helper sends no password: its output is no answer, as OpenSSH reads it. Lost: send
   what the helper wrote (the report's first reading).
 
+The draft's calls (2026-11-02), where the Approach left a choice:
+- su's two keys are the ones of the modes that podssh asked for the pty with (`VKILL`, `VEOF`),
+  else the pty's defaults, Ctrl-U and Ctrl-D; a key that the modes turned off is not sent, and a
+  session whose pty was not granted gets none, as the channel's EOF reaches su's stdin there. Lost:
+  Ctrl-U and Ctrl-D always: a local terminal with other keys gives the far pty those, and su would
+  read the two bytes as a password, a failed login in the far host's log.
+- The line of a helper that failed names how it ended: `PromptError` gains `Exited` ("SSH_ASKPASS
+  exited 1"), where it was `Cancelled` ("cancelled"). The other questions of podssh (password
+  authentication, keyboard-interactive, the host key, `keygen`) say the same words now. Lost: the
+  variant `Cancelled` with a new text alone, which could not say "exited 1" or a signal.
+- sudo's second prompt (a refused password) gets the same time to end as a password that was not
+  sent, with a line of its own ("sudo refused the password, and did not end within 30 s after podssh
+  ended its input"), where it kept the time of the check of its password. Lost: no change there,
+  whose line said that sudo had not asked again, after it had.
+- At the time that ran out podssh closes the channel before it ends with 255, so that OpenSSH's
+  server hangs up the far su's pty. Lost: the end of the connection alone, which does the same a
+  moment later, with nothing said to the server.
+- The interop check installs util-linux's su (`util-linux-login`) in the build image and gives root
+  a password of the run, so that su asks podtest for one; with no su that asks, the check says
+  `env`. Lost: busybox's su, which runs only where it is setuid, and the image does not say.
+
 ## Prove
 
 ```sh
@@ -3939,6 +3960,53 @@ cargo test -p podssh-cli --test ssh_sudo
 Planted: no deadline after the end, as now: the test of the su that ignores Ctrl-D runs past its
 limit and fails.
 
+## Done
+
+Drafted on 2026-11-02 by a drafting agent, which built nothing; merged and measured by the main
+session on 2026-11-03. The Premise read the tree at `582b1bf` with the draft
+of T-500, which none of its files changed; its citations name the lines that this change rewrote.
+The harness's su took the channel's EOF as a refusal, which OpenSSH's server never gives su, so the
+tests could not see the wait; it now reads its pty's keys and waits on at the EOF.
+
+- `crates/podssh-ssh/src/elevate.rs`: `end_keys` (the two keys of su's pty, from the modes that
+  podssh asked for); `Elevated` keeps them and a `Phase`, and one `end` sends them, then the EOF,
+  then gives the command `WAIT` to end: for a question that failed, a helper that exited not 0 or
+  could not run, a thread that ended, no way to ask (at once), and sudo's second prompt. The line
+  of a time that ran out says what podssh did (`expired_line`). `crates/podssh-ssh/src/session.rs`
+  passes the pty's modes and whether it was granted. `crates/podssh-ssh/src/io.rs` closes the
+  channel when the time ran out. `crates/podssh-ssh/src/prompt.rs`: `PromptError::Exited`, how the
+  helper ended. Tests in `crates/podssh-ssh/src/elevate_tests.rs`: the keys of su's pty, and the
+  lines. `cargo test -p podssh-ssh --lib elevate`: 7 passed.
+- The harness (`crates/podssh-cli/tests/ssh_harness/sudo.rs`, `mod.rs`, `far.rs`): su reads Ctrl-U
+  and Ctrl-D as a pty in canonical mode, and refuses at its end of file; the channel's EOF leaves it
+  waiting, as OpenSSH's server does; the su of a user `su-deaf-...` ignores both. Tests in
+  `crates/podssh-cli/tests/ssh_sudo.rs`, each run within a limit: a helper that exits 1 ends `--su`
+  within 10 s with su's refusal (1) and the new line; BatchMode with no helper ends within 10 s, and
+  no line says that the command asked nothing; `--sudo` with that helper keeps its 1; the deaf su
+  gives 255 within 45 s with "su did not end within 30 s after podssh sent it no password: SSH_ASKPASS
+  exited 1". `cargo test -p podssh-cli --test ssh_sudo`: 9 passed on Linux; macOS and Windows (the
+  helper a `.cmd` there): CI's build at the push.
+- `scripts/interop-sudo.sh`, `sudo.su_cancelled` (`env-allowed` in `scripts/interop-baseline.txt`):
+  `--su` with a helper that exits 1 against OpenSSH's sshd and util-linux's su: not 0 within 25 s,
+  one question, the line of the helper, and no `su -c` of the run left in `/proc`. Waits for the build image, which this
+  host's Docker did not run: the gate's step `release` at the push, which runs
+  `scripts/interop.sh` and `cargo todo interop`, and says whether Alpine's `util-linux-login` gives
+  a su that asks.
+- Planted: `scripts/plants/t501-no-deadline-after-end.plant` (the Prove's: no time to end, the deaf
+  su's test fails at its limit), `scripts/plants/t501-no-end-keys.plant` (no keys: the helper's test
+  fails, 255 after 30 s) and `scripts/plants/t501-su-interop-no-end-keys.plant` (the same, against
+  sshd: `sudo.su_cancelled` fails). `scripts/plants/t032-sudo-at-once.patch` moved with
+  `Elevated::new`. `sh scripts/plant-each.sh --here t501-no-deadline-after-end t501-no-end-keys`:
+  both caught (the deaf su's test and the helper's test failed). `t501-su-interop-no-end-keys` and
+  `t032-sudo-at-once` (group `ssh-pty`, the static build of the image): through `plants.yml` on a
+  runner after the push.
+- The manual (`crates/podssh-cli/src/man/notes_ssh.rs`, the note of `--sudo` and `--su`) and
+  `docs/cli.md` say what a password that cannot be given does. `cargo test -p podssh-cli --test
+  man_page`: 10 passed.
+- The merge: the harness's end of input had moved to `ssh_harness/eof.rs` (T-461), so the draft's
+  change of `mod.rs` went there. `cargo todo remap` from the tree before the draft, in place of its
+  text diff; rustfmt and clippy of `podssh-ssh` and `podssh-cli` with `-D warnings`, all targets,
+  on Linux: clean; macOS and Windows: CI's build at the push.
 # T-503: The direct road dials a host name that the relay road refuses, and refuses a blank only at the dial, with 255
 
 **Source:** the report of 2026-11-02 (T-500's Source): its issue 04 (`04-each-whitespace.md`), the

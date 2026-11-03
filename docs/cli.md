@@ -581,7 +581,15 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   alone; its prompt is its output that ends with no newline before the
   command starts, and that output is shown only when su refuses. The
   remote shell must read POSIX quoting. When neither a prompt nor the
-  command's start comes within 30 s, podssh stops with 255. Each needs a
+  command's start comes within 30 s, podssh stops with 255. A password
+  that cannot be given (a cancelled question, an `SSH_ASKPASS` that exits
+  non-zero, `BatchMode` or nothing to ask on) is never sent (T-501):
+  podssh names the cause and ends the command's input, and for su also
+  its line on the pty, with the pty's kill and end-of-file keys (Ctrl-U
+  and Ctrl-D unless the local terminal set others), as OpenSSH's server
+  keeps the pty open at the channel's EOF. sudo or su then refuses with
+  its own words and status; one that does not end within 30 s ends podssh
+  with 255, and podssh closes the channel. Each needs a
   command; `--sudo` with `-t`, `--su` with `-T`, or both at once, are usage
   errors (64). Such a run makes a connection of its own, with no
   `ControlPath`, and with `BatchMode` a prompt ends the input.

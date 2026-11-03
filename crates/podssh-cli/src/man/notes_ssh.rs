@@ -351,8 +351,12 @@ const FIRST: &[&str] = &[
     "--sudo runs the command as root with sudo -S, with no pty, and --su with su -c, in a pty: the password \
      is asked here, on the terminal or through SSH_ASKPASS, never taken from the command line. podssh \
      answers one prompt, holds its input until the command starts, and asks nothing when sudo asks \
-     nothing; a second prompt, a wrong password, ends the input. The remote shell must read POSIX \
-     quoting.",
+     nothing; a second prompt, a wrong password, ends the input. A password that cannot be given (a \
+     question cancelled, an SSH_ASKPASS that exits non-zero, BatchMode or nothing to ask on) is never \
+     sent: podssh says why and ends the command's input, for su also its line on the pty (the pty's \
+     kill and end-of-file keys, Ctrl-U and Ctrl-D by default), so that sudo or su refuses with its own \
+     words and status. A command that neither starts nor ends within 30 s ends podssh with 255. The \
+     remote shell must read POSIX quoting.",
     "--snippet NAME runs the command NAME of the settings file (see FILES): after a line [snippets], each \
      line is NAME COMMAND. The placeholders of a command get these values: {{host}} the host that podssh \
      connects to, after HostName; {{user}} the user; {{port}} the port; {{1}} to {{9}} the words after the \

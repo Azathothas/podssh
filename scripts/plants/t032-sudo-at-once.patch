@@ -1,11 +1,12 @@
 --- a/crates/podssh-ssh/src/elevate.rs
 +++ b/crates/podssh-ssh/src/elevate.rs
-@@ -195,12 +195,13 @@
- 
- impl Elevated {
-     pub fn new(how: Elevate, markers: Markers, question: String, may_ask: bool) -> Self {
+@@ -273,13 +273,14 @@
+     /// `end_keys` ends the command's read when it gets no password: see
+     /// [`end_keys`].
+     pub fn new(how: Elevate, markers: Markers, question: String, may_ask: bool, end_keys: Vec<u8>) -> Self {
 +        let asked = question.clone();
          Elevated {
+             how,
              filter: Filter::new(how, markers),
              question,
              may_ask,
@@ -13,5 +14,5 @@
 -            asking: None,
 +            asking: may_ask.then(|| tokio::task::spawn_blocking(move || prompt::ask(&asked, false))),
              deadline: Some(tokio::time::Instant::now() + WAIT),
-         }
-     }
+             phase: Phase::Starting,
+             end_keys,

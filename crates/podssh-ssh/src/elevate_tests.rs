@@ -79,3 +79,40 @@ fn elevate_su_asks_at_its_prompt_and_keeps_its_own_output() {
     let mut quiet = Filter::new(Elevate::Su, markers());
     assert_eq!(quiet.feed(b"su: warning\n", false).1, Vec::new());
 }
+
+/// su on a pty gets the kill key and the end of file key before the
+/// channel's EOF (T-501): the pty's defaults, or the keys of the modes that
+/// podssh asked for, never one that the modes turned off. sudo, and a
+/// command with no pty, read the channel, whose EOF is enough.
+#[test]
+fn elevate_ends_su_read_with_the_keys_of_its_pty() {
+    assert_eq!(end_keys(Elevate::Su, true, &[]), vec![0x15, 0x04], "the pty's defaults");
+    let modes = [(Pty::VINTR, 3), (Pty::VKILL, 0x18), (Pty::VEOF, 0x1a)];
+    assert_eq!(end_keys(Elevate::Su, true, &modes), vec![0x18, 0x1a], "the local terminal's keys");
+    let off = [(Pty::VKILL, 255), (Pty::VEOF, 0x04)];
+    assert_eq!(end_keys(Elevate::Su, true, &off), vec![0x04], "a key turned off is not sent");
+    assert_eq!(end_keys(Elevate::Su, false, &[]), Vec::<u8>::new(), "no pty: the EOF reaches su's stdin");
+    assert_eq!(end_keys(Elevate::Sudo, true, &modes), Vec::<u8>::new(), "sudo -S reads the channel");
+}
+
+/// The lines of a password that was not sent and of a time that ran out
+/// name the cause and what podssh did (T-501): a command that asked is
+/// never said to have asked nothing.
+#[test]
+fn elevate_says_why_no_password_went_and_what_did_not_end() {
+    let helper = PromptError::Exited("exited 1".into()).to_string();
+    assert_eq!(
+        unanswered(Elevate::Su, &helper),
+        "the password for the remote command: SSH_ASKPASS exited 1, so podssh sends su no password"
+    );
+    assert_eq!(
+        expired_line(Elevate::Su, &Phase::Ended(helper)),
+        "su did not end within 30 s after podssh sent it no password: SSH_ASKPASS exited 1"
+    );
+    assert_eq!(
+        expired_line(Elevate::Su, &Phase::Starting),
+        "the remote command neither asked for a password nor started within 30 s"
+    );
+    assert!(expired_line(Elevate::Sudo, &Phase::Sent).starts_with("the remote command asked for a password"));
+    assert!(expired_line(Elevate::Sudo, &Phase::Refused).starts_with("sudo refused the password"));
+}

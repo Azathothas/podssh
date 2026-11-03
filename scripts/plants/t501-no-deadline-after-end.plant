@@ -1,0 +1,8 @@
+# T-501: no time to end after su's read was ended, as before: the su of the
+# harness that ignores the end of its read keeps podssh waiting, and the test
+# of that su runs past its limit and fails.
+ENTRY=T-501
+GROUP=cli-tests
+EXPECT='test a_su_that_does_not_end_gives_255_within_its_time \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_sudo -- a_su_that_does_not_end_gives_255_within_its_time'
+LIMIT=2400

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**547 entries: 122 open, 2 partial, 16 blocked, 407 done.**
+**547 entries: 121 open, 2 partial, 16 blocked, 408 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 2 | 0 | 56 | 60 |
+| P1 | 1 | 2 | 0 | 57 | 60 |
 | P2 | 37 | 0 | 14 | 195 | 246 |
 | P3 | 83 | 0 | 2 | 155 | 240 |
-| **All** | 122 | 2 | 16 | 407 | 547 |
+| **All** | 121 | 2 | 16 | 408 | 547 |
 
 ## Entries
 
@@ -565,7 +565,7 @@ repository and CI).
 | [T-498](mesh.md) | P3 | L | M10 | feature | open | frp's protocol: a podssh node behind the user's frps, and its visitor |
 | [T-499](mesh.md) | P3 | M | M10 | feature | open | IETF's connect-tcp, once it is an RFC |
 | [T-500](ssh.md) | P1 | S | none | defect | done | A destination with no user name is refused when `USER`, `LOGNAME` and `USERNAME` are unset, where OpenSSH reads the user database |
-| [T-501](ssh.md) | P1 | S | none | defect | open | `--su` waits for ever when its password cannot be given: a cancelled `SSH_ASKPASS` leaves su waiting, and podssh with it |
+| [T-501](ssh.md) | P1 | S | none | defect | done | `--su` waits for ever when its password cannot be given: a cancelled `SSH_ASKPASS` leaves su waiting, and podssh with it |
 | [T-502](config.md) | P2 | S | none | defect | open | `-o ProxyCommand=none` does not beat a file's `ProxyCommand`, and the first `ProxyCommand` of a file does not hold |
 | [T-503](ssh.md) | P2 | S | none | defect | open | The direct road dials a host name that the relay road refuses, and refuses a blank only at the dial, with 255 |
 | [T-504](multi.md) | P1 | S | none | defect | open | `each` splits a host of the command line at a blank, and runs the command on hosts that nobody named |

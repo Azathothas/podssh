@@ -14,12 +14,9 @@ pub(super) fn ended(far: &mut Far, channel: ChannelId, session: &mut Session) ->
     if far.sftps.remove(&channel).is_some() {
         return Ok(());
     }
-    // sudo with no password to read: a refusal.
-    if far.elevated.remove(&channel).is_some() {
-        session.extended_data(channel, 1, b"sudo: 1 incorrect password attempt\n".to_vec())?;
-        session.exit_status_request(channel, 1)?;
-        session.eof(channel)?;
-        session.close(channel)?;
+    // sudo with no password to read refuses; su reads its pty, still open.
+    if let Some(elevated) = far.elevated.remove(&channel) {
+        far.elevated.extend(super::sudo::eof(elevated, channel, session)?.map(|waiting| (channel, waiting)));
         return Ok(());
     }
     if let Some((stop, status)) = far.spews.remove(&channel) {

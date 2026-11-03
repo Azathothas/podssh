@@ -1,0 +1,9 @@
+# T-501: su gets no end of its read, only the channel's EOF, as before: the
+# harness's su, whose pty the EOF leaves open as OpenSSH's server does, waits
+# on, and a failed SSH_ASKPASS ends --su with 255 after 30 s, not with su's
+# refusal at once.
+ENTRY=T-501
+GROUP=cli-tests
+EXPECT='test su_ends_at_once_when_the_askpass_helper_fails \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_sudo -- su_ends_at_once_when_the_askpass_helper_fails'
+LIMIT=2400
