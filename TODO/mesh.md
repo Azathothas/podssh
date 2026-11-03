@@ -726,6 +726,10 @@ Measured at the merge, 2026-11-02:
 - The whole suites: `cargo test --no-fail-fast -p podssh-cli`, 1307 passed, none failed (51
   ignored); `-p podssh-relay --features pair,quick,derp,serve,piping`, 495 passed, none failed (22
   ignored); the temporary directory held as many entries after them as before.
+- 2026-11-03, `plants.yml` at `3bb42ea` (run 41563969423): `t430-policy-skipped` missed, as the
+  build image has no Python and the test said it did not run; the plant installs Python and
+  openssl first since then, and in the build image `sh scripts/plant-each.sh t430-policy-skipped`:
+  caught ("a target that no rule names was reached").
 
 # T-431: Exit mode: a node's egress for its owner's forward road
 
@@ -941,6 +945,10 @@ The merge (2026-11-02):
   and failed only its own check that GitHub's host key went into the test's file: the runner's
   image knows that key in `/etc/ssh/ssh_known_hosts`, so podssh wrote nothing. The step now names
   `GlobalKnownHostsFile=/dev/null` (`94be1bb`), and run 41479877820 passed each check.
+- 2026-11-03, `plants.yml` at `3bb42ea` (run 41563969423): `t431-exit-public-check` missed, as
+  the build image has no Python and the test said it did not run; the plant installs Python and
+  openssl first since then, and in the build image `sh scripts/plant-each.sh
+  t431-exit-public-check`: caught ("a private target was reached").
 
 # T-432: Routes: a node reaches its private networks for the net
 
@@ -3146,6 +3154,10 @@ same day.
 - Filed: T-551, the copies' race of the roads that the net names, which the draft named (a copy
   reaches a node on its pair's road alone, where `podssh ssh NAME` races the iroh and DERP
   tickets).
+- 2026-11-03, `plants.yml` at `3bb42ea` (run 41563969423): `t453-copy-name` missed, as the build
+  image has no Python and the test said it did not run; the plant installs Python, openssl and
+  OpenSSH's sftp-server first since then, and in the build image `sh scripts/plant-each.sh
+  t453-copy-name`: caught ("the copy up by the member's name alone").
 
 # T-454: The relay role brakes `/v1/mint` and `/v1/pair` for each address
 
