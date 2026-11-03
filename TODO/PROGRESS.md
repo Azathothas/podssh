@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 571 entries: 100 open, 4 partial, 16 blocked, 451 done.
+`TODO/INDEX.md` holds 572 entries: 100 open, 4 partial, 17 blocked, 451 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -240,7 +240,8 @@ branches `draft/worktree-agent-*` of GitHub, each merged in turn.
 **The operator's request of 2026-11-03:** an archive of research on relays, read in
 `docs/research/relay-measurement.md`: its harness, adapted to run podssh itself (T-605), goes
 between entries, a `none` entry; the rank of the relay hosts on demand (T-606), then the default
-list's use of it (T-607), are M10's, after item 2 of its order.
+list's use of it (T-607), are M10's, after item 2 of its order; a rank that podssh makes unasked
+(T-608) waits for Q89.
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):
@@ -251,7 +252,8 @@ which waits as they wait; and the entries that wait for the operator:
 T-328 (an export of FinalShell and of Termius: a known gap, which
 `v1.0.0` does not wait for) and T-376 (the operator's throwaway cloud
 accounts for the live run of the roads of iap:// and eice://), each a known gap that `v1.0.0`
-names and does not wait for (the operator, 2026-11-01).
+names and does not wait for (the operator, 2026-11-01); and T-608, which waits for the operator's
+ruling on Q89.
 
 ## Parked open work
 
@@ -292,6 +294,24 @@ unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
 that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
+
+**Q89 (open, 2026-11-03): may podssh measure relay hosts that the user did not ask it to
+measure?** The operator asked on 2026-11-03 that podssh rank relays on demand and use the rank
+(`docs/research/relay-measurement.md`). `podssh relay rank` (T-606) measures on demand, one host
+at a time, within rule 2 of `AGENTS.md`; the default list's use of a rank, and its samples of each
+session's own race (T-607), cost no connection. A rank that podssh makes unasked, so that each
+user has one, probes hosts that the session does not use: connections beyond the session's, which
+no exception of rule 2 covers (the race between relay hosts opens attempts for one session, and
+closes the others at once). The questions: (a) may podssh make such a rank by default; (b) may it
+when the user sets `RelayRank auto` in the settings file, or `PODSSH_RELAY_RANK=auto`? Bounded in
+either case: once in 24 h for an egress, after a session of `ssh` has run 60 s, one probe at a time
+and one each 10 s at most, 8 hosts at most, each probe with `?dial=lazy` so that the relay dials no
+target, a few KiB each; never during a race, before a session opened or after it ended, nor in
+`proxy` or `pipe`. Recommendation: (a) no: from a host whose egress is a proxy that logs or limits
+its connections, eight connections a day to names that the user never chose are a cost that the
+user did not choose, and the samples of T-607 already order the four hosts that a user's runs try,
+with no connection; (b) yes, as an exception of rule 2 for the user's setting alone, which `doctor`
+names. It blocks T-608.
 
 The operator settled Q67 to Q84 on 2026-11-02 (`docs/decisions.md`), after the triage of the
 testers' reports (GitHub #83 to #106, the bundle, the relay sweep) and of the drafts of M10:

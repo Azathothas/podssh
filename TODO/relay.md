@@ -2748,3 +2748,76 @@ these on `rank::alternates`, with a cache of the test's own). Against two stand-
 SLOW,FAST` keeps a sample of each, the slow one's 600 ms longer, and keeps their order, as the user
 named it. Planted: `alternates` that ignores the egress; the test of a rank of another egress
 fails. The fault checks of the interop: unchanged, in their run of the release (Q88).
+
+# T-608: A rank that podssh makes unasked, in the background of a session, once a day for an egress
+
+**Source:** The design of the rank (`docs/research/relay-measurement.md`, section 8, item 4),
+after the operator's request of 2026-11-03.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+Most users never run `podssh relay rank` (T-606), so its rank seldom holds, and the samples of
+T-607 see the four hosts of the default list at most. A rank kept fresh with no request would put
+the best hosts first for each user; but its probes are connections that the user did not ask for,
+to hosts that the session does not use.
+
+## Premise
+
+- Read: `AGENTS.md:272-282`, rule 2: one outbound connection, and its four exceptions (a listener
+  that the user asks for, the race between relay hosts, the split HTTP road of Q44, the quick
+  tunnel's second connection of Q62); `docs/decisions.md:34` adds XHTTP's second connection (Q67).
+  None covers a probe of a host that the session does not use.
+- Read: the pool's refresh after a mint is a request of its own in the background
+  (`crates/podssh-relay/src/open.rs:366-377`): one request to the host that minted, at most once in
+  7 days.
+- Read: the contract's `?dial=lazy` (`docs/relay.md:289-292`): the relay dials the target on the
+  client's first byte, so a probe with it and no byte reaches no target.
+- Read: Q83, the experience of a user first (`docs/decisions.md:18`), and Q73, `doctor`'s sections
+  at once (`docs/decisions.md:28`).
+- Read: T-606 ranks on demand and T-607 samples the race; neither probes a host unasked.
+
+## Approach
+
+As Q89 rules:
+
+1. With `RelayRank auto` in the settings file or `PODSSH_RELAY_RANK=auto` (and by default, if Q89
+   says so): when no rank holds for this egress, a session of `ssh` that has run 60 s probes the
+   hosts of the pool in its own process, one at a time, one probe each 10 s at most, 8 hosts at
+   most in a session, each with `?dial=lazy` and three WebSocket pings (a few KiB), and keeps what
+   it measured as a rank whose source is `background`, which T-607 reads as it reads T-606's.
+2. Never before the session opened, never during a race, never in `proxy` or `pipe` (the runs of a
+   ProxyCommand are short and many), never with `PODSSH_OFFLINE`, and never past the session's
+   end: a probe in flight then is dropped.
+3. `doctor` and `podssh status` name the setting, and when the last background rank was made.
+4. The manual and `docs/relay.md`.
+
+## Decision
+
+Waits for Q89. Whatever it rules: the probe with `?dial=lazy`, so that no target sees a connection
+that sends it nothing, as `ping`'s rule asks (`crates/podssh-cli/src/ping/relay.rs:1-8`), and the
+relay's dial is out of a background figure: a background rank orders by the client's leg alone,
+and a rank of T-606 keeps the dial. Lost: the dial to `github.com:22` in each background probe,
+which would make 8 short connections a day to GitHub's SSH port from each user.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_rank -- background
+```
+
+Against stand-in relays, with the session's delay and the gap between probes shortened for the
+test: with `RelayRank auto`, the probes come one at a time, each with `?dial=lazy`, none before
+the session opened and none after it ended; with the setting off, none. Planted: two probes at
+once; the test of the overlap fails.
+
+## Blocker
+
+The operator: Q89 (`TODO/PROGRESS.md`, "Questions for the operator"). A connection that the user
+did not ask for, beyond the session's own, changes rule 2 of `AGENTS.md`, which
+`docs/decisions.md` holds.

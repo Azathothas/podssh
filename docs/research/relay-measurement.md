@@ -500,9 +500,14 @@ looks past the first three hosts of the pool. The design:
    own race, kept or dismissed, gives its time to open; the last few of each
    host go into the same file, and order the hosts of the list when no rank
    holds. They cost no connection: they time the race's own.
-4. **A rank that podssh makes unasked** would open connections that the
-   user did not ask for, beyond the session: rule 2 of `AGENTS.md` has no
-   exception for it, so it is a question for the operator.
+4. **A rank that podssh makes unasked** (T-608) would open connections that
+   the user did not ask for, beyond the session: rule 2 of `AGENTS.md` has no
+   exception for it, so it is a question for the operator, Q89 of
+   [PROGRESS.md](../../TODO/PROGRESS.md). Its recommendation: not by default,
+   as the samples of item 3 order the hosts that a user's runs try with no
+   connection; yes when the user sets `RelayRank auto`, bounded (once in 24 h
+   for an egress, after a session ran 60 s, one probe each 10 s at most, 8
+   hosts at most, each with `?dial=lazy` so that no target is dialed).
 
 Rule by rule (`AGENTS.md`, section 5):
 
@@ -527,7 +532,20 @@ and `podssh status`, `ping` and `doctor` for the net are T-435's. The rank
 takes any list of relay hosts, so a net's own relays, once a net names
 them, rank the same way.
 
-## 9. What a main session verifies
+## 9. The entries, and the question
+
+| Entry | What |
+| --- | --- |
+| T-605 | The harness of section 7, drafted in `scripts/`, and its workflow by hand (`none`, P2). |
+| T-606 | `podssh relay rank` on demand, and `relay-rank.json` in the cache (M10, P2). |
+| T-607 | The default list takes the rank, and samples of each session's own race (M10, P2). |
+| T-608 | A rank that podssh makes unasked, in a session's background (M10, P3), blocked on Q89. |
+
+Q89, in [PROGRESS.md](../../TODO/PROGRESS.md): may podssh measure relay
+hosts that the user did not ask it to measure, by default or with the
+user's setting? The recommendation is section 8, item 4.
+
+## 10. What a main session verifies
 
 Each of these is UNVERIFIED in the draft:
 
