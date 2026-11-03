@@ -3,8 +3,8 @@
 //! the one session of `podssh sftp`, whose `get -r` and `put -r` copy each
 //! file as its `get` and `put` copy one, and end where the session breaks
 //! (T-298). The walk, the checks of names, the links and the modes are
-//! `tree_copy`'s for both. With `--parallel K`, `cp -r`'s files wait, then
-//! go K at once over its connection (T-297).
+//! `tree_copy`'s for both. `cp -r`'s files wait, then go K at once over its
+//! connection (T-297): `--parallel K`, else the default (T-474).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -19,13 +19,9 @@ use super::pipe::Shape;
 use super::resume::Progress;
 use super::session::{self, attempts, Answer};
 use super::transfer::{Cause, Done, Failed};
-use super::tree::{Item, Tree};
+use super::tree::Tree;
 use super::{lanes, tree_copy, Outcome};
 use crate::ssh::resolve::Resolved;
-
-/// A tree of this many files or more, one at a time over SFTP, says that
-/// `--parallel` takes several at once (T-417).
-const MANY: usize = 50;
 
 /// The far name, the size and the digest of each file copied up that has
 /// other names here, by the device and inode of the local file (T-146).
@@ -65,25 +61,13 @@ impl Conn<'_> {
         }
     }
 
-    /// Whether the files of a tree wait, then go K at once (T-297): `cp -r
-    /// --parallel K` over SFTP. `sftp`'s batch copies one at a time. A tree
-    /// of many files that go one at a time over SFTP says once that
-    /// `--parallel` takes several (T-417): each file waits for its round
-    /// trips, so the tree takes their sum, and several channels stay the
-    /// user's choice (T-141).
-    pub fn batches(&self, shape: Shape, items: &[Item], log: &Log) -> bool {
-        let files = items.iter().filter(|item| matches!(item, Item::File { .. })).count();
-        match self {
-            Conn::Again { link, .. } if lanes::fit(2, shape, link.as_ref()) => true,
-            Conn::Again { link: Some(link), .. } if files >= MANY && matches!(link.road, Road::Sftp(_)) => {
-                log.info(&format!(
-                    "{files} files go one at a time, each waiting for its own round trips; \
-                     --parallel 8 copies 8 at once over this connection"
-                ));
-                false
-            }
-            _ => false,
-        }
+    /// Whether the files of a tree wait, then go K at once (T-297): `cp -r`
+    /// over SFTP, K by default or by `--parallel K` (T-474). `sftp`'s batch
+    /// copies one at a time, and so does `--parallel 1`, which the user
+    /// chose: no line names the flag, as T-417's did when one at a time was
+    /// the default.
+    pub fn batches(&self, shape: Shape) -> bool {
+        matches!(self, Conn::Again { link, .. } if lanes::fit(2, shape, link.as_ref()))
     }
 
     /// The files of a tree that waited (T-297), K at once, with a new

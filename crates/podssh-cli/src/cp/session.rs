@@ -1,7 +1,7 @@
 //! One session's files. A copy whose connection breaks goes on over a new
 //! one, at its offset (T-136); `mv` removes each source once its copy is
-//! verified (T-138). With `--parallel K`, several files go K at once
-//! ([`lanes`], T-297).
+//! verified (T-138). Several files go K at once ([`lanes`], T-297): K of
+//! `--parallel K`, else the default (T-474).
 
 use std::sync::Arc;
 
@@ -49,8 +49,8 @@ pub(super) async fn session(
     }
     let mut link = Some(first);
     let many = plan.sources.len() > 1;
-    // --parallel K and several files: they wait, then go K at once over the
-    // connection (T-297).
+    // Several files: they wait, then go K at once over the connection
+    // (T-297), K of --parallel K or the default (T-474).
     let pooled = lanes::fit(plan.sources.len(), plan.shape, link.as_ref());
     let mut waiting = Vec::new();
     for source in &plan.sources {

@@ -5,8 +5,9 @@
 //! nothing; `--exclude` leaves paths out; and a server whose listing names
 //! `../escape` is refused, with nothing written outside the target. A FIFO
 //! is skipped with one note and no failure, each failure is said once, and
-//! the first gives the code (T-476). Links and FIFOs are measured against
-//! OpenSSH in the gate too (`scripts/interop-cp.sh`).
+//! the first gives the code (T-476). A tree of many files names no flag, as
+//! its files go several at once by default (T-474). Links and FIFOs are
+//! measured against OpenSSH in the gate too (`scripts/interop-cp.sh`).
 
 mod cleanup;
 mod ssh_harness;
@@ -287,11 +288,12 @@ fn delete_refuses_the_login_directory_and_needs_r() {
     assert!(err.contains("go with -r"), "{err}");
 }
 
-/// A tree of many files that go one at a time says once that `--parallel`
-/// takes several (T-417), up and down; a tree with `--parallel`, or of few
-/// files, says nothing of it.
+/// A tree of many files goes several at once with no `--parallel` (T-474),
+/// so no line names the flag, as T-417's did when one at a time was the
+/// default; nor after `--parallel 1`, which the user chose. Up and down,
+/// each tree equal to its source.
 #[test]
-fn a_tree_of_many_files_one_at_a_time_names_parallel() {
+fn a_tree_of_many_files_names_no_flag() {
     need_server!();
     let home = scratch("many");
     let (_runtime, port) = server(&home);
@@ -300,22 +302,18 @@ fn a_tree_of_many_files_one_at_a_time_names_parallel() {
     for i in 0..60 {
         std::fs::write(many.join(format!("f{i:02}")), format!("file {i}\n")).unwrap();
     }
-    let hint = "--parallel 8 copies 8 at once";
     let (rc, _, err) = cp(&home, port, &["-r", "many", "u@127.0.0.1:up"]);
     assert_eq!(rc, 0, "{err}");
-    assert_eq!(err.matches(hint).count(), 1, "said once, up: {err}");
-    assert!(err.contains("60 files go one at a time"), "{err}");
+    assert!(!err.contains("--parallel") && !err.contains("one at a time"), "up: {err}");
+    assert_eq!(listing(&home.join("up")), listing(&many), "the tree up");
     let (rc, _, err) = cp(&home, port, &["-r", "u@127.0.0.1:up", "down"]);
     assert_eq!(rc, 0, "{err}");
-    assert_eq!(err.matches(hint).count(), 1, "said once, down: {err}");
+    assert!(!err.contains("--parallel"), "down: {err}");
     assert_eq!(listing(&home.join("down")), listing(&many), "the tree down");
-    let (rc, _, err) = cp(&home, port, &["-r", "--parallel", "4", "many", "u@127.0.0.1:up4"]);
+    let (rc, _, err) = cp(&home, port, &["-r", "--parallel", "1", "many", "u@127.0.0.1:up1"]);
     assert_eq!(rc, 0, "{err}");
-    assert!(!err.contains(hint), "with --parallel: {err}");
-    fixture(&home.join("few"));
-    let (rc, _, err) = cp(&home, port, &["-r", "few", "u@127.0.0.1:few-up"]);
-    assert_eq!(rc, 0, "{err}");
-    assert!(!err.contains(hint), "a few files: {err}");
+    assert!(!err.contains("--parallel"), "with --parallel 1: {err}");
+    assert_eq!(listing(&home.join("up1")), listing(&many), "the tree up, one at a time");
 }
 
 /// A device, a FIFO or a socket of a tree is not copied and no failure

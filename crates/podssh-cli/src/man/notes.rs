@@ -92,13 +92,13 @@ const CP: &[&str] = &[
      (scp -r follows links). A device, a FIFO or a socket is not copied: one line says so, with --jsonl \
      a skipped object, and it is no failure, as OpenSSH's scp and sftp skip one. Each failure is said \
      once, when it comes; the rest goes on, and the exit code is the first failure's.",
-    "With --parallel K several files go K at once, each over an SFTP session of its own in the one \
-     connection, and so do the files of a tree with -r; a file of more than 8 MiB goes after them, alone, \
-     as chunks, K at once. Each file keeps its own side file, so after a broken connection each goes on \
-     where it was. The report keeps the order of the sources, and the exit code is that of the first \
-     failure in that order. The copy by exec goes one file at a time. Each file waits for its own round \
-     trips, so a tree of small files through the relay takes their sum: a tree of 50 files or more that \
-     go one at a time over SFTP says once that --parallel 8 copies 8 at once.",
+    "Several files go at once, each over an SFTP session of its own in the one connection, and so do \
+     the files of a tree with -r: as many as the row of --parallel says, or K with --parallel K, and one \
+     at a time with --parallel 1. Through the relay each small file waits for its own round trips, so one \
+     at a time takes their sum. A file of more than 8 MiB goes after them, alone: in one stream, or as \
+     chunks, K at once, with --parallel K. Each file keeps its own side file, so after a broken \
+     connection each goes on where it was. The report keeps the order of the sources, and the exit code \
+     is that of the first failure in that order. The copy by exec goes one file at a time.",
     "--delta sends only the blocks of 1 MiB that changed, over an older version of the file on the other \
      side: one command on the server gives the digest of each of its blocks (dd and a digest tool), and \
      the temporary file is made from the old one there (copy-data, else cat). Where that cannot be, the \

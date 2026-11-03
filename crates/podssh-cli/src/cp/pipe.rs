@@ -9,13 +9,20 @@ use super::chunks::MOST_TASKS;
 use super::meta::Keep;
 
 /// How a copy goes: the requests in flight of each SFTP session (T-140), the
-/// tasks of one file, each with a session of its own (T-141), whether only
-/// the changed blocks go (T-142), what it keeps besides the bytes (T-146),
-/// whether it writes into the destination itself (T-147), and the mode that
-/// a copy up gives the far file (T-149).
+/// files at once of a run (T-297, T-474), the tasks of one file, each with a
+/// session of its own (T-141), whether only the changed blocks go (T-142),
+/// what it keeps besides the bytes (T-146), whether it writes into the
+/// destination itself (T-147), and the mode that a copy up gives the far
+/// file (T-149).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Shape {
     pub pipe: Pipeline,
+    /// The files of a run that go at once, each over an SFTP session of its
+    /// own in the one connection. The default keeps one, for `edit`, `job`
+    /// and `sftp`'s batch, whose files come one at a time.
+    pub files: usize,
+    /// The chunks of one file of more than one chunk that go at once: more
+    /// than 1 only with `--parallel`.
     pub tasks: usize,
     /// Only the blocks that changed, over an older version (T-142).
     pub delta: bool,
@@ -30,9 +37,29 @@ pub struct Shape {
 
 impl Default for Shape {
     fn default() -> Self {
-        Shape { pipe: Pipeline::default(), tasks: 1, delta: false, keep: Keep::default(), inplace: false, mode: None }
+        Shape {
+            pipe: Pipeline::default(),
+            files: 1,
+            tasks: 1,
+            delta: false,
+            keep: Keep::default(),
+            inplace: false,
+            mode: None,
+        }
     }
 }
+
+/// The files at once of a run over SFTP when the command line gives no
+/// `--parallel` (T-474): through the relay each small file waits for its
+/// own round trips, so one at a time takes their sum. Each file holds an
+/// SFTP session and, for its far digest, an exec channel beside it, so 4
+/// files hold 8 channels at most, within the 10 sessions that OpenSSH's
+/// sshd opens on one connection by default (`MaxSessions`); with more, the
+/// digests of some fall back to a second read.
+pub const FILES_AT_ONCE: usize = 4;
+
+// Several at once, and each file's two channels within OpenSSH's 10.
+const _: () = assert!(FILES_AT_ONCE >= 2 && 2 * FILES_AT_ONCE <= 10);
 
 /// The tasks of `--parallel K`: 1 to [`MOST_TASKS`].
 pub fn tasks(text: Option<&str>) -> Result<usize, String> {
@@ -40,6 +67,17 @@ pub fn tasks(text: Option<&str>) -> Result<usize, String> {
     match text.trim().parse::<usize>() {
         Ok(n) if (1..=MOST_TASKS).contains(&n) => Ok(n),
         _ => Err(format!("--parallel {text}: give 1 to {MOST_TASKS} tasks")),
+    }
+}
+
+/// The files at once and the chunks of one file, from `--parallel K` (T-474):
+/// K each when it is given, so `--parallel 1` copies one at a time; else
+/// [`FILES_AT_ONCE`] files, and a large file in one stream, as no
+/// measurement through the live relay shows that chunks gain by default.
+pub fn at_once(text: Option<&str>) -> Result<(usize, usize), String> {
+    match text {
+        None => Ok((FILES_AT_ONCE, 1)),
+        Some(_) => tasks(text).map(|k| (k, k)),
     }
 }
 
@@ -125,6 +163,18 @@ mod tests {
         assert_eq!(tasks(Some("0")), Err("--parallel 0: give 1 to 16 tasks".into()));
         assert!(tasks(Some("17")).is_err());
         assert!(tasks(Some("x")).is_err());
+    }
+
+    #[test]
+    fn with_no_parallel_files_go_at_once_and_a_large_file_in_one_stream() {
+        assert_eq!(at_once(None), Ok((FILES_AT_ONCE, 1)));
+        assert_eq!(at_once(Some("1")), Ok((1, 1)), "the user chose one at a time");
+        assert_eq!(at_once(Some("8")), Ok((8, 8)));
+        assert!(at_once(Some("0")).is_err());
+        // The row of --parallel names the default that the code takes.
+        let row = crate::flags::CP_FLAGS.iter().find(|r| r.long == "parallel").expect("the row of --parallel");
+        assert!(row.help.contains(&format!("with none, {FILES_AT_ONCE} files at once")), "{}", row.help);
+        assert_eq!((Shape::default().files, Shape::default().tasks), (1, 1), "edit, job and sftp's batch");
     }
 
     #[test]

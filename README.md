@@ -142,7 +142,13 @@ source:
 podssh cp report.pdf user@example.org:docs/  # up, into a directory
 podssh cp user@example.org:logs/app.log .    # down
 podssh mv user@example.org:inbox/a.csv .     # down, then the far file goes
+podssh cp -r site user@example.org:www/      # a tree, several files at once
 ```
+
+Through the relay each small file waits for its own round trips, so
+several files go at once over the one connection: 4 by default,
+`--parallel K` for K, `--parallel 1` for one at a time. A tester measured
+100 files of 2 bytes in 210 s one at a time and 32 s with 8 (GitHub #100).
 
 - On a host with no terminal (the sandbox of an agent), podssh never waits
   for input that cannot come. It refuses an unknown host key, gives its

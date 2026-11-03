@@ -8,9 +8,9 @@
 //! is not copied, said once, and no failure, as OpenSSH's scp and sftp skip
 //! one (T-476); each other item that cannot be copied is said once, the walk
 //! goes on, and the exit is then not zero. `--dry-run` says each action and
-//! changes nothing. With `--parallel K` the files wait, then go K at once,
-//! before each directory's mode is set (T-297). The steps on one name each
-//! are in `tree_items.rs`.
+//! changes nothing. The files wait, then go K at once (`--parallel K`, else
+//! the default of T-474), before each directory's mode is set (T-297). The
+//! steps on one name each are in `tree_items.rs`.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -147,8 +147,8 @@ async fn up(
     // The far name, the size and the digest of each file copied that has
     // other names here, by its device and inode (T-146).
     let mut linked = Linked::new();
-    // --parallel K: the files wait, then go K at once (T-297).
-    let (batching, mut batch) = (conn.batches(shape, &items, log), Waiting::new());
+    // The files wait, then go K at once (T-297, T-474).
+    let (batching, mut batch) = (conn.batches(shape), Waiting::new());
     for item in &items {
         match item {
             Item::Dir { rel, stamp } => {
@@ -336,8 +336,8 @@ async fn down(
     let items = tree::walk_far(sftp, &src.path, tree, cfg!(windows)).await;
     let mut dirs = Vec::new();
     let mut clean = true;
-    // --parallel K: the files wait, then go K at once (T-297).
-    let (batching, mut batch) = (conn.batches(shape, &items, log), Waiting::new());
+    // The files wait, then go K at once (T-297, T-474).
+    let (batching, mut batch) = (conn.batches(shape), Waiting::new());
     for item in &items {
         match item {
             Item::Dir { rel, stamp } => {

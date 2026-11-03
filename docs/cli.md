@@ -1841,28 +1841,40 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   of each copy, and its rate before the digest. `scp -X` and `sftp -R`,
   `-B` and `-X` set them.
 - **`--parallel K`** (T-141): a file of more than one chunk of 8 MiB goes
-  as chunks at fixed offsets, K at once (1 to 16; default 1), each over an
-  SFTP session of its own, so a channel and a window of its own, in the one
+  as chunks at fixed offsets, K at once (1 to 16), each over an SFTP
+  session of its own, so a channel and a window of its own, in the one
   connection; each writes its chunks into the temporary file at their
-  offsets. The side file keeps the chunks that are done, so a copy that
-  breaks goes on with the others. The digest covers the whole file after
-  the last chunk, and nothing is renamed before it. Through the relay the
-  tasks share 1.5 MiB in flight, below the 2 MiB queued that close a
-  session, and a task takes a chunk only while the session may carry it
-  whole. The copy by exec goes in one stream, and `-v` says so.
-- **Several files with `--parallel K`** (T-297): the sources of the command
-  line, and the files of a tree with `-r`, go K at once, each over an SFTP
-  session of its own in the one connection; the connection's own session
-  is one of the K. A server that opens fewer sessions gets fewer files at
-  once, and `-v` says so. Each file goes as one copy goes: its temporary
-  name, its side file, its digest and its rename. A file of more than one
-  chunk waits, and goes after the others, alone, in chunks. A broken
-  connection ends the files in flight where they are; the next connection
-  goes on with each from its side file, at most 5 times in a row with no
-  new byte, as for one file. Through the relay the files share 1.5 MiB in
-  flight, as the chunks do. The report keeps the order of the sources, and
-  the exit code is that of the first failure in that order. `mv` removes
-  each source after the copies. The copy by exec goes one file at a time.
+  offsets. Without `--parallel` such a file goes in one stream (T-474), as
+  no measurement through the live relay shows that chunks gain by default.
+  The side file keeps the chunks that are done, so a copy that breaks goes
+  on with the others. The digest covers the whole file after the last
+  chunk, and nothing is renamed before it. Through the relay the tasks
+  share 1.5 MiB in flight, below the 2 MiB queued that close a session, and
+  a task takes a chunk only while the session may carry it whole. The copy
+  by exec goes in one stream, and `-v` says so.
+- **Several files at once** (T-297, T-474): the sources of the command
+  line, the files of a tree with `-r`, and the copy of `podssh run` go 4 at
+  once with no `--parallel`, K at once with `--parallel K`, and one at a
+  time with `--parallel 1`, each over an SFTP session of its own in the one
+  connection; the connection's own session is one of them. Through the
+  relay each small file waits for its own round trips, so one at a time
+  takes their sum: 100 files of 2 bytes took 210 s one at a time and 32 s 8
+  at once (GitHub #100). The default of 4 keeps each file's SFTP session and
+  the exec channel of its far digest within the 10 sessions that OpenSSH's
+  sshd opens on one connection (`MaxSessions`); with more, the digests of
+  some fall back to a second read. A server that opens fewer sessions gets
+  fewer files at once, and `-v` says so. Each file goes as one copy goes:
+  its temporary name, its side file, its digest and its rename. A file of
+  more than one chunk waits, and goes after the others, alone: in chunks
+  with `--parallel`, else in one stream. A broken connection ends the files
+  in flight where they are; the next connection goes on with each from its
+  side file, at most 5 times in a row with no new byte, as for one file.
+  Through the relay the files share 1.5 MiB in flight, as the chunks do.
+  The report keeps the order of the sources, and the exit code is that of
+  the first failure in that order. `mv` removes each source after the
+  copies, and `scp`, which copies as `cp` does and has no `--parallel`,
+  takes the default too. The copy by exec, `podssh edit` and `sftp`'s batch
+  go one file at a time.
 - **`--delta`** (T-142): over an older version of the same file on the
   other side, only the blocks of 1 MiB that changed go. The SHA-256 of each
   far block comes from one command over exec (`dd` into `sha256sum`,

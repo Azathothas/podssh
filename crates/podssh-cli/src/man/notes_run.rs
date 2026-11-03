@@ -9,7 +9,8 @@ pub const RUN: &[&str] = &[
      there is made, with mode 0700. The connection flags are those of podssh ssh, and the Host blocks of \
      ssh_config apply.",
     "The copy is that of podssh cp for a directory, over SFTP, with the times kept: each file to a \
-     temporary name, verified by its digest, then renamed. So the next run sends only the files whose \
+     temporary name, verified by its digest, then renamed, several files at once, as podssh cp sends \
+     them by default. So the next run sends only the files whose \
      size or time of change differs from the far file's. target/, node_modules/ and .git/ never go, at any \
      depth, nor what the project's .podsshignore (a pattern a line, as the file of --exclude-from), \
      --exclude and --exclude-from leave out. Nothing on the host is removed. With -v, podssh says how \

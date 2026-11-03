@@ -66,6 +66,9 @@ use resume::Before;
 use session::session;
 use transfer::{Done, Failed};
 
+// The tests of several files at once read the default (T-474).
+pub use pipe::FILES_AT_ONCE;
+
 /// `cp`'s or `mv`'s command line as parsed.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CpArgs {
@@ -80,7 +83,8 @@ pub struct CpArgs {
     pub verb: &'static str,
     /// scp's `-X NAME=VALUE`, for its SFTP requests (T-140).
     pub sftp_options: Vec<String>,
-    /// `--parallel K` of `cp` and `mv`: the tasks of one file (T-141).
+    /// `--parallel K` of `cp` and `mv`: the files at once and the tasks of
+    /// one file (T-141, T-297); with none, [`FILES_AT_ONCE`] files (T-474).
     pub parallel: Option<String>,
     /// `--delta` of `cp` and `mv`: only the blocks that changed (T-142).
     pub delta: bool,
@@ -201,8 +205,8 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     };
     let keep = meta::Keep { times: args.preserve, owner: args.owner, sparse: args.sparse };
     let shape = pipe::pipeline(None, None, &args.sftp_options).and_then(|pipe| {
-        let tasks = pipe::tasks(args.parallel.as_deref())?;
-        Ok(pipe::Shape { pipe, tasks, delta: args.delta, keep, inplace: args.inplace, mode: None })
+        let (files, tasks) = pipe::at_once(args.parallel.as_deref())?;
+        Ok(pipe::Shape { pipe, files, tasks, delta: args.delta, keep, inplace: args.inplace, mode: None })
     });
     plan.shape = match shape {
         Ok(shape) => shape,

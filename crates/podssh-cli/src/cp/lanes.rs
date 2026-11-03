@@ -1,13 +1,14 @@
-//! Several files at once over one connection (T-297). With `--parallel K`
-//! and several files, up to K go together, each over an SFTP session of its
-//! own in the one connection, the connection's own session among them; each
-//! keeps its own record and side file (T-136). A break ends the files in
-//! flight where they are, and the next connection goes on with each from its
-//! record, as `session::attempts` goes on with one: at most [`TRIES`]
-//! connections in a row with no new byte, the relay opener's backoff between
-//! them. A file of more than one chunk waits, and goes after the others,
-//! alone, in chunks (T-141), so that no more than K sessions share the
-//! connection. The answers keep the order of the files.
+//! Several files at once over one connection (T-297). With several files,
+//! up to K go together (`--parallel K`, else the default of T-474), each
+//! over an SFTP session of its own in the one connection, the connection's
+//! own session among them; each keeps its own record and side file (T-136).
+//! A break ends the files in flight where they are, and the next connection
+//! goes on with each from its record, as `session::attempts` goes on with
+//! one: at most [`TRIES`] connections in a row with no new byte, the relay
+//! opener's backoff between them. A file of more than one chunk waits, and
+//! goes after the others, alone, so that no more than K sessions share the
+//! connection: in chunks with `--parallel` (T-141), else in one stream with
+//! the whole room of the session. The answers keep the order of the files.
 //!
 //! Through the relay the files share the room of one session, as chunks do
 //! ([`chunks::share`]); each checks the session's budget before each request
@@ -30,10 +31,11 @@ use super::transfer::{Cause, Failed};
 use crate::exitmap::Fault;
 use crate::ssh::resolve::Resolved;
 
-/// Whether `files` files go K at once over `link`: more than one, K above
-/// 1, and SFTP; by exec each goes in one stream, in turn.
+/// Whether `files` files go K at once over `link`: more than one, K
+/// (`shape.files`) above 1, and SFTP; by exec each goes in one stream, in
+/// turn.
 pub(super) fn fit(files: usize, shape: Shape, link: Option<&Link>) -> bool {
-    files > 1 && shape.tasks > 1 && matches!(link.map(|l| &l.road), Some(Road::Sftp(_)))
+    files > 1 && shape.files > 1 && matches!(link.map(|l| &l.road), Some(Road::Sftp(_)))
 }
 
 /// What each attempt of the run needs besides its file.
@@ -128,7 +130,7 @@ struct Ended {
 }
 
 /// Copy each of `files` (its source and its destination) over `link`, K at
-/// once (`shape.tasks`), and over a new connection after each break: the
+/// once (`shape.files`), and over a new connection after each break: the
 /// answer of each, in their order, or `None` for a file that no connection
 /// was left to try. `link` is `None` when the last connection broke.
 /// `many`: each destination is a directory of several sources.
@@ -208,8 +210,8 @@ pub(super) async fn files(
             pause(waiting.len(), &why.message, tries, log).await;
         }
     }
-    // The files of more than one chunk, alone, in chunks (T-141); and each
-    // file after a connection by exec.
+    // The files of more than one chunk, alone: in chunks with --parallel
+    // (T-141), else in one stream; and each file after a connection by exec.
     large.sort_unstable();
     for at in large {
         if link.is_none() {
@@ -233,7 +235,7 @@ async fn pause(files: usize, why: &str, tries: u32, log: &Log) {
 async fn round(link: &Link, waiting: Vec<Slot>, run: &Run<'_>, shape: Shape) -> Ended {
     let Road::Sftp(own) = &link.road else { unreachable!("several files at once go over SFTP") };
     let handle = link.handle();
-    let wanted = shape.tasks.min(waiting.len()).max(1);
+    let wanted = shape.files.min(waiting.len()).max(1);
     let more = (1..wanted).map(|_| Sftp::open(handle, Limits::default()));
     let opened: Vec<Sftp> = futures_util::future::join_all(more).await.into_iter().filter_map(Result::ok).collect();
     let mut sessions = vec![own];
@@ -244,7 +246,8 @@ async fn round(link: &Link, waiting: Vec<Slot>, run: &Run<'_>, shape: Shape) -> 
     }
     run.log.verbose(&format!("{} files, {lanes} at once", waiting.len()));
     // Through the relay the lanes share the room of one session.
-    let each = Shape { pipe: chunks::share(shape.pipe, lanes, link.meter.through_relay()), tasks: 1, ..shape };
+    let each =
+        Shape { pipe: chunks::share(shape.pipe, lanes, link.meter.through_relay()), files: 1, tasks: 1, ..shape };
     let shared = Shared { queue: Mutex::new(VecDeque::from(waiting)), ..Shared::default() };
     let meter = &link.meter;
     let all = sessions.iter().copied().map(|sftp| lane(Lane { sftp, handle, meter }, &shared, run, each));
