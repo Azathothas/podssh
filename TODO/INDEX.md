@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**549 entries: 112 open, 3 partial, 16 blocked, 418 done.**
+**561 entries: 124 open, 3 partial, 16 blocked, 418 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 3 | 0 | 58 | 61 |
-| P2 | 30 | 0 | 14 | 202 | 246 |
-| P3 | 82 | 0 | 2 | 157 | 241 |
-| **All** | 112 | 3 | 16 | 418 | 549 |
+| P1 | 2 | 3 | 0 | 58 | 63 |
+| P2 | 37 | 0 | 14 | 202 | 253 |
+| P3 | 85 | 0 | 2 | 157 | 244 |
+| **All** | 124 | 3 | 16 | 418 | 561 |
 
 ## Entries
 
@@ -625,3 +625,15 @@ repository and CI).
 | [T-583](ssh.md) | P3 | S | none | feature | open | The warning before the relay's idle cut with `--persist` and `--upgrade` |
 | [T-584](release.md) | P1 | M | none | release | partial | Publish `v1.0.1`, the repairs of the testers' defects |
 | [T-585](roads.md) | P3 | S | none | defect | open | WARP's road names a proxy that re-terminates TLS on a road with no proxy |
+| [T-586](resume.md) | P1 | M | none | defect | open | A node holds each session whose OpenSSH client ended its `operator`, so 16 short logins in 10 minutes fill its budget and it refuses each new one |
+| [T-587](reverse.md) | P2 | S | none | feature | open | `podssh proxy` takes no `node://NAME`, and its help never names `operator`, the ProxyCommand form of a node |
+| [T-588](ssh.md) | P1 | M | none | defect | open | `ssh node://` waits ConnectTimeout for an SSH handshake that OpenSSH through `operator` finishes on the same node, and says nothing of what came |
+| [T-589](reverse.md) | P2 | S | none | feature | open | `operator` and `proxy` take no `--ConnectTimeout`, so a ProxyCommand has no bound of its own on reaching its far end |
+| [T-590](roads.md) | P2 | S | none | feature | open | A roost on a host with no sshd says `Connection refused`, not that no sshd is installed, and `doctor` has no line for a roost |
+| [T-591](reverse.md) | P2 | S | none | feature | open | An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry |
+| [T-592](mesh.md) | P3 | M | M10 | feature | open | A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged |
+| [T-593](relay.md) | P2 | S | none | defect | open | The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own |
+| [T-594](repo.md) | P2 | S | none | docs | open | `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none |
+| [T-595](mesh.md) | P2 | L | M10 | feature | open | A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed |
+| [T-596](mesh.md) | P3 | S | M10 | feature | open | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |
+| [T-597](repo.md) | P3 | S | none | chore | open | Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13 |

@@ -2279,3 +2279,86 @@ session on 2026-11-03.
   `podssh-relay` (also with the gate's features) and `podssh-cli` with `-D warnings`, all targets:
   clean.
 - `docs/STATUS.md`: a row in "Build, tests, CI".
+
+# T-593: The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own
+
+**Source:** GitHub #118 (a tester's agent, 2026-11-02): run as root with `HOME` set to another
+account's home, as containers and notebooks do, `podssh node` wrote its key under that home's
+`.cache/podssh`, mode 0600 and owned by root; the line of the node's start named the path and
+the fingerprint. It asks for the cache from the passwd entry of the uid, or `HOME` only when the
+uid owns it. Read at `3bb42ea`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh's cache (the keys, the pins, the tokens, the logs of detached runs) goes to
+`HOME/.cache/podssh` whoever owns `HOME`. Run as one user with the home of another, podssh puts
+the first one's files in the second one's tree, which that user's tools take for their own; and
+where that `.cache` is missing, podssh makes it, mode 0700 and owned by the running user, so the
+home's owner can no longer use a cache of their own. A defect: the decision names "the user's
+cache directory" (`docs/decisions.md:93`), and this one is another user's.
+
+## Premise
+
+- Read: the user's cache directory is `XDG_CACHE_HOME`, else `HOME/.cache`, and their owner is
+  never read (`crates/podssh-relay/src/cache/dirs.rs:67-74`).
+- Read: the cache's directory is made with each missing parent, mode 0700, and only the last one,
+  `podssh`, is checked for its owner (`crates/podssh-relay/src/cache.rs:389-398`). Known:
+  `std::fs::DirBuilder` with `recursive(true)` gives its mode to each directory that it makes, so
+  a missing `.cache` in the other home becomes the running user's, closed to its owner.
+- Read: a key is looked for in each directory of the list before one is made
+  (`crates/podssh-relay/src/identity/file.rs:97-110`): a list without that home would make a new
+  key, a new identity, for a node whose operators pinned the old one.
+- Read: the tokens' row of the decisions names "the user's cache directory, the user's runtime
+  directory, the temporary directory, the working directory" (`docs/decisions.md:93`); Q68 reads
+  the effective uid's entry of `/etc/passwd` as a file, for the login name
+  (`docs/decisions.md:33`, T-500).
+
+## Approach
+
+1. On Unix, `XDG_CACHE_HOME` and `HOME/.cache` are the user's cache only when the nearest of their
+   directories that exists (the directory, else its parent, else `HOME`) belongs to the effective
+   uid. Else the home of the effective uid's entry of `/etc/passwd` (read as a file, as T-500
+   reads it), when the uid owns it, gives its `.cache` in their place; else the list goes on as
+   now (the runtime directory, the temporary one, the working one).
+2. No directory but `podssh` itself is made in another user's tree: a missing parent is made only
+   under a directory that the uid owns.
+3. A file that podssh kept in another user's home before stays where it is, and is read there (a
+   key is an identity): a key, a pin or a token found there is used, and the run says once that it
+   is in a directory of another user's home, and where to move it to keep it; podssh moves
+   nothing.
+4. `podssh status` and `doctor` name the cache's directory, and each one passed over with why.
+5. The manual's FILES, `docs/architecture.md` (the cache), `docs/STATUS.md`.
+
+## Decision
+
+For the operator to confirm (Q86), a reading of "the user's cache directory" of the tokens' row:
+
+- A home of another uid is not the user's; the passwd entry's home comes next, as OpenSSH finds
+  `~/.ssh` by the passwd entry and not by `HOME` (Known). Lost: the passwd entry first, OpenSSH's
+  rule, which would pass over a `HOME` that a user set to move podssh's files, as the tests and a
+  cage with no passwd entry do; `/var/lib/podssh` or `/run` (the issue's other choice), places of
+  the system that no package of podssh owns, after which the list already has the runtime and the
+  temporary directories.
+- A file there is read, never moved: a node keeps its identity under its operators' pins. Lost: a
+  move, which puts a credential where the user did not look; and a refusal, which would stop a
+  node that ran the day before.
+- Windows keeps `LOCALAPPDATA` as it is: no report names a profile of another user there.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test cache
+cargo test -p podssh-relay --lib cache::
+```
+
+New tests (Unix), with the owner of each directory given to the list by the test, so that they
+run as any user: `a_home_of_another_uid_is_passed_over_for_the_passwd_home`,
+`no_parent_is_made_in_another_user_s_home` and `a_key_kept_there_before_is_read_and_said`. In the
+box (`scripts/test_in_box.sh`), as root with `HOME` of another account: the node's key goes to
+root's own cache. Planted: `t593-owner-unchecked` (the owner not read): the first two tests fail.

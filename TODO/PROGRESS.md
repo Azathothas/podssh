@@ -152,7 +152,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 549 entries: 112 open, 3 partial, 16 blocked, 418 done.
+`TODO/INDEX.md` holds 561 entries: 124 open, 3 partial, 16 blocked, 418 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -219,10 +219,14 @@ Between entries: the `none` entries, the highest priority first, but for the tes
 defects of the issues of the testers of `v1.0.0` (GitHub #83 to #111) and of the testers' bundle
 and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones before any other
 (T-465, a test that failed once, 100 runs in a row passed since), each other one done and
-merged, and `v1.0.1` (T-584) goes out with them from `main` with the checks of a release. Their
+merged, and `v1.0.1` (T-584) goes out with them from `main` with the checks of a release. The
+defects of GitHub #112 to #124 (triaged on 2026-11-03) come next, the P1 ones first: T-586 and
+T-588, then T-593; they go into the release after `v1.0.1`. Their
 features and documents (T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
 to T-533, T-561, T-562, T-564, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
-and Q82 filed) follow, by priority, beside M10 (Q85); `v1.0.1`
+and Q82 filed; and of #112 to #124, T-587, T-589 to T-591 and T-594, with M10's T-595, T-592 and
+T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119
+to #123 are T-597, a `none` entry in its turn; `v1.0.1`
 goes out unattended once the defects pass the checks of a release (Q87). Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts wait to be merged
 (`.claude/worktrees/agent-*`): the features T-561, T-562, T-564, T-483, T-488 and T-489.
@@ -330,6 +334,28 @@ unattended (Q87).
   no other test target gives a shell behind the relay's forward road. Recommendation: allow it, as
   a run lighter than the throughput run on the same server; podssh's own relay role measured it
   in its place.
+- T-586: `operator` takes SIGHUP, SIGTERM and SIGINT as its application's end and closes the
+  session (OpenSSH ends its ProxyCommand with SIGHUP); a node keeps a closed session as its id
+  alone, charged nothing, and charges a closing one its unacknowledged bytes; no
+  `--resume-deadline 0`, no `--no-resume`, no eviction of a waiting session; the budget's counts
+  go in the refusal and the node's log, not in `detached list` or `relay status`.
+- T-587: `proxy node://NAME[/ROUTE]` is the pipe of `operator NAME`, with its flags, and refuses a
+  PORT; `operator` stays.
+- T-589: `--ConnectTimeout SECONDS` on `operator`, `proxy` and `pipe`'s remote sides bounds the
+  time to the session's open, never the bytes after it; not `--timeout`, not `PODSSH_TIMEOUT`.
+- T-590: `doctor`'s line `sshd` dials 127.0.0.1:22 once and reads its first line, a note outside
+  the count of failures; the roost's words name the package to install and run nothing.
+- T-592: a renewal in podssh's relay role (`POST /v1/renew/<name>`, by the stop token) keeps the
+  pair's three tokens, with no cap on renewals, and the node renews its own pair in its last 24 h
+  where its relay renews.
+- T-593: `XDG_CACHE_HOME` and `HOME/.cache` are the user's cache only when the uid owns them, else
+  the passwd entry's home; a file kept in another user's home before is read there and said,
+  never moved.
+- T-594: `docs/STATUS.md` stays the page of `main`, each row marked with the first release that
+  holds it or `unreleased`, held by a check of `scripts/check-repo.py`.
+- T-595: one flag, `--carrier ADDR` (`stdio`, `fd:N`, `exec:CMD`), at the node and at its
+  clients; the node's socket of the reverse road on the stream, the relay role's side of it in
+  the client's process; the stream is the door, the end-to-end channel on by default.
 
 **For the operator to confirm (Q86):** T-503 checks each host after the first hop too (a later hop
 of `-J`, and the destination behind it), on each road, by the direct road's rule, so that

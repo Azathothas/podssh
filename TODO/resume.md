@@ -3248,3 +3248,121 @@ From GitHub's network: `relay-live.yml` with `node_live`, 6 moves or more, no fa
   passed too. `ssh_to_a_node` failed on its far target: railway.new limited the run's anonymous
   visitor after the login through the node had worked, as it timed out at `c54b7b4`; an outage of
   that service, not of podssh.
+
+# T-586: A node holds each session whose OpenSSH client ended its `operator`, so 16 short logins in 10 minutes fill its budget and it refuses each new one
+
+**Source:** GitHub #112 (a tester's agent, 2026-11-02), with `podssh 1.0.0 (35a0d19)` on a gVisor
+sandbox, OpenSSH 10.0p2 as the roost's sshd and OpenSSH's client through
+`ProxyCommand=podssh operator`: after a dozen or so `ssh HOST cmd`, the node ended each new
+session, in about 1.6 s, with "this node keeps as many resumable sessions as its budget allows (64
+MiB of replay buffers)", also a command that reads no input. Read at `3bb42ea`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A node of the reverse road stops serving after a run of short sessions that each ended well: its
+budget of replay buffers is full of sessions that nobody will resume, and each new session is
+refused until the oldest one ages out, 10 minutes later. The refusal names the budget, not what
+holds it, when room comes back, or a flag that changes it. A defect: a node serves sessions, and
+an ordinary use of its documented ProxyCommand form ends that.
+
+## Premise
+
+- Read: a new session is refused when the kept sessions, each charged a whole replay buffer,
+  leave no room: `crates/podssh-relay/src/session/far.rs:219` says
+  "let held = keeper.kept_admitted().saturating_mul(settings.replay_capacity);", and the refusal's
+  words are at `:221-224`. `kept_admitted` counts each kept session whose client was let in, with
+  a link or with none (`crates/podssh-relay/src/session/keep.rs:121-125`). The budget is 64 MiB
+  (`crates/podssh-relay/src/reverse/layered.rs:27`), 16 sessions with the default buffer, as the
+  manual says (`crates/podssh-cli/src/man/notes_pair.rs:17-19`).
+- Read: a link whose end is not the session's own keeps the session for the whole deadline
+  (`crates/podssh-relay/src/session/keep.rs:280-281`, `:301-305`); a loss and a `CLOSE` with no
+  answer are such ends (`crates/podssh-relay/src/session/pump.rs:102-108`). The node's `CLOSE`
+  after its target's last byte waits 10 s for the operator's answer, and with none the end is
+  `End::Closing`: `crates/podssh-relay/src/session/pump.rs:324` says "_ => End::Closing,".
+- Known, from OpenSSH's source (not read here): at its exit, OpenSSH's client sends SIGHUP to its
+  ProxyCommand and does not wait for it (`openssh/openssh-portable:sshconnect.c`,
+  `ssh_kill_proxy_command`). `podssh operator` takes no signal
+  (`crates/podssh-cli/src/operator.rs:82-93`), so SIGHUP ends it at once, before it answers the
+  node's `CLOSE` or sends its own.
+- Inferred, the mechanism, which the Prove measures: each `ssh -o ProxyCommand='podssh operator
+  NAME' HOST cmd` leaves its session on the node as a loss or a `CLOSE` with no answer, held 10
+  minutes with its connection to sshd and charged a whole buffer; the 17th within 10 minutes is
+  refused. The tester did not count the held sessions, as the issue says.
+- Read: a session whose target ended can take no more bytes into its buffer, and is charged as
+  much as a live one.
+- Read: `--resume-deadline` takes 1 minute to 72 h (`crates/podssh-cli/src/layered.rs:117`), and
+  `--plain` is a node with no layer.
+- Not the cap of GitHub #84 (T-461): that is the relay's 64 MiB for one session.
+
+## Approach
+
+1. Reproduce: the stand-in relay of the reverse road, `podssh node NAME --sshd` in front of the
+   test's OpenSSH sshd, `PODSSH_REPLAY_BUFFER` set so that the budget holds 2 sessions, and
+   OpenSSH's client 3 times, `ssh -o ProxyCommand='podssh operator NAME' HOST true`: on the code
+   before, the third is refused. The node's lines say which end each session had.
+2. `operator` ends well when its parent ends it: SIGHUP, SIGTERM and SIGINT (Ctrl-C and Ctrl-Break
+   on Windows) are its application's end. The layer sends `CLOSE` after the bytes in flight, waits
+   up to 2 s for the node's answer, and the leg closes; the exit is 0 for a session that the node
+   took, as for an end of stdin. The same for `pipe` with a `node:` side and for `ssh node://`
+   when a signal ends them.
+3. The node keeps of a closing session only what it needs: a session whose target ended and whose
+   `CLOSE` went out keeps the bytes that the client has not acknowledged, and is charged those,
+   not a whole buffer; once the client acknowledged each byte, it keeps its id alone, charged
+   nothing, until the deadline, and a resume of it gets its `CLOSE`, as a resume of a session that
+   ended on its old link does (`crates/podssh-relay/src/session/keep.rs:200-204`).
+4. The refusal says what holds the budget and when room comes: "this node keeps 16 resumable
+   sessions (64 MiB of replay buffers): 3 with a link, 13 waiting for their client, the first of
+   them for 4 min 10 s more; --resume-deadline and PODSSH_REPLAY_BUFFER of the node change it".
+   The node says the same on stderr at a refusal, once a minute at most, and once when its budget
+   passes three quarters; a detached node's log keeps it.
+5. The notes of `node` and `operator`, `docs/reverse.md`, `docs/design.md` (section 5) and
+   `docs/STATUS.md`.
+
+## Decision
+
+Each a call made overnight, for the operator to confirm (Q86):
+
+- A signal of the parent is the end of the operator's application, not a loss: OpenSSH has read
+  what it needed when it sends SIGHUP, so the layer closes the session. Lost: a resume after it,
+  which keeps a session that no client comes back for; and SIGHUP ignored, which leaves an
+  operator running after its OpenSSH, its stdout to nobody.
+- A closed session stays as its id alone, charged nothing, so that a client that lost the node's
+  `CLOSE` hears the session's end on a resume. Lost: forgetting it at once, which answers that
+  client with a forgotten session; and a shorter deadline for it, which charges the budget for
+  nothing meanwhile.
+- No `--resume-deadline 0` and no `--no-resume` of the operator (the issue's first ask): with items
+  2 and 3 a clean end holds nothing, a session lost on its way is what the layer keeps, and
+  `--plain` is a node with no layer. Lost: a client that asks the node for a shorter deadline in
+  the handshake, a change of the layer's protocol for a case that the repair empties.
+- The oldest waiting session is never dropped for a new one: a client that sleeps was promised its
+  time (T-306). Lost: eviction by age.
+- No counts of the budget in `detached list` or `relay status NAME` (the issue's second ask):
+  `detached list` reads no state of a run, and `relay status` asks the relay, which never sees the
+  node's budget; the node's line of item 4, in its log, is the place.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair --test reverse_layered
+cargo test -p podssh-cli --test operator
+cargo test -p podssh-cli --test roost
+```
+
+New tests: in `reverse_layered`, `a_session_whose_target_ended_holds_only_its_unacknowledged_bytes`
+(a budget of 2 sessions; two sessions whose target closes and whose client acknowledges each
+byte; then two more are admitted) and `a_resume_of_a_closed_session_gets_its_close`; in `operator`
+(Unix), `an_operator_that_its_parent_hangs_up_closes_the_session` (SIGHUP after the target's last
+byte: the node keeps no session 3 s later, through the stand-in relay); in `roost`, against
+OpenSSH, `short_logins_through_operator_leave_the_node_room` (OpenSSH's client with
+`ProxyCommand=podssh operator`, 5 runs of `true` through a node whose budget holds 2: each exits 0;
+it says that it did not run where this host has no OpenSSH, as the roost's tests do); and the
+refusal's words with its counts, in the lib's tests of `session::far`. Planted:
+`t586-hangup-not-taken` (no handler of the signals): the operator's test and the OpenSSH test
+fail, the third run refused; `t586-closing-charged-whole` (a closing session charged a whole
+buffer): the first test of `reverse_layered` fails.

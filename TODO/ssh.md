@@ -4189,3 +4189,86 @@ A test of the line's words with `--persist`; and, against podssh's relay role in
 OpenSSH's sshd, `--persist` with `ServerAliveInterval=0` warns once before the cut and attaches
 again after it. Planted: the watch not started for `--persist`: the run against the role gives no
 line, and the test fails.
+
+# T-588: `ssh node://` waits ConnectTimeout for an SSH handshake that OpenSSH through `operator` finishes on the same node, and says nothing of what came
+
+**Source:** GitHub #114 (a tester's agent, 2026-11-02), with `podssh 1.0.0 (35a0d19)`, the client
+on Windows and the node on a gVisor sandbox in front of OpenSSH 10.0p2:
+`ssh --pair-file F -l root --ConnectTimeout 25 node://NAME 'echo A'` said that the node opened a
+resumable session, its features and its deadline, then "the SSH handshake did not finish within
+25 s" (and the same at 120 s); at the same time `podssh operator --pair-file F NAME` read sshd's
+version line in 3 s, and OpenSSH's client through it logged in in 4.4 s. Read at `3bb42ea`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On one node, at one time, `podssh ssh node://` cannot log in where `podssh operator` carries
+OpenSSH's login: the fault is in podssh's client, between the layer and SSH. Its line says only
+that the handshake did not finish, so a user cannot tell a node that sent nothing from a version
+line that came and a key exchange that stopped; a longer ConnectTimeout gives the same line later.
+A defect: `ssh node://` is the documented way to log in to a node.
+
+## Premise
+
+- Read: the handshake is one wait of ConnectTimeout around russh's `connect_stream`, and its line
+  names no byte, no version line and no step (`crates/podssh-ssh/src/run.rs:395-403`).
+- Read: `ssh node://` carries SSH with `carry_keeping`: the layer's settings of `ssh`, which name
+  `keep.v1` (`crates/podssh-cli/src/layered.rs:211`), the far end's shells learned and its
+  silence watched (`:228-234`), and the SSH client and the carriage joined in one task
+  (`crates/podssh-cli/src/ssh/node.rs:200-203`); `operator` carries with `carry_through`, with
+  none of these (`crates/podssh-cli/src/operator.rs:87-88`). These are the client's differences
+  between the run that stopped and the one that worked; which one stopped it is not known.
+- Read: the tester's lines show the layer's session open and its features (`replay.v1`,
+  `heartbeat.v1`, `move.v1`), so the relay, the pair and the layer's handshake worked; a roost
+  checks sshd's version line on each session's connection
+  (`crates/podssh-cli/src/man/notes_pair.rs:27-29`), so the node had sshd's line.
+- Read: no test runs `ssh node://` with a client on Windows: `relay-live.yml` runs `node_live` on
+  Linux alone (`.github/workflows/relay-live.yml:32`), and `node_live`'s `ssh_to_a_node`
+  (`crates/podssh-cli/tests/node_live.rs:141-142`) serves railway.new:22 where no sshd runs, so a
+  Windows runner can run it.
+- Read: since `35a0d19`, T-460, T-462 and T-505 changed `crates/podssh-ssh/src/run.rs`, none for
+  this case; not reproduced on `main`.
+
+## Approach
+
+1. Reproduce on Windows: `node_live`'s `ssh_to_a_node` in `relay-live.yml` on `windows-2025` too
+   (a live test of the relay, which runs with its entry), with the node's lines and the client's
+   `-vvv`. If it passes there, the tester's pairing is the variable: the node on a Linux runner and
+   the client on a Windows one, meeting through the live relay, in one workflow.
+2. Find where it stops, with the record of item 3, and repair it; the record names the place
+   before the repair.
+3. A record of the handshake: the bytes that came from the far end, whether they held a version
+   line (its text, on one line), and the last message of the key exchange sent and received; and,
+   on a node's road, the bytes through the layer and through the end-to-end channel each way. The
+   line of a timeout says them: "node://NAME: the SSH handshake did not finish within 25 s: no byte
+   came from the node's TARGET after the layer opened (0 bytes through the channel)", or "...:
+   SSH-2.0-OpenSSH_10.0p2 came, then nothing after this side's KEXINIT", one form for each case.
+4. A first word inside ConnectTimeout: when no byte came 10 s after the layer opened, one line says
+   so at once, and the wait goes on to ConnectTimeout; so a long ConnectTimeout is not one silence.
+5. The manual's note of ConnectTimeout, `docs/STATUS.md`.
+
+## Decision
+
+The 10 s of item 4 are the node's own bound on its TARGET's answer
+(`crates/podssh-relay/src/session/far.rs:30`): a sshd that the node reached has answered by then.
+Lost: a retry of the handshake (the issue's third ask), which sends a second login while the
+first may be on its way; the line of item 4 is the shorter first bound that it asks for.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib run::
+cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
+```
+
+New tests in `podssh-ssh`: `a_silent_far_end_s_timeout_says_no_byte_came`, and
+`a_far_end_that_stops_after_its_version_line_is_named` (a stream that sends OpenSSH 10.0p2's
+version line, captured, then nothing; ConnectTimeout 3: the line names the version line and the
+step, within 5 s). In Actions, `relay-live.yml`'s `node_live` on `windows-2025` passes after the
+repair, and the Done names the cause. Planted: `t588-handshake-unrecorded` (the record not read,
+the line as before): both new tests fail.

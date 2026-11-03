@@ -127,12 +127,14 @@ corrects a claim that the code does not support.
 
 ## Requests after the triage (#51 on)
 
-#37 to #50, #52, #53, #57, #58, #64 to #68, #77 and #78 to #82 are pull requests; Dependabot's #44 to #47,
-updates of a major version, are T-330, but #47 (aes-gcm 0.11), which is
+#37 to #50, #52, #53, #57, #58, #64 to #68, #77, #78 to #82, #119, #120, #122 and #123 are pull requests;
+Dependabot's #44 to #47, updates of a major version, are T-330, but #47 (aes-gcm 0.11), which is
 T-333 (done on 2026-10-31, after the ruling of Q48); Dependabot's #57 and #64
 to #68 are T-355, and so is #77 (pageant 0.2.5 in `fuzz/Cargo.lock`, as in the
 root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of 2026-11-01
-(the tailscale image, the minor and patch group, rand 0.10, sha2 0.11 and hmac 0.13) are T-386.
+(the tailscale image, the minor and patch group, rand 0.10, sha2 0.11 and hmac 0.13) are T-386;
+Dependabot's #119, #120, #122 and #123 of 2026-11-02 (Python 3.15 for the box's proxy, the build
+image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
@@ -182,6 +184,15 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 | #109 | WARP's registration has one API name and no second route | open | T-562 (the second name goes in once a live run shows it is the same API) |
 | #110 | The relay's record forgets a host that opens, and keys each road's verdict by the host | closed 2026-11-03, its entry done (`7abebd2`) | T-563 |
 | #111 | podssh never raises its soft limit of open files | open | T-564 |
+| #112 | A node refuses each new session once its replay budget is full, and names the budget, not its cause | open | T-586 (inferred, which its Prove measures: OpenSSH ends its ProxyCommand `operator` with SIGHUP, and the node keeps each such session 10 minutes, charged a whole buffer) |
+| #113 | `proxy` cannot address `node://NAME` | open | T-587 (`proxy node://NAME` as the pipe of `operator NAME`, a call of Q86; the issue's prefix `podssh ssh:` is not this code's) |
+| #114 | `ssh node://` waits the whole ConnectTimeout, where `operator` to the same node reads sshd's line in 3 s | open | T-588 (not reproduced; no test runs `ssh node://` from Windows) |
+| #115 | `operator` and `proxy` take no `--ConnectTimeout` | open | T-589 |
+| #116 | `node --sshd` with no sshd says `Connection refused`; a line of `doctor` for it | open | T-590 |
+| #117 | A pair's expiry of 3 days, no renewal, and `relay status` with no expiry | open | T-591 (`relay status NAME` names the expiry of a stored pair already; an operator's file cannot be asked), T-592 (a renewal, in podssh's relay role, M10) |
+| #118 | The node's key under `HOME/.cache` when `HOME` is another user's | open | T-593 |
+| #121 | `docs/STATUS.md` describes `main`, and the release has no exit node | open | T-594 (the exit is in `v1.0.1`'s notes, T-584) |
+| #124 | A carrier over stdio or exec for a node and its client | open | T-595, T-596 (the exit over it) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,

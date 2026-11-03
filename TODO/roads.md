@@ -7900,3 +7900,80 @@ the proxy the cause either. Step 1 changes: through a
 proxy too, the line names the certificate that the endpoint showed and says that a proxy that
 re-terminates TLS or WARP's own side can show it, and that a second try tells them apart (WARP's
 side passes on a later try, a proxy fails each time).
+
+# T-590: A roost on a host with no sshd says `Connection refused`, not that no sshd is installed, and `doctor` has no line for a roost
+
+**Source:** GitHub #116 (a tester's agent, 2026-11-02), with `podssh 1.0.0 (35a0d19)`:
+`podssh node NAME 127.0.0.1:2222 --sshd --detach` exited 69 with "TARGET 127.0.0.1:2222: could
+not connect to 127.0.0.1:2222: 127.0.0.1:2222: Connection refused (os error 111)" on a host with
+no sshd (`command -v sshd` gave nothing); once `openssh-server` was installed, the same command
+worked. It asks for the missing sshd named, a line of `doctor` for it, and a word in the notes of
+`--sshd`. Read at `3bb42ea`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A roost's sshd is the one part of the reverse road that podssh does not bring, and the part that a
+minimal image lacks. When nothing listens at TARGET, the roost gives the dial's words, which read
+as a firewall or a wrong port; it never says that this host has no sshd, or what installs one, and
+`doctor`, the preflight, has no line for it. A feature: the refusal is true, and its exit right.
+
+## Premise
+
+- Read: a roost dials each TARGET once before it registers, and a failed dial is the TARGET and
+  the dial's error, with 69 (`crates/podssh-cli/src/node_target.rs:24-25`); only a dial that
+  worked reaches the check of the version line, whose refusal names `--sshd` (`:29-35`).
+- Read: the row of `--sshd` says that each TARGET "is a standard sshd"
+  (`crates/podssh-cli/src/flags/node.rs:71-72`), and the manual that the node "serves a standard
+  sshd" (`crates/podssh-cli/src/man/notes_pair.rs:22`); neither says that it must run already.
+- Read: no line of `doctor` names sshd (searched in `crates/podssh-cli/src/doctor/` at `3bb42ea`).
+- Read: T-481 (open) names the command that installs tmux, from the package managers that a probe
+  finds on the far host (`apk`, `apt-get`, `dnf`, `yum`, `zypper`, `pacman`, `brew`, `pkg`); its
+  table is the model here, for this host.
+
+## Approach
+
+1. A roost whose dial of a loopback TARGET is refused looks for an sshd on this host: `sshd` on
+   PATH, then `/usr/sbin/sshd`, `/usr/local/sbin/sshd` and `/sbin/sshd`. Its line then says one
+   of: "no sshd is installed on this host (none on PATH or in /usr/sbin); install one, as apt-get
+   install -y openssh-server, and start it", or "an sshd is installed at /usr/sbin/sshd, and
+   nothing listens at 127.0.0.1:2222: start it, or give the port that it listens on". A TARGET off
+   the loopback keeps the dial's words. The exit stays 69.
+2. The command: the first package manager that a probe finds, with one table that T-481 and this
+   entry share: `apk add openssh-server`, `apt-get install -y openssh-server`, `dnf install -y
+   openssh-server`, `yum install -y openssh-server`, `zypper install -y openssh`, `pacman -S
+   --noconfirm openssh`, `brew install openssh`; FreeBSD's base has sshd. `sudo` first for a user
+   that is not root, where sudo is on PATH. It names a command and runs none.
+3. `doctor`: a line `sshd`: "present at /usr/sbin/sshd; 127.0.0.1:22 answers SSH-2.0-...", by one
+   dial of the loopback and its first line within 2 s, as the roost reads it; "present, nothing
+   listens at 127.0.0.1:22"; or "absent", with the command of item 2. A note, never a failure: a
+   host with no roost needs no sshd. In `--json` too.
+4. The notes and the row of `--sshd` say that TARGET must be an sshd that runs already;
+   `docs/reverse.md`, `docs/STATUS.md`.
+
+## Decision
+
+For the operator to confirm (Q86): `doctor`'s line dials 127.0.0.1:22 once and reads one line, so
+that "present" and "answers" are told apart, as the issue asks; a note, outside the count of
+failures. Lost: the file alone, with no dial, which cannot tell a stopped sshd; and a failure in
+the count, which would mark each host with no roost. The words name the package and never install
+it, as T-481's do for tmux.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test roost
+cargo test -p podssh-cli --test doctor
+```
+
+New tests: in `roost`, `a_roost_with_no_sshd_installed_says_so_and_names_the_package` (PATH with
+a stand-in `apt-get` and no `sshd`, a closed loopback port: 69, and the line names no sshd
+installed and `apt-get install -y openssh-server`), and
+`a_roost_whose_sshd_is_stopped_says_that_nothing_listens` (a stand-in `sshd` on PATH, a closed
+port); in `doctor`, the line's three forms, "answers" with the test's OpenSSH sshd where this host
+has one. Planted: `t590-dial-words-alone` (the look of item 1 skipped): the first test fails.

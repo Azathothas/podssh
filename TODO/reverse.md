@@ -2364,3 +2364,218 @@ planted, `first_conflict` zero: the node exited 69 at the `409`, and the test fa
 `blocking_plain.rs`: `conflict_at_the_first_registration_exits_after_its_grace` (2 s) and
 `conflict_at_the_first_registration_connects_again_and_serves` passed; the plant failed the
 second. box.yml's chat run on the runner waits for the merge of `draft/t251-plants-2` (T-251).
+
+# T-587: `podssh proxy` takes no `node://NAME`, and its help never names `operator`, the ProxyCommand form of a node
+
+**Source:** GitHub #113 (a tester's agent, 2026-11-02), with `podssh 1.0.0 (35a0d19)`:
+`podssh proxy node://NAME 2222` is refused, and `proxy --help` has no `--pair-file`,
+`--node-key`, `--client-key` or `--no-e2e`; it asks that `proxy` take `node://NAME` with the pair's
+and the keys' flags of `ssh`, or that `proxy --help` name `operator`. Read at `3bb42ea`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`proxy` is the ProxyCommand form of each road but the reverse one. A user who names a node as
+`node://NAME` for `ssh`, `cp` and the other verbs writes `proxy node://NAME` in a ProxyCommand,
+and gets a refusal that reads as a bad port. The node's ProxyCommand is `operator NAME` (or
+`pipe - node:NAME`), which `proxy`'s help and its refusal never name. A feature: what `proxy`
+documents works; the form that a user expects is missing.
+
+## Premise
+
+- Read: with one word, `proxy` splits `node://NAME` at its last `:`
+  (`crates/podssh-cli/src/proxy.rs:350`) and says that `"//NAME"` is not a port (`:320-321`), the
+  issue's words; with a second word, that `"node://NAME"` is not a host name or an IPv6 address
+  (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
+  which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:118`); not reproduced.
+- Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
+  (`crates/podssh-cli/src/man/notes_pair.rs:239-241`), and `pipe` takes `node:NAME`
+  (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
+  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:380`), with no word of a node.
+- Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
+  `iap://`, `eice://`, `warp://` and `tor://` (`crates/podssh-cli/src/proxy.rs:99-114`).
+
+## Approach
+
+1. `podssh proxy node://NAME[/ROUTE]` is the pipe of `operator NAME[/ROUTE]`: the same pair
+   (stored, or `--pair-file`), the end-to-end channel and its flags (`--client-key`, `--node-key`,
+   `--no-e2e`), `--resume-deadline`, and the same exit codes. One function serves both verbs, so
+   that they cannot drift.
+2. A PORT is refused (64), with why: the node's TARGET or route names the service, as `cf://HOST`
+   takes no PORT. The relay's flags, `--forwarder`, `--shadowsocks`, `--via`, `--vless`,
+   `--wstunnel` and `--exit` are refused with it (64), as each takes the relay's place.
+3. The flags of the pair and of the channel join the rows of `proxy`, each saying that it goes with
+   `node://`; one of them with a target that is not `node://` is refused (64).
+4. A refusal of `proxy` for a word that starts with `node:` names `proxy node://NAME`,
+   `operator NAME` and `pipe - node:NAME`.
+5. The notes of `proxy` and `operator`, `docs/cli.md`, `docs/reverse.md` and `docs/STATUS.md`.
+
+## Decision
+
+For the operator to confirm (Q86): `proxy` takes `node://NAME`, and `operator` stays, the same
+pipe by its first name. `node://` is the destination form of `ssh`, `cp` and the other verbs, so
+a ProxyCommand that names it reads as the rest do. Lost: `operator` alone with a word in
+`proxy --help` (the issue's second choice), which leaves one verb whose destination form differs;
+and `proxy NAME` with no scheme, which a host of the same name would take.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test proxy
+cargo test -p podssh-cli --test operator
+```
+
+New tests, through the stand-in relay of the reverse road:
+`proxy_carries_a_session_to_a_node_by_its_name` (a node in front of a target that echoes:
+`proxy node://NAME` carries 1 MiB each way with equal digests, and exits 0);
+`proxy_of_a_node_refuses_a_port_and_the_relay_s_flags` (64, each with its words); and, against
+OpenSSH, `openssh_through_proxy_node_reaches_the_node_s_sshd` (`ssh -o ProxyCommand='podssh proxy
+node://NAME' HOST true` exits 0; it says that it did not run where this host has no OpenSSH).
+Planted: `t587-node-read-as-host` (`proxy` reads `node://` as a host again): the first test
+fails.
+
+# T-589: `operator` and `proxy` take no `--ConnectTimeout`, so a ProxyCommand has no bound of its own on reaching its far end
+
+**Source:** GitHub #115 (a tester's agent, 2026-11-02), with `podssh 1.0.0 (35a0d19)`:
+`podssh operator --ConnectTimeout 25 NAME` is an unknown flag (64); it asks for `--ConnectTimeout`
+on `operator` and `proxy`, with the meaning of `ssh`'s. Read at `3bb42ea`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A program that runs `operator` or `proxy`, as a ProxyCommand or as a pipe of its own, cannot say
+how long podssh may take to reach the far end: each wait has podssh's own limit, which the user
+cannot shorten, and a `timeout` around podssh kills it with no word of what it waited for. `ssh`
+takes `--ConnectTimeout`; its two pipes do not. A feature: the waits have limits, which a user
+cannot set.
+
+## Premise
+
+- Read: the rows of `operator` are "a pipe, with no `--timeout`"
+  (`crates/podssh-cli/src/flags/operator.rs:7`), and have no ConnectTimeout; `ssh` has one
+  (`crates/podssh-cli/src/flags.rs:169-170`).
+- Read: `operator`'s waits are 30 s for each request of the relay
+  (`crates/podssh-cli/src/operator.rs:69`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
+  node's `ready` (`crates/podssh-relay/src/reverse/operator.rs:56`); `proxy`'s, 20 s for each
+  relay host (`crates/podssh-relay/src/open.rs:30`), in the order of the failover.
+- Inferred, which the Prove measures: OpenSSH's ConnectTimeout bounds the wait for the server's
+  version line through a ProxyCommand too (`openssh/openssh-portable:sshconnect.c`, where
+  `ssh_login` gives it to `kex_exchange_identification`), but not the ProxyCommand's own start,
+  and its end then gives no word of podssh's; the issue's "does not apply" holds for that part.
+
+## Approach
+
+1. `--ConnectTimeout SECONDS` on `operator`, on `proxy` (each of its roads) and on `pipe` when a
+   side is `node:`, `relay:` or `ssh:`: one bound on the time from the start to the session's
+   open. For `proxy`, the relay's answer (each host's dial, TLS, the upgrade, the relay's dial of
+   the target) or the answer of the road that takes the relay's place; for `operator` and a node,
+   the relay's answer, the node's `ready`, and the handshakes of the layer and of the channel. The
+   bytes after the open are never bounded: a pipe may wait.
+2. Each step keeps its own limit too; the first limit to pass ends the wait. 0 is refused (64); with
+   none given, the waits are as now.
+3. Past the bound, one line names the step that waited ("the node did not answer ready within
+   25 s", "no relay host answered within 25 s"), and the exit is that of a far end out of reach: 69
+   for `proxy`, the code of an unreachable relay for `operator`.
+4. These verbs take no `-o`, so `-o ConnectTimeout=N` stays refused. The rows and the notes of
+   `proxy`, `operator` and `pipe`, `docs/cli.md`, `docs/STATUS.md`.
+
+## Decision
+
+For the operator to confirm (Q86): the flag is `ssh`'s, `--ConnectTimeout SECONDS`, its meaning
+taken to a pipe: the time to the session's open, never the bytes after it. Lost: `--timeout`,
+which bounds the whole run on `cp`, `mv` and `job`, and a pipe's run has no end to bound; and
+`PODSSH_TIMEOUT` as its default, which bounds whole runs (T-012). Lost: a bound on the far end's
+first byte, as a TARGET may speak second (HTTP).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test operator
+cargo test -p podssh-cli --test proxy
+```
+
+New tests: `operator_s_connect_timeout_ends_a_wait_for_ready` (a stand-in relay that takes the
+operator's socket and never sends `ready`: with `--ConnectTimeout 3`, the operator ends within 5 s
+with its code and a line that names `ready`); `proxy_s_connect_timeout_ends_a_silent_relay` (a
+port that takes TCP and never answers TLS: 69 within 5 s); `a_connect_timeout_of_zero_is_refused`
+(64). And the Premise's reading of OpenSSH, measured: `ssh -o ConnectTimeout=3 -o
+ProxyCommand='sleep 30' HOST true` ends within 5 s, its exit and words in the Done. Planted:
+`t589-bound-not-applied` (the flag read, and not used): the first two tests fail.
+
+# T-591: An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry
+
+**Source:** GitHub #117 (a tester's agent, 2026-11-02), with `podssh 1.0.0 (35a0d19)`:
+`relay pair NAME --operator-file F` printed an expiry three days out, and "the expiry is not
+shown by `relay status NAME`"; it asks for `relay pair --renew` (T-592), the expiry in
+`relay status`, and, if a new pair is the way, words where the expiry is printed. Read at
+`3bb42ea`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The owner of a node sees its pair's expiry in `relay status NAME`. An operator who holds only the
+operator's file cannot run `relay status` at all, so a check on an operator's host cannot see the
+end coming; and the line of `relay pair` gives a date with no word of what happens then, or of how
+to go on. A feature.
+
+## Premise
+
+- Read: `relay status NAME` prints the expiry beside online or offline
+  (`crates/podssh-cli/src/relay_cmd.rs:235-239`), as it did at `35a0d19`; the issue's claim holds
+  where no pair is stored under NAME, as on an operator's host.
+- Read: it reads the pair from the store alone (`crates/podssh-cli/src/relay_cmd.rs:229`,
+  `crates/podssh-cli/src/pairs.rs:36-44`); `relay` takes no `--pair-file`, and `--operator-file`
+  goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:54-57`).
+- Read: the relay answers `/v1/status/<name>` to the connect token
+  (`crates/podssh-relay/src/pair.rs:198-202`), which the operator's part holds.
+- Read: `relay pair` prints the label and its expiry and nothing more
+  (`crates/podssh-cli/src/relay_cmd.rs:167`); in the last 24 h of a stored pair it makes the next
+  one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:118-141`);
+  the operator's part of the next pair is a new file, and the default relay renews no pair (T-395's
+  Decision, item 2).
+
+## Approach
+
+1. `relay status --pair-file FILE [NAME]`: the pair, or its operator's part, from FILE, as
+   `operator --pair-file` reads it; NAME, when given, is the label shown. `--json` with a NAME too:
+   one object, `label`, `online`, `sessions`, `expires` (RFC 3339) and `seconds_left`, for a check.
+2. `relay pair` keeps its one line on stdout, for scripts, and says on stderr: "in its last 24 h,
+   podssh relay pair NAME --operator-file NEW makes the next pair, which the node takes at the
+   expiry; NEW goes to each operator".
+3. A pair with less than 24 h left: `relay status` says how long beside the date ("expires in
+   5 h, at ..."), on the owner's host and on the operator's.
+4. The notes of `relay`, `docs/reverse.md`, `docs/cli.md` and `docs/STATUS.md`.
+
+## Decision
+
+`--pair-file` is the name of the same file for `node` and `operator`. Lost: `--operator-file`
+for `status`, whose meaning on `pair` is a new file to write. The line on stdout of `relay pair`
+stays one line, as scripts read it, and the words go to stderr.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay
+cargo test -p podssh-cli --test node_expiry
+```
+
+New tests, against the stand-in relay: `relay_status_of_an_operator_s_file_names_the_expiry` (a
+pair made, its operator's part alone in a file, the store emptied: `status --pair-file` names
+online or offline and the expiry, and `--json` gives `seconds_left`);
+`relay_pair_says_the_way_past_the_expiry` (the words on stderr, and one line on stdout). Planted:
+`t591-pair-file-ignored` (`status` reads the store again): the first test fails.

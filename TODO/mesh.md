@@ -5981,3 +5981,234 @@ cargo test -p podssh-warp --features h3 --test connect_ip_h3
 Against quic-go's connect-ip-go (MIT), as a proxy of connect-ip over HTTP/3 in a container: sshd's
 banner through it, and 1 MiB each way. Live, short, through WARP's endpoint over UDP from GitHub
 Actions (Q52, Q59). Planted: a datagram's context ID dropped, and the test of the banner fails.
+
+# T-592: A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged
+
+**Source:** GitHub #117 (a tester's agent, 2026-11-02): `relay pair --renew NAME --operator-file
+F`, to extend the same pair, so that the operator's file keeps working. T-591 holds the rest of
+the issue.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each pair ends within 72 h. A node that should run longer needs a new pair each 3 days, and its
+operators a new file each time, which a person must bring them. On the default relay that is its
+contract; on podssh's own relay role (Q63) podssh decides it, and can let the owner extend the
+pair that its operators hold.
+
+## Premise
+
+- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:22-23`,
+  set as the pair is made, `:182`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
+  `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs:54`).
+- Read: the default relay renews no pair (T-395's Correction: no such request in its document); a
+  change of that deployment is an item of `docs/relay-operator.md`, which no entry waits for
+  (Q63).
+- Read: the node takes the next pair of the store at the expiry (T-395), so a pair that keeps its
+  name needs no new start of the node.
+
+## Approach
+
+1. The role: `POST /v1/renew/<name>` with the pair's stop token, which its owner alone holds. The
+   expiry becomes 72 h from now (never less than it was), its three tokens the same: `200` with
+   `{"expires": ...}`; `403` for another token; `404` for no such pair. The file of `--pairs`
+   keeps the new expiry. The role's `/v1/status/<name>` gives `expires` beside the contract's
+   fields, so that an operator's `relay status` (T-591) shows the new date.
+2. The client: `podssh relay pair --renew NAME` asks the relay of the stored pair. A relay with no
+   renewal (`404` or `405` at the path) gets the words that it renews no pair, with T-591's way,
+   `relay pair NAME` in the last 24 h, and exit 69. The operator's file is never touched: its
+   tokens hold.
+3. The node renews its own pair in its last 24 h where its relay renews (at the start of that
+   window, then each hour until it took), and says each renewal; where the relay renews none, the
+   lines of T-395 as now.
+4. `docs/relay.md` (the role's request beside the contract), `docs/reverse.md`, `docs/mesh.md`,
+   the manual, `docs/STATUS.md`.
+
+## Decision
+
+For the operator to confirm (Q86):
+
+- A renewal keeps the three tokens, so that each operator's file keeps working, as the issue asks;
+  the stop token alone renews, so an operator, who holds the connect token, cannot keep a pair
+  alive against its owner. Lost: new tokens at each renewal, which is a new pair, the issue's
+  problem.
+- No cap on the renewals: the owner ends the pair at any time with its stop token
+  (`relay revoke`). Lost: a cap on a pair's whole life, which brings the lockout on a date back
+  for a node that is meant to run; a connect token that leaked lives as long as the owner renews,
+  and `relay revoke` with a new pair ends it.
+- The node renews by itself where its relay renews, so that a node that its owner left running
+  stays reachable. Lost: renewal by hand alone, which nobody runs in time on a server that only
+  the node reaches (T-395's reason for the next pair).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_reverse
+cargo test -p podssh-cli --test relay_serve_node
+```
+
+New tests: in `relay_serve_reverse`,
+`a_renewal_by_the_stop_token_extends_the_pair_and_keeps_its_tokens` (on a paused clock, the
+connect token works past the old expiry; another token gets 403); in `relay_serve_node`,
+`a_node_renews_its_pair_in_its_last_day` (the role with a pair of 23 h: the node renews it and
+says so, and past the old expiry the operator's first file still reaches the node) and
+`renew_on_a_relay_with_none_says_so` (the stand-in relay, which has no such path: 69, and its
+words). Planted: `t592-renewal-new-tokens` (a renewal that draws new tokens): the first test fails
+at the old connect token.
+
+# T-595: A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed
+
+**Source:** GitHub #124 (a tester's agent, 2026-11-02), with `podssh 1.0.0 (35a0d19)` in a
+container whose egress allows a list of names (github.com, pypi.org, deb.debian.org and a few
+more) and resets the relay, the iroh relays, the DERP fleet, Cloudflare's edge and WARP's API;
+the platform's own `ssh` into the container worked, and a framed multiplexer of the tester's, 329
+lines over that exec channel, gave the container an HTTP CONNECT proxy, then egress through WARP.
+It asks for `podssh node --stdio NAME TARGET`, and
+`podssh proxy --carrier exec:'ssh -T sandbox podssh node --stdio NAME' node://NAME`. Read at
+`3bb42ea`.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Each road of podssh dials a public endpoint, so a host whose egress is a list of allowed names has
+none. Such a host often grants one channel: an exec channel of the platform's own SSH, or of an
+API, reliable and both ways. podssh cannot run a node or a client over a stream that is there
+already: `pipe` joins two streams but carries no node's road, and `proxy` reaches its target
+through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
+
+## Premise
+
+- Read: the node's side of the reverse road runs over any `RelaySession<S>`
+  (`crates/podssh-relay/src/reverse/serve.rs:134`), and a `RelaySession` is made over any stream,
+  with no HTTP in it (`crates/podssh-ws/src/session.rs:98-102`).
+- Read: podssh's relay role serves the relay's side of a node's socket and of an operator's
+  (`crates/podssh-relay/src/serve/reverse/mod.rs:1-3`, T-427).
+- Read: `pipe`'s local addresses are `stdio` (or `-`), `fd:N` and `exec:CMD`, a program with no
+  shell (`crates/podssh-cli/src/pipe/address.rs:19-24`), the words that the issue asks for.
+- Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
+  at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
+- Read: the exit lends its egress on the node's roads
+  (`crates/podssh-cli/src/man/notes_pair.rs:225-235`); a carrier is one more road for it (T-596).
+
+## Approach
+
+1. `--carrier ADDR` on `podssh node` and on the clients of a node (`ssh node://`, `proxy node://`
+   of T-587, `operator`, and `pipe`'s `node:` side). ADDR is `stdio` (or `-`), `fd:N` (Unix) or
+   `exec:CMD`, read as `pipe` reads them; the end that names `exec:` starts the stream, and either
+   end may be the node.
+2. On the stream, the node's socket of the reverse road, its WebSocket frames with no HTTP before
+   them: the node runs `reverse::serve` as on the relay's socket, and the client's end runs the
+   relay role's side of that socket in its own process, for this one node, with its operator's
+   leg a pipe in the process to the role. The client's end speaks first (`hello`), as the relay
+   does. So the layer, the end-to-end channel, the routes and the sessions are the pair's road's,
+   and no protocol is new.
+3. No relay, no pair and no token: the stream is the door, as whoever holds it reached the node
+   through the platform that carries it. The end-to-end channel stays on by default, with the
+   node's key pinned under NAME, so a stream that something else answers is seen; `--allow` holds
+   where it is given; `--no-e2e` and `--plain` as on the pair's road. NAME is a label alone.
+4. One stream for the node's life: at its end, the sessions end with their reason, and the node
+   exits 0, or 69 for a stream that failed. A client of `exec:` starts the command again as the
+   new link of a resume; a node of `stdio` has one link, and its sessions resume only while the
+   stream lives (the layer's heartbeats tell a dead one).
+5. `--carrier stdio` refuses a terminal on stdin (64): a node would read a person's keys as
+   frames. A node of a carrier takes no `--pair-file`, `--iroh`, `--derp`, `--quick-tunnel`,
+   `--install` or `--detach` (64): its stream is its parent's.
+6. The relay's limits do not hold (no 64 MiB, no 12 h), only the layer's and the stream's.
+7. The notes of `node` and of a node's clients, `docs/mesh.md`, `docs/carriers.md` (a carrier
+   with no endpoint), `docs/reverse.md`, `docs/STATUS.md`.
+
+## Decision
+
+For the operator to confirm (Q86):
+
+- One flag, `--carrier ADDR`, at both ends, in `pipe`'s words. Lost: the issue's `--stdio` on the
+  node and `--carrier` on the client, two names for one thing; a new kind of address in `pipe`
+  alone, which would carry no node's road.
+- The relay's side of the socket in the client's process, from the role of T-427, so that the
+  node's code is the same on each road. Lost: a framing of the tester's kind, new code at each end
+  that the tests of the relay's contract do not reach.
+- The stream is the door, with no allowlist needed, as the pair's road lets in each operator of
+  its connect token. Lost: a door required, as on the DERP road, where any key may send; here only
+  the holder of the stream can.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair,serve --test reverse_carrier
+cargo test -p podssh-cli --test node_carrier
+```
+
+New test files: reverse_carrier (the node's `serve` and the role's side over a pair of pipes, two
+sessions of 2 MiB each way with equal digests) and node_carrier (`podssh ssh --carrier
+exec:'podssh node --carrier stdio NAME 127.0.0.1:PORT' node://NAME` to the test's OpenSSH sshd,
+`true` exits 0; OpenSSH's client with `ProxyCommand="podssh proxy --carrier exec:... node://NAME"`;
+a pinned key that the far end does not have, refused with 77; a terminal on stdin refused, 64;
+each says that it did not run where this host has no OpenSSH). Planted: `t595-carrier-no-channel`
+(the end-to-end channel skipped on a carrier with no `--no-e2e`): the test of the pin fails.
+
+# T-596: The exit over a carrier: a host that grants an exec channel alone gets egress through its other end
+
+**Source:** GitHub #124 (a tester's agent, 2026-11-02): the issue's case, a container whose one
+channel is the platform's `ssh`, got egress from a CONNECT proxy over that channel; it asks that a
+carrier (T-595) go with the exit (T-431).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With T-595, a carrier reaches a node's TARGET. The tester's need was the other way: the closed
+host's programs reach the internet through the other end of the channel. podssh has that as the
+exit (`podssh exit NAME --listen` at the client, `node --exit` at the egress), on the node's
+roads, and a carrier must be one of them.
+
+## Premise
+
+- Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
+  (`crates/podssh-cli/src/man/notes_pair.rs:234-235`), and needs the net's role exit, signed by
+  its owner (`:232-233`).
+- Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
+  (`docs/STATUS.md:68`).
+- In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node
+  of the exit runs there with `--carrier exec:...`, and the closed host runs the client,
+  `podssh exit NAME --listen 127.0.0.1:1080 --carrier stdio`.
+
+## Approach
+
+1. `node --exit --carrier ADDR`, and `exit NAME --listen ... --carrier ADDR`, on T-595's road; the
+   net's rule of the exit holds as on each road (a member's key, a rule to `exit:NAME`).
+2. The closed host's listener is the user's ask (`--listen`), after a probe of the bind (Q1).
+3. The manual gives the issue's case as a recipe: at the end with egress, `podssh node NAME --exit
+   --carrier exec:'ssh -T sandbox podssh exit NAME --listen 127.0.0.1:1080 --carrier stdio'`; in
+   the sandbox, `HTTPS_PROXY=http://127.0.0.1:1080`. `docs/mesh.md`, `docs/STATUS.md`.
+
+## Decision
+
+The net's rule of the exit holds on a carrier too: the role exit is the owner's grant, whatever
+carries the session. Lost: an exit open to whoever holds the stream, which would make a stream
+that something else reaches an open proxy.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test exit
+```
+
+New test: `an_exit_over_a_carrier_lends_its_egress` (a node of the role exit with `--carrier
+exec:` that starts `podssh exit NAME --listen 127.0.0.1:0 --carrier stdio`: curl through the
+listener's CONNECT reaches an HTTP server of the test, where curl is on PATH; a member with no rule
+is refused). Planted: `t596-carrier-rule-skipped` (the exit's rule not checked on a carrier): the
+refusal fails.

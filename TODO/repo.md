@@ -5080,3 +5080,136 @@ request closed with a comment.
   request's digest): `ts-headscale.yml` on the pull request's branch (run 41279767562), 14
   passed, 0 failed, 0 not run, the live relay's three runs among them, against headscale 0.29.7,
   whose table of client versions ends at an older release.
+
+# T-594: `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none
+
+**Source:** GitHub #121 (a tester's agent, 2026-11-02): with `podssh 1.0.0 (35a0d19)`,
+`podssh exit --help` is an unknown subcommand and `node --help` has no `--exit`, where
+`docs/STATUS.md` says that the exit node works (T-431); the tester planned on it, and found no
+newer release. It asks for a line at the page's head, the release of each row, and words for an
+unknown subcommand. Read at `3bb42ea`.
+**Category:** docs
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A user reads `docs/STATUS.md`, plans around a command, and the newest release lacks it: the page
+measures `main` and says so nowhere, nor which of its rows a release holds. An unknown subcommand
+names no version and no way to a newer release. Docs.
+
+## Premise
+
+- Read: the page's head says that it "gives the measured state of podssh" (`docs/STATUS.md:3`),
+  with no word of `main` or of a release; the README sends a reader to it for the measured state
+  (`README.md:24-25`).
+- Read: the exit's row (`docs/STATUS.md:68`) says "drafted and merged 2026-11-02" and **Works**.
+  Measured: its commit `0b07025` is not in `v1.0.0` (`git merge-base --is-ancestor 0b07025
+  35a0d19` exits 1). The notes of `v1.0.1` (T-584, partial) say that it carries the work of M10
+  that `main` holds since `v1.0.0` (`docs/releases/v1.0.1.md:5-6`).
+- Read: an unknown subcommand's words list this binary's subcommands, with no version
+  (`crates/podssh-cli/src/refuse.rs:115-118`).
+- Read: `podssh serve` is M5 in `docs/ROADMAP.md:175`, and the operator holds its entries (T-107
+  to T-113, Q32); the roadmap gives milestones, not releases, and its line says no hold.
+
+## Approach
+
+1. The page's head: "This page reads `main`. The newest release is `vX.Y.Z` (DATE, COMMIT); a row
+   of work that it does not hold says unreleased in its first cell; `podssh --version` names a
+   binary's commit". The README's pointer says the same in one sentence.
+2. Each row of a command, a flag or a road names the first release that holds it, or
+   `unreleased`. The release step of `docs/development.md` ("Release builds") moves each
+   `unreleased` row whose commit the new tag holds (`git tag --contains`) to the tag's name, in the
+   commit after the tag.
+3. A check in `scripts/check-repo.py`: a row of the page's tables whose first cell has a date on
+   or after the date that the head gives for the newest release, and no release's name, must say
+   `unreleased`. It reads no git, so a checkout of depth 1 checks the same; its floor fails on an
+   empty table, as each check's does (T-223).
+4. An unknown subcommand's words end with the version and the way to a newer one: "this is podssh
+   1.0.0 (35a0d19); a newer release may have it: podssh update --check". A binary cannot name a
+   later release's commands, so no list of them.
+5. The first line of M5 in `docs/ROADMAP.md` says that the operator holds its entries (Q32).
+
+## Decision
+
+For the operator to confirm (Q86), a rule of the documents: STATUS stays the page of `main`, its
+rows marked by release, not a page of the release. Lost: a page of the newest release, which a
+session could not update in each commit, as rule 6 of `AGENTS.md` asks; the release of each row
+read by `git tag --contains` at each check, which a shallow checkout cannot answer; and a mark by
+hand with no check, which goes stale as the claims of "yet" did (T-362).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+python scripts/check-repo.py
+cargo test -p podssh-cli --lib refuse
+```
+
+The check passes on the page with its marks. The words of an unknown subcommand name the
+version and `podssh update --check` (the lib's tests of `refuse`). Planted: `t594-unmarked-row`
+(a row of a date after the newest release, with no mark, in the page): the check fails, and names
+the row's line.
+
+# T-597: Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13
+
+**Source:** Azathothas/podssh#119 (`library/python` 3.12-alpine to 3.15-alpine in
+`images/box-proxy`), #120 (`library/rust` `1-alpine` from the digest `0cce0a5` to `7e9e2d0` in
+`images/build`), #122 (sha2 0.11.0 to 0.11.1, the minor and patch group) and #123 (simple-dns
+0.12.0 to 0.13.0), Dependabot, 2026-11-02; the operator's ruling of 2026-10-30
+(`docs/decisions.md`): a session repairs what an update breaks, and commits the update with the
+repair.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Four updates wait. One of them cannot go alone: `podssh-iroh` takes the simple-dns that iroh-dns
+builds with, so that its DNS packets and iroh's are of one type.
+
+## Premise
+
+- Read: `images/box-proxy/Dockerfile:3` pins `python:3.12-alpine` by its digest, the image of the
+  box's CONNECT proxy (`scripts/box/proxy.py`), which `scripts/test_in_box.sh` and
+  `scripts/chat-in-boxes.sh` build; `images/build/Dockerfile:6` pins `rust:1-alpine` by the digest
+  `0cce0a5...`, the gate's image.
+- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:146`), and the lock holds 0.11.0; 0.11.1
+  needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:58`, Q48).
+- Read: `crates/podssh-iroh/Cargo.toml:49-52` takes `simple-dns` 0.12, "the simple-dns that
+  iroh-dns builds and reads with, so no crate is added"; iroh-dns 1.4.1, which the lock holds,
+  takes simple-dns 0.12.0, the lock's only version.
+- Inferred: Dependabot closes each pull request once `main` holds its version, as T-386's were.
+
+## Approach
+
+1. #122, the lock alone: the tests of each crate that hashes (podssh-ws's known answers, the
+   relay's, the SSH client's).
+2. #120: the gate in the new image (`sh scripts/dev.sh check`, one build at a time), then the
+   digest committed.
+3. #119: the box's proxy on Python 3.15, by `scripts/test_in_box.sh` and the chat in the boxes.
+4. #123 waits for an iroh-dns that takes simple-dns 0.13; its pull request is answered with that
+   reason, and `podssh-iroh`'s pin moves with iroh-dns's, as its comment says.
+5. `cargo deny --locked check`; `docs/STATUS.md` records each version.
+
+## Decision
+
+#123 stays out until iroh-dns moves: a second simple-dns in the build would give `podssh-iroh` a
+packet type that iroh-dns does not read, and one crate more. Lost: a patch of iroh-dns, a fork of
+a crate for a minor update.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws -p podssh-relay -p podssh-ssh -p podssh-core -p podssh-probe
+sh scripts/dev.sh check
+sh scripts/test_in_box.sh
+```
+
+Each passes on the new versions. Planted: one byte of an HMAC-SHA-256 key changed in the
+known-answer test fails it on sha2 0.11.1, as in T-386.
