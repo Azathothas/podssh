@@ -1,0 +1,8 @@
+# T-255: a role that lets a node or an operator join while its planned
+# stop closes each socket, a socket that the stop then cuts with no Close;
+# the test of a join during the stop, which must get 503 and Retry-After,
+# must fail.
+ENTRY=T-255
+GROUP=resume
+EXPECT='test serve::reverse::tests::while_a_planned_stop_runs_no_socket_joins \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib serve::reverse::tests'

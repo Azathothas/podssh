@@ -49,11 +49,21 @@ pub struct Full;
 pub struct Gone;
 
 /// How many writers run, so that a planned stop waits for each Close to go
-/// out (T-255).
+/// out (T-255); a second count, of the sockets' own tasks, waits for each
+/// peer's answer to it ([`Writers::counted`]).
 #[derive(Default)]
 pub struct Writers {
     running: AtomicUsize,
     idle: Notify,
+}
+
+/// One task counted in its [`Writers`] while it lives.
+pub struct Counted(Arc<Writers>);
+
+impl Drop for Counted {
+    fn drop(&mut self) {
+        self.0.leave();
+    }
 }
 
 impl Writers {
@@ -65,6 +75,13 @@ impl Writers {
         if self.running.fetch_sub(1, Ordering::SeqCst) == 1 {
             self.idle.notify_waiters();
         }
+    }
+
+    /// Count the caller's task until the guard ends: a socket's, which
+    /// ends at its peer's Close, or [`super::CLOSE_WAIT`] after its own.
+    pub fn counted(self: &Arc<Self>) -> Counted {
+        self.join();
+        Counted(self.clone())
     }
 
     /// Until no writer runs, or `limit`: whether each ended.

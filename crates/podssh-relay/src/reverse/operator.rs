@@ -231,7 +231,7 @@ where
 
     // `ready`: the queue first, in order, then both ways.
     if send_bytes(session, &queue).await.is_err() {
-        return Outcome::Ended { code: 1006, reason: "the relay connection broke".into() };
+        return broken(&mut frames, None).await;
     }
     drop(queue);
     let mut closing: Option<Instant> = None;
@@ -275,7 +275,7 @@ where
             bytes = input.recv(), if closing.is_none() => match bytes {
                 Some(bytes) => {
                     if send_bytes(session, &bytes).await.is_err() {
-                        return Outcome::Ended { code: 1006, reason: "the relay connection broke".into() };
+                        return broken(&mut frames, text_reason).await;
                     }
                 }
                 None => closing = Some(end_of_input(session, limits, &mut draining).await),
@@ -293,6 +293,31 @@ where
             dead = &mut liveness => return Outcome::Ended { code: 1006, reason: dead.to_string() },
         }
     }
+}
+
+/// How long a send that failed waits for the relay's Close that may have
+/// crossed it.
+const CLOSE_CROSSED: Duration = Duration::from_millis(500);
+
+/// A send that failed: the relay's Close, when one came before the link
+/// ended, so that a planned stop (`1012`) is not taken for a lost link;
+/// else a link that broke.
+async fn broken(
+    frames: &mut mpsc::Receiver<Result<frame::Frame, SessionError>>,
+    mut text_reason: Option<String>,
+) -> Outcome {
+    let until = Instant::now() + CLOSE_CROSSED;
+    while let Ok(Some(Ok(f))) = tokio::time::timeout_at(until, frames.recv()).await {
+        if f.opcode == frame::OPCODE_TEXT {
+            if let Ok(NodeOutbound::Close { reason: Some(reason), .. }) = control::parse_operator_control(&f.payload) {
+                text_reason = Some(reason);
+            }
+        } else if f.opcode == frame::OPCODE_CLOSE {
+            let (code, reason) = close_code_and_reason(&f.payload);
+            return Outcome::Ended { code: code.unwrap_or(1005), reason: text_reason.unwrap_or(reason) };
+        }
+    }
+    Outcome::Ended { code: 1006, reason: "the relay connection broke".into() }
 }
 
 /// The input ended: with the layer, the node's close is awaited until the

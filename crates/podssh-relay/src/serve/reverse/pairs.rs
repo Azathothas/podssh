@@ -199,6 +199,12 @@ pub struct Pairs {
     file: Option<PathBuf>,
     serial: AtomicU64,
     pub writers: Arc<Writers>,
+    /// The sockets' own tasks, each until its peer answered the role's
+    /// Close: a planned stop ends no socket before that, as a reset can lose
+    /// the Close on its way (T-255).
+    pub live: Arc<Writers>,
+    /// A planned stop closes each socket: none joins meanwhile (T-255).
+    stopping: AtomicBool,
 }
 
 impl Pairs {
@@ -316,23 +322,6 @@ impl Pairs {
             node.close(code, why);
         }
         Some((node.is_some(), sessions.len()))
-    }
-
-    /// A planned stop (T-255): each socket of each pair gets `1012` at once,
-    /// so that its client tells it from a lost link; the pairs stay, in the
-    /// file too. Waits for each Close to go out, `limit` at most.
-    pub async fn restart(&self, limit: Duration) -> bool {
-        let pairs: Vec<Arc<Pair>> = self.map.lock().unwrap_or_else(|e| e.into_inner()).values().cloned().collect();
-        for pair in pairs {
-            let state = pair.lock();
-            for session in state.sessions.values() {
-                session.operator.abort(1012, "relay restarting");
-            }
-            if let Some(node) = state.node_outbox() {
-                node.abort(1012, "relay restarting");
-            }
-        }
-        self.writers.settled(limit).await
     }
 
     /// A number for each node's socket, so that the end of one never
@@ -476,6 +465,11 @@ fn base36(n: usize) -> Result<String, String> {
     }
     Ok(out)
 }
+
+// The planned stop, beside the pairs that it closes (T-255).
+#[path = "stop.rs"]
+mod stop;
+pub use stop::Stopping;
 
 #[cfg(test)]
 #[path = "pairs_tests.rs"]

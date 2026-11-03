@@ -423,7 +423,12 @@ Measured 2026-10-01:
   from 00:27 to 01:28 UTC, then one in 4.6 hours of sessions until 02:05);
   one socket at a time while the relay lives on (it tells the other end),
   or both sockets of one pair at once. Forward sessions had none in 1.2
-  hours. The relay's operator can tell why (T-255 waits for them).
+  hours. The relay's logs can tell why ([relay-operator.md](relay-operator.md),
+  item 2). podssh's own relay role sends `1012` before each stop that it
+  plans, so a drop with no Close through it is the path's; T-255 measures
+  the default deployment again beside the role (`reverse_drops_live.rs`,
+  `reverse-drops.yml` with `relay: role`), and what each drop costs
+  podssh's node and a session of its layer.
 - The short index `/llms.txt` (r2) has facts that the full document does
   not: `/v1/pair` can return `409` (retry with a new pair), and a change of
   the mint secret makes each token invalid at once.
@@ -528,7 +533,14 @@ through the default one:
   an id never given, or closed long before, closes the node's socket with
   `1003 unknown session id` (T-421). A planned stop (Ctrl-C, SIGTERM)
   closes each reverse socket with `1012 relay restarting` first, which a
-  client tells apart from a lost link (T-255).
+  client tells apart from a lost link (T-255): after the frames that wait
+  for it, the sessions' last bytes, for 1 s at most, then before them; the
+  role then waits for each peer's answer to its Close, 3 s at most in all,
+  so that its end is no reset that can lose the Close on the peer's side.
+  A node or an operator that comes during the stop gets `503 reverse:
+  relay restarting` with `Retry-After: 1`. podssh's node says that the
+  relay is restarting and connects again at once, and each session of the
+  layer resumes once the role is back with the pairs of `--pairs FILE`.
 - The role pings each reverse socket every 20 s, and drops one that answers
   nothing for 60 s, so that a dead node's socket does not hold its name.
 - Beside the contract, a renewal (T-592): `POST /v1/renew/<name>` with the

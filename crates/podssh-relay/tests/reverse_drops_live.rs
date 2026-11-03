@@ -5,10 +5,18 @@
 //! Four pairs each hold a session, with a Ping from each end every 10 s as
 //! the runners ping, and a forward session to GitHub's SSH port is held
 //! beside them. A session that ends is opened again. Each end is printed with
-//! its UTC time, so that runs from two networks can be compared by time. The
-//! run lasts until `PODSSH_DROPS_UNTIL` (Unix seconds, at most an hour ahead)
-//! or 15 minutes. It stops its pairs, and prints no token.
+//! its UTC time, so that runs from two networks can be compared by time.
+//! Beside them, podssh's own node and a session of the layer through it say
+//! what each drop cost: the time until the node is online again, and until
+//! the session resumed (`drops_podssh`). The run lasts until
+//! `PODSSH_DROPS_UNTIL` (Unix seconds, at most an hour ahead) or 15 minutes.
+//! It stops its pairs, and prints no token. The relay is the default one, or
+//! the `HOST:PORT` of `PODSSH_LIVE_RELAY` (podssh's relay role on a runner,
+//! `scripts/relay-serve-live.sh` with `drops`), with its CA in
+//! `SSL_CERT_FILE` and its address in `PODSSH_LIVE_RELAY_ADDR`.
 #![cfg(feature = "pair")]
+
+mod drops_podssh;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -111,14 +119,30 @@ fn deadline() -> Instant {
     Instant::now() + hold
 }
 
+/// The relay of a run against podssh's own role, `HOST:PORT`; unset, the
+/// default relay.
+const LIVE_RELAY: &str = "PODSSH_LIVE_RELAY";
+
 fn relay() -> Relay {
-    Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 }
+    match std::env::var(LIVE_RELAY) {
+        Ok(named) => relay::parse_relay(&named).expect("PODSSH_LIVE_RELAY: HOST:PORT"),
+        Err(_) => Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 },
+    }
+}
+
+/// The role's CA for a run against the role, as the binary reads
+/// `SSL_CERT_FILE`; else podssh's own roots.
+fn trust() -> Trust {
+    match (std::env::var_os(LIVE_RELAY), std::env::var_os("SSL_CERT_FILE")) {
+        (Some(_), Some(file)) => Trust::File(file.into()),
+        _ => Trust::Default,
+    }
 }
 
 fn socket_config(relay: &Relay, path: String) -> WsClientConfig {
     WsClientConfig {
         endpoint: Endpoint { host: relay.host.clone(), port: relay.port, path },
-        trust: Trust::Default,
+        trust: trust(),
         server_name: relay.host.clone(),
         timeout: STEP,
         // The relay's ends are measured, not podssh's.
@@ -265,9 +289,8 @@ async fn hold(
 /// drop is seen at all.
 async fn pair_holder(index: usize, until: Instant) -> (Tally, Option<bool>) {
     let who = format!("pair {index}");
-    let relay = relay();
-    let ctx =
-        PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: STEP };
+    let (relay, trust) = (relay(), trust());
+    let ctx = PairContext { relay: &relay, trust: &trust, proxy: &ProxyChoice::FromEnvironment, timeout: STEP };
     let mut tally = Tally::default();
     let made = match pair::create(&ctx).await {
         Ok(made) => made,
@@ -326,9 +349,9 @@ async fn forward_holder(until: Instant) -> Tally {
     let who = "forward";
     let mut tally = Tally::default();
     let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
-    let relays = relay::select_relays(None, None, &pool).expect("the default relay list");
+    let relays = relay::select_relays(None, std::env::var(LIVE_RELAY).ok(), &pool).expect("the relay list");
     let path = forward_path("github.com", 22).expect("a forward path");
-    let trust = Trust::Default;
+    let trust = trust();
     while Instant::now() + REOPEN_GAP < until {
         let opened_at = Instant::now();
         let request = Request {
@@ -386,16 +409,23 @@ async fn forward_holder(until: Instant) -> Tally {
 #[ignore = "live: 15 minutes or until PODSSH_DROPS_UNTIL, against the relay"]
 async fn the_drops_of_reverse_sockets_and_of_a_forward_session() {
     let until = deadline();
+    // The role's name, as the binary takes `PODSSH_RELAY_ADDR`.
+    let pins = std::env::var("PODSSH_LIVE_RELAY_ADDR").ok().and_then(|p| podssh_ws::resolve::parse_pins(&p).ok());
+    if let Some(pins) = pins {
+        podssh_ws::resolve::set_pins(pins);
+    }
     say(
         "run",
         &format!(
-            "{PAIRS} pairs and a forward session, for {:.0} s",
+            "{PAIRS} pairs, podssh's node and a forward session through {}, for {:.0} s",
+            relay().host,
             until.saturating_duration_since(Instant::now()).as_secs_f64()
         ),
     );
     let pairs: Vec<_> = (0..PAIRS).map(|i| tokio::spawn(pair_holder(i, until))).collect();
-    // On this task: the forward opener's notes are not `Send`.
-    let forward = forward_holder(until).await;
+    // On this task: the forward opener's notes are not `Send`; podssh's
+    // node beside it.
+    let (forward, podssh) = tokio::join!(forward_holder(until), drops_podssh::hold(relay(), trust(), until, say));
     let mut reverse = Tally::default();
     let mut planted = None;
     for task in pairs {
@@ -423,6 +453,7 @@ async fn the_drops_of_reverse_sockets_and_of_a_forward_session() {
         forward.other_ends,
         forward.open_failures
     );
+    eprintln!("T-255 podssh: {}", podssh.summary());
     assert_eq!(planted, Some(true), "the planted drop of pair 0's operator was not seen by its node");
     assert!(reverse.sessions >= PAIRS as u32, "each pair holds at least one session");
     assert!(forward.sessions >= 1, "the forward path opened at least once");

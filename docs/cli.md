@@ -3641,8 +3641,11 @@ commands. The rules behind them:
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended
-  (`1011 node disconnected`), and that a new session may work: the node
-  connects again by itself. `operator` exits 69.
+  (`1011 node disconnected`), or that the relay is restarting (`1012`,
+  which `podssh relay serve` sends before a planned stop), and that a new
+  session may work: the node connects again by itself, at once the first
+  time, with a line that says how its socket ended. `operator` exits 69. A
+  session of the resumable layer resumes on a new leg in each case.
 
 ## `podssh net`
 

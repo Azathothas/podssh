@@ -1,10 +1,13 @@
 name: reverse drops
 
 # T-255: how often the relay's side drops a socket of the reverse road, seen
-# from GitHub's network. Started by hand only, at the same time as a run from
+# from GitHub's network, and what each drop costs podssh's own node and a
+# session of its layer. Started by hand only, at the same time as a run from
 # another network and with the same end time, so that the drops can be
-# compared by time. The test makes pairs on the live relay and stops them at
-# the end; it prints no token.
+# compared by time. With `relay: role`, the run goes through podssh's own
+# relay role on this runner (`scripts/relay-serve-live.sh` with `drops`),
+# where a drop with no Close is the path's. The test makes pairs on the relay
+# and stops them at the end; it prints no token.
 
 on:
   workflow_dispatch:
@@ -12,6 +15,14 @@ on:
       until:
         description: "The end of the run, in Unix seconds (at most an hour ahead)"
         required: true
+      relay:
+        description: "The default relay, or podssh's relay role on the runner"
+        required: true
+        type: choice
+        default: default
+        options:
+          - default
+          - role
 
 permissions:
   contents: read
@@ -23,15 +34,27 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The inputs reach the shell through the environment, and only a word
+      # of the list runs.
       - name: build the test
         env:
           CARGO_BUILD_JOBS: "4"
-        run: cargo test --locked -p podssh-relay --features pair --test reverse_drops_live --no-run
+          RELAY: ${{ inputs.relay }}
+        run: |
+          case "$RELAY" in
+            default) ;;
+            role) cargo build --locked -p podssh-cli ;;
+            *) echo "not a relay of the list: $RELAY" >&2; exit 2 ;;
+          esac
+          cargo test --locked -p podssh-relay --features pair --test reverse_drops_live --no-run
 
-      # The input reaches the test through the environment, never through
-      # the shell's text.
       - name: the drops of reverse sockets, live
         env:
           CARGO_BUILD_JOBS: "4"
           PODSSH_DROPS_UNTIL: ${{ inputs.until }}
-        run: cargo test --locked -p podssh-relay --features pair --test reverse_drops_live -- --ignored --nocapture
+          RELAY: ${{ inputs.relay }}
+        run: |
+          case "$RELAY" in
+            role) sh scripts/relay-serve-live.sh target/debug/podssh drops ;;
+            *) cargo test --locked -p podssh-relay --features pair --test reverse_drops_live -- --ignored --nocapture ;;
+          esac

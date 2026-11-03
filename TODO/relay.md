@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:346-355`).
+   and above all not the `stop_token` (`docs/reverse.md:358-367`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -538,7 +538,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    limit of the relay, which would change what is measured.
 3. The test talks to the relay with `podssh_ws::connect` and the codecs of
    `podssh_relay::reverse`, not with the runners: the node runner pings every 10 s
-   (`docs/reverse.md:37-45`), which would hide run (a).
+   (`docs/reverse.md:37-47`), which would hide run (a).
 4. The time of a close counts from the session's `ready`, about 0.2 s before the first byte each
    way, which is the last payload of runs (a) and (b).
 5. The control asserts; runs (a) and (b) print what they measured, as either answer is a result.
@@ -1249,7 +1249,7 @@ which waits until podssh is stable (Q88; Decision 6).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1270,7 +1270,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:306`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:307`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -1306,6 +1306,49 @@ Read: on the forward path, keepalives every 60 s kept one session for 602 s
 5. The workflow `.github/workflows/reverse-drops.yml` runs only by hand, and takes the end time as
    an input, through the environment. Both runs end at the same time; the overlap is the
    comparison.
+
+2026-11-03, the drafting agent, for the new Approach of the Correction below:
+
+6. The grace: a planned stop queues `1012 relay restarting` after the frames that wait for each
+   socket, and waits 1 s (`STOP_GRACE`) for the writers; a socket that has not taken them by then
+   gets it before them; the whole wait is the caller's limit (3 s in `relay serve`). Lost: the
+   Close before what waits, as T-427 sent it (the sessions' last bytes are dropped, which a
+   session of `--plain` loses for good); the whole limit for the queue (a slow peer then holds
+   the stop, and gets no Close at all).
+7. The role ends no socket before its peer answered the Close (RFC 6455, section 7.1.1): a
+   second count of `outbox::Writers`, `Pairs::live`, holds each socket's own task, and the stop
+   waits for it within the same limit. Lost: an end once each Close went out, as before (the
+   runtime's end then resets each connection that still has bytes in its queue, and a peer whose
+   system drops what it received at a reset, as Windows does, never reads the Close).
+8. A node or an operator that comes during the stop gets `503 reverse: relay restarting` with
+   `Retry-After: 1`, while `restart` runs only (a guard that its end, or its drop, lifts). Lost:
+   no refusal (such a socket is cut with no Close when the process ends); a refusal for good (the
+   role behind a quick tunnel, and the tests' role, go on after a `restart`).
+9. The node's first try after a socket that served goes at once, and once each 10 s at most
+   (`AT_ONCE_EVERY`), after any end that a reconnection answers: a restart, a drop, a fault of
+   one frame (T-421 asks the same for a fault). "Served" is a socket whose upgrade succeeded.
+   Lost: at once after a `1012` alone (a drop is no overload either); at once each time (a relay
+   that takes each socket and drops it would get a loop of connections); a least time that the
+   socket served (a socket of T-421's case can have served for less).
+10. The node says how each socket that served ended, and when it connects again ("at once", or
+    the wait): the relay restarting, a link with no Close, a fault of its bytes, another close.
+    The fault's line keeps its words before "; connecting again". Lost: a line for `1012` alone
+    (the drops of this entry then stay silent at the node, which only said `online again`).
+11. The node's socket returns at once after the relay's Close or a broken link; its writer is
+    waited for only after a stop of the caller's, whose last frames it sends. Lost: the wait of
+    up to 5 s for each session's task, as before, which held the node's try after a `1012`.
+12. The offline test keeps the role's listener across the restart, as a socket that a service
+    manager holds, so that the node's first try waits in its queue for the role that comes back
+    with the same file of pairs. Lost: a new bind of the same port (the first try may meet a
+    refusal and its backoff, which hides "at once", and a port can be held by its old
+    connections).
+13. "At once" is checked by the node's line, which the same call that decides it writes, and by
+    the time to `online again` under 1 s, a loose bound. Lost: a bound under the backoff's floor
+    of 500 ms alone (it catches the plant by time, and can fail on a loaded host).
+14. The live run takes podssh's own node and a session of the layer beside the raw sockets
+    (`crates/podssh-relay/tests/drops_podssh/mod.rs`), on the test's task with the forward holder,
+    and the relay of `PODSSH_LIVE_RELAY`, so that `scripts/relay-serve-live.sh` with `drops` runs
+    it through the role on a runner; `reverse-drops.yml` takes `relay: default` or `role`.
 
 ## Prove
 
@@ -1366,7 +1409,7 @@ What the client does (the research of 2026-11-02 on the client's side): measure 
 only paired run is of 2026-10-09 and the relay's platform may have changed since; test the
 inference of T-336 that memory causes the drops, beside a slow reader; and count what a drop
 costs. A node's first connection again after a socket that served goes at once, not after
-`backoff(1)` (`crates/podssh-relay/src/reverse/node.rs:255`). Since T-379 each resume races the
+`backoff(1)` (`crates/podssh-relay/src/reverse/node.rs`, line 255 at `d262613`). Since T-379 each resume races the
 roads again (`crates/podssh-cli/src/ssh/roads.rs:1-14`), so a drop of the pair's socket can cost
 a resume on the iroh or the DERP road, not a cut.
 
@@ -1400,6 +1443,94 @@ sessions resume with equal digests. Planted: the Close skipped; the test fails. 
 Prove above, from a session's host and a runner at the same end time, against the default relay
 and against `podssh relay serve`; a live run of more than 5 minutes waits for the release checks
 (T-446).
+
+2026-11-03 (the drafting agent). Read, at `d262613`: T-427 sends `1012 relay restarting`
+already, at Ctrl-C and SIGTERM of `podssh relay serve` and of the quick tunnel's node, but
+before what waits for each socket (`Outbox::abort` in `Pairs::restart`,
+`crates/podssh-relay/src/serve/reverse/pairs.rs`), and the role ends once each Close went out,
+not once each peer answered it; a socket that comes during the stop joins. The node's try after
+a socket that served still waits `backoff(1)` (`Next::Reconnect` in `run`,
+`crates/podssh-relay/src/reverse/node.rs`), and its socket waits up to 5 s for its writer after
+the relay's Close (`crates/podssh-relay/src/reverse/serve.rs`). So items 1 and 2 of the new
+Approach are the grace, the wait for each answer, the refusal during the stop and the node's try
+at once; item 3 needs podssh's own node in the live run for item 4, and a run through the role.
+
+The new Prove's first command builds nothing with `--features pair`: the role and the plain
+`ws://` of the loopback are the features `serve` and `plain-ws`, as for the role's other tests.
+The Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test reverse_restart --test relay_serve_contract --test relay_serve_reverse
+cargo test -p podssh-relay --features serve --lib serve::reverse
+cargo test -p podssh-relay --features pair --lib reverse::node
+cargo test -p podssh-cli --lib pairs
+cargo test -p podssh-relay --features pair --test reverse_drops_live -- --ignored --nocapture   # live, about 16 min
+```
+
+Offline as above; planted, each of `scripts/plants/t255-*.plant` fails its test. Live, the last
+command, from a session's host and with `reverse-drops.yml` at the same end time, against the
+default relay twice (alone, and beside `live_backpressure.rs`), then with `relay: role`; its last
+line, `T-255 podssh: ...`, gives the time until the node was online again and until the session
+resumed, for each drop.
+
+## Done
+
+2026-11-03, drafted by an agent (`8f09eb3`), merged and built by the main session. Its new test
+of the restart found a defect of the operator's leg that the draft could not see: a Close of the
+relay that crossed a send that failed was said as `1006 the relay connection broke`, so a planned
+stop read as a lost link in 4 runs of 6. The leg now reads, for 500 ms, a Close that came before
+the link ended (`broken` in `crates/podssh-relay/src/reverse/operator.rs`); the test passed 20 runs
+of 20 after it, and 40 of 40 in all.
+
+- podssh's relay role (`crates/podssh-relay/src/serve/reverse/pairs.rs`, `Pairs::restart`): a
+  planned stop queues `1012 relay restarting` after what waits for each socket, waits 1 s
+  (`STOP_GRACE` of `crates/podssh-relay/src/serve/reverse/mod.rs`), then sends it before what
+  still waits, to each socket again; then it waits for each socket's own task, which ends at its
+  peer's answer (`Pairs::live`, a second count of `Writers` in
+  `crates/podssh-relay/src/serve/reverse/outbox.rs`, held by the node's socket and each
+  operator's leg). While it runs, `/v1/node/` and `/v1/connect/` answer `503 reverse: relay
+  restarting` with `Retry-After: 1`. `podssh relay serve` and the quick tunnel's node call it as
+  before, with their limit of 3 s.
+- The node (`crates/podssh-relay/src/reverse/node.rs`): `again_at_once` and `ended_words`; the
+  first try after a socket that served goes at once, once each 10 s at most, and each socket's
+  end is a line with the wait (T-421's second item too). Its socket returns at once after the
+  relay's Close or a broken link (`crates/podssh-relay/src/reverse/serve.rs`).
+- `podssh operator` and `podssh ssh node://` name a `1012` (`session_end` of
+  `crates/podssh-cli/src/pairs.rs`).
+- Tests: `crates/podssh-relay/tests/reverse_restart.rs` (new): podssh's node and two sessions of
+  the layer through the role, 2 MiB each way, the role stopped as at SIGTERM after the first
+  half, and started again on its listener with its file of pairs: UNVERIFIED. Unit tests: the
+  waiting frames before the `1012`, and a socket that took nothing past the grace
+  (`pairs_tests.rs`); a join during the stop (`serve/reverse/mod.rs`); the try at once and the
+  words of each end (`reverse/node.rs`); the words of a `1012` (`pairs.rs`): UNVERIFIED. The
+  test of the planned stop in `relay_serve_contract.rs` reads both Closes while the stop runs, as
+  the stop waits for their answers.
+- The gate runs `--test reverse_restart` beside the role's other tests (`scripts/gate.sh`).
+- The live run: `reverse_drops_live.rs` with podssh's own node and session
+  (`crates/podssh-relay/tests/drops_podssh/mod.rs`) and the relay of `PODSSH_LIVE_RELAY`;
+  `scripts/relay-serve-live.sh PODSSH drops`; `reverse-drops.yml` with `relay: role`.
+- The manual (`notes_pair.rs`, `notes_relay.rs`), `docs/relay.md`, `docs/reverse.md`,
+  `docs/cli.md`, `docs/relay-operator.md` (item 2) and `docs/STATUS.md`.
+
+Results, 2026-11-03:
+
+- `cargo test -p podssh-relay --features serve,plain-ws --test reverse_restart --test
+  relay_serve_contract --test relay_serve_reverse`: 1, 13 and 4 passed; the node online again
+  within the test's bound of "at once" after its line of the restart.
+- `cargo test -p podssh-relay --features serve --lib serve::reverse`: 15 passed; `--features pair
+  --lib reverse::node`: 2 passed; `cargo test -p podssh-cli --lib pairs`: 5 passed.
+- The relay crate's targets of the reverse road, the channel and the pairs (`reverse_*`, `e2e*`,
+  `pair*`, `relay_serve_*`), each passed after the repair of the leg; `-p podssh-cli --test
+  relay_serve` 14, `--test relay_serve_node` 5, `--test operator` 12.
+- `cargo clippy --locked --all-targets -p podssh-relay --features serve,plain-ws,quick,pair,grant
+  -- -D warnings`, `-p podssh-cli`, and `cargo fmt --check`: clean.
+- The plants `t255-close-skipped`, `t255-no-grace`, `t255-no-abort`, `t255-joins-during-stop`
+  (its patch made again over T-226's guard beside it), `t255-backoff-back` and
+  `t255-restart-words` (`sh scripts/plant-each.sh --here ID`): 6 caught.
+Waits (Q88; a live run of more than 5 minutes, with the release checks, T-446): from a session's
+host and `reverse-drops.yml` at the same end time, twice against the default relay, then with
+`relay: role`, the rate and the place of the drops, and their cost.
 
 # T-274: On Windows, the owner and the writers of a private file are not checked
 
@@ -2063,8 +2194,8 @@ relay's operator has no way to move the binaries in the field to another deploym
   in regions of AWS, GCP and Azure, each a name of the same domain (`:30-68`). Inferred: each is a
   placement of the same Worker.
 - Read: the pairs of the reverse road live on the control host alone
-  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:460-465`). The audit cited
-  `docs/relay.md:452-457`; the fact is at `:460-465`.
+  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:465-470`). The audit cited
+  `docs/relay.md:457-462`; the fact is at `:465-470`.
 - Read: a release binary is uploaded or copied into its host, which cannot build it or download
   it (Q48, `docs/decisions.md:56`); a machine keeps one token for each deployment, and podssh
   "never sends a token to a deployment that did not mint it" (`docs/decisions.md:95`).
@@ -2286,7 +2417,7 @@ already tells the two apart (`scripts/fake_reverse.py:286-298`), with a grace of
 What the client does (the research of 2026-11-02 on the client's side), where the default
 deployment still closes the socket: make the cut cheap. A 1003 is no exit since T-409, and the
 operator's layer resumes since T-410; but the node's first connection again after a fault waits
-`backoff(1)`, 0.5 s to 1.5 s (`crates/podssh-relay/src/reverse/node.rs:255`), though a 1003 is no
+`backoff(1)`, 0.5 s to 1.5 s (`crates/podssh-relay/src/reverse/node.rs`, line 255 at `d262613`), though a 1003 is no
 overload. Since T-379 a resume can land on the iroh or the DERP road
 (`crates/podssh-cli/src/ssh/roads.rs:1-14`). The sessions of `node --plain` end with the socket,
 and nothing says so.

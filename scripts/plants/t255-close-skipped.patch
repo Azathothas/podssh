@@ -1,0 +1,20 @@
+--- a/crates/podssh-relay/src/serve/reverse/stop.rs
++++ b/crates/podssh-relay/src/serve/reverse/stop.rs
+@@ -35,16 +35,7 @@ impl Pairs {
+     pub(super) async fn restart_with(&self, grace: Duration, limit: Duration) -> bool {
+         let until = Instant::now() + limit;
+         let _held = self.hold_joins();
+-        for socket in self.sockets() {
+-            socket.close(super::super::RESTART, super::super::RESTARTING);
+-        }
+-        if !self.writers.settled(grace).await {
+-            // Each socket again, so that one that joined as the stop began
+-            // hears it too.
+-            for socket in self.sockets() {
+-                socket.abort(super::super::RESTART, super::super::RESTARTING);
+-            }
+-        }
++        let _ = grace;
+         let left = || until.saturating_duration_since(Instant::now());
+         self.writers.settled(left()).await && self.live.settled(left()).await
+     }

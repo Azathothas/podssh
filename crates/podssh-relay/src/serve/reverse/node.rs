@@ -110,6 +110,8 @@ async fn socket<S>(session: Arc<RelaySession<S>>, outbox: Outbox, pair: Arc<Pair
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
+    // Until the node answered a Close: a planned stop waits for it (T-255).
+    let _live = cfg.pairs.live.counted();
     outbox.text(hello());
     cfg.event("reverse node");
 

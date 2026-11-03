@@ -1,0 +1,9 @@
+# T-255: a planned stop of podssh's relay role that sends no Close, so that
+# each node and each operator sees its link end with none, as a drop; the
+# test of the stop during two sessions of the layer, whose first legs must
+# end with 1012 and whose node must say that the relay is restarting, must
+# fail.
+ENTRY=T-255
+GROUP=resume
+EXPECT='test a_planned_stop_closes_each_socket_with_1012_and_the_sessions_resume_on_the_role_again \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test reverse_restart'

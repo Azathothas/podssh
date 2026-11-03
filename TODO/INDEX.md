@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**579 entries: 100 open, 3 partial, 2 blocked, 474 done.**
+**579 entries: 99 open, 3 partial, 2 blocked, 475 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 31 | 2 | 0 | 231 | 264 |
+| P2 | 30 | 2 | 0 | 232 | 264 |
 | P3 | 69 | 0 | 2 | 179 | 250 |
-| **All** | 100 | 3 | 2 | 474 | 579 |
+| **All** | 99 | 3 | 2 | 475 | 579 |
 
 ## Entries
 
@@ -327,7 +327,7 @@ repository and CI).
 | [T-252](irc.md) | P2 | M | M8 | feature | done | `podssh chat --irc`: IRC as a second transport for chat |
 | [T-253](relay.md) | P2 | M | M10 | defect | partial | The relay's egress reaches no IPv6 host |
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
-| [T-255](relay.md) | P2 | M | M10 | measurement | open | The relay's side drops reverse sockets at random, with no Close |
+| [T-255](relay.md) | P2 | M | M10 | measurement | done | The relay's side drops reverse sockets at random, with no Close |
 | [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
 | [T-257](ssh.md) | P2 | M | backlog | defect | done | An RSA user key signs through the `rsa` crate, which is open to a timing attack |
 | [T-258](repo.md) | P3 | S | none | defect | done | Line numbers written as plain text in the record are not moved |

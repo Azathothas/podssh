@@ -40,7 +40,7 @@ show this defect.
 
 Read: the contract sends control as text, and data as binary frames that start with 32 hex
 characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141`,
-`docs/relay.md:446-455`). A prefix that is not hex closes the node with `1003 bad multiplex id`
+`docs/relay.md:451-460`). A prefix that is not hex closes the node with `1003 bad multiplex id`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:176`).
 
 ## Approach
@@ -150,7 +150,7 @@ Read, a related gap that the former defects page did not list: `Classified::mess
 for a matched row, never the received reason (crates/podssh-transport/src/closes.rs at `e8bbd4d` lines
 119-150). The test that says the reason survives only checks that the message is not empty
 (crates/podssh-transport/tests/closes.rs at `e8bbd4d` lines 255-258). The rules want the code and the reason
-(`docs/relay.md:378-386`, `docs/reverse.md:338-340`).
+(`docs/relay.md:378-386`, `docs/reverse.md:346-348`).
 
 ## Approach
 
@@ -398,7 +398,7 @@ flow control that podssh uses (`docs/relay.md:394-396`).
 1. Delete crates/podssh-transport/src/backpressure/mod.rs at `e8bbd4d`, `ledger.rs`, both test files, and the
    lines crates/podssh-transport/src/lib.rs line 34 at `e8bbd4d` and line 52.
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
-   and the relay's caps (`docs/reverse.md:93-99`), not with a ledger.
+   and the relay's caps (`docs/reverse.md:101-107`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
 4. Update the line counts of the crate in `docs/STATUS.md` (line 215 at `e8bbd4d`), and close this
    entry in place.
@@ -475,8 +475,8 @@ Read: the contract: `403 missing or wrong token` needs a new token; a `403` that
 is a policy refusal; `503` means that the relay does not issue or check tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:297-300`). On
 the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:360-362`),
-also after `POST /v1/stop` (`docs/reverse.md:351-353`). A `409` from `/v1/pair` means "pair again"
-(`docs/relay.md:427-429`); a `409` on `/v1/node/<name>` means "exit" (docs/reverse.md, line 19 at `fb228e9`; since T-261, only at a node's first registration).
+also after `POST /v1/stop` (`docs/reverse.md:363-365`). A `409` from `/v1/pair` means "pair again"
+(`docs/relay.md:432-434`); a `409` on `/v1/node/<name>` means "exit" (docs/reverse.md, line 19 at `fb228e9`; since T-261, only at a node's first registration).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
 `403` for a cached token that is not a policy refusal (`crates/podssh-relay/src/open.rs` lines
@@ -700,7 +700,7 @@ Read: `Backoff` doubles from 1 s to 30 s with no jitter (crates/podssh-transport
 lines 15-17, lines 51-55). It is exported at crates/podssh-transport/src/lib.rs line 51 at `e8bbd4d` and used only by
 crates/podssh-transport/tests/closes.rs lines 354-391 at `e8bbd4d`.
 
-Read: a node connects again "with a jittered backoff" (`docs/reverse.md:37-45`,
+Read: a node connects again "with a jittered backoff" (`docs/reverse.md:37-47`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
 by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:390-404`); `podssh ssh` uses
 it (`crates/podssh-cli/src/ssh/transport.rs:290-296`).
@@ -746,7 +746,7 @@ test -p podssh-relay` since.
 2026-10-09, with T-082, in the commit "The codecs of the reverse road in podssh-relay".
 
 - The trait `Transport`, `target_for`, `backoff.rs` and its two tests went with the crate. The
-  node runner waits with `podssh_relay::open::backoff` (`crates/podssh-relay/src/reverse/node.rs:252-258`).
+  node runner waits with `podssh_relay::open::backoff` (`crates/podssh-relay/src/reverse/node.rs:291-311`).
 - Step 1 said to keep `Control`, `LegShape` and `Limits` for `socket.rs`. They went with it: no runner
   used that layer (T-082, Decision 2). The runners read `control::NodeInbound` and keep
   `control::NodeLimits`.

@@ -1,0 +1,8 @@
+# T-255: a planned stop that sends its 1012 before the frames that wait for
+# a socket, which drops the sessions' last bytes, as the role's stop did
+# before; the test of the stop, whose socket must get each waiting frame in
+# order and then the Close, must fail.
+ENTRY=T-255
+GROUP=resume
+EXPECT='test serve::reverse::pairs::tests::a_planned_stop_sends_what_waits_then_its_1012 \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib serve::reverse::pairs'

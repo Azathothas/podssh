@@ -807,7 +807,7 @@ always runs the layer. The flag's row, the manual's note of `node`,
 
 The relay cuts a connection after 180 s with no payload, and its empty
 keepalive frames do not count (`docs/relay.md:217-218`, `docs/relay.md:306`). A
-reverse socket gets no keepalive at all (`docs/reverse.md:37-45`). SSH's own
+reverse socket gets no keepalive at all (`docs/reverse.md:37-47`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
