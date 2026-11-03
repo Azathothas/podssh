@@ -45,6 +45,7 @@ pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
         (args.iroh_relay.is_some(), "--iroh-relay"),
         (args.derp, "--derp"),
         (args.derp_server.is_some(), "--derp-server"),
+        (args.opentunnel, "--opentunnel"),
         (args.quick_tunnel, "--quick-tunnel"),
         (args.warp, "--warp"),
         (args.relay, "--relay"),

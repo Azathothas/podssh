@@ -1,10 +1,16 @@
 //! A link of `podssh ssh node://NAME` on any of its roads (`super::roads`):
 //! one type for the race and the resumable layer above it, whichever road
-//! won. Apart from `roads.rs`, for the length of that file.
+//! won; and the words of a race's end. Apart from `roads.rs`, for the length
+//! of that file.
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use std::time::Duration;
+
+use podssh_relay::session::client;
+use podssh_relay::session::race::WonAt;
+use podssh_ssh::Log;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 
 /// A link on any road.
@@ -15,6 +21,7 @@ pub enum Road {
     Derp(podssh_relay::derp::Link),
     Transit(podssh_relay::transit::Link),
     Piping(podssh_relay::piping::Link),
+    OpenTunnel(podssh_relay::opentunnel::client::Link),
     /// A WebSocket to a node's quick tunnel, of its record (T-445), which a
     /// build with the iroh road reads.
     #[cfg(feature = "iroh")]
@@ -30,6 +37,7 @@ impl AsyncRead for Road {
             Road::Derp(link) => Pin::new(link).poll_read(cx, buf),
             Road::Transit(link) => Pin::new(link).poll_read(cx, buf),
             Road::Piping(link) => Pin::new(link).poll_read(cx, buf),
+            Road::OpenTunnel(link) => Pin::new(link).poll_read(cx, buf),
             #[cfg(feature = "iroh")]
             Road::Tunnel(link) => Pin::new(link).poll_read(cx, buf),
         }
@@ -45,6 +53,7 @@ impl AsyncWrite for Road {
             Road::Derp(link) => Pin::new(link).poll_write(cx, buf),
             Road::Transit(link) => Pin::new(link).poll_write(cx, buf),
             Road::Piping(link) => Pin::new(link).poll_write(cx, buf),
+            Road::OpenTunnel(link) => Pin::new(link).poll_write(cx, buf),
             #[cfg(feature = "iroh")]
             Road::Tunnel(link) => Pin::new(link).poll_write(cx, buf),
         }
@@ -58,6 +67,7 @@ impl AsyncWrite for Road {
             Road::Derp(link) => Pin::new(link).poll_flush(cx),
             Road::Transit(link) => Pin::new(link).poll_flush(cx),
             Road::Piping(link) => Pin::new(link).poll_flush(cx),
+            Road::OpenTunnel(link) => Pin::new(link).poll_flush(cx),
             #[cfg(feature = "iroh")]
             Road::Tunnel(link) => Pin::new(link).poll_flush(cx),
         }
@@ -71,6 +81,7 @@ impl AsyncWrite for Road {
             Road::Derp(link) => Pin::new(link).poll_shutdown(cx),
             Road::Transit(link) => Pin::new(link).poll_shutdown(cx),
             Road::Piping(link) => Pin::new(link).poll_shutdown(cx),
+            Road::OpenTunnel(link) => Pin::new(link).poll_shutdown(cx),
             #[cfg(feature = "iroh")]
             Road::Tunnel(link) => Pin::new(link).poll_shutdown(cx),
         }
@@ -85,6 +96,7 @@ pub(crate) enum Kind {
     Derp,
     Transit,
     Piping,
+    OpenTunnel,
     /// A road of the node's record, by its name.
     Record(&'static str),
 }
@@ -98,6 +110,27 @@ impl Kind {
             Kind::Derp => "the DERP road",
             Kind::Transit => "the transit road",
             Kind::Piping => "the Piping Server road",
+            Kind::OpenTunnel => "the OpenTunnel road",
         }
     }
+}
+
+/// Each road's reason, in the order of the race.
+pub(super) fn lost_words(kinds: &[Kind], lost: &[String]) -> String {
+    let each: Vec<String> = kinds.iter().zip(lost).map(|(kind, why)| format!("{}: {why}", kind.name())).collect();
+    each.join("; ")
+}
+
+/// The winner's link, with the bytes that the race read given back first,
+/// and a line with `-v`.
+pub(super) fn winner(
+    won: WonAt<Road>,
+    took: Duration,
+    kinds: &[Kind],
+    shown: &str,
+    log: &Log,
+) -> client::Rewound<Road> {
+    let road = kinds.get(won.at).map_or("a road", |kind| kind.name());
+    log.verbose(&format!("{shown}: {road} answered first, in {} ms", took.as_millis()));
+    won.link.rewound()
 }

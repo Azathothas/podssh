@@ -13,8 +13,14 @@ use super::{row, FlagKind, FlagRow};
 /// `ssh`'s flags of a service (T-393), beside the node's of this table.
 pub const SSH_INSTALL: FlagRow = row(None, "install", Some("NAME"), FlagKind::Supported,
     "make this tunnel, with -N and --persist, a service of this user named NAME, which starts it again whenever it ends: the ways of podssh node --install, with these words but --install NAME", None);
-pub const SSH_UNINSTALL: FlagRow = row(None, "uninstall", Some("NAME"), FlagKind::Supported,
-    "remove the service that --install NAME made, its file of variables and its lock, and nothing else", None);
+pub const SSH_UNINSTALL: FlagRow = row(
+    None,
+    "uninstall",
+    Some("NAME"),
+    FlagKind::Supported,
+    "remove the service that --install NAME made, its file of variables and its lock, and nothing else",
+    None,
+);
 pub const SSH_ENV_FILE: FlagRow = row(None, "env-file", Some("FILE"), FlagKind::Supported,
     "read the variables of FILE, a private file of NAME=VALUE lines, before anything else, and hold FILE.lock while it runs, so that a second start ends at once: the file that --install writes", None);
 
@@ -29,16 +35,40 @@ pub const EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
 pub const PROXY_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
     "carry the pipe from NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay: it dials HOST PORT from its own host", None);
 /// `--client-key FILE` of `proxy`, for its exit and for a node (T-587).
-pub const PROXY_CLIENT_KEY: FlagRow = row(None, "client-key", Some("FILE"), FlagKind::Supported,
-    "with --exit, and node://NAME: this client's key in FILE, made when missing (default: client.key in the cache)", None);
+pub const PROXY_CLIENT_KEY: FlagRow = row(
+    None,
+    "client-key",
+    Some("FILE"),
+    FlagKind::Supported,
+    "with --exit, and node://NAME: this client's key in FILE, made when missing (default: client.key in the cache)",
+    None,
+);
 /// The flags of a pair and of its channel, of `proxy node://NAME` (T-587),
 /// as `operator` has them.
-pub const PROXY_PAIR_FILE: FlagRow = row(None, "pair-file", Some("FILE"), FlagKind::Supported,
-    "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None);
-pub const PROXY_NODE_KEY: FlagRow = row(None, "node-key", Some("KEY"), FlagKind::Supported,
-    "node://NAME: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None);
-pub const PROXY_NO_E2E: FlagRow = row(None, "no-e2e", None, FlagKind::Supported,
-    "node://NAME: no end-to-end channel, to a node that runs none either; the relay then sees each byte", None);
+pub const PROXY_PAIR_FILE: FlagRow = row(
+    None,
+    "pair-file",
+    Some("FILE"),
+    FlagKind::Supported,
+    "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME",
+    None,
+);
+pub const PROXY_NODE_KEY: FlagRow = row(
+    None,
+    "node-key",
+    Some("KEY"),
+    FlagKind::Supported,
+    "node://NAME: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes",
+    None,
+);
+pub const PROXY_NO_E2E: FlagRow = row(
+    None,
+    "no-e2e",
+    None,
+    FlagKind::Supported,
+    "node://NAME: no end-to-end channel, to a node that runs none either; the relay then sees each byte",
+    None,
+);
 pub const PROXY_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
     "node://NAME: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
 /// `--exit NAME` of `pipe`.
@@ -99,7 +129,7 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or proxy, ssh, cp, scp or sftp --carrier to node://NAME; stdin may not be a terminal", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
-    super::derp::NODE_DERP,
+    super::derp::NODE_DERP, super::opentunnel::NODE_OPENTUNNEL,
     row(None, "quick-tunnel", None, FlagKind::Supported,
         "serve TARGET at https://NAME.trycloudflare.com, a quick tunnel of Cloudflare's that podssh makes itself, with no pair and no account; the name, new each run, is the line on stdout; needs --allow, and TCP port 7844 of Cloudflare's edge, directly or through a proxy that allows it", None),
     row(None, "warp", None, FlagKind::Supported,

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 96 open, 4 partial, 16 blocked, 452 done.**
+**569 entries: 96 open, 5 partial, 16 blocked, 452 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 23 | 3 | 14 | 218 | 258 |
-| P3 | 73 | 0 | 2 | 171 | 246 |
-| **All** | 96 | 4 | 16 | 452 | 568 |
+| P2 | 22 | 4 | 14 | 218 | 258 |
+| P3 | 74 | 0 | 2 | 171 | 247 |
+| **All** | 96 | 5 | 16 | 452 | 569 |
 
 ## Entries
 
@@ -578,7 +578,7 @@ repository and CI).
 | [T-511](machine.md) | P3 | M | none | feature | done | `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them |
 | [T-512](cli.md) | P3 | S | none | docs | done | The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal |
 | [T-530](mesh.md) | P2 | L | M10 | feature | partial | OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road |
-| [T-531](mesh.md) | P2 | M | M10 | feature | open | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
+| [T-531](mesh.md) | P2 | M | M10 | feature | partial | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
 | [T-532](mesh.md) | P3 | M | M10 | feature | open | `podssh funnel` through OpenTunnel, with TLS that ends at the node |
 | [T-533](mesh.md) | P3 | S | M10 | docs | done | The manual says which public services podssh tries last, and which it never names |
 | [T-534](mesh.md) | P2 | M | M10 | feature | open | Tailscale's main DERP fleet after tailcat's: a short test that it lets podssh in, then the fallback |
@@ -644,3 +644,4 @@ repository and CI).
 | [T-602](mesh.md) | P2 | S | M10 | defect | done | The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control |
 | [T-603](multi.md) | P2 | S | none | defect | done | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |
 | [T-604](ws.md) | P3 | S | none | feature | open | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |
+| [T-605](mesh.md) | P3 | S | M10 | feature | open | A node's record of pkarr names its OpenTunnel name, and a member's client races it |

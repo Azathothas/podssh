@@ -23,6 +23,9 @@ pub struct NodeArgs {
     pub derp: bool,
     /// The DERP servers, in place of the variable and the fleet, unparsed.
     pub derp_server: Option<String>,
+    /// Serve the OpenTunnel road (T-531), beside the pair's road when there
+    /// is one.
+    pub opentunnel: bool,
     /// Serve a quick tunnel of Cloudflare's, with no pair (T-300).
     pub quick_tunnel: bool,
     /// Reach the quick tunnel's edge inside WARP's tunnel first (T-374).
@@ -95,6 +98,7 @@ impl NodeArgs {
             iroh: matches.get_flag("iroh"),
             derp: matches.get_flag("derp"),
             derp_server: get("derp-server"),
+            opentunnel: matches.get_flag("opentunnel"),
             quick_tunnel: matches.get_flag("quick-tunnel"),
             warp: matches.get_flag("warp"),
             relay: matches.get_flag("relay"),

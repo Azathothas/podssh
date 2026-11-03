@@ -116,6 +116,11 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `draft/worktree-agent-aad1db2c11baba50c` and `draft/worktree-agent-a3b8eb20dc7bccfa9` can go, as
   this session's git proxy would not delete them.
 
+  On 2026-11-03 an agent drafted OpenTunnel's road, unbuilt, one commit each, on the local branch
+  `worktree-agent-a4dfa636922e7501f`: T-530 (the link in `podssh-relay`, its stand-in server and
+  `opentunnel-interop.yml`) and T-531 (the command line, `doctor`, `opentunnel-live.yml`), each
+  partial with UNVERIFIED in its Done; T-531 filed T-605. They wait for the merge, in that order.
+
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them). At `d0dbb59` (run
@@ -159,7 +164,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 568 entries: 96 open, 4 partial, 16 blocked, 452 done.
+`TODO/INDEX.md` holds 569 entries: 96 open, 5 partial, 16 blocked, 452 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

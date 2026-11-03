@@ -84,6 +84,9 @@ pub struct SshArgs {
     /// For `derp:TICKET` and `node://NAME`: the DERP servers after the
     /// ticket's, unparsed.
     pub derp_server: Option<String>,
+    /// For `node://NAME`: the node's name at OpenTunnel, to race with the
+    /// pair (T-531), unparsed.
+    pub opentunnel_name: Option<String>,
     /// For `node://NAME`: `--carrier ADDR`, the node at the other end of a
     /// stream that exists already, its one road (T-595), unparsed.
     pub carrier: Option<String>,
@@ -195,6 +198,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-ticket", "give one ticket"),
     ("derp-ticket", "give one ticket"),
     ("derp-server", "give the servers as one comma list"),
+    ("opentunnel-name", "give one name"),
     ("carrier", "give one stream"),
     ("persist-name", "give one name"),
     ("attach", "give one name"),
@@ -324,6 +328,7 @@ impl SshArgs {
             iroh_ticket: one("iroh-ticket"),
             derp_ticket: one("derp-ticket"),
             derp_server: one("derp-server"),
+            opentunnel_name: one("opentunnel-name"),
             carrier: one("carrier"),
             detach: flag("detach"),
             restart: flag("restart"),

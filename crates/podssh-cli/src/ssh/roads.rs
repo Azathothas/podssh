@@ -13,17 +13,18 @@
 //! PODSSH_PIPING asks for it; else, by the operator's ruling Q65, only when
 //! each road before it failed and one found the WebSocket upgrade refused.
 //! A member of the net races the roads of its record of pkarr too (T-445),
-//! after the roads of its tickets and before the transit relay's.
+//! after the roads of its tickets and before the transit relay's. The
+//! OpenTunnel road of `--opentunnel-name` (T-531) comes 250 ms after the DERP
+//! road; a name kept under NAME, only when each road before it failed (Q76).
 
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use podssh_relay::derp::Dialer;
 use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as LegOutcome, Wire};
-use podssh_relay::session::race::{in_turn, Start, WonAt, HEAD_START};
+use podssh_relay::session::race::{in_turn, Start, HEAD_START};
 use podssh_relay::session::resume::{self, Next, Note};
 use podssh_relay::session::{client, Ask, End, Ended, OsEntropy};
 use podssh_ssh::{Log, EXIT_FAILURE};
@@ -38,6 +39,7 @@ const PIPE: usize = 256 * 1024;
 
 use super::road_link::Kind;
 pub use super::road_link::Road;
+use super::road_link::{lost_words, winner};
 
 /// The roads of a run beside the pair's: the iroh road of `--iroh-ticket`,
 /// the DERP road of a ticket given or kept, the transit relay's, and the
@@ -45,6 +47,8 @@ pub use super::road_link::Road;
 pub(super) struct Raced<'a> {
     pub iroh: Option<&'a super::iroh::Race>,
     pub derp: Option<super::derp::Road>,
+    /// The OpenTunnel road of a name given or kept (T-531).
+    pub opentunnel: Option<super::opentunnel::Road>,
     pub transit: Option<podssh_ws::url::WsUrl>,
     pub piping: Option<crate::piping_road::Race>,
     /// The member's record, for the roads that no ticket gave (T-445).
@@ -61,6 +65,8 @@ struct Roads<'a> {
     pair: Option<&'a OperatorConfig<'a>>,
     /// The DERP road's dialer, and whether the user gave its ticket.
     derp: Option<(Dialer, bool)>,
+    /// The OpenTunnel road's dialer, and whether the user gave its name.
+    opentunnel: Option<(podssh_relay::opentunnel::Dialer, bool)>,
     /// The transit relay's dialer, under the pair's token (T-436).
     transit: Option<podssh_relay::transit::Dialer>,
     /// The Piping Server road's dialer, and whether the user asked for it.
@@ -95,6 +101,12 @@ impl<'a> Roads<'a> {
             let start = if *asked { Start::After(HEAD_START) } else { Start::WhenAllFailed };
             list.push((start, Box::pin(derp_link(dialer))));
             kinds.push(Kind::Derp);
+        }
+        if let Some((dialer, asked)) = &self.opentunnel {
+            // A kept name is Q76's fallback: only when each road before it failed.
+            let start = if *asked { Start::After(HEAD_START) } else { Start::WhenAllFailed };
+            list.push((start, Box::pin(async move { dialer.link().await.map(Road::OpenTunnel) })));
+            kinds.push(Kind::OpenTunnel);
         }
         // The Piping Server road that the user asked for comes 250 ms after
         // the roads before it, so before the transit relay's, whose start
@@ -140,7 +152,7 @@ impl<'a> Roads<'a> {
     /// there, and there is no DERP road or Piping Server road, whose node
     /// may come back.
     async fn ended_for_good(&self) -> bool {
-        if self.derp.is_some() || self.piping_on() || self.record.is_some() {
+        if self.derp.is_some() || self.opentunnel.is_some() || self.piping_on() || self.record.is_some() {
             return false;
         }
         let pair_done = self.pair.is_none() || self.pair_final.load(Ordering::SeqCst);
@@ -241,7 +253,10 @@ pub(super) async fn connect(
     // road or its record reaches may have none here.
     let part = match crate::pairs::operator_part(label, pair_file) {
         Ok(part) => Some(part),
-        Err(refusal) if (raced.derp.is_some() || raced.record.is_some()) && pair_file.is_none() => {
+        Err(refusal)
+            if (raced.derp.is_some() || raced.opentunnel.is_some() || raced.record.is_some())
+                && pair_file.is_none() =>
+        {
             log.verbose(&format!("{shown}: no pair's road: {}", refusal.message));
             None
         }
@@ -296,6 +311,9 @@ pub(super) async fn connect(
             Err(why) => log.verbose(&format!("{shown}: the DERP ticket could not be kept: {why}")),
         }
     }
+    // The OpenTunnel road's name, kept under the label when it was given (Q76).
+    let opentunnel =
+        raced.opentunnel.as_ref().map(|road| (super::opentunnel::dialer(road, label, trust, &log, &shown), road.asked));
     // The Piping Server road's paths come from the pair's secret (T-437).
     let piping = match (&raced.piping, &part) {
         (Some(race), Some(part)) => Some((crate::piping_road::dialer(part, race, trust, &log, &shown), race.asked)),
@@ -320,7 +338,8 @@ pub(super) async fn connect(
     };
     let (legs, pair_final) = (Mutex::new(None), AtomicBool::new(false));
     let record = raced.record.map(|ask| super::iroh::RecordRoads::new(ask, trust, &log, &shown));
-    let roads = Roads { iroh, pair: config.as_ref(), derp, transit, piping, record, refused, label, legs, pair_final };
+    let pair = config.as_ref();
+    let roads = Roads { iroh, pair, derp, opentunnel, transit, piping, record, refused, label, legs, pair_final };
     let (list, kinds) = roads.race(None);
     log.verbose(&format!("connecting to {shown}: {}", order(&kinds, &roads)));
     let first = match in_turn(list).await {
@@ -450,6 +469,9 @@ fn order(kinds: &[Kind], roads: &Roads<'_>) -> String {
                 "when each road before it failed (a kept ticket)".to_string()
             }
             (_, Kind::Transit) => "when each road before it failed (Q65)".to_string(),
+            (_, Kind::OpenTunnel) if roads.opentunnel.as_ref().is_some_and(|(_, asked)| !asked) => {
+                "when each road before it failed (a kept name, Q76)".to_string()
+            }
             (_, Kind::Record(_)) if !matches!(kinds[at - 1], Kind::Record(_)) => {
                 "when each road before it failed (the node's record of pkarr, T-445)".to_string()
             }
@@ -461,18 +483,4 @@ fn order(kinds: &[Kind], roads: &Roads<'_>) -> String {
         words.push(format!("{} {when}", kind.name()));
     }
     words.join(", ")
-}
-
-/// Each road's reason, in the order of the race.
-fn lost_words(kinds: &[Kind], lost: &[String]) -> String {
-    let each: Vec<String> = kinds.iter().zip(lost).map(|(kind, why)| format!("{}: {why}", kind.name())).collect();
-    each.join("; ")
-}
-
-/// The winner's link, with the bytes that the race read given back first,
-/// and a line with `-v`.
-fn winner(won: WonAt<Road>, took: Duration, kinds: &[Kind], shown: &str, log: &Log) -> client::Rewound<Road> {
-    let road = kinds.get(won.at).map_or("a road", |kind| kind.name());
-    log.verbose(&format!("{shown}: {road} answered first, in {} ms", took.as_millis()));
-    won.link.rewound()
 }

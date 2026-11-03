@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:375-439`).
+  row (`crates/podssh-cli/src/flags.rs:376-440`).
 - Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:107-247`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,7 +37,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:375-439`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:376-440`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-262`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:10-209`), a
    dispatch arm, and `pipe` in `DISPATCHED`
@@ -187,7 +187,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    `crates/podssh-cli/src/pipe/relay.rs:220-253`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
-   (`crates/podssh-cli/src/ssh/resolve.rs:218-222`,
+   (`crates/podssh-cli/src/ssh/resolve.rs:222-226`,
    `crates/podssh-cli/src/ssh/hop.rs:30-78`). Make
    `crates/podssh-ssh/src/run.rs:157-174` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:4366`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:4397`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:339-443` a typed error, so that 77 is not
    guessed from a message.
@@ -413,7 +413,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1045-1047`).
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
   `AGENTS.md:272-278`, `docs/architecture.md:208-223`,
-  `docs/target-environment.md:99-103`, `SECURITY.md:170-197`, `README.md:44-53`.
+  `docs/target-environment.md:99-103`, `SECURITY.md:182-209`, `README.md:44-53`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:374`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -610,9 +610,9 @@ running on the server (`docs/design.md:692-696`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:4461-4463`). After the attach, send the window size again.
+   (`docs/cli.md:4492-4494`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes_ssh.rs:4-483` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119`), `docs/design.md:692-696`,
+   (`crates/podssh-cli/src/man/notes_ssh.rs:4-484` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119`), `docs/design.md:692-696`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:24-25`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.

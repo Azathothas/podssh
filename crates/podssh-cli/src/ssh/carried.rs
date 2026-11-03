@@ -44,6 +44,7 @@ pub(super) fn flags(args: &SshArgs) -> Result<(), String> {
         (args.iroh_ticket.is_some(), "--iroh-ticket"),
         (args.derp_ticket.is_some(), "--derp-ticket"),
         (args.derp_server.is_some(), "--derp-server"),
+        (args.opentunnel_name.is_some(), "--opentunnel-name"),
         (args.forwarder.is_some(), "--forwarder"),
         (args.shadowsocks.is_some(), "--shadowsocks"),
         (args.via.is_some(), "--via"),

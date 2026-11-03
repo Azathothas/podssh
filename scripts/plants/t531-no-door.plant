@@ -1,0 +1,8 @@
+# T-531: the node of the OpenTunnel road starts with no --allow and no net
+# that names its key, so anyone who connects to its tunnel's name, which the
+# logs of Certificate Transparency show, meets the node with no door; the
+# test of its refusal against the stand-in OpenTunnel server must fail.
+ENTRY=T-531
+GROUP=cli-tests
+EXPECT='test a_node_of_the_road_with_no_door_is_refused_before_it_makes_a_tunnel \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test opentunnel_road -- a_node_of_the_road_with_no_door_is_refused_before_it_makes_a_tunnel'

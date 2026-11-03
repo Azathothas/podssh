@@ -1,0 +1,52 @@
+name: opentunnel live
+
+# The OpenTunnel road (T-530, T-531) through OpenTunnel's own service,
+# https://opentunnel.xyz, by the operator's ruling Q76: one short run from a
+# runner, as the watch of a service that publishes no limit of bytes. A node
+# makes a tunnel with a throwaway key, a client reaches it by TLS by name and
+# echoes 256 KiB, a second start keeps the tunnel, and the tunnel is deleted
+# at the end. A planted run makes the client dial a route that no bridge
+# holds, and must fail. No credential of podssh's goes to the service: the
+# tunnel's token is the service's own, in a header alone. Started by hand,
+# and each week; it publishes nothing.
+
+on:
+  schedule:
+    # Each Thursday at 06:17 UTC, off the hour.
+    - cron: "17 6 * * 4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opentunnel-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: build the test
+        run: cargo test --locked -p podssh-relay --features opentunnel --test opentunnel_live --no-run
+      - name: a short run through opentunnel.xyz
+        run: |
+          timeout 300 cargo test --locked -p podssh-relay --features opentunnel --test opentunnel_live -- \
+            --ignored --nocapture
+      # The check must see a client of a route that no bridge holds fail.
+      - name: a planted route fails it
+        env:
+          PODSSH_OPENTUNNEL_TEST_PLANT: other-route
+        run: |
+          rc=0
+          timeout 300 cargo test --locked -p podssh-relay --features opentunnel --test opentunnel_live -- \
+            --ignored || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "the check is vacuous: a route that no bridge holds passed"
+            exit 1
+          fi
+          echo "a route that no bridge holds failed (exit $rc), as it must"

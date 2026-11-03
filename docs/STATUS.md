@@ -924,7 +924,7 @@ from this cloud session's host.
 
 ## The OpenTunnel road, measured
 
-T-530 ([carriers.md](carriers.md), the reverse road, item 6): a carrier of
+T-530 and T-531 ([carriers.md](carriers.md), the reverse road, item 6): a carrier of
 the reverse road through OpenTunnel, a blind TLS tunnel with no account,
 whose client's leg is TLS by name with no upgrade. Drafted on 2026-11-03;
 the results wait for the merge.
@@ -935,6 +935,10 @@ the results wait for the merge.
 | `unreleased`: Against the stand-in server, 2026-11-03: a tunnel made and kept, 1 MiB echoed by TLS by name in the layer, a second start that binds no new CSR, the same CSR bound again, a wrong token, a route held, the limit of tunnels said at once, a CSR of other names, a bridge ended and a session resumed (`cargo test -p podssh-relay --features opentunnel --test opentunnel_link`) | UNVERIFIED |
 | `unreleased`: Against OpenTunnel's own server v0.6.1, built from its source, with MySQL 8, its local CA and squid, 2026-11-03 (`opentunnel-interop.yml`) | UNVERIFIED |
 | `unreleased`: Planted, 2026-11-03: the tunnel never kept (`scripts/plants/t530-tunnel-not-kept.plant`) | UNVERIFIED |
+| `unreleased`: The command line, 2026-11-03 (T-531): `podssh node lab TARGET --opentunnel --allow FILE` and `podssh ssh node://tester@lab --opentunnel-name NAME greet` against the stand-in, through a proxy that passes the service's names alone, with the pair's road down; a name kept and dialled once each road before it failed; `PODSSH_OPENTUNNEL=no`; a node with no door refused (64); a node with no pair and the DERP road off serving the road unasked and keeping its tunnel (`cargo test -p podssh-cli --test opentunnel_road`) | UNVERIFIED |
+| `unreleased`: The flags, the manual's notes, `doctor`'s line of the API's host, the binary's CSR of a tunnel, 2026-11-03 (`cargo test -p podssh-cli --lib`, `--test flag_table --test man_flag_parity --test doctor_jobs`) | UNVERIFIED |
+| `unreleased`: Live, short (Q76), 2026-11-03: a throwaway tunnel through `opentunnel.xyz`, 256 KiB echoed, a second start that keeps it, then deleted (`opentunnel-live.yml`, `--test opentunnel_live -- --ignored`) | UNVERIFIED (not run) |
+| `unreleased`: Planted, 2026-11-03: the node of the road started with no door (`scripts/plants/t531-no-door.plant`) | UNVERIFIED |
 
 ## The relay
 

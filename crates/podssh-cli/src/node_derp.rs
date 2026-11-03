@@ -65,8 +65,9 @@ pub(crate) fn fallback_from(value: Option<&str>) -> Result<bool, Refusal> {
     }
 }
 
-/// Whether a UDP TARGET is among the node's, which the DERP road cannot carry.
-fn has_udp(args: &NodeArgs) -> bool {
+/// Whether a UDP TARGET is among the node's, which the DERP road cannot carry,
+/// nor OpenTunnel's.
+pub(crate) fn has_udp(args: &NodeArgs) -> bool {
     args.targets.iter().any(|t| t.starts_with("udp:") || t.contains("=udp:"))
 }
 
@@ -75,7 +76,7 @@ fn has_udp(args: &NodeArgs) -> bool {
 /// that names its key, T-452), and nothing else asked of it needs the pair's
 /// road (Q50).
 pub(crate) fn unasked(args: &NodeArgs) -> Result<Option<String>, Refusal> {
-    let other = args.derp || args.iroh || args.plain || args.no_e2e;
+    let other = args.derp || args.iroh || args.plain || args.no_e2e || args.opentunnel;
     if other || args.pair_file.is_some() || has_udp(args) {
         return Ok(None);
     }
@@ -92,7 +93,7 @@ pub(crate) fn unasked(args: &NodeArgs) -> Result<Option<String>, Refusal> {
 /// Whether the net held here names the node's key as it is kept: the door
 /// of a node with no `--allow` (T-452). A flag that cannot be used is the
 /// later checks' to say.
-fn net_door(args: &NodeArgs, label: &str) -> bool {
+pub(crate) fn net_door(args: &NodeArgs, label: &str) -> bool {
     let Ok(flags) = crate::node::key_flags(args) else { return false };
     let Ok(place) = crate::channel::node_place(label, flags.key.as_deref(), flags.ephemeral) else { return false };
     matches!(door(None, &place), Ok(Door::Net(_)))
@@ -111,6 +112,12 @@ pub(crate) enum Door {
 /// names the key kept at `place`. A node with neither is refused, as before
 /// the net, as no client could come in.
 pub(crate) fn door(allow: Option<&Path>, place: &Place) -> Result<Door, Refusal> {
+    door_of("--derp", "a DERP server lets any key send to the node", allow, place)
+}
+
+/// The door of a node of the road of `flag`, which lets anyone in as
+/// `why_open` says, by [`door`]'s rule: also the OpenTunnel road's (T-531).
+pub(crate) fn door_of(flag: &str, why_open: &str, allow: Option<&Path>, place: &Place) -> Result<Door, Refusal> {
     if let Some(path) = allow {
         return Ok(Door::Allow(path.to_path_buf()));
     }
@@ -124,8 +131,8 @@ pub(crate) fn door(allow: Option<&Path>, place: &Place) -> Result<Door, Refusal>
         Err(why) => format!("the node's key: {why}"),
     };
     Err(Refusal::usage(format!(
-        "--derp needs --allow FILE, the client keys that may come in, or a key that the net held here names \
-         ({why}): a DERP server lets any key send to the node"
+        "{flag} needs --allow FILE, the client keys that may come in, or a key that the net held here names \
+         ({why}): {why_open}"
     )))
 }
 
@@ -134,6 +141,9 @@ pub(crate) fn door(allow: Option<&Path>, place: &Place) -> Result<Door, Refusal>
 pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     if args.plain {
         return Err(Refusal::usage("--plain is for the pair's road: the DERP road always runs the resumable layer"));
+    }
+    if args.opentunnel {
+        return Err(Refusal::usage("--derp and --opentunnel are two roads: give one; run a second node for the other"));
     }
     if args.no_e2e {
         return Err(Refusal::usage(
@@ -172,7 +182,8 @@ pub(crate) async fn online(
     let (home, missed) = servers::home(servers, trust, &proxy).await;
     let Some(home) = home else {
         let message = format!(
-            "no DERP server answered {} ({}); podssh doctor checks the way to them",
+            "no DERP server answered {} ({}); podssh doctor checks the way to them, and --opentunnel serves the \
+             node through OpenTunnel instead",
             servers::PROBE_PATH,
             missed.join("; ")
         );

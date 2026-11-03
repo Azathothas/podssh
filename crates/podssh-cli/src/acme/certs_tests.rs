@@ -46,6 +46,33 @@ fn a_csr_names_its_name_alone_and_its_key_signs_it() {
     assert!(verifies(public, info.raw, &request.signature_value.data), "the CSR's signature");
 }
 
+/// The CSR of an OpenTunnel tunnel (T-531): its name as the common name,
+/// and the name and its wildcard alone, as the service checks before each
+/// order.
+#[test]
+fn a_tunnel_s_csr_names_its_name_as_common_name_and_its_wildcard_and_its_key_signs_it() {
+    let (key, host) = (Key::generate().unwrap(), "abcdefghijkl.opentunnel.xyz");
+    let der = tunnel_csr(host, &key).unwrap();
+    let (rest, request) = X509CertificationRequest::from_der(&der).expect("x509-parser reads the CSR");
+    assert!(rest.is_empty());
+    let info = &request.certification_request_info;
+    let common: Vec<&str> = info.subject.iter_common_name().filter_map(|cn| cn.as_str().ok()).collect();
+    assert_eq!(common, vec![host]);
+    let mut names = Vec::new();
+    for ext in request.requested_extensions().expect("an extension request") {
+        if let ParsedExtension::SubjectAlternativeName(san) = ext {
+            names.extend(san.general_names.iter().map(|n| format!("{n:?}")));
+        }
+    }
+    let wildcard = format!("*.{host}");
+    assert_eq!(
+        names,
+        vec![format!("{:?}", GeneralName::DNSName(host)), format!("{:?}", GeneralName::DNSName(&wildcard))]
+    );
+    let public = &info.subject_pki.subject_public_key.data;
+    assert!(verifies(public, info.raw, &request.signature_value.data), "the CSR's signature");
+}
+
 #[test]
 fn the_challenge_certificate_holds_one_name_and_the_digest_of_the_key_authorization() {
     let authorization = "evaGxfADs6pSRb2LAv9IZf17Dt3juxGJ-PCt92wr-oA.cn-I_WNMClehiVp51i_0VpOENW1upEerA8sEam5hn-s";

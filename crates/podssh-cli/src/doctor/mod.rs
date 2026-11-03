@@ -32,6 +32,7 @@ pub(crate) mod clock;
 mod hop;
 // The DERP road's servers and its home (T-379).
 mod derp;
+mod opentunnel;
 // How each TLS handshake ended, and what they show together (T-487).
 mod diagnosis;
 // The forwarders of --forwarder (T-369).

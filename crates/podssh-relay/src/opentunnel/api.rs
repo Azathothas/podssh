@@ -161,6 +161,14 @@ impl Api {
         cert(&json(&response)?)
     }
 
+    /// Delete the tunnel `id`: a live test's throwaway tunnel, after its run
+    /// (T-531). A node never deletes its own: one tunnel for its life (Q76).
+    /// Retried only where it cannot have arrived, as a second would be 404.
+    pub async fn remove(&self, token: &str, id: &str) -> Result<(), ApiError> {
+        let path = format!("/api/tunnel/{}", checked_id(id)?);
+        self.send(Repeat::Once, "DELETE", &path, Some(token), b"").await.map(drop)
+    }
+
     /// Whether the API's host answers `/health`, once, with no retry: the
     /// status. `doctor` reads it, and makes no tunnel.
     pub async fn health(&self) -> Result<u16, String> {
