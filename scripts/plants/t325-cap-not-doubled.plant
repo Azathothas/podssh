@@ -1,0 +1,7 @@
+# T-325: the probe of the cap stops after its first body, so a cap of 1 MiB
+# is never met and the line says that each body passed; the test of the
+# stand-in that refuses a body of more than 1 MiB must fail.
+ENTRY=T-325
+GROUP=cli-tests
+EXPECT='test a_cap_of_1_mib_is_named_with_nginx_s_default \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test doctor_stream -- a_cap_of_1_mib_is_named_with_nginx_s_default'

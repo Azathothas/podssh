@@ -172,4 +172,5 @@ pub const RELAY: &[&str] = &[
      and the sockets of both roads are not braked, and the first refusal of an address is a line on \
      stdout.",
     super::notes_grant::RELAY,
+    super::notes_doctor::RELAY_PROBES,
 ];

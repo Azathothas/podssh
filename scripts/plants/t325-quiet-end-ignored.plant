@@ -1,0 +1,8 @@
+# T-325: the time at which a quiet stream was cut ignored, the probe's hold
+# said in its place, so a path that ends a stream quiet for 3 s reads as one
+# that ends it at the hold; the test of the stand-in that ends a quiet
+# stream at 3 s must fail.
+ENTRY=T-325
+GROUP=cli-tests
+EXPECT='test a_quiet_stream_ended_at_3_s_is_named \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test doctor_stream -- a_quiet_stream_ended_at_3_s_is_named'

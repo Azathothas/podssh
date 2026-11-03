@@ -36,7 +36,9 @@ impl Origin for Behind {
     /// TCP peer here is the edge itself.
     fn connect(&self, visitor: Option<std::net::IpAddr>) -> DuplexStream {
         let (ours, theirs) = tokio::io::duplex(PIPE);
-        tokio::spawn(super::serve_from(theirs, self.cfg.clone(), Some(self.name.clone()), visitor));
+        let served = super::serve_from(theirs, self.cfg.clone(), Some(self.name.clone()), visitor);
+        // Its `/relays.json` names the node's own limits on what it passes (T-325).
+        tokio::spawn(super::probe::behind_node(served));
         ours
     }
 }

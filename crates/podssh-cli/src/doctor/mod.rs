@@ -55,6 +55,8 @@ mod sections;
 mod shadowsocks;
 // The sshd of a roost, on this host (T-590).
 mod sshd;
+// What the path does to a stream: buffering, a cap on bodies, a quiet end (T-325).
+mod stream;
 #[cfg(feature = "tor")]
 mod tor;
 #[cfg(unix)]
@@ -99,6 +101,9 @@ pub struct DoctorArgs {
     pub quick: bool,
     /// `--jobs N`: at most N sections at once, as typed (T-511).
     pub jobs: Option<String>,
+    /// `--stream URL` and `--stream-idle SECONDS`, as typed (T-325).
+    pub stream: Option<String>,
+    pub stream_idle: Option<String>,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
@@ -145,6 +150,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         Ok(jobs) => jobs,
         Err(refusal) => return refusal.report("doctor", err),
     };
+    let stream = match stream::asked(args, &relays) {
+        Ok(asked) => asked,
+        Err(refusal) => return refusal.report("doctor", err),
+    };
     let (trust, trust_from) = match (&args.ca_file, cert_env, &settings.ca_file) {
         (Some(file), ..) => (Trust::File(file.into()), "--ca-file"),
         (None, Some(file), _) => (Trust::File(file.into()), "SSL_CERT_FILE"),
@@ -163,6 +172,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     host::check(&mut report);
     if let Some(text) = &args.hop {
         return hop::only(report, text, &trust);
+    }
+    if let stream::Asked::Only(plan) = &stream {
+        return stream::only(report, plan, &trust);
     }
     match &settings.path {
         Some(path) => report.ok("settings", format!("podssh's settings are read from {}", path.display())),
@@ -223,6 +235,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
                 links: links.as_ref(),
                 quick: args.quick,
                 jobs,
+                stream: stream.section(),
             };
             runtime.block_on(sections::network(&mut report, &checks));
             // A probe may have left a task behind (a relay leg still closing);

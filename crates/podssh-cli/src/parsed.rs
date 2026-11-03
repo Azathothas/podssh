@@ -172,6 +172,9 @@ pub enum Parsed {
         /// `--quick` and `--jobs N` (T-511).
         quick: bool,
         jobs: Option<String>,
+        /// `--stream URL` and `--stream-idle SECONDS` (T-325).
+        stream: Option<String>,
+        stream_idle: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// **`podssh ts`, and it is its own variant because it carries behaviour

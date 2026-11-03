@@ -2658,6 +2658,39 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   place), and a valid `101` after which the connection ends with no Close
   (something between drops the stream after the upgrade). A Close from the
   relay is the relay's own end, with its code and its reason.
+- **What the path does to a stream** (T-325, GitHub #54). `--stream URL`
+  checks this host, then the section `stream` alone, one connection at a
+  time, as `--hop` checks a hop alone: URL is `https://HOST[:PORT][/PATH]`
+  (TLS checked with doctor's trust) or `http://...`, through `HTTPS_PROXY`
+  as each road dials, its probes under PATH, `/v1/probe` by default, where
+  `podssh relay serve` and the quick tunnel of `podssh node --relay` serve
+  them; go-httpbin serves the same paths with `-prefix /v1/probe`. A URL
+  with a user, a password or a query is 64. The lines: `stream server`, the
+  server's own limits from `limits.probe` of its `/relays.json` (the role's,
+  or, behind a quick tunnel's node, the node's, which takes a body whole,
+  32 KiB at most, and ends an answer quiet for 60 s), so that what is met
+  below them is the path's, and a server that names none is said so;
+  `response`, 5 bytes over 2 s, which come as they are sent, at once after
+  the last (held until its end) or in parts; `request body`, 4 pieces of 1
+  KiB half a second apart, which the server says came over 1.5 s or at once;
+  `body cap`, bodies from 64 KiB, twice as big each time, to 8 MiB or the
+  server's own cap, until one does not pass, with the sizes between which
+  the cap lies and the status that refused it; `quiet stream`, a response
+  whose second byte comes `--stream-idle SECONDS` after its first (1 to
+  600, 130 by default, past Cloudflare's 125 s), and when and how it ended.
+  A size or a time that is a product's documented default gets "looks like"
+  and the product (the table of `crates/podssh-cli/src/doctor/stream/prints.rs`),
+  never a claim that it is. A path that holds a stream is `ok`, as podssh
+  works with it; a server that cannot be reached is `FAIL`; a probe that the
+  server does not serve, `????`. With `--full` (not `--quick`), the section
+  runs last among the others: the four probes at the relay that the user
+  named, and at the default relay, which serves none, a socket of its
+  reverse road alone, for a pair made for the check and stopped after it,
+  held quiet after the relay's hello; an end before the hold is the path's,
+  or the relay's own drop of a node's socket, and the line says both; a run
+  of `--full` so lasts its hold at least, and its other sections' lines come
+  first. With `--json`, each probe's line gives its numbers in `samples`,
+  which the HTTP road of T-319 is to read.
 
 ## `podssh status`
 

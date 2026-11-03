@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-cli/src/doctor/stream/mod.rs b/crates/podssh-cli/src/doctor/stream/mod.rs
+index 2ebb1aa..0059391 100644
+--- a/crates/podssh-cli/src/doctor/stream/mod.rs
++++ b/crates/podssh-cli/src/doctor/stream/mod.rs
+@@ -191,7 +191,7 @@ async fn cap(report: &mut Report<'_>, server: &Server, trust: &Trust, at: &str,
+         };
+         let passed = outcome == Outcome::Passed;
+         steps.push((size, outcome));
+-        if !passed {
++        if !passed || !steps.is_empty() {
+             break;
+         }
+     }

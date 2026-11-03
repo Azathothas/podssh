@@ -1479,7 +1479,7 @@ upgrade. The stand-in relay has two modes for them, `badaccept` and
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1513,6 +1513,49 @@ chosen by such a probe.
    contract, so that a line names the product, never as a fact: "looks like".
 4. The results go to T-319's choice of the split or the serial form.
 
+## Decision
+
+2026-11-03 (the drafting agent), each call with what lost:
+
+- **The endpoints are go-httpbin's**, `/drip` and `/anything` with their queries, under
+  `/v1/probe`, so that one client asks the role and go-httpbin (`-prefix /v1/probe`) alike; the
+  answer of `/anything` adds the time of each part, which go-httpbin's echo has not. Lost: shapes of
+  podssh's own (a second client for go-httpbin), and a response in chunked encoding, as the node of a
+  quick tunnel passes an origin's body as it comes and drops its `Transfer-Encoding`
+  (`crates/podssh-relay/src/quick/origin.rs:181`), so a visitor would read the chunks' framing.
+- **They are the role's**, and a node serves them behind its tunnel when it runs the role
+  (`--relay`), as T-428 gives each path under `/v1/` to the role; `quick/serve.rs` is unchanged.
+  Lost: the probes at the tunnel of each node, also with no `--relay`: each node would answer
+  requests that it does not need, in both serve loops (HTTP/2 and QUIC).
+- **No token**, at most 16 probes at once, and each with its bound of time and size. Lost: a relay
+  token (go-httpbin takes none, and a role of `--mint keys` would need the client's key on its list
+  to be measured); the brake, which counts the mints and pairs of the contract.
+- **`--stream URL` runs alone** after this host's checks, as `--hop` does. Lost: a section among
+  the others, where a user who asks about one path waits for every other probe.
+- **`--full`**: the four probes at the relay that the user named, and the quiet socket at the
+  default relay, as the Correction asks, in a part of its own that runs last, so that its hold
+  holds no other section's lines. Lost: before the iroh and DERP sections, whose lines would wait
+  for the hold.
+- **The hold is 130 s by default**, `--stream-idle SECONDS` from 1 to 600, past the 125 s of
+  Cloudflare, the longest default that the table names. Lost: 70 s (it names no limit above it);
+  a variable in place of a flag.
+- **The cap doubles from 64 KiB to 8 MiB**, or to the server's own cap. Lost: 16 MiB or more
+  (32 MiB uploaded in each run); a bisection, more requests for a finer size.
+- **Each measured property is `ok`**, a fact that podssh works with; `FAIL` is a server that
+  cannot be reached, which the user named; `????` a probe that cannot tell. Lost: `FAIL` for a path
+  that holds a stream, which no road of podssh's needs today.
+- **Behind a node, the node's own limits** go in the role's `/relays.json` by a task-local of the
+  request that the node gives the role (`behind_node`). Lost: a field of the role's `Config`, which
+  each constructor of it would take, in other entries' work too; a header of the node's, on each
+  request of each quick tunnel.
+- **The numbers of each probe go in `samples`** of `--json`, for T-319. Lost: a key of its own in
+  the schema, which `doctor/mod.rs`, near its 500 lines, would grow by.
+- **The quiet socket at the default relay is of a pair made for the check**, stopped after it
+  whatever the socket did; a run that is killed leaves it to its 72 h. Lost: a pair of the store,
+  whose node may run, as a second node gets `409`. So the runs of `doctor --full` in
+  `.github/workflows/quick-tunnel-live.yml`, each under `timeout 120` or `180`, take
+  `--stream-idle 5`, so that their pair is stopped within the bound.
+
 ## Prove
 
 ```sh
@@ -1524,6 +1567,14 @@ end a quiet stream at 3 s, each line names the property and the size or
 the time. Planted: the chunk times ignored; the buffering test fails.
 
 ## Correction
+
+2026-11-03 (the drafting agent): the node of a quick tunnel, behind which the role serves the
+probes, takes a request's body whole before it gives it to the role, 32 KiB at most
+(`crates/podssh-relay/src/quick/origin_h2.rs:32`, `crates/podssh-relay/src/quick/origin.rs:26`),
+and ends an answer whose bytes stop for 60 s (`crates/podssh-relay/src/quick/origin.rs:32`). Behind
+it, the probes of a body and of a quiet stream measure the node first; the role's `/relays.json`
+there names those limits as the node's, and the lines say them so. Of #54's defaults, Cloudflare's
+documentation of its 524 gives 125 s now (read 2026-11-03); the others stay inferred.
 
 2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
 read, moved here as `cargo todo check` refuses a Blocker on an open entry:
@@ -1572,6 +1623,56 @@ the stand-in edge of T-300 as the servers of the endpoints, then go-httpbin wher
 Planted: the chunk times ignored; the buffering test fails. Live, from a GitHub runner:
 `podssh doctor --stream` against a quick tunnel of the run and against `podssh relay serve` on
 the runner, each line naming its host.
+
+## Done
+
+Drafted 2026-11-03 (`fbda4ad`), merged and built by the main session the same day. The test
+against go-httpbin (v2.26.0, built here with Go) found a defect that the draft could not see:
+go-httpbin's `/drip` waits 2 s before its first byte by default (`delay`), and the role took 0 for
+go-httpbin's default, so the quiet probe measured 8 s there and 6 s at the role. `doctor` asks
+`delay=0` of each server now, and the role's default is go-httpbin's 2 s (`drip_of`, its unit test,
+the stand-in `scripts/fake_stream.py`, and `docs/relay.md`).
+
+- The role: `GET /v1/probe/drip` and `POST /v1/probe/anything`, go-httpbin's shapes under
+  `/v1/probe`, with no token, 16 at once at most, and their limits in `limits.probe` of
+  `/relays.json`, the node's own behind a quick tunnel (`crates/podssh-relay/src/serve/probe.rs`);
+  `docs/relay.md`, "The relay role's probes".
+- `doctor --stream URL` and `--stream-idle SECONDS`: this host, then the section `stream` alone
+  (`stream server`, `response`, `request body`, `body cap`, `quiet stream`); with `--full`, the
+  section last, at the relay that the user named, or a quiet socket of the default relay's reverse
+  road for a pair made and stopped (`crates/podssh-cli/src/doctor/stream/`); the fingerprints in
+  `crates/podssh-cli/src/doctor/stream/prints.rs`; the numbers of each probe in `samples` of
+  `--json`, for T-319. The manual (`notes_doctor.rs`, the flag rows), `docs/cli.md`.
+- The stand-in: `scripts/fake_stream.py`, the probes in `scripts/fake-relay.py` with the modes
+  `buffer`, `bodybuffer`, `bodycap:BYTES` and `idle:SECONDS`.
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test doctor_stream
+cargo test -p podssh-cli --lib -- doctor::stream doctor::sections
+cargo test -p podssh-relay --features serve,quick --lib serve::probe
+cargo test -p podssh-relay --features quick,serve,plain-ws --test quick_relay_probe
+cargo test -p podssh-cli --lib man::
+sh scripts/plant-each.sh --here t325-chunk-times-ignored t325-parts-times-ignored t325-cap-not-doubled t325-quiet-end-ignored
+```
+
+- `cargo test -p podssh-cli --test doctor_stream`: 9 passed, go-httpbin among them (on PATH): against
+  the stand-in with no fault and against podssh's relay role, each of the four probes names a clean
+  path; a held response (`buffer`), a held body (`bodybuffer`), a cap of 1 MiB (`bodycap:1048576`,
+  named as nginx's `client_max_body_size`) and a quiet stream ended at 3 s (`idle:3`) are each named;
+  go-httpbin gives the response and the cap the role's verdicts, and the body's parts `????`.
+- `cargo test -p podssh-cli --lib -- doctor::stream doctor::sections`: 15 passed; `--lib man::`: 40
+  passed; `--lib`: 814 passed. `cargo test -p podssh-relay --features serve,quick --lib serve::probe`:
+  10 passed (`serve::` 56). `--features quick,serve,plain-ws --test quick_relay_probe`: 3 passed,
+  `quick_relay` 4, `quick_relay_quic` 4; the role's other targets each passed.
+- `-p podssh-cli --test doctor` 13 (2 ignored), `--test doctor_jobs` 3, `--test flag_table` 9, the
+  manual's 21, `--test relay_serve` 14, `--test mcp` 6.
+- Planted (`sh scripts/plant-each.sh --here t325-chunk-times-ignored t325-parts-times-ignored
+  t325-cap-not-doubled t325-quiet-end-ignored`): 4 caught.
+- `cargo clippy` of both crates with `-D warnings`: clean; `cargo fmt --check`: clean after one file
+  of the draft was formatted.
+- Waits (Q88): the live run from a GitHub runner, `doctor --stream` through a quick tunnel of the
+  run and at `podssh relay serve` on the runner, which no workflow runs; T-319's use of the numbers.
 
 # T-326: A cleartext road on port 443, probed after the TLS road fails
 
@@ -2569,7 +2670,7 @@ met.
 - Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:57-72`),
   and DNS over HTTPS one line with each resolver's error
   (`crates/podssh-cli/src/doctor/names.rs:140`); the end of the report gives the counts alone
-  (`crates/podssh-cli/src/doctor/mod.rs:353-375`).
+  (`crates/podssh-cli/src/doctor/mod.rs:366-388`).
 - Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
   (`crates/podssh-ws/src/client.rs` line 115 at `38f424c`), and `HealthError::Connect` the
   error's text (`crates/podssh-relay/src/health.rs` line 69 at `38f424c`). The kind of the I/O
@@ -2616,7 +2717,7 @@ met.
 ## Decision
 
 - After the counts, not above the failures: each line goes out as its check ends
-  (`crates/podssh-cli/src/doctor/mod.rs:303-307`), so a line about them all comes once they are
+  (`crates/podssh-cli/src/doctor/mod.rs:316-320`), so a line about them all comes once they are
   known. Holding each line back until the end lost: a check of a minute would look like a hang.
 - One reference name, `github.com`, which `doctor` uses already
   (`crates/podssh-cli/src/doctor/net.rs:20-23`). A list of names that an allowlist often holds

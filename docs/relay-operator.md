@@ -206,8 +206,8 @@ its client; this deployment serves them once its contract has them.
    it ends; #54 names limits from 60 s to 15 minutes). Give each limit of
    the endpoints in the contract, so that a cut below it is the path's.
    Item 5 takes its poll interval and its batch size from these results.
-   In podssh: T-325 serves both endpoints in podssh's own relay role
-   (T-169) and in a node's quick tunnel (T-428).
+   In podssh: T-325 serves both, as go-httpbin's `/drip` and `/anything` under `/v1/probe`, in the
+   role (T-169) and behind a node's quick tunnel (T-428) ([relay.md](relay.md), "The relay role's probes").
 7. **A cleartext upgrade on port 443** (T-326, [TODO/ws.md](../TODO/ws.md); [#56](https://github.com/Azathothas/podssh/issues/56)).
    For a proxy that tunnels CONNECT but intercepts TLS by its SNI or its
    certificate: an endpoint that takes the WebSocket upgrade with no TLS on

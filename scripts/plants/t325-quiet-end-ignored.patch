@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-cli/src/doctor/stream/judge.rs b/crates/podssh-cli/src/doctor/stream/judge.rs
+index 81281f1..d1b9778 100644
+--- a/crates/podssh-cli/src/doctor/stream/judge.rs
++++ b/crates/podssh-cli/src/doctor/stream/judge.rs
+@@ -305,7 +305,7 @@ pub(super) fn quiet(at: &str, hold: Duration, answer: &Timed, own: &Own) -> Verd
+             format!("{lead} came whole after {}: nothing on the path ends a stream quiet for that long", secs(*end))
+         }
+         (Some((200, _)), End::Cut { at: when, why }) => {
+-            let quiet = when.saturating_sub(after);
++            let quiet = hold.max(when.saturating_sub(after));
+             let who = ender(quiet, None, own);
+             format!("{lead} ended {} after it, with no end of its body ({why}): {who}", secs(quiet))
+         }

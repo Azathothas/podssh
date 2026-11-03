@@ -1,0 +1,8 @@
+# T-325: the relay role's probe of a body joins each read to the part
+# before it, whatever the time between them, so a body that came in four
+# pieces half a second apart is said to have come at once, as behind a path
+# that holds it; the unit test of the parts' times must fail.
+ENTRY=T-325
+GROUP=cli-tests
+EXPECT='test serve::probe::tests::a_body_is_answered_with_when_each_part_came \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,quick --lib serve::probe'

@@ -3233,7 +3233,7 @@ The draft's calls, 2026-11-02:
 4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:197`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:158`),
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:160`),
    with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:52`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
@@ -3288,7 +3288,7 @@ name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:171`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:173`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -3547,7 +3547,7 @@ nothing, works.
 ## Premise
 
 - `crates/podssh-relay/src/serve/forward.rs:140` dials the resolved addresses with
-  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:109` does the same for
+  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:111` does the same for
   `/trace`; neither reads `HTTPS_PROXY`.
 - Rule 2 of `AGENTS.md`: one outbound connection, through `HTTPS_PROXY` when it is set.
 
@@ -7124,7 +7124,7 @@ roads, and a carrier must be one of them.
   (`crates/podssh-cli/src/man/notes_pair.rs:268-269`), and needs the net's role exit, signed by
   its owner (`:266-267`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
-  (`docs/STATUS.md:92`).
+  (`docs/STATUS.md:93`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node
   of the exit runs there with `--carrier exec:...`, and the closed host runs the client,
   `podssh exit NAME --listen 127.0.0.1:1080 --carrier stdio`.

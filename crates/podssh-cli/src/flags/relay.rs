@@ -121,6 +121,15 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
     row(None, "jobs", Some("N"), FlagKind::Supported,
         "run at most N sections at once, 1 to 64, in the order of the report (default: each at once; also DoctorJobs \
          of the settings file); --jobs 1 runs one after another", None),
+    // What the path does to a stream (T-325).
+    row(None, "stream", Some("URL"), FlagKind::Supported,
+        "check this host and what the path to URL does to a stream, alone: whether a response and a request's body \
+         pass as they come, the largest body that passes, and how long a quiet stream lives; URL is \
+         https://HOST[:PORT][/PATH] or http://..., a server of podssh relay serve, the quick tunnel of podssh node \
+         --relay, or go-httpbin, its probes under PATH (default /v1/probe)", None),
+    row(None, "stream-idle", Some("SECONDS"), FlagKind::Supported,
+        "how long the probe of a quiet stream holds it, 1 to 600 (default 130), with --stream, or with --full, which \
+         probes a stream at the relay that you named, or a quiet socket at the default relay", None),
     super::forwarder::DOCTOR_FORWARDER,
     super::shadowsocks::DOCTOR_SHADOWSOCKS,
     super::vless::DOCTOR_VLESS,

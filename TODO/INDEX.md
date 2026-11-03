@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**579 entries: 99 open, 3 partial, 2 blocked, 475 done.**
+**579 entries: 98 open, 3 partial, 2 blocked, 476 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 30 | 2 | 0 | 232 | 264 |
-| P3 | 69 | 0 | 2 | 179 | 250 |
-| **All** | 99 | 3 | 2 | 475 | 579 |
+| P3 | 68 | 0 | 2 | 180 | 250 |
+| **All** | 98 | 3 | 2 | 476 | 579 |
 
 ## Entries
 
@@ -397,7 +397,7 @@ repository and CI).
 | [T-322](multi.md) | P3 | S | backlog | feature | done | The emergency stop of the broadcast has a key that the user chooses |
 | [T-323](relay.md) | P3 | S | backlog | chore | done | A frame that `podssh ssh` sends to the relay stays under 64 KiB with room to spare |
 | [T-324](ws.md) | P3 | M | backlog | feature | done | `doctor` tells the three failures of the upgrade apart, and samples each probe |
-| [T-325](ws.md) | P3 | M | M10 | feature | open | `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit |
+| [T-325](ws.md) | P3 | M | M10 | feature | done | `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit |
 | [T-326](ws.md) | P3 | M | M10 | feature | open | A cleartext road on port 443, probed after the TLS road fails |
 | [T-327](config.md) | P3 | M | backlog | feature | done | `podssh config import` from mRemoteNG |
 | [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |

@@ -1,0 +1,8 @@
+# T-325: the times at which a response's bytes came ignored, its spread
+# taken as the time that the server spread them over, so a path that holds
+# a response until its end reads as one that passes it as it comes; the test
+# of the stand-in that holds each response must fail.
+ENTRY=T-325
+GROUP=cli-tests
+EXPECT='test a_path_that_holds_the_response_is_named \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test doctor_stream -- a_path_that_holds_the_response_is_named'
