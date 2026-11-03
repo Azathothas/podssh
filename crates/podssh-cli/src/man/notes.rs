@@ -152,7 +152,8 @@ const CP: &[&str] = &[
      at the offset below which each byte is in it, 5 times in a row at most with no new byte, with a \
      backoff between them. A refused login, or a host key other than the first connection's, ends it. \
      The same command run again goes on too while the source is as it was: a private side file in the \
-     cache directories keeps the offset, never a byte of the file. The digest covers the whole file.",
+     cache directories, podssh-cp-*.resume (see FILES), keeps the offset, never a byte of the file. The \
+     digest covers the whole file.",
 ];
 
 const SCP: &[&str] = &[

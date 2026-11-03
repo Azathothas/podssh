@@ -34,15 +34,20 @@ pub fn read_own(path: &Path, others: Others) -> Result<Option<String>, String> {
             return Ok(None)
         }
         Err(e) => return Err(format!("{shown}: {e}")),
+        // A process substitution, as `--allow <(...)`, gives such a link
+        // (`/dev/fd/63` on Linux), which a user finds only by trial.
         Ok(meta) if meta.file_type().is_symlink() => {
-            return Err(format!("{shown} is a symbolic link, which podssh does not follow here"))
+            return Err(format!(
+                "{shown} is a symbolic link, which podssh does not follow here: name a regular file (a \
+                 process substitution, <(...), gives a link)"
+            ))
         }
         Ok(_) => {}
     }
     let file = open_no_follow(path).map_err(|e| format!("{shown}: {e}"))?;
     let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
     if !meta.is_file() {
-        return Err(format!("{shown} is not a regular file"));
+        return Err(format!("{shown} is not a regular file: name one (a process substitution, <(...), gives a pipe)"));
     }
     if meta.len() > MAX_FILE {
         return Err(format!("{shown} is larger than a file of the cache can be"));

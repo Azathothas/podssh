@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:367-368`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1011`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:157-434`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:161-438`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-298`).
 
 ## Decision
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-482` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-482` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119`).
 
 ## Decision
 

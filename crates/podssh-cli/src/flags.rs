@@ -384,7 +384,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "run", aliases: &["run"], flags: RUN_FLAGS,
         about: "copy a project to a host, only the files that changed, then run a command in it, with its exit status" },
     Verb { name: "job", aliases: &["job"], flags: JOB_FLAGS,
-        about: "jobs on a host that outlive the connection, each in its tmux, and a queue of them: start, submit, list, log, wait, fetch, stop" },
+        about: "jobs on a host that outlive the connection, each in its tmux, and a queue of them: start, submit, list, log, wait, fetch, stop; an ID is the 8 hex digits that start or submit printed" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client; node://NAME reaches a node, as operator NAME does" },
     Verb { name: "pipe", aliases: &["pipe"], flags: PIPE_FLAGS,

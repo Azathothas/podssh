@@ -220,3 +220,19 @@ fn the_exit_codes_are_the_constants() {
     }
     assert_eq!(crate::keygen::EXIT_FAILED, crate::doctor::EXIT_FAILED, "one row documents both");
 }
+
+/// The row of 78 names the files whose lines it covers, and the 64 of the
+/// same keyword on the command line, which a user found by trial (T-512).
+#[test]
+fn the_row_of_78_names_the_files_of_settings() {
+    let rows = super::super::data::exit_codes();
+    let config = super::super::data::Code::Value(crate::exitmap::sysexits::EX_CONFIG);
+    let (_, what) = rows.iter().find(|(code, _)| *code == config).expect("a row of 78");
+    for text in [
+        "the settings file (see FILES)",
+        "an ssh_config file (-F, ~/.ssh/config, the system's, or one that Include reads)",
+        "the same keyword with -o on the command line is a usage error (64)",
+    ] {
+        assert!(what.contains(text), "{text}: {what}");
+    }
+}

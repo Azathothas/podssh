@@ -237,44 +237,10 @@ pub fn verb_help(verb: &'static Verb) -> String {
     s
 }
 
-/// The proxy of an SSH server, as `pipe --help` and the manual's examples
-/// show it: one copy, which the examples' test parses (T-483).
-pub const PROXY_OF_SSH: &str = "podssh pipe http-listen:3128 ssh:user@bastion.example.org";
-
-/// The notes under a verb's options: what its flags cannot say.
-pub fn verb_notes(verb: &Verb) -> String {
-    let mut s = String::new();
-    if verb.name == "pipe" {
-        // The form of ssh: on the other side of a proxy is the one that a
-        // user finds by trial (GitHub #93); a client on the port shows it.
-        s.push('\n');
-        s.push_str("An HTTP CONNECT proxy whose connections go on from an SSH server, and a client:\n");
-        s.push_str(&format!("  {PROXY_OF_SSH}\n"));
-        s.push_str("  curl --proxy http://127.0.0.1:3128 https://example.org/\n");
-        s.push_str("ssh:HOPS with no target takes each CONNECT's %h:%p; a program that reads\n");
-        s.push_str("  HTTPS_PROXY takes HTTPS_PROXY=http://127.0.0.1:3128.\n");
-    }
-    if verb.name == "ssh" {
-        s.push('\n');
-        s.push_str("-L and -D listen here, and each connection that they take goes on from\n");
-        s.push_str("  the server; -W HOST:PORT carries one connection, with no listener.\n");
-        s.push_str("-R [BIND:]PORT:HOST:HOSTPORT: the server listens, and each connection\n");
-        s.push_str("  reaches HOST:HOSTPORT from here, through HTTPS_PROXY when it is set; a\n");
-        s.push_str("  socket path in place of either side, or [BIND:]PORT alone for SOCKS.\n");
-        s.push_str("-P on ssh is OpenSSH's Tag, which Match tagged reads, not a port. On\n");
-        s.push_str("  scp and sftp, -P is the port. The meaning is per-verb.\n");
-    }
-    if verb.name == "keygen" {
-        s.push('\n');
-        s.push_str("-V here is the validity of a certificate, with -s; podssh -V prints the version.\n");
-        s.push_str("-n, -s, -I, -O and -U mean one thing with -Y and another with -s, as in ssh-keygen.\n");
-    }
-    if matches!(verb.name, "cp" | "mv" | "scp" | "sftp" | "edit") {
-        s.push('\n');
-        s.push_str("-P here is the port, as on scp and sftp. On ssh it is a Tag.\n");
-    }
-    s
-}
+// The notes under a verb's options, in a file of their own for the length
+// of this one (T-512).
+mod notes;
+pub use notes::{verb_notes, PROXY_OF_SSH};
 
 /// **The usage tail, and it is public for the same reason [`help_text`] is:**
 /// The manual page prints `podssh <verb> <this>`, and the parity gate asserts the
@@ -454,28 +420,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    #[test]
-    fn ssh_help_says_p_is_a_tag_here_and_a_port_on_scp() {
-        let ssh = verb_help(VERBS.iter().find(|v| v.name == "ssh").unwrap());
-        // The notes of cp, which its help shows once cp works.
-        let cp = verb_notes(VERBS.iter().find(|v| v.name == "cp").unwrap());
-        assert!(ssh.contains("-P on ssh is OpenSSH's Tag"), "{ssh}");
-        assert!(cp.contains("-P here is the port"), "{cp}");
-    }
-
-    /// `pipe --help` shows the proxy of an SSH server and its client, below
-    /// the options, so that no line of them is read as a flag (T-483).
-    #[test]
-    fn pipe_help_shows_the_proxy_of_an_ssh_server_with_its_client() {
-        let pipe = verb_help(VERBS.iter().find(|v| v.name == "pipe").unwrap());
-        assert!(pipe.contains(&format!("\n  {PROXY_OF_SSH}\n")), "{pipe}");
-        assert!(pipe.contains("curl --proxy http://127.0.0.1:3128 https://example.org/"), "{pipe}");
-        // The block of the options ends at its first blank line.
-        let at = pipe.find("OPTIONS:\n").expect("an OPTIONS: block");
-        let end = at + pipe[at..].find("\n\n").expect("the end of the block");
-        assert!(!pipe[..end].contains(PROXY_OF_SSH) && pipe[end..].contains(PROXY_OF_SSH), "{pipe}");
     }
 
     /// **An accepted flag says it once.** `-P`'s row ended with the same

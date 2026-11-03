@@ -126,7 +126,7 @@
 118 issue closed
 119 pull open
 120 pull open
-121 issue open
+121 issue closed
 122 pull open
 123 pull open
 124 issue open

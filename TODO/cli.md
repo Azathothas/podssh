@@ -395,7 +395,7 @@ rest. For a verb, clap reads each word before `--help` is answered
 4. If the top-level help text changes (`TOP_OPTIONS`,
    `crates/podssh-cli/src/flags.rs:478-481`), update its test
    `no_top_level_option_runs_into_its_description`
-   (`crates/podssh-cli/src/help.rs:359-374`). Same commit: `docs/cli.md:56-60`,
+   (`crates/podssh-cli/src/help.rs:325-340`). Same commit: `docs/cli.md:56-60`,
    `docs/STATUS.md`.
 5. The JSON that GitHub #10 asks for is T-050. This entry only stops the drop.
 
@@ -487,11 +487,11 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
 
 ## Approach
 
-1. Document `--`: `usage_tail` (`crates/podssh-cli/src/help.rs:282-307`) gives
+1. Document `--`: `usage_tail` (`crates/podssh-cli/src/help.rs:248-273`) gives
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-482` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114` and `crates/podssh-cli/src/man/notes.rs:69-215`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-482` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119` and `crates/podssh-cli/src/man/notes.rs:69-216`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-295`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes_tests.rs:56-72`); teach `flag_exists`
@@ -1175,7 +1175,7 @@ Read: podssh matches hashed lines with HMAC-SHA1
 with their numbers (`scan`, `crates/podssh-ssh/src/known_hosts.rs:149-179`), and
 appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs`, lines 323-372 at `f6b7676`).
 The default files are the ones of `podssh ssh`
-(`crates/podssh-cli/src/man/data.rs:175`).
+(`crates/podssh-cli/src/man/data.rs:179`).
 
 ## Approach
 
@@ -1427,7 +1427,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
    `-O OPTION` (repeatable), `-h` (a host certificate) and `-L`. `-h` is free:
    a verb declares only `--help` (`crates/podssh-cli/src/tree.rs:89-98`). `-V`
    is a validity here, not the version: say so in `--help`, as the help says
-   it for `-P` (`crates/podssh-cli/src/help.rs:257-275`).
+   it for `-P` (`crates/podssh-cli/src/help/notes.rs:23-41`).
 2. Read the CA key as `-y` reads a private key (a passphrase by prompt or
    `SSH_ASKPASS`).
 3. Build the certificate with the builder of the library, and write
@@ -2163,7 +2163,7 @@ verb's own rows (`crates/podssh-cli/src/help.rs:34-39`).
    (`crates/podssh-cli/tests/man_extract/mod.rs:35-52`).
    `scripts/interop-man.sh:48-50` reads an option line at any indent.
 3. Add `--help` to the layout test `no_flag_runs_into_its_description`
-   (`crates/podssh-cli/src/help.rs:421-457`), or add a test that each
+   (`crates/podssh-cli/src/help.rs:387-423`), or add a test that each
    long-only line and `--help` start in one column.
 4. The block before a command (`  -h, --help`) is another table and stays as
    it is. Same commit: `docs/STATUS.md`.
@@ -3575,7 +3575,7 @@ entry of its own. Read at `01e371e`.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3591,7 +3591,7 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
   it. Inferred: a line shaped as OpenSSH's would make OpenSSH's server apply the quirks of its own
   client's versions to podssh, so the line stays podssh's. Against the report: the README says
   that podssh has "the options of OpenSSH" (`README.md:133`), not that it is OpenSSH.
-- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:215-216`)
+- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:219-220`)
   and in the notes (`crates/podssh-cli/src/man/notes.rs:151`), and in no row of `cp --help`
   (`crates/podssh-cli/src/flags/copy.rs:15-58`).
 - Read (L-17): `job fetch` of a job that runs exits 75, as EXIT STATUS says
@@ -3600,15 +3600,17 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
 - Read (L-22): a job's ID is 8 hex digits (`crates/podssh-cli/src/job/args.rs:121-126`), which the
   about of `job` does not say (`crates/podssh-cli/src/flags.rs:384-385`).
 - Read (L-25): a file that is a link is refused with "is a symbolic link, which podssh does not
-  follow here" (`crates/podssh-relay/src/cache/own.rs:37-38`); `--allow <(...)` gives such a link
-  (`/dev/fd/63`), and the line does not say that a regular file works.
+  follow here" (`crates/podssh-relay/src/cache/own.rs`, lines 37-38 at `38f424c`);
+  `--allow <(...)` gives such a link (`/dev/fd/63`), and the line does not say that a regular
+  file works.
 - Read (L-27): `podssh proxy` has no direct road (`crates/podssh-cli/src/man/notes_ssh.rs:242`);
   `podssh pipe - tcp:%h:%p` is that road as a `ProxyCommand` (`crates/podssh-cli/src/man/notes_pipe.rs:5-14`),
-  and the notes of `proxy` do not name it (`crates/podssh-cli/src/man/notes.rs:210`).
+  and the notes of `proxy` do not name it (`crates/podssh-cli/src/man/notes.rs:211`).
 - Read (L-29): a bad line of the settings file or of an `ssh_config` file is 78, and the same
   keyword with `-o` is 64, by the decision of 2026-10-05; the row of 78 names the settings of the
-  environment and the flag's 64 (`crates/podssh-cli/src/man/data.rs:107-116`), not the files.
-- Read (L-36): the README's `keygen -l` names the public file alone (`README.md:115`).
+  environment and the flag's 64 (`crates/podssh-cli/src/man/data.rs:107-120`), not the files.
+- Read (L-36): the README's `keygen -l` names the public file alone (`README.md`, line 114 at
+  `38f424c`).
 
 ## Approach
 
@@ -3635,3 +3637,52 @@ cargo test -p podssh-cli --test man_page
 ```
 
 Planted: none; each sentence is text, which the manual's tests read.
+
+## Correction
+
+Read at `38f424c` (2026-11-03): the notes of `proxy` are in `crates/podssh-cli/src/man/notes_proxy.rs`
+since T-431, and the premise's line of `crates/podssh-cli/src/man/notes.rs` holds the notes of
+`mv`; the about of `job` is at `crates/podssh-cli/src/flags.rs:377-378`. The manual's notes of
+`job` already gave the 8 hex digits and the 75 of `fetch` (`crates/podssh-cli/src/man/notes_job.rs:6`,
+`:56`): the gap was `job --help` alone. `crates/podssh-cli/src/help.rs` had 496 lines, so the
+notes under a verb's options went to a file of their own, `crates/podssh-cli/src/help/notes.rs`.
+Inferred: where `/dev/fd/63` is no link (macOS's `/dev/fd`), the file that opens is the pipe,
+refused as no regular file; that refusal names the same way out.
+
+## Done
+
+Drafted 2026-11-03 (built nothing; the main session merges and measures it):
+
+- `crates/podssh-cli/src/man/notes_ssh_more.rs`: a note of `ssh`, the version line
+  `SSH-2.0-podssh_VERSION` (each dash an underscore, as RFC 4253 allows none), that a server or a
+  filter that lets in only OpenSSH's lines refuses it, and why podssh sends its own (L-10).
+- `crates/podssh-cli/src/help/notes.rs` (new, from `help.rs`, with its two tests): under the
+  options of `cp`, `mv` and `scp`, that a broken copy goes on when the same command runs again,
+  from `podssh-cp-*.resume` in the cache; under those of `job`, what an ID is, and that `fetch` of
+  a job that is queued or running exits 75 (L-14, L-17); the tests
+  `cp_help_says_where_a_broken_copy_goes_on` and `job_help_names_the_id_and_the_75_of_fetch`.
+  `crates/podssh-cli/src/help.rs` declares the module and re-exports `verb_notes` and
+  `PROXY_OF_SSH` (440 lines).
+- `crates/podssh-cli/src/flags.rs`: the about of `job` ends "an ID is the 8 hex digits that start
+  or submit printed" (L-22).
+- `crates/podssh-relay/src/cache/own.rs`: a link is refused with "name a regular file (a process
+  substitution, <(...), gives a link)", and a file that is not regular with "name one (a process
+  substitution, <(...), gives a pipe)" (L-25); `crates/podssh-relay/tests/identity_file.rs` holds
+  the first.
+- `crates/podssh-cli/src/man/notes_proxy.rs`: `podssh proxy` has no direct road, and
+  `ssh -o ProxyCommand='podssh pipe - tcp:%h:%p' user@host` is that road (L-27).
+- `crates/podssh-cli/src/man/data.rs`: the row of 78 names a line of the settings file or of an
+  `ssh_config` file (`-F`, `~/.ssh/config`, the system's, an `Include`) and such a file that
+  cannot be read or that others can change, and the 64 of the same keyword with `-o` (L-29);
+  `crates/podssh-cli/src/man/facts/tests.rs`, `the_row_of_78_names_the_files_of_settings`.
+- `crates/podssh-cli/src/man/notes.rs`: the note of a broken copy names `podssh-cp-*.resume`.
+- `README.md` and `crates/podssh-cli/src/flags/keygen.rs`: `keygen -l` takes the private file or
+  its `.pub` (L-36).
+- `crates/podssh-cli/src/man/notes_tests.rs`: `the_notes_say_what_users_found_by_trial` holds each
+  new sentence of the notes.
+- `docs/STATUS.md`: the row of this entry, `unreleased`.
+
+At the merge (2026-11-03): `cargo test -p podssh-cli --lib man`, 39 passed; `--lib help`, 12;
+`--test man_json`, 4; `--test man_page`, 10; `--test man_flag_parity`, 6; `--test flag_table`, 9;
+the lib, 753; `cargo test -p podssh-relay --test identity_file`, 10. `cargo fmt --check` and
+clippy (all targets, `-D warnings`) on `podssh-cli` and `podssh-relay`: clean.

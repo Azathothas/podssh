@@ -120,6 +120,25 @@ fn the_note_about_r_says_that_the_server_listens() {
     }
 }
 
+/// What the report of 2026-11-02 found by trial is in the notes (T-512): the
+/// version line, the side file of a broken copy, the direct road of a
+/// ProxyCommand, and a job's ID and the 75 of its fetch.
+#[test]
+fn the_notes_say_what_users_found_by_trial() {
+    let has = |verb: &str, text: &str| for_verb(verb).iter().any(|n| n.contains(text));
+    for (verb, text) in [
+        ("ssh", "The version line that podssh sends is SSH-2.0-podssh_VERSION"),
+        ("ssh", "podssh does not send OpenSSH's line"),
+        ("cp", "a private side file in the cache directories, podssh-cp-*.resume (see FILES)"),
+        ("proxy", "podssh proxy has no direct road"),
+        ("proxy", "ssh -o ProxyCommand='podssh pipe - tcp:%h:%p' user@host"),
+        ("job", "prints the ID on stdout: 8 hex digits"),
+        ("job", "A job that is queued or running is not fetched"),
+    ] {
+        assert!(has(verb, text), "the notes of {verb} lack: {text}");
+    }
+}
+
 #[test]
 fn each_name_in_a_note_exists() {
     let p = problems();

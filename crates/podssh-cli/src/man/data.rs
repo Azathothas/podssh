@@ -108,6 +108,10 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             "A setting of the environment cannot be used: PODSSH_RELAY or PODSSH_RELAY_ADDR (podssh ssh, \
              cp, proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
              PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64). \
+             A line that podssh cannot use in the settings file (see FILES) or in an ssh_config file (-F, \
+             ~/.ssh/config, the system's, or one that Include reads), with its file and line named, and such \
+             a file that cannot be read or that others can change; the same keyword with -o on the command \
+             line is a usage error (64). \
              podssh node, operator, relay and chat: no pair is stored under the label, the pair cannot be \
              read or stored, or a node cannot connect as it is set up. podssh edit: VISUAL, EDITOR and PATH \
              give no editor, the editor does not start, or PODSSH_CACHE_DIR is none. podssh node --sshd: a \

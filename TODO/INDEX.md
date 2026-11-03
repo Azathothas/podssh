@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 99 open, 5 partial, 16 blocked, 448 done.**
+**568 entries: 98 open, 5 partial, 16 blocked, 449 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
 | P2 | 24 | 4 | 14 | 216 | 258 |
-| P3 | 75 | 0 | 2 | 169 | 246 |
-| **All** | 99 | 5 | 16 | 448 | 568 |
+| P3 | 74 | 0 | 2 | 170 | 246 |
+| **All** | 98 | 5 | 16 | 449 | 568 |
 
 ## Entries
 
@@ -576,7 +576,7 @@ repository and CI).
 | [T-509](roads.md) | P2 | S | none | defect | done | The fallback to other products' forwarders follows a failure at the target, which no forwarder mends, and `doctor` counts it as checked |
 | [T-510](copy.md) | P3 | S | none | feature | done | `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever |
 | [T-511](machine.md) | P3 | M | none | feature | done | `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them |
-| [T-512](cli.md) | P3 | S | none | docs | open | The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal |
+| [T-512](cli.md) | P3 | S | none | docs | done | The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal |
 | [T-530](mesh.md) | P2 | L | M10 | feature | open | OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road |
 | [T-531](mesh.md) | P2 | M | M10 | feature | open | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
 | [T-532](mesh.md) | P3 | M | M10 | feature | open | `podssh funnel` through OpenTunnel, with TLS that ends at the node |

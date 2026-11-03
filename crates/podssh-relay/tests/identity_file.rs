@@ -234,6 +234,8 @@ fn a_symbolic_link_is_refused_and_not_followed() {
     // A link that points nowhere: no key is made at its target.
     let why = file::load_in(&[], &Place::File(link.clone()), &mut OsEntropy).unwrap_err();
     assert!(why.contains("symbolic link"), "{why}");
+    // The way out, as a process substitution gives a link (T-512).
+    assert!(why.contains("name a regular file (a process substitution, <(...), gives a link)"), "{why}");
     assert!(!elsewhere.exists(), "the link was followed");
 
     // A link to a real key file is refused too, and both are kept.

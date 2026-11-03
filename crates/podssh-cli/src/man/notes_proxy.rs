@@ -6,6 +6,10 @@ pub const PROXY: &[&str] = &[
      not an SSH client. Its main use is as the ProxyCommand of OpenSSH: \
      ssh -o ProxyCommand='podssh proxy %h %p' user@host. It also carries each TCP protocol that a \
      program can speak over stdin and stdout.",
+    "podssh proxy has no direct road: it reaches the target through the relay, or through a road in the \
+     relay's place. For the direct road, from this host through HTTPS_PROXY when one is set, the \
+     ProxyCommand of OpenSSH is podssh pipe: ssh -o ProxyCommand='podssh pipe - tcp:%h:%p' user@host \
+     (see podssh pipe).",
     "With OpenSSH, set -o ServerAliveInterval=60: the relay closes a session with no traffic (see THE \
      RELAY). Once nothing crossed for all but 30 s of the relay's idle cut, podssh proxy says so on \
      stderr, which OpenSSH shows; --idle-warn SECONDS sets that lead, and 0 turns it off.",
