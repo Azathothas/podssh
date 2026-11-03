@@ -199,7 +199,7 @@ fn final_end(label: &str, carried: &Carried) -> Option<(i32, String)> {
     let outcome = carried.leg.as_ref()?;
     crate::layered::stops(outcome)?;
     // The leg names the end: what the layer says of it says less.
-    crate::operator::judged(label, &Carried { why: None, leg: Some(outcome.clone()), channel: None })
+    crate::operator::judged(label, &Carried { why: None, leg: Some(outcome.clone()), channel: None, signalled: false })
 }
 
 #[cfg(test)]

@@ -54,7 +54,9 @@ const FIRST: &[&str] = &[
      says it), and the SSH session goes on where it was; one line on stderr tells of each loss and each \
      resume. --resume-deadline TIME waits at most TIME, never longer than the node keeps the session. \
      When the node forgot the session, as after a sleep of this host longer than its deadline, the \
-     line says so, with how long this side was away by the wall clock.",
+     line says so, with how long this side was away by the wall clock. SIGHUP and SIGTERM end the \
+     session with its end at the node, which then keeps nothing of it, 2 s at most after the signal; \
+     Ctrl-C stays the remote command's.",
     "A spare link: with the resumable layer, when the node has not answered a key or a check of the link \
      for 3 s, or has said nothing for 20 s, podssh opens a new link beside the silent one, one each 10 s \
      at most. When the old link speaks first, the new one closes before its handshake; else the new one \

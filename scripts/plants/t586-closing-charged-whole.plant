@@ -1,0 +1,8 @@
+# T-586: a closing session charged a whole buffer, as before, and so is one
+# that keeps its id alone: two sessions whose target ended and whose client
+# went away before it answered the CLOSE fill a budget of two, and the next
+# session is refused, so the first test of reverse_layered must fail.
+ENTRY=T-586
+GROUP=resume
+EXPECT='test a_session_whose_target_ended_holds_only_its_unacknowledged_bytes \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair --test reverse_layered -- a_session_whose_target_ended_holds_only_its_unacknowledged_bytes'

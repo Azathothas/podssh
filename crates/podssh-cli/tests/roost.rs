@@ -8,13 +8,15 @@
 //! the reverse road (Python and openssl), a roost carries `podssh ssh
 //! node://` to the tests' SSH server, and a TARGET that stops answering as
 //! sshd refuses the next session with the reason; each of those says that it
-//! did not run when this host has neither.
+//! did not run when this host has neither. OpenSSH's client, with `podssh
+//! operator` as its ProxyCommand, logs in through a roost more times than
+//! its budget holds sessions, as OpenSSH hangs up each ProxyCommand (T-586).
 
 mod pair_harness;
 mod ssh_harness;
 mod throughput_harness;
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -211,6 +213,16 @@ fn through_the_stand_in(
     s: &Session,
     target: u16,
 ) -> Option<(impl Fn(&[String]) -> std::process::Command + '_, std::sync::mpsc::Receiver<String>)> {
+    through_the_stand_in_with(s, target, &[])
+}
+
+/// [`through_the_stand_in`], the roost run with the variables of `env`.
+#[allow(clippy::type_complexity)]
+fn through_the_stand_in_with<'a>(
+    s: &'a Session,
+    target: u16,
+    env: &[(&str, &str)],
+) -> Option<(impl Fn(&[String]) -> std::process::Command + 'a, std::sync::mpsc::Receiver<String>)> {
     let cell = match Cell::fake_relay_mode(s, "normal", "the stand-in relay") {
         Ok(cell) => cell,
         Err((_, why)) => {
@@ -232,7 +244,8 @@ fn through_the_stand_in(
     assert!(out.status.success(), "podssh relay pair: {}", String::from_utf8_lossy(&out.stderr));
     let target = format!("127.0.0.1:{target}");
     let words = ["node", "lab", target.as_str(), "--sshd"].map(String::from);
-    let mut node = command(&words).stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
+    let mut node =
+        command(&words).envs(env.iter().copied()).stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
     let lines = lines_of(&mut node);
     s.keep(node);
     Some((command, lines))
@@ -273,4 +286,113 @@ fn a_target_that_stops_answering_as_sshd_refuses_the_next_session() {
     assert!(err.contains("HTTP/1.1 400 Bad Request"), "{err}");
     // The preflight, and the session's own dial after its handshake.
     assert_eq!(dialled.load(Ordering::SeqCst), 2, "{err}");
+}
+
+/// The bound on each login of OpenSSH, its ProxyCommand's end included.
+const LOGIN_LIMIT: Duration = Duration::from_secs(60);
+
+/// SIGHUP at its default in `cmd`, which OpenSSH then hands on to its
+/// ProxyCommand: a test run under nohup would hand it on ignored.
+#[cfg(unix)]
+fn hangup_by_default(cmd: &mut std::process::Command) {
+    // SAFETY: signal(2) is async-signal-safe, as pre_exec asks.
+    unsafe {
+        std::os::unix::process::CommandExt::pre_exec(cmd, || {
+            libc::signal(libc::SIGHUP, libc::SIG_DFL);
+            Ok(())
+        });
+    }
+}
+
+#[cfg(not(unix))]
+fn hangup_by_default(_: &mut std::process::Command) {}
+
+/// The words of `cmd` as one line of the shell, as OpenSSH runs a
+/// ProxyCommand: each in single quotes, none of which holds one, nor the
+/// `%` of OpenSSH's tokens.
+fn proxy_command(cmd: &std::process::Command) -> String {
+    let words = std::iter::once(cmd.get_program()).chain(cmd.get_args());
+    let quoted = words.map(|word| {
+        let word = word.to_string_lossy();
+        assert!(!word.contains('\'') && !word.contains('%'), "a word that the line cannot carry: {word}");
+        format!("'{word}'")
+    });
+    quoted.collect::<Vec<_>>().join(" ")
+}
+
+/// `cmd`'s exit code, stdout and stderr, each pipe read to its end (a
+/// ProxyCommand holds OpenSSH's stderr until it exits); a run past `limit`
+/// is killed, and fails the test.
+fn output_within(mut cmd: std::process::Command, limit: Duration) -> (Option<i32>, String, String) {
+    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("ssh runs");
+    let read = |mut pipe: Box<dyn Read + Send>| {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut text = Vec::new();
+            let _ = pipe.read_to_end(&mut text);
+            let _ = tx.send(text);
+        });
+        rx
+    };
+    let out = read(Box::new(child.stdout.take().expect("stdout")));
+    let err = read(Box::new(child.stderr.take().expect("stderr")));
+    let deadline = Instant::now() + limit;
+    let status = loop {
+        if let Some(status) = child.try_wait().expect("wait") {
+            break status;
+        }
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            panic!("ssh did not end within {limit:?}");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let left = deadline.saturating_duration_since(Instant::now()).max(Duration::from_secs(5));
+    let text = |rx: std::sync::mpsc::Receiver<Vec<u8>>| {
+        String::from_utf8_lossy(&rx.recv_timeout(left).unwrap_or_default()).into_owned()
+    };
+    (status.code(), text(out), text(err))
+}
+
+/// GitHub #112 (T-586), against OpenSSH's client: `ssh -o
+/// ProxyCommand='podssh operator lab' tester@lab true`, 8 times through a
+/// roost whose budget holds 4 sessions (the largest PODSSH_REPLAY_BUFFER,
+/// 16 MiB, of its 64 MiB). OpenSSH ends its ProxyCommand with SIGHUP as it
+/// exits, and each login ends at the node with its `CLOSE`, so each exits
+/// 0; an operator that died of the signal left each session held for 10
+/// minutes, and the fifth login was refused. It says that it did not run
+/// where this host has no OpenSSH, or cannot run the stand-in.
+#[test]
+fn short_logins_through_operator_leave_the_node_room() {
+    let s = Session::start("roost-logins");
+    if !throughput_harness::found("ssh", &["-V"]) {
+        eprintln!("did not run: no OpenSSH client here");
+        return;
+    }
+    let four = [("PODSSH_REPLAY_BUFFER", "16777216")];
+    let Some((command, lines)) = through_the_stand_in_with(&s, s.port, &four) else { return };
+    wait_for(&lines, "online").expect("the roost is online");
+    let operator = command(&["operator".to_string(), "lab".into()]);
+    let proxy = proxy_command(&operator);
+    for login in 1..=8 {
+        let mut ssh = std::process::Command::new("ssh");
+        ssh.args(["-F", "/dev/null", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no"])
+            .args(["-o", "UserKnownHostsFile=/dev/null", "-o", "GlobalKnownHostsFile=/dev/null"])
+            .args(["-o", "LogLevel=ERROR", "-o"])
+            .arg(format!("ProxyCommand={proxy}"))
+            .args(["tester@lab", "true"]);
+        // The ProxyCommand's variables are the operator's: its HOME and
+        // cache, the stand-in's CA, no proxy.
+        for (name, value) in operator.get_envs() {
+            match value {
+                Some(value) => ssh.env(name, value),
+                None => ssh.env_remove(name),
+            };
+        }
+        hangup_by_default(&mut ssh);
+        let (code, out, err) = output_within(ssh, LOGIN_LIMIT);
+        assert_eq!(code, Some(0), "login {login}: {err}");
+        assert_eq!(out, ssh_harness::GREETING, "login {login}: {err}");
+        assert!(!err.contains("resumable session"), "login {login}: the node refused it: {err}");
+    }
 }

@@ -1,0 +1,11 @@
+# T-586: no signal taken, as before: OpenSSH's client ends its ProxyCommand
+# `podssh operator` with SIGHUP at each exit, the roost keeps each login's
+# session for 10 minutes, and with a budget of 4 sessions the fifth login is
+# refused, so the OpenSSH test of the roost (OpenSSH's client, Python and
+# openssl for the stand-in relay) must fail.
+ENTRY=T-586
+GROUP=resume-cli
+EXPECT='test short_logins_through_operator_leave_the_node_room \.\.\. FAILED'
+SETUP='apk add --no-cache python3 openssl openssh-client'
+RUN='cargo test --locked -p podssh-cli --test roost -- short_logins_through_operator_leave_the_node_room'
+LIMIT=2700

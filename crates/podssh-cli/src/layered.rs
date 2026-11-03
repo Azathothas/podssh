@@ -54,6 +54,10 @@ pub struct Carried {
     /// key, a changed node key, a message that failed its check. It says
     /// more than the layer and the leg.
     pub channel: Option<(crate::exitmap::Fault, String)>,
+    /// A signal ended the session that the node took, and it did not end in
+    /// the time after it (T-586): its `CLOSE` went, and no answer is waited
+    /// for, as nobody reads its bytes any more.
+    pub signalled: bool,
 }
 
 /// The deadlines of `--resume-deadline` (T-306): a node's, how long it keeps
@@ -209,13 +213,22 @@ where
 {
     let legs = Mutex::new(Some(first));
     let layer = if shell.is_some() { ssh_settings() } else { settings() };
-    let started = match link.into() {
-        Begin::Started(client) => Ok(*client),
-        Begin::Link(link) => client::start(link, Ask::New, layer, &mut OsEntropy).await,
+    // A signal that the command took (T-586) ends the session: at once
+    // before the node took it, else as the end of the application's bytes.
+    let hangup = crate::hangup::taken();
+    let begun = async {
+        match link.into() {
+            Begin::Started(client) => Ok(*client),
+            Begin::Link(link) => client::start(link, Ask::New, layer, &mut OsEntropy).await,
+        }
+    };
+    let Some(started) = crate::hangup::unless(hangup.as_ref(), begun).await else {
+        let why = "a signal ended the session before the node took it".to_string();
+        return Carried { why: Some(why), leg: None, channel: None, signalled: false };
     };
     let client = match started {
         Ok(client) => client,
-        Err(e) => return Carried { why: Some(e.to_string()), leg: last(&legs).await, channel: None },
+        Err(e) => return Carried { why: Some(e.to_string()), leg: last(&legs).await, channel: None, signalled: false },
     };
     say(Line::Verbose(client.found().to_string()));
     if let Found::Layer { features, .. } = client.found() {
@@ -246,13 +259,19 @@ where
         }
     };
     let mut entropy = OsEntropy;
+    let app = crate::hangup::ending(app, hangup.as_ref());
     let session = resume::run(client, app, connect, note, &mut entropy);
-    tokio::pin!(session);
-    let outcome = tokio::select! {
-        outcome = &mut session => outcome,
-        () = warn_of_expiry(expires_ms, say) => session.await,
+    let run = async move {
+        tokio::pin!(session);
+        tokio::select! {
+            outcome = &mut session => outcome,
+            () = warn_of_expiry(expires_ms, say) => session.await,
+        }
     };
-    Carried { why: why_ended(outcome), leg: last(&legs).await, channel: None }
+    let Some(outcome) = crate::hangup::bounded(hangup.as_ref(), run).await else {
+        return Carried { why: None, leg: None, channel: None, signalled: true };
+    };
+    Carried { why: why_ended(outcome), leg: last(&legs).await, channel: None, signalled: false }
 }
 
 /// [`carry`], with the end-to-end channel of T-088 around `app` (none with
@@ -437,47 +456,5 @@ pub(crate) fn line_of(note: Note) -> Line {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const HOUR: i64 = 3_600_000;
-
-    #[test]
-    fn the_warning_comes_an_hour_before_the_expiry() {
-        assert_eq!(expiry_wait(10 * HOUR, 0), Some(Duration::from_millis(9 * HOUR as u64)));
-        assert_eq!(expiry_wait(HOUR + 1, 1), Some(Duration::ZERO));
-    }
-
-    #[test]
-    fn less_than_an_hour_left_is_said_at_once() {
-        assert_eq!(expiry_wait(HOUR - 1, 0), Some(Duration::ZERO));
-        assert_eq!(expiry_wait(5, 4), Some(Duration::ZERO));
-    }
-
-    #[test]
-    fn a_pair_that_expired_gets_no_warning() {
-        assert_eq!(expiry_wait(100, 100), None);
-        assert_eq!(expiry_wait(100, 200), None);
-        assert_eq!(expiry_wait(i64::MIN, i64::MAX), None);
-    }
-
-    /// `--resume-deadline` (T-306): a whole number and a unit, from 1 minute
-    /// to the 72 h of a pair's life.
-    #[test]
-    fn a_resume_deadline_is_a_time_from_a_minute_to_72_h() {
-        let secs = Duration::from_secs;
-        assert_eq!(parse_deadline("90"), Ok(secs(90)));
-        assert_eq!(parse_deadline("90s"), Ok(secs(90)));
-        assert_eq!(parse_deadline("30m"), Ok(secs(1800)));
-        assert_eq!(parse_deadline("8h"), Ok(secs(8 * 3600)));
-        assert_eq!(parse_deadline("3d"), Ok(secs(72 * 3600)));
-        for bad in ["", "h", "8 h", "+8h", "8x", "1.5h", "-1m", "99999999999999999999d"] {
-            let why = parse_deadline(bad).unwrap_err();
-            assert!(why.contains("a whole number, then s, m, h or d"), "{bad:?}: {why}");
-        }
-        for out in ["59", "0", "4d", "73h"] {
-            let why = parse_deadline(out).unwrap_err();
-            assert!(why.contains("from 1 minute to 72 h"), "{out:?}: {why}");
-        }
-    }
-}
+#[path = "layered_tests.rs"]
+mod tests;

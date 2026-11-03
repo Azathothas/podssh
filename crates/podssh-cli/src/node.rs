@@ -53,6 +53,8 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::node_flags::deadline(args).and_then(|()| crate::node_exit::check(args)) {
         return refusal.report("node", err);
     }
+    // What fills the budget of replay buffers, said on each road (T-586).
+    crate::node_flags::tell_budget(args);
     if let Some(key) = &args.temporary {
         return crate::node_temp::run(args, key, err);
     }

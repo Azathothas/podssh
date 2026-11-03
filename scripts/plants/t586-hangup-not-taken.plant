@@ -1,0 +1,10 @@
+# T-586: no signal taken, as before: SIGHUP ends `podssh operator` at once,
+# before it ends its session, and the node keeps the session as a loss with
+# its connection to the target, so the operator's test, through the stand-in
+# relay (Python and openssl), must fail.
+ENTRY=T-586
+GROUP=resume-cli
+EXPECT='test an_operator_that_its_parent_hangs_up_closes_the_session \.\.\. FAILED'
+SETUP='apk add --no-cache python3 openssl'
+RUN='cargo test --locked -p podssh-cli --test operator -- an_operator_that_its_parent_hangs_up_closes_the_session'
+LIMIT=2700

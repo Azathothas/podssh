@@ -197,6 +197,9 @@ pub(super) async fn connect(
     // login, for `~d` and `--attach` (T-158), and tells the far end's
     // silence for a notice (T-302).
     let shell = Some(Shell { offer: &opts.keep.offer, silence: &opts.silence });
+    // SIGHUP and SIGTERM end the session with its `CLOSE`, which the node
+    // keeps nothing of; Ctrl-C stays the remote command's (T-586).
+    crate::hangup::take(crate::hangup::Which::Ends);
     let (code, carried) = tokio::join!(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
         carry_keeping(&config, link_end, leg, layer_end, Some(part.expires_ms), &say, channel, pin_say, shell)

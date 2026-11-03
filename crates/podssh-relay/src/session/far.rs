@@ -14,6 +14,8 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+// The budget's words, by another name than the `budget` of `serve`.
+use super::budget as words;
 use super::deadline;
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Established, FarHandshake, HandshakeError, Step};
@@ -214,16 +216,26 @@ pub async fn serve_admitted<L, A, O, F>(
         let _ = keeper.run_resumed(accepted).await;
         return;
     }
-    // A new session holds a whole buffer's worth of the budget while it is
-    // kept, so the budget is a bound, not a hope.
-    let held = keeper.kept_admitted().saturating_mul(settings.replay_capacity);
-    if held.saturating_add(settings.replay_capacity) > budget {
-        let reason = format!(
-            "this node keeps as many resumable sessions as its budget allows ({} MiB of replay buffers)",
-            budget >> 20
-        );
+    // A new session holds a whole buffer's worth of the budget while its
+    // buffer can fill, so the budget is a bound, not a hope; a closing one
+    // holds what it keeps (T-586).
+    let each = settings.replay_capacity;
+    let census = keeper.census(each);
+    if census.held.saturating_add(each) > budget {
+        let reason = words::refusal(&census, budget);
+        // The client hears it; the node's own log must too, seldom. The
+        // lock goes before any await.
+        let said = keeper.told().refusal(tokio::time::Instant::now());
+        if said {
+            words::say(&reason);
+        }
         accepted.close(&reason, &keeper.sessions).await;
         return;
+    }
+    let after = census.with_one_more(each);
+    let passed = keeper.told().level(after.held, budget);
+    if passed {
+        words::say(&words::filling(&after, budget));
     }
     match tokio::time::timeout(TARGET_LIMIT, open()).await {
         Ok(Ok(target)) => {
@@ -286,5 +298,75 @@ where
         let mut sessions = sessions.lock().unwrap_or_else(|e| e.into_inner());
         sessions.set_received(&established.id, ended.received);
         ended
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use crate::session::budget::{filling, left_words, refusal, Census, Told};
+
+    const MIB: usize = 1 << 20;
+
+    /// The node of GitHub #112, in the words of T-586: what holds the
+    /// budget, and when room comes back.
+    #[test]
+    fn a_refusal_names_what_holds_the_budget_and_when_room_comes() {
+        let census = Census { held: 64 * MIB, live: 3, waiting: 13, first_free: Some(Duration::from_secs(250)) };
+        assert_eq!(
+            refusal(&census, 64 * MIB),
+            "this node keeps 16 resumable sessions (64 MiB of replay buffers): 3 with a link, 13 waiting for their \
+             client, the first of them for 4 min 10 s more; --resume-deadline and PODSSH_REPLAY_BUFFER of the node \
+             change its budget"
+        );
+    }
+
+    #[test]
+    fn a_refusal_counts_one_session_and_none_waiting_in_words() {
+        let live = Census { held: 8 * MIB, live: 2, waiting: 0, first_free: None };
+        let words = refusal(&live, 8 * MIB);
+        let head = "this node keeps 2 resumable sessions (8 MiB of replay buffers): 2 with a link, none waiting for \
+                    its client;";
+        assert!(words.starts_with(head), "{words}");
+        let one = Census { held: 4 * MIB, live: 0, waiting: 1, first_free: Some(Duration::from_millis(39_200)) };
+        let words = refusal(&one, 4 * MIB);
+        assert!(words.contains("keeps 1 resumable session (4 MiB"), "{words}");
+        assert!(words.contains("0 with a link, 1 waiting for its client, for 40 s more;"), "{words}");
+    }
+
+    #[test]
+    fn a_time_left_is_said_to_the_second_above_it() {
+        assert_eq!(left_words(Duration::from_millis(39_200)), "40 s");
+        assert_eq!(left_words(Duration::from_secs(60)), "1 min");
+        assert_eq!(left_words(Duration::from_secs(250)), "4 min 10 s");
+        assert_eq!(left_words(Duration::from_secs(3 * 3600 + 300)), "3 h 5 min");
+    }
+
+    /// A client that tries again each second does not fill the node's log.
+    #[test]
+    fn a_refusal_is_said_once_a_minute_at_most() {
+        let mut told = Told::default();
+        let start = tokio::time::Instant::now();
+        assert!(told.refusal(start));
+        assert!(!told.refusal(start + Duration::from_secs(59)));
+        assert!(told.refusal(start + Duration::from_secs(60)));
+    }
+
+    #[test]
+    fn three_quarters_are_said_once_until_the_budget_falls_to_half() {
+        let (mut told, budget) = (Told::default(), 64 * MIB);
+        assert!(!told.level(48 * MIB, budget), "at three quarters, not past them");
+        assert!(told.level(52 * MIB, budget));
+        assert!(!told.level(56 * MIB, budget));
+        assert!(!told.level(40 * MIB, budget));
+        assert!(!told.level(52 * MIB, budget), "above half since: said once");
+        assert!(!told.level(32 * MIB, budget));
+        assert!(told.level(52 * MIB, budget), "past them again after half");
+        let census = Census { held: 52 * MIB, live: 9, waiting: 4, first_free: Some(Duration::from_secs(90)) };
+        let line = filling(&census, budget);
+        let head = "the resumable sessions hold 52 MiB of this node's 64 MiB of replay buffers: 9 with a link, 4 \
+                    waiting for their client, the first of them for 1 min 30 s more;";
+        assert!(line.starts_with(head), "{line}");
     }
 }

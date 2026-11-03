@@ -964,7 +964,7 @@ filed as it is, with no port, as OpenSSH files it (the Correction).
   a run in the build image stalled on the download of the crates, and the
   checks' plant waits for T-251.
 - `docs/cli.md:131-140` and the manual's note of host keys
-  (`crates/podssh-cli/src/man/notes_ssh.rs:307-318`) say how each hop is checked,
+  (`crates/podssh-cli/src/man/notes_ssh.rs:309-320`) say how each hop is checked,
   and which settings hold for each hop.
 - `cargo test -p podssh-ssh`: 141 passed; `cargo test -p podssh-cli`:
   563 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -4221,15 +4221,15 @@ A defect: `ssh node://` is the documented way to log in to a node.
 - Read: the handshake is one wait of ConnectTimeout around russh's `connect_stream`, and its line
   names no byte, no version line and no step (`crates/podssh-ssh/src/run.rs:395-403`).
 - Read: `ssh node://` carries SSH with `carry_keeping`: the layer's settings of `ssh`, which name
-  `keep.v1` (`crates/podssh-cli/src/layered.rs:211`), the far end's shells learned and its
-  silence watched (`:228-234`), and the SSH client and the carriage joined in one task
-  (`crates/podssh-cli/src/ssh/node.rs:200-203`); `operator` carries with `carry_through`, with
-  none of these (`crates/podssh-cli/src/operator.rs:87-88`). These are the client's differences
+  `keep.v1` (`crates/podssh-cli/src/layered.rs:215`), the far end's shells learned and its
+  silence watched (`:241-247`), and the SSH client and the carriage joined in one task
+  (`crates/podssh-cli/src/ssh/node.rs:203-206`); `operator` carries with `carry_through`, with
+  none of these (`crates/podssh-cli/src/operator.rs:92-93`). These are the client's differences
   between the run that stopped and the one that worked; which one stopped it is not known.
 - Read: the tester's lines show the layer's session open and its features (`replay.v1`,
   `heartbeat.v1`, `move.v1`), so the relay, the pair and the layer's handshake worked; a roost
   checks sshd's version line on each session's connection
-  (`crates/podssh-cli/src/man/notes_pair.rs:27-29`), so the node had sshd's line.
+  (`crates/podssh-cli/src/man/notes_pair.rs:33-35`), so the node had sshd's line.
 - Read: no test runs `ssh node://` with a client on Windows: `relay-live.yml` runs `node_live` on
   Linux alone (`.github/workflows/relay-live.yml:32`), and `node_live`'s `ssh_to_a_node`
   (`crates/podssh-cli/tests/node_live.rs:141-142`) serves railway.new:22 where no sshd runs, so a
@@ -4258,7 +4258,7 @@ A defect: `ssh node://` is the documented way to log in to a node.
 ## Decision
 
 The 10 s of item 4 are the node's own bound on its TARGET's answer
-(`crates/podssh-relay/src/session/far.rs:30`): a sshd that the node reached has answered by then.
+(`crates/podssh-relay/src/session/far.rs:32`): a sshd that the node reached has answered by then.
 Lost: a retry of the handshake (the issue's third ask), which sends a second login while the
 first may be on its way; the line of item 4 is the shorter first bound that it asks for.
 

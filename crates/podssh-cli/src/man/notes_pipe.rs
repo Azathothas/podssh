@@ -84,7 +84,9 @@ pub const PIPE: &[&str] = &[
      on, so that a reply still comes back: tcp:, ssh: and unix-connect: pass it on as a half-close. The \
      relay has no half-close, so relay: sends nothing at the end of input, and the target's bytes come \
      until it closes, as a named pipe's do, whose listening side closes it at its end of input; node: \
-     and iroh: end their session. The pipe ends when both \
+     and iroh: end their session. With a node: side, SIGHUP, SIGTERM and SIGINT end the node's session \
+     as an end of input does, so that the node keeps nothing of it, and the road's status is then 0 \
+     when the node took the session (see podssh operator). The pipe ends when both \
      have ended, when a side's reader is gone, when a program has exited and its output has ended, or \
      when a road has ended. podssh waits for each program, as a shell does.",
     "A road that failed gives the exit status, as podssh proxy gives it: 69 for a road out of reach, 77 \

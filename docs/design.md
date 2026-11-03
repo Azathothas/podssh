@@ -742,7 +742,7 @@ functions of bytes only.
 | The latest screen, not each byte | Frames of the difference of screens, at most one each half round trip (20 to 250 ms), after 8 ms of collection, so Ctrl-C stops a flood within a round trip (paper §2.3; `src/network/transportsender.h:49-50`, `src/network/transportsender-impl.h:55-71`) | T-303, on request, to `podssh serve` |
 | No head-of-line blocking | Each datagram is an idempotent difference from a numbered state, so a lost one costs only itself (paper §2.2) | The iroh road carries a stream (T-162); datagrams: T-304 |
 | Congestion | A smoothed round trip and a timeout of 50 ms to 1 s, as TCP computes them; ECN slows the sender (`src/network/network.h:139-140`, `src/network/network.cc:461-500`) | TCP or QUIC under the layer; a rate limit for copies (T-145) |
-| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:415`, `crates/podssh-cli/src/layered.rs:426`); with the layer, a notice once a question waited 5 s with no answer, counting up: in the window's title, saved on the terminal's stack of titles and taken back, so the screen is not touched, where the terminal is known to keep that stack; a line with no pty (T-302, `docs/terminal.md`) |
+| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:434`, `crates/podssh-cli/src/layered.rs:445`); with the layer, a notice once a question waited 5 s with no answer, counting up: in the window's title, saved on the terminal's stack of titles and taken back, so the screen is not touched, where the terminal is known to keep that stack; a line with no pty (T-302, `docs/terminal.md`) |
 | A new client | Only the client process that holds the key comes back (paper §2.1; GitHub mobile-shell/mosh#394); mosh.org suggests screen or tmux | T-158 and T-159 attach from a new process; T-161 gives the screen |
 | Encryption | AES-128 in OCB mode, with a key that SSH carries (paper §2.2) | SSH, and the Noise channel above the layer (T-088) |
 | The start | SSH runs `mosh-server`, which prints a port and a key, then forks (`src/frontend/mosh-server.cc:450-462`); it listens on a UDP port of 60001 to 60999 (`src/network/network.h:142-143`) | No listener (`AGENTS.md`, section 5, rule 2): a node or a roost reaches out (T-083, T-166); a start from a standard sshd: T-167 |
@@ -914,6 +914,24 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   client's next write, as a stand-in relay showed (T-354). A client whose
   write in the handshake fails reads what came before, so a `REFUSE` that
   says why is not taken for a failed link.
+- **What a far end keeps of a session that ended** (T-586). A session
+  whose target ended and whose `CLOSE` went out keeps only the bytes that
+  the client has not acknowledged, and is charged those against the far
+  end's budget, not a whole buffer: no new byte can come into its buffer.
+  Once the client acknowledged each byte, and the link ended before its
+  answer, the session keeps its id alone, charged nothing, for as long as a
+  lost session waits: its target is shut and its buffer goes, and a resume
+  of it gets the `CLOSE`, as a resume of a session that ended on its old
+  link does. A client whose parent ends it with a signal (OpenSSH sends
+  SIGHUP to its ProxyCommand as it exits, and does not wait for it) takes
+  the signal as the end of its application's bytes: the layer sends
+  `CLOSE` after the bytes in flight, waits 2 s at most for the answer, and
+  the far end forgets the session at once. Before, each such login left its
+  session to the node as a loss, a whole buffer and a connection to sshd
+  for 10 minutes, and 16 of them in 10 minutes filled the node's 64 MiB
+  (GitHub #112). A refusal for the budget names what holds it: the sessions
+  with a link, those that wait for their client, and when the first of
+  those is forgotten.
 - **A move** (T-155), when both sides name `move.v1` and
   `replay.v1`. At 48 MiB of a link both ways, or at 11 h, the client opens a
   new link and waits for its `GREETING` while the old link carries the
@@ -956,7 +974,8 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
 Measured 2026-10-09: `podssh node` runs the far end for each session, and
 `podssh ssh node://` and `podssh operator` run the client. A node keeps 64
 MiB of replay buffers at most, a whole buffer for each session that it
-keeps, and dials its target only after a session's handshake. Through the
+keeps (since T-586, for each session whose buffer can still fill), and
+dials its target only after a session's handshake. Through the
 live relay, a node in front of `github.com:22` carried GitHub's banner
 through the layer to `podssh operator`, and `podssh ssh node://` logged in
 through it.

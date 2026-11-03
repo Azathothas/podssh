@@ -120,7 +120,14 @@ node answers `ready` at once, greets, and dials TARGET only after the
 operator's handshake; it keeps a session and its connection to TARGET for
 10 minutes after a lost link, or for the time of `--resume-deadline` (1
 minute to 72 h, T-306), which it names to the operator, and at most 64 MiB
-of replay buffers.
+of replay buffers. A session whose TARGET ended and whose `CLOSE` went out
+holds only the bytes that the operator has not acknowledged, and once the
+operator had each byte, its id alone; `podssh operator`, `podssh pipe` with
+a `node:` side and `podssh ssh node://` take the signals that end them
+(OpenSSH's SIGHUP to its ProxyCommand first) as the end of their bytes, and
+close the session, which the node then forgets (T-586). A refusal for the
+budget names the sessions that hold it and when the first of them is
+forgotten, and the node says it on stderr too.
 `podssh ssh node://` and `podssh operator` run the client: after a lost
 leg, they open a new one and resume the session where it was, unless the
 relay's close says not to come back (a stopped or expired pair, a fault of
