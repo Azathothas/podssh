@@ -134,7 +134,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-a6a21bc1a5b921742`, `330e6ed`, merged as partial on `draft/merge-253`,
   `5d0db76`, its tests of IPv6 on a runner); T-255 (`worktree-agent-ab9d837b93edc90b0`,
   `8f09eb3`, merged and closed); T-325 (`worktree-agent-ab532bbdaa9b8fe7b`, `fbda4ad`, merged and closed); T-608
-  (`worktree-agent-ab7069457e3f92567`, `be90ae1`, merged and closed). They wait to be merged in that order.
+  (`worktree-agent-ab7069457e3f92567`, `be90ae1`, merged and closed, `6060558`). Each is merged in
+  that order, T-253 as partial on `main` (`5d0db76`); their worktrees and local branches are gone,
+  and their `draft/` branches on GitHub, with `draft/merge-253`, can go. No draft waits.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
