@@ -31,7 +31,7 @@ pub const KEYGEN_FLAGS: &[FlagRow] = &[
     row(Some('y'), "print-public", None, FlagKind::Supported,
         "print the public key of the private key in -f FILE", None),
     row(Some('l'), "fingerprint", None, FlagKind::Supported,
-        "print the fingerprint of the key in -f FILE", None),
+        "print the fingerprint of the key in -f FILE, its private file or its .pub", None),
     row(Some('F'), "find-host", Some("HOST"), FlagKind::Supported,
         "print the lines of HOST ([HOST]:PORT for another port) in known_hosts: -f FILE, else ~/.ssh/known_hosts", None),
     row(Some('R'), "remove-host", Some("HOST"), FlagKind::Supported,

@@ -48,7 +48,7 @@ them too, which is wrong. An unknown `%` token stays as text (`crates/podssh-cli
    (`crates/podssh-cli/src/ssh/keywords.rs`, lines 84-89 at `c0cdd2b`), but accept a `ProxyCommand` that runs
    podssh itself (`proxy %h %p`: the path of `podssh ssh` anyway). Honour `IgnoreUnknown`.
 6. Refuse a file that another user owns or can write, as OpenSSH does, on the opened file
-   (`crates/podssh-relay/src/cache/own.rs:22-54`, `Others::Read`, since T-163). An unknown `%`
+   (`crates/podssh-relay/src/cache/own.rs:22-59`, `Others::Read`, since T-163). An unknown `%`
    token is an error.
 7. In the same commit: the `-F` row (`crates/podssh-cli/src/flags.rs`, lines 143-144 at `c0cdd2b`), VARIABLES and
    FILES (`crates/podssh-cli/src/man/facts.rs`, lines 45-127 and 98-142 at `c0cdd2b`), the `ssh` notes,
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:4346-4467`, FILES (`crates/podssh-cli/src/man/data.rs:154-430`) and the
+7. Change `docs/cli.md:4346-4467`, FILES (`crates/podssh-cli/src/man/data.rs:158-434`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -464,7 +464,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:249`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-482` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114`) and `docs/cli.md:48-793`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-482` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119`) and `docs/cli.md:48-793`
    in the same commit.
 
 ## Decision
@@ -565,7 +565,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
    (`crates/podssh-cli/src/flags.rs:368-444`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:282-307`), the manual's notes and examples, and
+   (`crates/podssh-cli/src/help.rs:248-273`), the manual's notes and examples, and
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-143`).
 
 ## Decision
@@ -698,7 +698,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
    names relay hosts decides where tokens go.
 4. Refuse a file that is a symbolic link, or that another user owns or can write, with an error
    that names it. Check the opened file, as `read_own` does with `Others::Read`
-   (`crates/podssh-relay/src/cache/own.rs:22-54`, since T-163).
+   (`crates/podssh-relay/src/cache/own.rs:22-59`, since T-163).
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and

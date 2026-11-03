@@ -58,6 +58,11 @@ pub(super) const MORE: &[&str] = &[
      through a node, also the bytes that its resumable layer and its end-to-end channel carried each way. \
      10 s in (through a node, 10 s after its layer opened), a handshake that has not finished says where it \
      is, once, and waits on; a question that nobody can see says that it waits, and its remedy.",
+    "The version line that podssh sends is SSH-2.0-podssh_VERSION, each dash of the version written as an \
+     underscore, as RFC 4253 allows none there: podssh names its own software, as each client does. A \
+     server or a filter that lets in only the version lines of OpenSSH refuses it. podssh does not send \
+     OpenSSH's line: a server reads the line to choose the quirks that it expects of a client (OpenSSH's \
+     own server so treats its older versions), and podssh is not OpenSSH.",
     "Each later hop of -J is reached on a direct-tcpip channel of the hop before it, whose open has that \
      hop's ConnectTimeout. A hop that never answers the open, and a channel on which no byte of an SSH \
      server came within it, or that closed with none, are named so: the hop, and the target of its \

@@ -951,7 +951,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
    `rm`, `mkdir`, `rmdir`, `ls`, `cd`, `lcd`, `pwd`, `lpwd`, `chmod`, `df`,
    `bye`; a leading `-` goes on after an error. The same commands at a
    prompt on a terminal; with no terminal and no `-b`, exit 64.
-6. Same commit: `crates/podssh-cli/src/help.rs:234-307`, the manual and its
+6. Same commit: `crates/podssh-cli/src/help.rs:234-273`, the manual and its
    examples, `docs/cli.md`.
 
 ## Decision
