@@ -476,7 +476,7 @@ podssh measures the hosts that a user names with `ping`, and remembers each
 host's failures and opens; it keeps no measured time of a host, and it never
 looks past the first three hosts of the pool. The design:
 
-1. **`podssh relay rank`**, on demand. The default host and each host of
+1. **`podssh relay rank`**, on demand (T-606). The default host and each host of
    the cached pool (all of them), or the list of `--relay-host`; each host
    probed `--rounds` times in a new random order each round, one host at a
    time, by the code of `podssh ping`'s relay leg

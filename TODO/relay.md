@@ -2550,3 +2550,108 @@ gh workflow run relay-measure.yml --ref main -f hosts=all -f rounds=3
 The self-test passes, and fails with the plant on two runs that overlap. The live run gives each of
 four hosts two legs, two traces and GitHub's key, and its JSON holds no token, no proxy address and
 no credential (a search of the file for each). The workflow passes and uploads its JSON.
+
+# T-606: `podssh relay rank`: each relay host measured on demand, and the rank kept in the cache beside the record of failures
+
+**Source:** The operator, 2026-11-03: "maybe even include it in podssh itself so it can rank relays
+on demand and then use". The design is `docs/research/relay-measurement.md`, section 8.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh tries the default host and the first three hosts of its pool, in the order of
+`/relays.json`, and never measures the other hosts of the pool. That order is the one of the edge
+that answered at the last refresh, and its score did not agree with measured latency. A user cannot
+ask podssh which hosts are best from this host, and podssh keeps no measured time of a host. The
+archive of 2026-11-03 found each of the 37 hosts working, so the choice of three is a choice among
+working hosts, which a measurement can make.
+
+## Premise
+
+- Read: `crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize = 3;", and the
+  default list is the default host, then the pool in its order
+  (`crates/podssh-relay/src/relay.rs:104-125`).
+- Read: the alternates are the cached pool, in the order of `/relays.json`
+  (`crates/podssh-relay/src/pool.rs:106-121`); `docs/relay.md:347-349` says that `/relays.json`
+  ranks relays by the edge that answered, and that its `score_ms` did not agree with the measured
+  latency.
+- Read: `podssh ping`'s leg times the token, the dial, TLS and the upgrade of one host, and its
+  WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-146`), and `ping` runs the legs one after
+  another (`crates/podssh-cli/src/ping/mod.rs:155-160`); the module is private to `ping`
+  (`crates/podssh-cli/src/ping/mod.rs:9`).
+- Read: the record of failures is a file of the cache, `crates/podssh-relay/src/failures.rs:27`
+  says "pub const FILE: &str", and `order` keeps the list's order within each of its groups
+  (`crates/podssh-relay/src/failures.rs:231-255`).
+- Read: the subcommands of `podssh relay` (`crates/podssh-cli/src/relay_cmd.rs:76-101`), and
+  `--json` goes with `status`, `info` and `trace` alone (`crates/podssh-cli/src/relay_cmd.rs:55-58`).
+- Read: rule 2 of `AGENTS.md`, section 5: one outbound connection, through `HTTPS_PROXY` when it is
+  set; its exceptions name no measurement of hosts.
+- Read in the archive (`docs/research/relay-measurement.md`, section 4): 37 of 37 pool hosts opened
+  and carried a key exchange, one sample each, eight at a time, through one proxy.
+
+## Approach
+
+1. A module of `podssh-relay`, crates/podssh-relay/src/rank.rs, pure, its tests in a file of their
+   own: a probe (opened, the time to open as the dial, TLS and the upgrade, the token's time left
+   out, the pings' p50, why it failed in the record's words); a host's figures (tries, opens, p50
+   and p95 by nearest rank); the order of the report's section 7 (the share of failed probes, then
+   the p50, then the p95; a tie within 50 ms or 10 % keeps the order before, so that one run's
+   noise moves no host); and the file `relay-rank.json` in the cache, by
+   the cache's own functions (mode 0600): schema 1, when, the egress (the first 16 hexadecimal
+   digits of the SHA-256 of `HTTPS_PROXY`'s host and port, or `direct`; no credential, no name),
+   the target, and the hosts in order with their figures.
+2. crates/podssh-cli/src/relay_rank.rs: `podssh relay rank [--rounds N] [--count N] [--target
+   HOST:PORT] [--json] [--cached] [--forget]`, with `--relay-host`, `--relay-addr` and `--ca-file`.
+   The hosts: the list of `--relay-host`, else the default host and each host of the cached pool,
+   with `/relays.json` read once first when no pool is cached, as `relay info` reads it. Each round
+   in a new random order; each probe by `ping`'s leg (`pub(crate)`), with the deployment's token,
+   one mint at most; 250 ms between two probes; the whole run within 10 minutes, a host not probed
+   by then named. A line for each probe on stderr, the rank on stdout; `--json`, one object.
+3. Exit: 0 when a host opened; 69 when none did, and with `PODSSH_OFFLINE` before any connection;
+   64 for a bad flag. `--cached` prints the rank kept, its age and whether its egress is this one,
+   and `--forget` removes it; neither connects.
+4. `podssh status` names the rank's age, its egress and its first host, with no connection.
+5. The manual (`crates/podssh-cli/src/man/notes_relay.rs`, `crates/podssh-cli/src/flags/relay.rs`),
+   `docs/relay.md` ("How podssh selects relay hosts", "Diagnostics") and `docs/cli.md`.
+
+## Decision
+
+- On demand, one host at a time: rule 2's one connection holds, as for `ping` over its hosts and
+  `doctor` over each host's `/health`. Lost: probes at once, which are faster, need an exception of
+  rule 2, and skew the rank as the archive's cells at once did (the report, section 3); a rank that
+  podssh makes unasked, which waits for the operator (the report, section 8, item 4).
+- The time to open as the measure: it is what the race decides on, it needs no server, it costs a
+  few KiB, and the relay's dial of the target is in it, as in a session. Lost: throughput, which
+  needs a server and up to 64 MiB a host; the WebSocket ping alone, as which part of the relay
+  answers it is not known (a column of the rank, not its key).
+- `github.com:22` by default, never a session's destination: `ping`'s rule, as OpenSSH's
+  PerSourcePenalties would count the probes against the relay's shared address
+  (`crates/podssh-cli/src/ping/relay.rs:1-8`). Lost: a rank to the user's own target, which
+  `--target` gives for a target that the user owns.
+- A rank holds 24 h, for the egress that measured it. Lost: the 7 days of the pool's cache, as a
+  host's network changes sooner than a pool.
+- A file of its own, beside `relay-failures.json`: the record changes at each run, an older podssh
+  reads it, and the rank changes on demand. Lost: one file for both.
+- With `--relay-host`, the hosts of any deployment, each with its own token (T-057): a net's own
+  relays rank the same way once a net names them (T-435).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib rank
+cargo test -p podssh-cli --test relay_rank
+target/debug/podssh relay rank --rounds 3 --json
+python3 -I scripts/relay-measure.py --podssh target/debug/podssh --stages pool --hosts all --rounds 3
+```
+
+Offline, against two stand-in relays of `scripts/fake-relay.py` (`normal`, and `slowopen:600`):
+the rank puts the fast one first, keeps its file with mode 0600 and no token, names a host that
+fails, and `--cached` reads it back with no connection; with `PODSSH_OFFLINE`, 69. Planted: the
+order by the last probe in place of the median; the test of a host that is slow once in three
+fails. Live (the live relay is the operator's own): the rank of the pool, and the harness's order
+of the same hosts in the same hour (T-605); the first three of each in `docs/STATUS.md`.

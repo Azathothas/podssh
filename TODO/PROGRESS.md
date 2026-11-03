@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 569 entries: 98 open, 4 partial, 16 blocked, 451 done.
+`TODO/INDEX.md` holds 570 entries: 99 open, 4 partial, 16 blocked, 451 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -239,7 +239,8 @@ branches `draft/worktree-agent-*` of GitHub, each merged in turn.
 
 **The operator's request of 2026-11-03:** an archive of research on relays, read in
 `docs/research/relay-measurement.md`: its harness, adapted to run podssh itself (T-605), goes
-between entries, a `none` entry.
+between entries, a `none` entry; the rank of the relay hosts on demand (T-606) is M10's, after
+item 2 of its order.
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):

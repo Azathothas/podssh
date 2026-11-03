@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**569 entries: 98 open, 4 partial, 16 blocked, 451 done.**
+**570 entries: 99 open, 4 partial, 16 blocked, 451 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 25 | 3 | 14 | 217 | 259 |
+| P2 | 26 | 3 | 14 | 217 | 260 |
 | P3 | 73 | 0 | 2 | 171 | 246 |
-| **All** | 98 | 4 | 16 | 451 | 569 |
+| **All** | 99 | 4 | 16 | 451 | 570 |
 
 ## Entries
 
@@ -645,3 +645,4 @@ repository and CI).
 | [T-603](multi.md) | P2 | S | none | defect | done | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |
 | [T-604](ws.md) | P3 | S | none | feature | open | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |
 | [T-605](relay.md) | P2 | M | none | measurement | open | A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research |
+| [T-606](relay.md) | P2 | M | M10 | feature | open | `podssh relay rank`: each relay host measured on demand, and the rank kept in the cache beside the record of failures |
