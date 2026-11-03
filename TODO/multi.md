@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:4362-4365`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:4393-4396`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4542-4651`); they cannot define a group.
+  (`docs/cli.md:4573-4682`); they cannot define a group.
 
 ## Approach
 
@@ -904,7 +904,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:140`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:339-341`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:340-342`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:246`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:4362-4365`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:4393-4396`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1638,7 +1638,7 @@ session built it and ran each check below.
   T-251.
 - The planted defect: no default excludes (`DEFAULT_EXCLUDES` empty). The
   test `a_run_copies_what_changed_leaves_out_target_and_gives_the_status`
-  failed with it, at `crates/podssh-cli/tests/run_far.rs:51` (`target/`
+  failed with it, at `crates/podssh-cli/tests/run_far.rs:75` (`target/`
   went to the server), and passed again without it. The check
   `run.excludes` of the interop waits for T-251.
 
@@ -1812,9 +1812,9 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:90-110`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:385-426`.
+  `crates/podssh-cli/src/dispatch.rs:386-427`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:4362-4365`), which is not a failure of podssh.
+  status (`docs/cli.md:4393-4396`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2254,7 +2254,7 @@ more than it does.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2267,20 +2267,20 @@ a command.
 ## Premise
 
 - Read: `run` leaves out the default excludes, and reads `.podsshignore` at the project's root
-  when it is there (`crates/podssh-cli/src/run_cmd/mod.rs:30-34`, `:141-149`), as the manual's
-  note says (`crates/podssh-cli/src/man/notes_run.rs:11-18`). So the issue's first ask, a
-  `.podsshignore` read by default, is met, as its comment found.
-- Read: the rows of `run`, which `--help` shows, name neither the defaults nor the file, and hold
-  no `--dry-run` and no way to turn the excludes off (`crates/podssh-cli/src/flags/run.rs:10-47`,
-  `:13-16`).
-- Read: the walk drops each excluded path with no count (`crates/podssh-cli/src/cp/tree.rs:291-293`),
-  and the run says its files sent and unchanged at `-v` alone
-  (`crates/podssh-cli/src/run_cmd/mod.rs`, line 226 at `010abe1`; T-472 makes it a summary at the
-  default level).
-- Read: `cp -r --dry-run` says each action and changes nothing
-  (`crates/podssh-cli/src/cp/report.rs:18-35`), but a dry run passes over the check of a file that
-  did not change (`crates/podssh-cli/src/cp/tree_copy.rs:194`), so a dry run of `run` built on it
-  as it is would list each file.
+  when it is there (`crates/podssh-cli/src/run_cmd/mod.rs:33-37`, `:152-160`; lines 141-149 at
+  `b02d8c4`), as the manual's note says (`crates/podssh-cli/src/man/notes_run.rs:11-20`). So the
+  issue's first ask, a `.podsshignore` read by default, is met, as its comment found.
+- Read, at `b02d8c4`: the rows of `run`, which `--help` shows, name neither the defaults nor the
+  file, and hold no `--dry-run` and no way to turn the excludes off
+  (`crates/podssh-cli/src/flags/run.rs`, lines 10-47 and 13-16 there).
+- Read, at `b02d8c4`: the walk drops each excluded path with no count
+  (`crates/podssh-cli/src/cp/tree.rs`, lines 291-293 there), and the run says its files sent and
+  unchanged at `-v` alone (`crates/podssh-cli/src/run_cmd/mod.rs`, line 226 at `010abe1`; T-472
+  makes it a summary at the default level).
+- Read, at `b02d8c4`: `cp -r --dry-run` says each action and changes nothing
+  (`crates/podssh-cli/src/cp/report.rs`, lines 18-35 there), but a dry run passes over the check
+  of a file that did not change (`crates/podssh-cli/src/cp/tree_copy.rs`, line 194 there), so a
+  dry run of `run` built on it as it is would list each file.
 - Read: `cp -r` has no default excludes, and reads no ignore file that `--exclude-from` does not
   name (T-143's Decision), where `run` reads `.podsshignore` (T-192's Decision). One project
   copied by the two verbs lands differently, as the comment says, and neither manual says so.
@@ -2312,6 +2312,31 @@ a command.
   no word on its command line); `.gitignore` (T-192's Decision: its rules are more than T-143's
   patterns).
 - The dry run connects, as `cp -r --dry-run` does: what changed is known on the far side alone.
+- 2026-11-03, the draft: step 3's count joins T-472's summary, done since, as `, 2 left out`
+  between the skips and the failures, for `cp`, `mv` and `run` alike (`left_out` in `--jsonl`'s
+  `summary` object), and `-v` names each path with the pattern that left it out
+  (`PROJ/target: left out by target/`); `run --help` names the defaults and `.podsshignore`, so
+  the count needs no list of them. A path counts once, the top of what it left out (`target`, not
+  each file under it), as the walk does not go into it. Lost: a second line that names the
+  sources (two lines where T-472 made one, and the sources differ with `--no-ignore` and
+  `--exclude`); a count for `run` alone (the walk is `cp -r`'s too, whose `--exclude` would then
+  leave paths out with no word); the count of the files under an excluded directory, which needs
+  a walk of what the copy never reads.
+- 2026-11-03, the draft: the dry run of `run` plans only what its copy would change: no `mkdir`
+  for a far directory that is there, no `copy` for a file of the same size and time, no `link` for
+  a link that names the same path already; each parent of the far directory that the run would
+  make is a `mkdir` line, and none is made (`sync::parents` made them before the copy). Lost:
+  `cp -r --dry-run`'s plan as it is, which lists each directory and file and so hides the one
+  change.
+- 2026-11-03, the draft: a dry run gives its plan only when the far side answered to its end: a
+  look that failed reads as a file to copy, so one more look (`realpath .`) follows the plan, and
+  a far side that did not answer gives 255 and no plan. A far parent that is a file is 255, as for
+  the run, which fails there before any copy. No summary comes for a dry run (T-472's Decision),
+  but one line on stderr counts the paths left out (`2 paths left out by the excludes; -v names
+  each`). Lost: half a plan; a summary of a run that copied nothing.
+- 2026-11-03, the draft: the tests of `crates/podssh-cli/src/cp/tree.rs` move to
+  `crates/podssh-cli/src/cp/tree_tests.rs`, as `clobber.rs`'s are apart, so that the walk's list
+  of the paths left out keeps the file under 500 lines.
 
 ## Prove
 
@@ -2328,6 +2353,53 @@ not come, and the exit is 0); after a run and one change, `--dry-run` lists that
 `--no-ignore` copies `target/` and `x.tmp`; a run with no `-v` says that 2 paths were left out.
 `run`: `--help` names `.podsshignore`, and `--no-ignore` and `--dry-run` parse offline. Planted
 defect: the dry run runs the command; the check that nothing ran fails.
+
+## Done
+
+2026-11-03, drafted by an agent, not built: each result below is UNVERIFIED, for the main session
+to fill when it merges, builds and runs the draft.
+
+- `crates/podssh-cli/src/run_cmd/mod.rs`: `--no-ignore` (neither the defaults nor
+  `.podsshignore`; `--exclude` and `--exclude-from` still apply) and `--dry-run`, which makes the
+  copy's looks alone and gives its answer before the command; `crates/podssh-cli/src/run_cmd/dry.rs`,
+  new: the plan on stdout (the far parents to make, the copy's actions, then `run cd DIR &&
+  COMMAND`), the count of the paths left out on stderr, and 0 or 255. `crates/podssh-cli/src/dispatch.rs`
+  gives `run` its stdout.
+- The copy: `crates/podssh-cli/src/cp/sync.rs` (the far parents planned, not made, in a dry run;
+  the plan's lines; one more look after a dry run's plan), `crates/podssh-cli/src/cp/tree_copy.rs`
+  (the check of an unchanged file in a dry run too; no `mkdir` of a far directory that is there,
+  no `link` that is there as it is here, with `changed_only`; each path left out named at `-v`
+  and counted), `crates/podssh-cli/src/cp/tree_items.rs` (`far_dir`, `same_link`),
+  `crates/podssh-cli/src/cp/tree.rs` (each walk gives the paths that the excludes left out, and
+  `Tree::excluded_by` the pattern; the tests in `crates/podssh-cli/src/cp/tree_tests.rs`),
+  `crates/podssh-cli/src/cp/outcome.rs` and `crates/podssh-cli/src/cp/summary.rs` (`left out` in
+  the line, `left_out` in the object), `crates/podssh-cli/src/cp/report.rs` (the line of a planned
+  action, one function for `cp` and `run`).
+- The rows of `--exclude` (the defaults, `.podsshignore`, and that it removes nothing on the host),
+  `--no-ignore` and `--dry-run` (`crates/podssh-cli/src/flags/run.rs`); `run --help`'s notes
+  (`crates/podssh-cli/src/help/notes.rs`); the manual's notes of `run` and `cp`
+  (`crates/podssh-cli/src/man/notes_run.rs`, `crates/podssh-cli/src/man/notes.rs`) and an example
+  of `run --dry-run` (`crates/podssh-cli/src/man/examples.rs`); `docs/cli.md` (`run`, the summary,
+  `cp -r`) and a row of `docs/STATUS.md`.
+- Tests: `cargo test -p podssh-cli --lib run_cmd::`, UNVERIFIED (`--no-ignore` drops the defaults
+  and the file and keeps `--exclude-from` and `--exclude`; the flags parse; the text of a plan and
+  of the count); `--lib cp::`, UNVERIFIED (the summary's `left out` and `left_out`; a walk's paths
+  left out and `excluded_by`); `--lib help`, UNVERIFIED (`run --help` names the defaults, the file,
+  both flags and that an exclude removes nothing); `--lib man::examples`, UNVERIFIED (the example
+  of `--dry-run` parses); `--test run`, UNVERIFIED (`--help` names them; each new flag parses
+  offline, 255 with nothing on stdout); `--test run_far`, UNVERIFIED (against the test's server
+  and OpenSSH's `sftp-server`: the summary's `2 left out`; a dry run of a new project, a `copy` for
+  each of its 3 files and the `mkdir` lines, the command last, `.podssh` absent on the server, and
+  `2 paths left out` on stderr; after a run and one change, that file alone and the command, the
+  far file as it was, and after one more run the command alone; `--no-ignore`, `target/big.bin`
+  and `x.tmp` sent, and with `--exclude '*.log'` one path left out).
+- Planted, a dry run that says its plan and then runs its command
+  (`scripts/plants/t475-dry-run-runs.plant`; its patch applies to the draft): UNVERIFIED; the test
+  of a dry run after a change must fail at its first look, for the command's output.
+- Waiting for the build image: `scripts/interop-run.sh`'s `run.again` (now `1 left out`) and its
+  new `run.dry_run` against OpenSSH (`scripts/interop-baseline.txt`: the floor of `run` is 4); the
+  gate's interop. clippy: UNVERIFIED; rustfmt: `rustfmt --check` of the changed files passed with
+  no build.
 
 # T-480: `health` gives the host's CPUs and memory where a container's cgroup allows fewer
 

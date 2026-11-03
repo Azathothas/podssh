@@ -44,11 +44,11 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 3. One model and two renderers, as `podssh man` has (`crates/podssh-cli/src/man/model.rs`).
 4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:80-108`), read it into
    `Parsed::Doctor` (`crates/podssh-cli/src/tree.rs` lines 172-181 and 384-392 at `c6f09a8`), and pass it on in
-   `crates/podssh-cli/src/dispatch.rs:189-226`. `tree.rs` has 454 lines and `dispatch.rs` 448:
+   `crates/podssh-cli/src/dispatch.rs:190-227`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:218-294`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:221-297`) and
    `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:107-139` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:80-108`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:218-294`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:221-297`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4448-4476`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4479-4507`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.
@@ -959,10 +959,10 @@ itself. `ssh --result-file` gives one object at the end; the verbs that copy giv
   the mode 0600 (`crates/podssh-cli/src/ssh/result.rs:60-74`).
 - Read: `cp`, `mv` and `scp` share one run and one report (`crates/podssh-cli/src/cp/report.rs:1-5`);
   its outcome holds the files done, the failure, the deletes, the actions of a dry run and the
-  files that `run` did not send again (`crates/podssh-cli/src/cp/outcome.rs:15-40`, where T-476
+  files that `run` did not send again (`crates/podssh-cli/src/cp/outcome.rs:15-43`, where T-476
   moved it from `cp/mod.rs`); `--jsonl`
   gives an event for each (`crates/podssh-cli/src/flags/copy.rs:55-56`).
-- Read: `run` copies, then runs the command as `ssh` does (`crates/podssh-cli/src/run_cmd/mod.rs:1-15`),
+- Read: `run` copies, then runs the command as `ssh` does (`crates/podssh-cli/src/run_cmd/mod.rs:1-18`),
   and says its count of files sent and unchanged with `-v` alone
   (`crates/podssh-cli/src/run_cmd/mod.rs`, line 226 at `010abe1`; T-472 makes it a summary at the
   default level).

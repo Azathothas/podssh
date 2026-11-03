@@ -90,14 +90,17 @@ const CP: &[&str] = &[
      With --jsonl each file gives one JSON object: done, with the bytes, the SHA-256 and how the far \
      side was checked, or error, with the exit code.",
     "At its end a run of podssh cp or mv says on one line what it did: the files copied and their bytes, \
-     those that podssh run left as they were, those skipped and those that failed, how long it took and \
+     those that podssh run left as they were, those skipped, the paths that an exclude left out (each \
+     named at -v with its pattern) and those that failed, how long it took and \
      its rate; also after a failure, before its error. -q silences it, and --jsonl gives a summary object \
      in its place. On a terminal one line shows the progress of the run: the file in flight, and with \
      several files their count. Where stderr is no terminal, a plain line comes each 10 s once the run \
      has passed 10 s, with no carriage return; PODSSH_PROGRESS=off and -q silence it.",
     "Several sources go into a directory. A copy from server to server goes through a temporary file on \
      this host, one connection at a time. -r copies a directory and what it holds, each link as a link \
-     (scp -r follows links). A device, a FIFO or a socket is not copied: one line says so, with --jsonl \
+     (scp -r follows links); it has no default excludes and reads no .podsshignore, where podssh run \
+     leaves out target/, node_modules/, .git/ and what the project's .podsshignore names. A device, a \
+     FIFO or a socket is not copied: one line says so, with --jsonl \
      a skipped object, and it is no failure, as OpenSSH's scp and sftp skip one. Each failure is said \
      once, when it comes; the rest goes on, and the exit code is the first failure's.",
     "Several files go at once, each over an SFTP session of its own in the one connection, and so do \

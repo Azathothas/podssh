@@ -22,6 +22,10 @@ pub struct Counts {
     /// and the files whose destination stays, as `--no-clobber` or
     /// `--update` asks (T-473).
     pub skipped: usize,
+    /// The paths of the source that the excludes left out, each the top of
+    /// what it left out: `podssh run`'s defaults and `.podsshignore` too
+    /// (T-475).
+    pub left_out: usize,
     /// Each failure, said when it came.
     pub failed: usize,
 }
@@ -33,20 +37,27 @@ impl Counts {
             bytes: outcome.done.iter().map(|done| done.bytes).sum(),
             unchanged: outcome.unchanged,
             skipped: outcome.skipped.len(),
+            left_out: outcome.left_out,
             failed: outcome.failures().count(),
         }
     }
 }
 
-/// The line: `3 copied (3.1 MiB), 2 unchanged, 1 skipped, 1 failed, in 12.0
-/// s (264.5 KiB/s)`. Each count of zero is left out but the first, and so
-/// are the bytes and the rate when no byte went.
+/// The line: `3 copied (3.1 MiB), 2 unchanged, 1 skipped, 2 left out, 1
+/// failed, in 12.0 s (264.5 KiB/s)`. Each count of zero is left out but the
+/// first, and so are the bytes and the rate when no byte went.
 pub fn line(counts: &Counts, took: Duration) -> String {
     let mut text = format!("{} copied", counts.copied);
     if counts.copied > 0 {
         text.push_str(&format!(" ({})", bytes(counts.bytes)));
     }
-    for (n, what) in [(counts.unchanged, "unchanged"), (counts.skipped, "skipped"), (counts.failed, "failed")] {
+    let rest = [
+        (counts.unchanged, "unchanged"),
+        (counts.skipped, "skipped"),
+        (counts.left_out, "left out"),
+        (counts.failed, "failed"),
+    ];
+    for (n, what) in rest {
         if n > 0 {
             text.push_str(&format!(", {n} {what}"));
         }
@@ -67,6 +78,7 @@ pub fn json(counts: &Counts, took: Duration) -> serde_json::Value {
         "bytes": counts.bytes,
         "unchanged": counts.unchanged,
         "skipped": counts.skipped,
+        "left_out": counts.left_out,
         "failed": counts.failed,
         "seconds": (took.as_secs_f64() * 10.0).round() / 10.0,
     })
@@ -78,13 +90,16 @@ mod tests {
 
     #[test]
     fn the_line_leaves_out_each_count_of_zero_but_the_first() {
-        let all = Counts { copied: 3, bytes: 3_250_586, unchanged: 2, skipped: 1, failed: 1 };
+        let all = Counts { copied: 3, bytes: 3_250_586, unchanged: 2, skipped: 1, left_out: 2, failed: 1 };
         assert_eq!(
             line(&all, Duration::from_secs(12)),
-            "3 copied (3.1 MiB), 2 unchanged, 1 skipped, 1 failed, in 12.0 s (264.5 KiB/s)"
+            "3 copied (3.1 MiB), 2 unchanged, 1 skipped, 2 left out, 1 failed, in 12.0 s (264.5 KiB/s)"
         );
         let none = Counts { unchanged: 3, ..Counts::default() };
         assert_eq!(line(&none, Duration::from_millis(400)), "0 copied, 3 unchanged, in 0.4 s");
+        // What the excludes left out (T-475).
+        let left = Counts { unchanged: 3, left_out: 2, ..Counts::default() };
+        assert_eq!(line(&left, Duration::from_millis(400)), "0 copied, 3 unchanged, 2 left out, in 0.4 s");
         let one = Counts { copied: 1, bytes: 34, ..Counts::default() };
         assert_eq!(line(&one, Duration::from_secs(2)), "1 copied (34 B), in 2.0 s (17 B/s)");
         let failed = Counts { failed: 1, ..Counts::default() };
@@ -98,6 +113,7 @@ mod tests {
         assert_eq!(object["event"], "summary");
         assert_eq!((object["copied"].as_u64(), object["bytes"].as_u64()), (Some(2), Some(10)));
         assert_eq!((object["unchanged"].as_u64(), object["failed"].as_u64()), (Some(0), Some(0)));
+        assert_eq!(object["left_out"].as_u64(), Some(0), "each count, zero or not");
         assert_eq!(object["seconds"].as_f64(), Some(1.3));
     }
 }

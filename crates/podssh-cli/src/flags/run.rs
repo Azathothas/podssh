@@ -10,10 +10,16 @@ use super::{row, FlagKind, FlagRow};
 pub const RUN_FLAGS: &[FlagRow] = &[
     row(None, "from", Some("DIR"), FlagKind::Supported,
         "the project to copy (default: the working directory); the far directory takes its name", None),
+    // What never goes, named where a user looks first (T-475): an ignore
+    // that --help does not name reads as a defect of the copy.
     row(None, "exclude", Some("PATTERN"), FlagKind::Supported,
-        "leave out one more path: * and ? within a name; with a /, from the root of the project; repeatable", None),
+        "leave out one more path, beside target/, node_modules/, .git/ and the patterns of the project's .podsshignore, which never go: * and ? within a name; with a /, from the root of the project; repeatable; it removes nothing on the host, so what an earlier run sent stays", None),
     row(None, "exclude-from", Some("FILE"), FlagKind::Supported,
         "the --exclude patterns of FILE, one a line; # starts a comment", None),
+    row(None, "no-ignore", None, FlagKind::Supported,
+        "send target/, node_modules/, .git/ and what .podsshignore names too; --exclude and --exclude-from still apply", None),
+    row(None, "dry-run", None, FlagKind::Supported,
+        "say on stdout what the copy would change (mkdir, copy, link, skip), then the command as run cd DIR && COMMAND; change nothing on either side, and run nothing", None),
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,

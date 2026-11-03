@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/run_cmd/mod.rs
++++ b/crates/podssh-cli/src/run_cmd/mod.rs
+@@ -249,7 +249,7 @@
+         if let Some(link) = link.take() {
+             link.close().await;
+         }
+-        return dry::answer(plan, &parents, &synced, log, out);
++        let _ = dry::answer(plan, &parents, &synced, log, out);
+     }
+     // The summary, on stderr before the command starts, so that the
+     // command's stdout stays its own (T-472).

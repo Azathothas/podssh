@@ -67,3 +67,25 @@ fn a_host_out_of_reach_is_255_and_runs_nothing() {
     assert!(out.is_empty(), "{out}");
     assert!(!home.join("ran").exists());
 }
+
+/// `--help` names what never goes and the file that adds to it, and
+/// `--no-ignore` and `--dry-run` parse: offline, a dry run goes on to
+/// connect (255) with no plan, as nothing was read there (T-475).
+#[test]
+fn the_help_names_the_ignores_and_the_new_flags_parse() {
+    let home = scratch("help");
+    let (code, out, err) = podssh(&home, &["run", "--help"]);
+    assert_eq!(code, 0, "{err}");
+    for word in [".podsshignore", "target/", "node_modules/", ".git/", "--no-ignore", "--dry-run"] {
+        assert!(out.contains(word), "{word}: {out}");
+    }
+    for flags in [&["--dry-run"][..], &["--no-ignore"], &["--dry-run", "--no-ignore"]] {
+        let mut args = vec!["run"];
+        args.extend_from_slice(flags);
+        args.extend(["build1.example.org", "--", "touch", "ran"]);
+        let (code, out, err) = podssh(&home, &args);
+        assert_eq!(code, 255, "{flags:?}: parsed, then out of reach: {err}");
+        assert!(out.is_empty(), "{flags:?}: no plan before anything was read: {out}");
+        assert!(!home.join("ran").exists());
+    }
+}

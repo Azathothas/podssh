@@ -20,17 +20,7 @@ pub(super) fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &
             let line = serde_json::json!({ "event": "plan", "action": action, "source": from, "destination": to });
             let _ = writeln!(out, "{line}");
         } else {
-            let line = match *action {
-                "mkdir" => format!("mkdir {to}"),
-                "copy" => format!("copy {from} -> {to}"),
-                "link" => format!("link {from} -> {to}"),
-                "hardlink" => format!("hardlink {from} -> {to}"),
-                // --backup (T-473): the old file and the name that keeps it.
-                "backup" => format!("backup {from} -> {to}"),
-                "delete" => format!("delete {to}"),
-                _ => format!("skip {from}: {to}"),
-            };
-            let _ = writeln!(out, "{line}");
+            let _ = writeln!(out, "{}", planned_line(action, from, to));
         }
     }
     for path in &outcome.deleted {
@@ -115,4 +105,19 @@ pub(super) fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &
         log.error(&failed.message);
     }
     failed.fault.code()
+}
+
+/// One action of a dry run as text, the line of `cp -r --dry-run` and of
+/// `podssh run --dry-run` (T-475).
+pub(super) fn planned_line(action: &str, from: &str, to: &str) -> String {
+    match action {
+        "mkdir" => format!("mkdir {to}"),
+        "copy" => format!("copy {from} -> {to}"),
+        "link" => format!("link {from} -> {to}"),
+        "hardlink" => format!("hardlink {from} -> {to}"),
+        // --backup (T-473): the old file and the name that keeps it.
+        "backup" => format!("backup {from} -> {to}"),
+        "delete" => format!("delete {to}"),
+        _ => format!("skip {from}: {to}"),
+    }
 }

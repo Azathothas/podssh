@@ -5,14 +5,17 @@
 //! digest, then renamed, with its times kept; so the next run sends only
 //! the files whose size or time changed. `target/`, `node_modules/` and
 //! `.git/` never go, nor what the project's `.podsshignore`, `--exclude` and
-//! `--exclude-from` leave out. Then `cd DIR && COMMAND` runs on the same
-//! connection, as `podssh ssh` runs a command; near the relay's limits, on a
-//! new session (T-137). DIR is `~/.podssh/run/NAME` by default, NAME the
-//! name of the local directory.
+//! `--exclude-from` leave out; `--no-ignore` sends the first four too
+//! (T-475). Then `cd DIR && COMMAND` runs on the same connection, as `podssh
+//! ssh` runs a command; near the relay's limits, on a new session (T-137).
+//! DIR is `~/.podssh/run/NAME` by default, NAME the name of the local
+//! directory. `--dry-run` says on stdout what the copy would change and the
+//! command, and changes and runs nothing ([`dry`]).
 //!
 //! **Exit codes are those of `podssh ssh`**: the command's status; 255 for a
 //! failure of podssh, a copy that failed included, which runs nothing; 64 a
-//! usage error and 78 a setting, before anything connects.
+//! usage error and 78 a setting, before anything connects. A dry run exits
+//! 0, or 255 when the far side cannot be read.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -48,6 +51,11 @@ pub struct RunArgs {
     pub from: Option<String>,
     pub excludes: Vec<String>,
     pub exclude_from: Option<String>,
+    /// `--no-ignore` (T-475): neither [`DEFAULT_EXCLUDES`] nor
+    /// [`IGNORE_FILE`]; `--exclude` and `--exclude-from` still apply.
+    pub no_ignore: bool,
+    /// `--dry-run` (T-475): the plan on stdout, and nothing changed or run.
+    pub dry_run: bool,
     /// The connection flags and the command, read as `ssh` reads them:
     /// `run`'s rows share their ids. The destination is the target's host.
     pub ssh: SshArgs,
@@ -60,6 +68,7 @@ impl RunArgs {
     /// Read the values out of `run`'s matches.
     pub fn from_matches(m: &ArgMatches, refused: Vec<(String, &'static str, &'static str)>) -> Self {
         let one = |id: &str| m.try_get_one::<String>(id).ok().flatten().cloned();
+        let flag = |id: &str| m.try_get_one::<bool>(id).ok().flatten().copied().unwrap_or(false);
         let excludes =
             m.try_get_many::<String>("exclude").ok().flatten().map(|v| v.cloned().collect()).unwrap_or_default();
         RunArgs {
@@ -67,6 +76,8 @@ impl RunArgs {
             from: one("from"),
             excludes,
             exclude_from: one("exclude-from"),
+            no_ignore: flag("no-ignore"),
+            dry_run: flag("dry-run"),
             ssh: SshArgs::from_matches(m),
             refused,
         }
@@ -138,10 +149,14 @@ pub fn plan(args: &RunArgs) -> Result<Plan, String> {
     if matches!(far.path.trim_end_matches('/'), "" | ".") || far.path.trim_matches('/').is_empty() {
         return Err(format!("{text}: the far directory is the home directory or the root; name one below it"));
     }
-    let mut excludes: Vec<String> = DEFAULT_EXCLUDES.iter().map(|s| s.to_string()).collect();
-    let ignore = local.join(IGNORE_FILE);
-    if ignore.is_file() {
-        excludes.extend(tree::read_excludes(&ignore).map_err(|e| format!("{}: {e}", ignore.display()))?);
+    let mut excludes: Vec<String> = Vec::new();
+    // --no-ignore: neither the defaults nor the project's file (T-475).
+    if !args.no_ignore {
+        excludes.extend(DEFAULT_EXCLUDES.iter().map(|s| s.to_string()));
+        let ignore = local.join(IGNORE_FILE);
+        if ignore.is_file() {
+            excludes.extend(tree::read_excludes(&ignore).map_err(|e| format!("{}: {e}", ignore.display()))?);
+        }
     }
     if let Some(file) = &args.exclude_from {
         excludes.extend(tree::read_excludes(Path::new(file)).map_err(|e| format!("--exclude-from {file}: {e}"))?);
@@ -150,12 +165,13 @@ pub fn plan(args: &RunArgs) -> Result<Plan, String> {
     let dir = podssh_ssh::exec::shell_word(&far.path)
         .ok_or_else(|| format!("{}: a newline or a NUL has no word for a far shell", far.path))?;
     let command = format!("cd {dir} && {}", args.ssh.command.join(" "));
-    let tree = tree::Tree { excludes, onto: true, changed_only: true, ..tree::Tree::default() };
+    let tree = tree::Tree { excludes, onto: true, changed_only: true, dry_run: args.dry_run, ..tree::Tree::default() };
     Ok(Plan { far, local, tree, command })
 }
 
-/// Run `podssh run`; the process exit code.
-pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
+/// Run `podssh run`; the process exit code. A dry run's plan goes to `out`;
+/// the command's output is on the process's own streams.
+pub fn run_run(args: &RunArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let plan = match plan(args) {
         Ok(plan) => plan,
         Err(why) => return Refusal::usage(why).report("run", err),
@@ -202,13 +218,14 @@ pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
     };
     // On the heap: the copy's future is large, and Windows gives the main
     // thread 1 MiB of stack.
-    let code = runtime.block_on(crate::ssh::transport::settled(Box::pin(copy_then_run(&plan, &resolved, &log))));
+    let code = runtime.block_on(crate::ssh::transport::settled(Box::pin(copy_then_run(&plan, &resolved, &log, out))));
     runtime.shutdown_background();
     code
 }
 
-/// The copy, then the command: its exit status, or 255.
-async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>) -> i32 {
+/// The copy, then the command: its exit status, or 255. A dry run makes
+/// the copy's looks alone, says its plan on `out` and runs nothing (T-475).
+async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>, out: &mut dyn Write) -> i32 {
     let started = std::time::Instant::now();
     let first = match link::connect(resolved, log).await {
         Ok(first) => first,
@@ -217,14 +234,23 @@ async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>) -> i32 
             return EXIT_FAILURE;
         }
     };
-    if let Err(failed) = sync::parents(&first, &plan.far.path).await {
-        first.close().await;
-        log.error(&format!("{}: {}; the command did not run", plan.far.path, failed.message));
-        return EXIT_FAILURE;
-    }
+    let parents = match sync::parents(&first, &plan.far.path, plan.tree.dry_run).await {
+        Ok(parents) => parents,
+        Err(failed) => {
+            first.close().await;
+            log.error(&format!("{}: {}; the command did not run", plan.far.path, failed.message));
+            return EXIT_FAILURE;
+        }
+    };
     let mut link = Some(first);
     let local = plan.local.display().to_string();
     let synced = sync::up(&mut link, resolved, &local, &plan.far, &plan.tree, log).await;
+    if plan.tree.dry_run {
+        if let Some(link) = link.take() {
+            link.close().await;
+        }
+        return dry::answer(plan, &parents, &synced, log, out);
+    }
     // The summary, on stderr before the command starts, so that the
     // command's stdout stays its own (T-472).
     log.info(&summary::line(&synced.counts, started.elapsed()));
@@ -265,6 +291,8 @@ async fn command(handle: &Connection, resolved: &Resolved, log: &Arc<Log>) -> i3
         }
     }
 }
+
+mod dry;
 
 #[cfg(test)]
 mod tests;

@@ -7,8 +7,9 @@
 //! name that a listing gives must be one component: `.`, `..`,
 //! a `/` or a NUL, and here on Windows a `\`, a `:`, a device's name or a
 //! trailing dot or space, are refused, so that nothing is written outside the
-//! target. `--exclude` and `--exclude-from` leave paths out; `--dry-run`
-//! says each action and changes nothing.
+//! target. `--exclude` and `--exclude-from` leave paths out, and each walk
+//! gives the paths that they left out (T-475); `--dry-run` says each action
+//! and changes nothing.
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -172,15 +173,22 @@ impl Tree {
     /// Whether `rel` is left out: a pattern with no `/` against its last
     /// component, one with a `/` against the whole path from the root.
     pub fn excluded(&self, rel: &str) -> bool {
+        self.excluded_by(rel).is_some()
+    }
+
+    /// The first pattern that leaves `rel` out, as it was given: `-v` names
+    /// it beside the path (T-475).
+    pub fn excluded_by(&self, rel: &str) -> Option<&str> {
         let name = rel.rsplit('/').next().unwrap_or(rel);
-        self.excludes.iter().any(|pattern| {
-            let pattern = pattern.trim_start_matches("./").trim_end_matches('/');
+        let hit = self.excludes.iter().find(|given| {
+            let pattern = given.trim_start_matches("./").trim_end_matches('/');
             if pattern.contains('/') {
                 glob(pattern.trim_start_matches('/').as_bytes(), rel.as_bytes())
             } else {
                 glob(pattern.as_bytes(), name.as_bytes())
             }
-        })
+        });
+        hit.map(String::as_str)
     }
 }
 
@@ -238,12 +246,14 @@ fn join(rel: &str, name: &str) -> String {
 }
 
 /// The local tree under `root`, depth first, a directory before what it
-/// holds; each item is left out that a pattern names.
-pub fn walk_local(root: &Path, tree: &Tree) -> Vec<Item> {
-    let mut items = Vec::new();
+/// holds; each item is left out that a pattern names, and the second list
+/// holds its path, the top of what the pattern left out, as the walk does
+/// not go into it (T-475).
+pub fn walk_local(root: &Path, tree: &Tree) -> (Vec<Item>, Vec<String>) {
+    let (mut items, mut left) = (Vec::new(), Vec::new());
     let mut seen = HashSet::new();
-    walk_local_in(root, "", tree, 0, &mut seen, &mut items);
-    items
+    walk_local_in(root, "", tree, 0, &mut seen, &mut items, &mut left);
+    (items, left)
 }
 
 fn walk_local_in(
@@ -253,6 +263,7 @@ fn walk_local_in(
     depth: usize,
     seen: &mut HashSet<std::path::PathBuf>,
     items: &mut Vec<Item>,
+    left: &mut Vec<String>,
 ) {
     if depth > MOST_DEPTH {
         items.push(Item::Skip { rel: rel.into(), why: format!("deeper than {MOST_DEPTH} levels") });
@@ -289,6 +300,7 @@ fn walk_local_in(
         let path = entry.path();
         let child = join(rel, &name);
         if tree.excluded(&child) {
+            left.push(child);
             continue;
         }
         let Ok(meta) = std::fs::symlink_metadata(&path) else { continue };
@@ -303,7 +315,7 @@ fn walk_local_in(
         // A link that a walk follows is what it names.
         let meta = if kind.is_symlink() { std::fs::metadata(&path) } else { Ok(meta) };
         match meta {
-            Ok(m) if m.is_dir() => walk_local_in(&path, &child, tree, depth + 1, seen, items),
+            Ok(m) if m.is_dir() => walk_local_in(&path, &child, tree, depth + 1, seen, items, left),
             Ok(m) if m.is_file() => items.push(Item::File { rel: child }),
             Ok(m) => items.push(Item::Special { rel: child, kind: Special::of_local(m.file_type()) }),
             Err(e) => items.push(Item::Skip { rel: child, why: format!("the link names nothing here: {e}") }),
@@ -313,9 +325,10 @@ fn walk_local_in(
 
 /// The far tree under `root` on the server, depth first, a directory before
 /// what it holds; each name of a listing is checked (`windows`: also for a
-/// Windows file system here).
-pub async fn walk_far(sftp: &Sftp, root: &str, tree: &Tree, windows: bool) -> Vec<Item> {
-    let mut items = Vec::new();
+/// Windows file system here). The second list holds the paths that a
+/// pattern left out, as [`walk_local`]'s.
+pub async fn walk_far(sftp: &Sftp, root: &str, tree: &Tree, windows: bool) -> (Vec<Item>, Vec<String>) {
+    let (mut items, mut left) = (Vec::new(), Vec::new());
     let mut seen = HashSet::new();
     // Depth first, without recursion in an async fn: each directory waits on
     // a stack, its listing in the order of its names.
@@ -352,6 +365,7 @@ pub async fn walk_far(sftp: &Sftp, root: &str, tree: &Tree, windows: bool) -> Ve
                 continue;
             }
             if tree.excluded(&child) {
+                left.push(child);
                 continue;
             }
             let path = format!("{}/{}", dir.trim_end_matches('/'), entry.name);
@@ -380,105 +394,9 @@ pub async fn walk_far(sftp: &Sftp, root: &str, tree: &Tree, windows: bool) -> Ve
         // The first name first: the stack takes them in reverse.
         stack.extend(below.into_iter().rev());
     }
-    items
+    (items, left)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_name_is_one_component() {
-        for bad in ["", ".", "..", "../x", "a/b", "/abs", "nul\0"] {
-            assert!(check_name(bad, false).is_err(), "{bad:?}");
-        }
-        for good in ["a", ".hidden", "with space", "a..b", "x:y", "back\\slash"] {
-            assert_eq!(check_name(good, false), Ok(()), "{good:?}");
-        }
-        for bad in ["x:y", "back\\slash", "CON", "con.txt", "LPT1", "trailing.", "trailing ", "a|b"] {
-            assert!(check_name(bad, true).is_err(), "{bad:?} on Windows");
-        }
-        assert_eq!(check_name("console", true), Ok(()));
-    }
-
-    #[test]
-    fn the_patterns_match_a_component_or_a_path_from_the_root() {
-        let tree = Tree {
-            excludes: vec!["*.log".into(), "build/".into(), "src/gen/*.rs".into(), "?x".into()],
-            ..Tree::default()
-        };
-        assert!(tree.excluded("a.log"));
-        assert!(tree.excluded("deep/down/b.log"), "a name anywhere");
-        assert!(tree.excluded("build") && tree.excluded("x/build"));
-        assert!(tree.excluded("src/gen/a.rs"));
-        assert!(!tree.excluded("src/gen/sub/a.rs"), "* never matches /");
-        assert!(!tree.excluded("other/src/gen/a.rs"), "a path from the root");
-        assert!(tree.excluded("ax") && !tree.excluded("abx"));
-        assert!(!tree.excluded("a.logs"));
-    }
-
-    #[test]
-    fn an_exclude_file_has_a_pattern_a_line() {
-        let dir = std::env::temp_dir().join(format!("podssh-tree-{:016x}", rand::random::<u64>()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("ignore");
-        std::fs::write(&path, "# comment\n*.tmp\r\n\n  \nbuild/\n").unwrap();
-        assert_eq!(read_excludes(&path).unwrap(), vec!["*.tmp".to_string(), "build/".to_string()]);
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn delete_takes_what_the_source_lacks_the_deepest_first() {
-        let dir = |r: &str| Item::Dir { rel: r.into(), stamp: Stamp::default() };
-        let file = |r: &str| Item::File { rel: r.into() };
-        let source = [dir(""), dir("a"), file("a/keep"), file("top")];
-        let target = [
-            dir(""),
-            dir("a"),
-            file("a/keep"),
-            file("a/extra"),
-            dir("old"),
-            dir("old/deeper"),
-            file("old/deeper/x"),
-            Item::Link { rel: "link".into(), target: "/etc/passwd".into() },
-            Item::Special { rel: "fifo".into(), kind: Special::Fifo },
-            Item::Skip { rel: "unread".into(), why: "not read".into() },
-            file("top"),
-        ];
-        let rels: Vec<String> = to_delete(&source, &target).iter().map(|i| rel_of(i).to_string()).collect();
-        assert_eq!(rels, ["old/deeper/x", "old/deeper", "a/extra", "old", "link"]);
-    }
-
-    #[test]
-    fn a_local_walk_is_depth_first_with_its_directories_first() {
-        let dir = std::env::temp_dir().join(format!("podssh-walk-{:016x}", rand::random::<u64>()));
-        std::fs::create_dir_all(dir.join("b/c")).unwrap();
-        std::fs::create_dir_all(dir.join("empty")).unwrap();
-        std::fs::write(dir.join("a file"), b"1").unwrap();
-        std::fs::write(dir.join("b/c/d"), b"2").unwrap();
-        std::fs::write(dir.join("b/skip.log"), b"3").unwrap();
-        let tree = Tree { excludes: vec!["*.log".into()], ..Tree::default() };
-        let rels: Vec<String> = walk_local(&dir, &tree)
-            .into_iter()
-            .map(|i| match i {
-                Item::Dir { rel, .. } => format!("d:{rel}"),
-                Item::File { rel } => format!("f:{rel}"),
-                Item::Link { rel, .. } => format!("l:{rel}"),
-                Item::Special { rel, .. } => format!("p:{rel}"),
-                Item::Skip { rel, .. } => format!("s:{rel}"),
-            })
-            .collect();
-        assert_eq!(rels, ["d:", "f:a file", "d:b", "d:b/c", "f:b/c/d", "d:empty"]);
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn the_kind_of_a_special_file_is_read_from_its_mode() {
-        assert_eq!(Special::of_mode(0o010_644), Special::Fifo);
-        assert_eq!(Special::of_mode(0o140_755), Special::Socket);
-        assert_eq!(Special::of_mode(0o020_620), Special::CharDevice);
-        assert_eq!(Special::of_mode(0o060_660), Special::BlockDevice);
-        assert_eq!(Special::of_mode(0), Special::Other);
-        assert_eq!(Special::Fifo.noun(), "a FIFO");
-    }
-}
+#[path = "tree_tests.rs"]
+mod tests;

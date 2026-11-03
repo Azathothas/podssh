@@ -158,8 +158,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         // An ID, a list or a job's output on stdout; podssh's words on stderr.
         Parsed::Job(args) => crate::job::run_job(args, s.out, s.err),
         Parsed::Run(args) if refusals("run", &args.refused, s.err) => EXIT_USAGE,
-        // The command's output is on the process's own streams.
-        Parsed::Run(args) => crate::run_cmd::run_run(args, s.err),
+        // The command's output is on the process's own streams; a dry run's
+        // plan on stdout (T-475).
+        Parsed::Run(args) => crate::run_cmd::run_run(args, s.out, s.err),
         Parsed::Config(args) if refusals("config", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Config(args) => crate::config_import::run(args, s.out, s.err),
         Parsed::Mcp(args) if refusals("mcp", &args.refused, s.err) => EXIT_USAGE,
