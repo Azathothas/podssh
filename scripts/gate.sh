@@ -167,12 +167,13 @@ step_lint() {
 step_libs() {
     # shellcheck disable=SC2086  # $LIBS is a list of flags
     # The quick tunnel's QUIC too (T-301): noq with no ring and no aws-lc.
-    # DERP too (T-349): crypto_box and its curve in pure Rust; Piping too (T-437).
+    # DERP too (T-349): crypto_box and its curve in pure Rust; Piping too (T-437),
+    # and OpenTunnel (T-530).
     # WARP's road too (T-352): pure Rust, with Rust 1.91 for smoltcp, so it
     # is built here and not in step_msrv's check on the library crates' 1.89.
     run "library crates build with no C compiler" \
         env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS -p podssh-warp \
-            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/warp
+            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/warp
 
     # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
     # terminal oracle's model against tmux (T-200); named, so that one missing fails.
@@ -181,7 +182,7 @@ step_libs() {
     tests "library crates: tests, no C compiler" \
         env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
         cargo test --locked --no-fail-fast $LIBS -p podssh-warp \
-            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/warp-stand-in
+            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/warp-stand-in
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
     # its tests run with the feature, and the binary must never enable it.
@@ -238,7 +239,7 @@ step_msrv() {
     # shellcheck disable=SC2086
     run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo "+$MSRV" check --locked $LIBS -p podssh-todo \
-            --features podssh-relay/blocking,podssh-relay/plain-ws,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping --all-targets
+            --features podssh-relay/blocking,podssh-relay/plain-ws,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel --all-targets
 }
 
 # russh's minimum, which the SSH client and the CLI declare, each on its own.

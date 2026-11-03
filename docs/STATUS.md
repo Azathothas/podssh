@@ -922,6 +922,20 @@ from this cloud session's host.
 | Planted: the client's two ways swapped (`scripts/plants/t437-paths-swapped.plant`) | Caught: the test of the ends' paths and the three sessions through the servers failed |
 | The commands (`cargo test --no-fail-fast -p podssh-cli`) | 1268 passed; the roost's tests found that the node probed the relay for the unasked road before it checked TARGET, repaired: the node decides on it once TARGET passed |
 
+## The OpenTunnel road, measured
+
+T-530 ([carriers.md](carriers.md), the reverse road, item 6): a carrier of
+the reverse road through OpenTunnel, a blind TLS tunnel with no account,
+whose client's leg is TLS by name with no upgrade. Drafted on 2026-11-03;
+the results wait for the merge.
+
+| Check | Result |
+| --- | --- |
+| `unreleased`: The unit tests, 2026-11-03: the protocol's vectors of its messages, frames, names and retries, the record and its file, the route, a connection's frames, the bridge's upgrade (`cargo test -p podssh-relay --features opentunnel --lib opentunnel`) | UNVERIFIED |
+| `unreleased`: Against the stand-in server, 2026-11-03: a tunnel made and kept, 1 MiB echoed by TLS by name in the layer, a second start that binds no new CSR, the same CSR bound again, a wrong token, a route held, the limit of tunnels said at once, a CSR of other names, a bridge ended and a session resumed (`cargo test -p podssh-relay --features opentunnel --test opentunnel_link`) | UNVERIFIED |
+| `unreleased`: Against OpenTunnel's own server v0.6.1, built from its source, with MySQL 8, its local CA and squid, 2026-11-03 (`opentunnel-interop.yml`) | UNVERIFIED |
+| `unreleased`: Planted, 2026-11-03: the tunnel never kept (`scripts/plants/t530-tunnel-not-kept.plant`) | UNVERIFIED |
+
 ## The relay
 
 `tcp.ssh.relay.ajam.dev` reports version `2026-10-03-r2`. It takes an IPv6

@@ -75,6 +75,11 @@ derp = ["dep:crypto_box"]
 # way of a link, over HTTP/2 or HTTP/1.1, under the resumable layer, for a
 # proxy that refuses the WebSocket upgrade. No C either; the gate builds it.
 piping = ["dep:h2", "dep:http", "dep:bytes", "dep:rustls", "dep:tokio-rustls"]
+# The OpenTunnel road (T-530): a blind TLS tunnel with no account, whose
+# bridge is a WebSocket through `HTTPS_PROXY` and whose client's leg is TLS by
+# name on port 443, under the resumable layer; the key and the CSR of its
+# name come from the binary. No C either; the gate builds it.
+opentunnel = []
 # The quick tunnel's edge inside WARP's tunnel (T-374), for a node whose cage
 # reaches TCP port 7844 only through it. No C either; Rust 1.91.
 warp = ["quick", "dep:podssh-warp"]

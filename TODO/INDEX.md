@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 97 open, 3 partial, 16 blocked, 452 done.**
+**568 entries: 96 open, 4 partial, 16 blocked, 452 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 24 | 2 | 14 | 218 | 258 |
+| P2 | 23 | 3 | 14 | 218 | 258 |
 | P3 | 73 | 0 | 2 | 171 | 246 |
-| **All** | 97 | 3 | 16 | 452 | 568 |
+| **All** | 96 | 4 | 16 | 452 | 568 |
 
 ## Entries
 
@@ -577,7 +577,7 @@ repository and CI).
 | [T-510](copy.md) | P3 | S | none | feature | done | `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever |
 | [T-511](machine.md) | P3 | M | none | feature | done | `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them |
 | [T-512](cli.md) | P3 | S | none | docs | done | The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal |
-| [T-530](mesh.md) | P2 | L | M10 | feature | open | OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road |
+| [T-530](mesh.md) | P2 | L | M10 | feature | partial | OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road |
 | [T-531](mesh.md) | P2 | M | M10 | feature | open | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
 | [T-532](mesh.md) | P3 | M | M10 | feature | open | `podssh funnel` through OpenTunnel, with TLS that ends at the node |
 | [T-533](mesh.md) | P3 | S | M10 | docs | done | The manual says which public services podssh tries last, and which it never names |

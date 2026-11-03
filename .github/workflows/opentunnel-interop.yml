@@ -1,0 +1,95 @@
+name: opentunnel interop
+
+# The OpenTunnel road (T-530) against OpenTunnel's own server, built from
+# its source at the tag v0.6.1 (anomalyco/opentunnel, MIT), with the MySQL 8
+# of the runner and the server's local test CA (ISSUER=local), through the
+# runner's squid as the host's proxy: crates/podssh-relay/tests/
+# opentunnel_interop.rs. No host of OpenTunnel's is reached: the server runs
+# on the loopback, under a domain of the test's. A planted run makes the
+# node's CSR name the tunnel alone, which the server refuses, and must fail.
+# Started by hand, and on a push that changes the road; it publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-relay/src/opentunnel/**"
+      - "crates/podssh-relay/tests/opentunnel_*"
+      - ".github/workflows/opentunnel-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "4"
+      OT_TAG: v0.6.1
+      OT_DOMAIN: opentunnel.test
+      PODSSH_OPENTUNNEL_TEST_SERVER: 127.0.0.1:8443
+      PODSSH_OPENTUNNEL_TEST_DOMAIN: opentunnel.test
+      PODSSH_OPENTUNNEL_TEST_PROXY: http://127.0.0.1:3128
+      PODSSH_OPENTUNNEL_TEST_REQUIRED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: OpenTunnel's server, from its source at the tag
+        run: |
+          set -eu
+          mkdir -p .work
+          timeout 300 git clone --quiet --depth 1 --branch "$OT_TAG" https://github.com/anomalyco/opentunnel .work/opentunnel
+          echo "OpenTunnel $OT_TAG at $(git -C .work/opentunnel rev-parse HEAD)"
+          (cd .work/opentunnel && timeout 2400 cargo build --release --locked -p opentunnel-server)
+      - name: MySQL 8 and squid, on the runner
+        run: |
+          set -eu
+          sudo systemctl start mysql.service
+          mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS opentunnel"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq squid >/dev/null
+          printf '%s\n' 'http_port 127.0.0.1:3128' 'http_access allow all' 'cache deny all' \
+            'access_log stdio:/tmp/squid-access.log' 'cache_log /tmp/squid-cache.log' 'pid_filename none' \
+            >"$RUNNER_TEMP/squid.conf"
+          sudo systemctl stop squid.service || true
+          sudo squid -f "$RUNNER_TEMP/squid.conf"
+      - name: the server, on the loopback
+        run: |
+          set -eu
+          mkdir -p .work/ot-website
+          OPENTUNNEL_DOMAIN="$OT_DOMAIN" TLS_LISTEN=127.0.0.1:8443 HTTP_LISTEN=off ISSUER=local \
+            LOCAL_CA_FILE="$PWD/.work/ot-ca.pem" WEBSITE_DIR="$PWD/.work/ot-website" \
+            DATABASE_URL=mysql://root:root@127.0.0.1:3306/opentunnel \
+            nohup .work/opentunnel/target/release/opentunnel-server >.work/ot-server.log 2>&1 &
+          # Its CA file, then its TLS port, within 120 s.
+          for _ in $(seq 120); do
+            if [ -s .work/ot-ca.pem ] && timeout 5 bash -c '</dev/tcp/127.0.0.1/8443' 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          [ -s .work/ot-ca.pem ] || { cat .work/ot-server.log; echo "FAIL no local CA from the server"; exit 1; }
+          echo "PODSSH_OPENTUNNEL_TEST_CA=$PWD/.work/ot-ca.pem" >> "$GITHUB_ENV"
+      - name: build the test
+        run: cargo test --locked -p podssh-relay --features opentunnel --test opentunnel_interop --no-run
+      - name: the road against OpenTunnel's server, through squid
+        run: |
+          rc=0
+          timeout 900 cargo test --locked -p podssh-relay --features opentunnel --test opentunnel_interop -- \
+            --nocapture || rc=$?
+          sudo cat /tmp/squid-access.log || true
+          tail -50 .work/ot-server.log
+          [ "$rc" = 0 ] || { echo "the interop test exited $rc"; exit 1; }
+      # The check must see a CSR that the server refuses fail.
+      - name: a planted CSR fails it
+        env:
+          PODSSH_OPENTUNNEL_TEST_PLANT: no-wildcard
+        run: |
+          rc=0
+          timeout 900 cargo test --locked -p podssh-relay --features opentunnel --test opentunnel_interop || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "the check is vacuous: a CSR of the tunnel alone passed"
+            exit 1
+          fi
+          echo "a CSR of the tunnel alone failed (exit $rc), as it must"

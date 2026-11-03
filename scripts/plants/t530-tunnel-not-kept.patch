@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/opentunnel/provision.rs b/crates/podssh-relay/src/opentunnel/provision.rs
+index 448aa6b..bf0d772 100644
+--- a/crates/podssh-relay/src/opentunnel/provision.rs
++++ b/crates/podssh-relay/src/opentunnel/provision.rs
+@@ -174,7 +174,7 @@ impl<'a> Provision<'a> {
+     /// Keep `record`; where it went, or none, which is said: each start then
+     /// makes a new tunnel.
+     fn keep(&self, record: &Record) -> Option<PathBuf> {
+-        match self.store.save(record) {
++        match Err::<PathBuf, String>(format!("planted: {} not kept", self.store.file_name())) {
+             Ok(path) => Some(path),
+             Err(why) => {
+                 (self.say)(format!(
