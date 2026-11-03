@@ -90,11 +90,23 @@ fn member_named<'a>(doc: &'a Doc, word: &str) -> Result<&'a Member, Refusal> {
     by_key.ok_or_else(|| Refusal::usage(format!("FROM {word}: the net {} has no member of that name or key", doc.name)))
 }
 
-/// TO: `NODE` (its target with no route), `NODE/ROUTE`, `exit:NODE`, or an
-/// address of a range of routes.
+/// TO: `NODE` (its target with no route), `NODE/ROUTE`, `exit:NODE`,
+/// `relay:NODE` (the mint of its relay role, T-455), `relay:*` (a relay
+/// role that is no member, as `podssh relay serve`'s), or an address of a
+/// range of routes.
 fn wanted<'a>(doc: &Doc, word: &'a str) -> Result<Want<'a>, Refusal> {
     if let Ok(addr) = word.parse::<IpAddr>() {
         return Ok(Want::Addr(addr));
+    }
+    let forms = "NODE, NODE/ROUTE, exit:NODE, relay:NODE, relay:* or an address";
+    match word.strip_prefix("relay:") {
+        Some("*") => return Ok(Want::Relay(None)),
+        Some(node) if doc.member(node).is_some() => return Ok(Want::Relay(Some(node))),
+        Some(node) => {
+            let why = format!("TO {word}: the net {} has no member {node}; TO is {forms}", doc.name);
+            return Err(Refusal::usage(why));
+        }
+        None => {}
     }
     let (node, route, exit) = match word.strip_prefix("exit:") {
         Some(node) => (node, None, true),
@@ -108,7 +120,6 @@ fn wanted<'a>(doc: &Doc, word: &'a str) -> Result<Want<'a>, Refusal> {
             .map_err(|_| Refusal::usage(format!("TO {word}: {route:?} is not a route")))?;
     }
     if doc.member(node).is_none() {
-        let forms = "NODE, NODE/ROUTE, exit:NODE or an address";
         return Err(Refusal::usage(format!("TO {word}: the net {} has no member {node}; TO is {forms}", doc.name)));
     }
     Ok(if exit { Want::Exit(node) } else { Want::Node { node, route } })

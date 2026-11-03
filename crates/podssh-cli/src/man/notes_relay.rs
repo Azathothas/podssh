@@ -90,6 +90,16 @@ pub const RELAY: &[&str] = &[
      signature that does not verify, a challenge that ended or was answered before, and a request \
      whose Host is not the name that its TLS asked for each get 403, which names the key's \
      fingerprint for the owner's list. podssh caches the token as any other.",
+    "--mint net mints tokens and makes pairs for the members of the net that this host holds (see podssh \
+     net), each by the same signature with the key that the net names for it; --mint net,keys:FILE for \
+     those and the keys of FILE. The document is read again, and its owner's signature checked, for each \
+     request: a member that a newer document removed is refused from that serial on, and a token that it \
+     minted before lives until its end or the relay's stop, as a token of a list's key does. Where the net \
+     has a policy, a member mints only where a rule lets it reach relay:*, as podssh relay serve is no \
+     member of the net; the relay behind a node's quick tunnel is reached by relay:NAME too, NAME the \
+     node's name in the net; with no policy each member mints. A host that holds no net, or one that \
+     ended, does not start (78). The 403 of a key that is no member names the key and the document's \
+     serial, never the net or its members, which a member's refusal by the policy names.",
     "The certificate and its key are read again on SIGHUP, and when either file changes, which the \
      role looks at each minute; on Windows, which has no SIGHUP, that is the way. The handshakes after \
      the read take the new pair, and each session that is open goes on with its own. A pair that does \

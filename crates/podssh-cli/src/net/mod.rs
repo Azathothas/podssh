@@ -6,7 +6,8 @@
 //! only with the owner's signature and a higher serial; two ends of the net
 //! give each other the newer one inside the end-to-end channel (`admit`).
 //! A node that is a member lets in the members (`admit`), and a member's
-//! name is a destination (`lookup`).
+//! name is a destination (`lookup`); a relay role mints for the members
+//! (`mint`, T-455).
 //!
 //! The owner's commands (`edit`): `init NAME`, `add NAME KEY`, `rm NAME`,
 //! `renew`, `policy set FILE` and `policy clear`; each signs a document with
@@ -19,6 +20,7 @@ pub mod admit;
 pub mod doc;
 mod edit;
 pub mod lookup;
+pub mod mint;
 pub mod policy;
 mod policy_cmd;
 pub(crate) mod policy_words;

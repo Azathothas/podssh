@@ -3321,8 +3321,12 @@ commands. The rules behind them:
   404 answers the others. It mints, and makes pairs, for the keys of
   `--allow` by default, each by its signature of the role's challenge
   (T-448), and a signed request must name the tunnel, which stands for the
-  name that a TLS asks for; `--mint keys:FILE`, `anyone` and `nobody` are
-  `relay serve`'s words. `--pairs FILE` and `--allow-private` are `relay
+  name that a TLS asks for; `--mint keys:FILE`, `net`, `net,keys:FILE`,
+  `anyone` and `nobody` are `relay serve`'s words, and `--mint net` mints
+  for the members of the node's net as its policy lets them reach
+  `relay:NAME`, the node's name in the net, or `relay:*` (T-455; a net that
+  this host does not hold, or that ended, stops the start, 78). `--pairs
+  FILE` and `--allow-private` are `relay
   serve`'s too, and its keepalive is the default, an empty frame each 25 s.
   The role's events are lines on stderr, and Ctrl-C or SIGTERM
   closes each socket of its reverse road with `1012` before the tunnel
@@ -3592,7 +3596,10 @@ that the owner's key signs, and that each end keeps.
   (a list of `*`; `NODE`, its TARGET with no route and each route;
   `NODE/ROUTE`, one route, as `node://NODE/ROUTE` reaches it, and so a
   share of T-433; `tag:TAG`, each member of the tag as `NODE`; `exit:NODE`
-  and `exit:*`, the egress of T-431; `ADDR/BITS` or one address, the
+  and `exit:*`, the egress of T-431; `relay:NODE` and `relay:*`, the
+  tokens and pairs of a relay role that mints for the net, the one behind
+  NODE's quick tunnel or each one, `relay serve`'s too, which has no name in
+  the net (T-455), and no door of NODE; `ADDR/BITS` or one address, the
   routes of T-432) and an optional `note`; and `tags`, each a list of
   members' names. A rule only allows; a word or a field of a rule that
   this podssh does not read allows nothing, so a later podssh's rule never
@@ -3613,8 +3620,9 @@ that the owner's key signs, and that each end keeps.
   policy rules the net's door, not the node's own list.
 - **`policy check FROM TO`** says what the policy lets, with no connection:
   FROM a member's name, key or fingerprint; TO `NODE`, `NODE/ROUTE`,
-  `exit:NODE` or an address. One line on stdout, `allowed` or `refused`, a
-  tab, then the rule that lets it or the reason; 0 or 77.
+  `exit:NODE`, `relay:NODE`, `relay:*` (a relay role that is no member) or
+  an address. One line on stdout, `allowed` or `refused`, a tab, then the
+  rule that lets it or the reason; 0 or 77.
 - **A member's name** is a destination: `podssh ssh node://NAME`, and
   `podssh ssh NAME` alone when NAME is a member with the role `node`. The
   net names the member's key, which the channel checks in place of the pins

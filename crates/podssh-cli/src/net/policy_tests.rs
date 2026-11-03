@@ -125,10 +125,49 @@ fn the_words_of_a_rule_are_read_by_their_form() {
     assert_eq!(Dest::parse("exit:gw"), Dest::Exit(Some("gw")));
     assert_eq!(Dest::parse("10.1.0.0/16"), Dest::Range(Range::parse("10.1.0.0/16").unwrap()));
     assert_eq!(Dest::parse("fd00::1"), Dest::Range(Range::parse("fd00::1/128").unwrap()));
+    assert_eq!(Dest::parse("relay:*"), Dest::Relay(None));
+    assert_eq!(Dest::parse("relay:gw"), Dest::Relay(Some("gw")));
     let unknown = ["lab/", "/web", "lab/-web", "10.0.0.0/33", "10.0.0.0/+8", "fd00::/129", "exit:", "lab:22"];
-    for word in unknown.into_iter().chain(["autogroup:internet"]) {
+    for word in unknown.into_iter().chain(["autogroup:internet", "relay:", "relay:a.b"]) {
         assert_eq!(Dest::parse(word), Dest::Unknown, "{word}");
     }
+}
+
+/// A relay role's mint (T-455): `relay:NODE` names the role of one node,
+/// `relay:*` each, a role that is no member too, and neither opens a door of
+/// the node; `*` reaches each relay, and with no policy each member mints.
+#[test]
+fn a_relay_word_lets_its_members_mint_at_that_relay_and_reach_nothing_else() {
+    let doc = doc_with(Some(json!({
+        "rules": [
+            {"from": ["laptop"], "to": ["relay:gw"]},
+            {"from": ["phone"], "to": ["relay:*"]},
+            {"from": ["lab"], "to": ["exit:gw", "gw"]},
+        ],
+    })));
+    assert!(lets(&doc, "laptop", Want::Relay(Some("gw"))).unwrap().starts_with("rule 1 "));
+    for want in [Want::Relay(Some("gw")), Want::Relay(Some("lab")), Want::Relay(None)] {
+        assert!(lets(&doc, "phone", want).unwrap().starts_with("rule 2 "), "{want}");
+    }
+    for (from, want) in [
+        ("laptop", Want::Relay(Some("lab"))),
+        ("laptop", Want::Relay(None)),
+        ("laptop", Want::AnyOf("gw")),
+        ("laptop", node("gw", None)),
+        ("phone", Want::Exit("gw")),
+        ("lab", Want::Relay(Some("gw"))),
+    ] {
+        let why = lets(&doc, from, want).unwrap_err();
+        assert_eq!(why, format!("no rule of the net home's policy (serial 2) lets {from} reach {want}"));
+    }
+    assert_eq!(format!("{} {}", Want::Relay(Some("gw")), Want::Relay(None)), "relay:gw relay:*");
+    let all = doc_with(Some(json!({"rules": [{"from": ["*"], "to": ["*"]}]})));
+    assert!(lets(&all, "lab", Want::Relay(None)).is_ok(), "* reaches each relay");
+    assert!(lets(&doc_with(None), "lab", Want::Relay(Some("gw"))).unwrap().contains("has no policy"));
+    // The owner's check says a relay of a name that no member has.
+    let set = json!({"rules": [{"from": ["laptop"], "to": ["relay:nas", "relay:*"]}]});
+    let (_, said) = policy::checked(&set, &doc_with(None)).unwrap();
+    assert!(said.iter().any(|line| line == "rule 1 reaches relay:nas, but the net home has no member nas"), "{said:?}");
 }
 
 #[test]

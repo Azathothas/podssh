@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:4567`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:4575`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:396-399`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:171-181`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:417`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:4563-4567`).
+`podssh proxy` sysexits (`docs/cli.md:4571-4575`).
 
 ## Approach
 
@@ -2393,7 +2393,7 @@ documents works; the form that a user expects is missing.
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
   which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:137`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
-  (`crates/podssh-cli/src/man/notes_pair.rs:281-283`), and `pipe` takes `node:NAME`
+  (`crates/podssh-cli/src/man/notes_pair.rs:283-285`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
   byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:390`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of

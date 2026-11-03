@@ -2,13 +2,15 @@
 //! itself, on the loopback with a certificate of a test CA (made by
 //! `openssl`, as for the stand-in relay), against podssh's own client: bytes
 //! both ways through `podssh ssh`, the policy's refusals, a relay that mints
-//! for no one, a relay that mints for the keys of a list (T-448), the
-//! documents that `podssh relay` reads, and its certificate read again on
-//! SIGHUP (T-447, `serve_certs`). The suite of the stand-in also runs
-//! against the role with `PODSSH_RELAY_UNDER_TEST=podssh`.
+//! for no one, a relay that mints for the keys of a list (T-448) or for the
+//! members of the net (T-455, `serve_net`), the documents that `podssh
+//! relay` reads, and its certificate read again on SIGHUP (T-447,
+//! `serve_certs`). The suite of the stand-in also runs against the role with
+//! `PODSSH_RELAY_UNDER_TEST=podssh`.
 
 mod live_harness;
 mod serve_certs;
+mod serve_net;
 mod ssh_harness;
 mod throughput_harness;
 
@@ -161,7 +163,7 @@ fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
         (&["relay", "serve", "--listen", "127.0.0.1:0"], "needs --cert FILE and --key FILE"),
         (
             &["relay", "serve", "--listen", "127.0.0.1:0", "--cert", "c", "--key", "k", "--mint", "some"],
-            "anyone, nobody or keys:FILE",
+            "anyone, nobody, keys:FILE, net or net,keys:FILE",
         ),
         (&["relay", "spec", "--listen", "127.0.0.1:0"], "go with `podssh relay serve` only"),
         // ACME's certificate, or files: never both (T-447).

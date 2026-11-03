@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/net/mint.rs
++++ b/crates/podssh-cli/src/net/mint.rs
+@@ -89,7 +89,7 @@
+ /// the member's words, or why it may not mint. A key that is no member
+ /// hears neither the net's name nor its members.
+ pub(crate) fn verdict(doc: &Doc, now: i64, me: Option<&PublicKey>, peer: &PublicKey) -> Result<String, String> {
+-    let Some(member) = doc.member_of_key(peer) else {
++    let Some(member) = doc.member_of_key(peer).or(doc.members.first()) else {
+         let print = peer.fingerprint();
+         return Err(format!(
+             "the key {print} is not a member of the net that this relay holds (serial {})",

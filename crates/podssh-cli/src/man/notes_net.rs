@@ -33,13 +33,16 @@ pub const NET: &[&str] = &[
      \"tag:dev\"], \"to\": [\"lab/web\"], \"note\": \"...\"}]}, and signs it into the net with policy set FILE (policy \
      clear removes it); policy show gives it back. A rule is from *, a member's name or tag:TAG, to * (each node, \
      route, exit and range), NODE (its TARGET with no route and each route), NODE/ROUTE (one route, as \
-     node://NODE/ROUTE reaches it), tag:TAG, exit:NODE or exit:* (an exit node's egress), or ADDR/BITS (a range of \
-     routes); a rule only allows, and once a policy is there nothing else is allowed. The node that is reached \
-     checks it, for each session, against the newest document that it holds, and refuses the rest with the \
-     policy's words on its own lines; the keys of podssh node --allow are not narrowed by it. policy check FROM TO \
-     says what the policy lets, with no connection: FROM a member's name or key, TO NODE, NODE/ROUTE, exit:NODE or \
-     an address; on stdout allowed or refused, a tab and the rule or the reason, and 0 or 77. A document with a \
-     policy requires it, so a podssh that cannot read the rules refuses the document and keeps the one before.",
+     node://NODE/ROUTE reaches it), tag:TAG, exit:NODE or exit:* (an exit node's egress), relay:NODE or relay:* \
+     (the tokens and pairs of a relay role that mints for the net, the node's own behind its quick tunnel or each \
+     one, podssh relay serve's too: see podssh relay), or ADDR/BITS (a range of routes); a rule only allows, and \
+     once a policy is there nothing else is allowed. The node that is reached checks it, for each session, against \
+     the newest document that it holds, and refuses the rest with the policy's words on its own lines; the keys of \
+     podssh node --allow are not narrowed by it. policy check FROM TO says what the policy lets, with no \
+     connection: FROM a member's name or key, TO NODE, NODE/ROUTE, exit:NODE, relay:NODE, relay:* (a relay that is \
+     no member) or an address; on stdout allowed or refused, a tab and the rule or the reason, and 0 or 77. A \
+     document with a policy requires it, so a podssh that cannot read the rules refuses the document and keeps the \
+     one before.",
     "A member's name is a destination: podssh ssh node://NAME, and podssh ssh NAME alone when NAME is a member \
      with the role node, as MagicDNS names a host of its tailnet; so is [user@]NAME:path of podssh cp, mv, scp \
      and edit, and NAME of podssh sftp, each read as podssh ssh reads it. A name has no dot, so no DNS name is \
