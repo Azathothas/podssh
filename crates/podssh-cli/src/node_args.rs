@@ -81,6 +81,13 @@ pub struct NodeArgs {
     /// `--carrier ADDR`: the node's one road, a stream that exists already
     /// (T-595), unparsed.
     pub carrier: Option<String>,
+    /// `--grant-to KEY`: print a grant used once for KEY, signed by the
+    /// node's key, and serve nothing (T-226); its route and its life.
+    pub grant_to: Option<String>,
+    pub grant_route: Option<String>,
+    pub grant_for: Option<String>,
+    /// `--revoked FILE`: the serials of grants that the node refuses.
+    pub revoked: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -125,6 +132,10 @@ impl NodeArgs {
             exit: matches.get_flag("exit"),
             routes: get("routes"),
             carrier: get("carrier"),
+            grant_to: get("grant-to"),
+            grant_route: get("grant-route"),
+            grant_for: get("grant-for"),
+            revoked: get("revoked"),
             refused,
         }
     }

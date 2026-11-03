@@ -60,6 +60,8 @@ pub mod flags;
 // `--forwarder`: other products' WebSocket forwarders, in place of the
 // relay (T-369).
 pub mod forwarder;
+// Grants used once (T-226): a client's --grant, a node's door and its mint.
+pub mod grants;
 // The signals that end a client of a node's layer with a `CLOSE` (T-586).
 pub mod hangup;
 pub mod help;

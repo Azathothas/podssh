@@ -1,0 +1,7 @@
+# T-226: podssh's relay role takes the connect token of a pair of `once` at
+# each upgrade; the test of a token of one use, whose second upgrade must
+# get 403, must fail.
+ENTRY=T-226
+GROUP=resume
+EXPECT='test a_connect_token_of_one_use_is_refused_at_its_second_upgrade \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_once -- a_connect_token_of_one_use_is_refused_at_its_second_upgrade'

@@ -130,7 +130,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `draft/` branches on GitHub can go.
 
   On 2026-11-03 a fifth round was drafted, unbuilt, one commit for each entry, each branch pushed
-  as `draft/worktree-agent-*`: T-226 (`worktree-agent-ab46b7435cc875cd9`, `d4da618`); T-253
+  as `draft/worktree-agent-*`: T-226 (`worktree-agent-ab46b7435cc875cd9`, `d4da618`, merged and closed); T-253
   (`worktree-agent-a6a21bc1a5b921742`, `330e6ed`, merged as partial on `draft/merge-253`,
   `5d0db76`, its tests of IPv6 on a runner); T-255 (`worktree-agent-ab9d837b93edc90b0`,
   `8f09eb3`); T-325 (`worktree-agent-ab532bbdaa9b8fe7b`, `fbda4ad`); T-608
@@ -179,7 +179,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 578 entries: 100 open, 3 partial, 2 blocked, 473 done.
+`TODO/INDEX.md` holds 579 entries: 100 open, 3 partial, 2 blocked, 474 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -222,7 +222,7 @@ this order:
    in a row here and on a runner).
 1. The relay role (its certificate from ACME, its brake of mint and pair, the role behind a node's quick tunnel, the net's members' mint, the role's dial through `HTTPS_PROXY` and its bound on a slow reader's bytes are done): what the role serves: T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
-2. The net (its policy, the record of each road, the DERP node of a member and the copies by a name are done): T-086, T-226, T-346, T-106 and T-551 (the quick tunnel's node with the net as its door is done).
+2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door and the grants used once are done): T-086, T-615, T-346, T-106 and T-551.
 3. Exit, routes, share and funnel (the exit is done): T-458, T-432, T-433,
    T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the

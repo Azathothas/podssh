@@ -318,6 +318,7 @@ const FIRST: &[&str] = &[
      so a session whose relay of the pair went away goes on through the transit relay.",
     super::notes_pair::SSH_OPENTUNNEL,
     super::notes_pair::SSH_CARRIER,
+    super::notes_grant::SSH,
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \

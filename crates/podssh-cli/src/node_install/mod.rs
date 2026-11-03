@@ -128,6 +128,11 @@ const WAYS: &[Way] = &[];
 /// `podssh node`: the variables of `--env-file` and the lock of its service
 /// first, then the node, or its install or uninstall.
 pub fn dispatch(args: &NodeArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    // Grants used once (T-226): one minted with the node's key, which serves
+    // nothing, and the serials that a node refuses, on each road.
+    if let Some(code) = crate::grants::node(args, out, err) {
+        return code;
+    }
     // A node of a carrier is no service: its stream is its parent's (T-595).
     if let Err(refusal) = crate::node_carrier::check(args) {
         return refusal.report("node", err);

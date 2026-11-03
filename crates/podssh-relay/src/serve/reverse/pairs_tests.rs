@@ -53,6 +53,45 @@ fn a_renewal_moves_the_expiry_and_keeps_the_tokens() {
     assert_eq!(pairs.renew(&made.name, 2_000), Ok(None), "a stopped pair stays stopped");
 }
 
+/// A pair of `once` (T-226): its connect token takes one upgrade, then
+/// neither an upgrade nor the status; its node's and its stop token stay;
+/// a pair of before takes each upgrade.
+#[test]
+fn a_connect_token_of_once_takes_one_upgrade_alone() {
+    let pairs = Pairs::default();
+    let made = pairs.make_with(1_000, true).unwrap();
+    assert!(made.once);
+    let pair = pairs.find(&made.name, Role::Connect, Some(&made.connect), 2_000).unwrap();
+    assert!(pairs.spend_connect(&pair), "the first upgrade");
+    assert!(!pairs.spend_connect(&pair), "a second upgrade that found the pair before the first took it");
+    assert!(pairs.find(&made.name, Role::Connect, Some(&made.connect), 2_000).is_none(), "the token after its use");
+    assert!(pairs.find(&made.name, Role::Node, Some(&made.node), 2_000).is_some(), "the node's token stays");
+    assert!(pairs.find(&made.name, Role::Stop, Some(&made.stop), 2_000).is_some(), "the stop token stays");
+    let plain = pairs.make(1_000).unwrap();
+    let pair = pairs.find(&plain.name, Role::Connect, Some(&plain.connect), 2_000).unwrap();
+    assert!(!plain.once && pairs.spend_connect(&pair) && pairs.spend_connect(&pair), "a pair of before");
+}
+
+/// The use of a token of `once` is kept in the file: a restart does not
+/// give it a second.
+#[test]
+fn a_spent_connect_token_stays_spent_after_a_restart() {
+    let dir = std::env::temp_dir().join(format!("podssh-pairs-{}-{}", std::process::id(), line!()));
+    crate::cache::private_dir(&dir).unwrap();
+    let path = dir.join("pairs.json");
+    let now = super::super::super::tokens::now_ms();
+    let pairs = Pairs::open(Some(path.clone())).unwrap();
+    let made = pairs.make_with(now, true).unwrap();
+    let pair = pairs.find(&made.name, Role::Connect, Some(&made.connect), now).unwrap();
+    assert!(pairs.spend_connect(&pair));
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("\"spent\":true") && !text.contains(&made.connect), "{text}");
+    let again = Pairs::open(Some(path)).unwrap();
+    assert!(again.find(&made.name, Role::Connect, Some(&made.connect), now).is_none(), "after a restart");
+    assert!(again.find(&made.name, Role::Node, Some(&made.node), now).is_some());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn a_closed_session_is_in_flight_for_its_grace_alone() {
     let mut state = State::default();

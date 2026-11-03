@@ -135,4 +135,6 @@ pub const PIPE: &[&str] = &[
      refused (64). With --carrier ADDR, the exit is the node at the other end of that stream, with no pair \
      (podssh node NAME --exit --carrier stdio), and each relay: session is a session of the one stream; a \
      node: side beside it is refused (64), as one node is at the other end of a stream.",
+    // A grant used once for a node: side (T-226).
+    super::notes_grant::PIPE,
 ];

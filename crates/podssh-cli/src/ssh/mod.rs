@@ -166,6 +166,10 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         return refusal.report("ssh", err);
     }
     crate::no_resume::ask(args.no_resume);
+    // A grant used once, for the first session's channel (T-226).
+    if let Err(refusal) = crate::grants::ask(args.grant.as_deref(), args.no_e2e) {
+        return refusal.report("ssh", err);
+    }
     // A snippet (T-187): its command as written goes through the resolve,
     // and its values go in once the connection is known.
     let chosen = match crate::snippets::choose(args, &env.settings.snippets) {

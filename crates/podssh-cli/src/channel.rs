@@ -201,6 +201,8 @@ pub fn around<A: Bytes + 'static>(
     let Some(Operator { identity, expect, route }) = channel else { return (Box::new(app), None) };
     // The net's documents for this channel (T-429): a client takes in silence.
     crate::net::admit::install(false);
+    // A grant of --grant (T-226), for this run's first channel alone.
+    let grant = crate::grants::take(&identity.public(), &say);
     // The node's key, checked, opens the session for the bound of
     // --ConnectTimeout (T-589).
     crate::connect_bound::channel_follows();
@@ -212,7 +214,7 @@ pub fn around<A: Bytes + 'static>(
         }
         verdict
     };
-    let (cipher, session) = ends::operator_to(app, identity, checked, route);
+    let (cipher, session) = ends::operator_granted(app, identity, checked, route, grant);
     (Box::new(cipher), Some(Box::pin(session)))
 }
 
@@ -232,6 +234,10 @@ pub fn judged(e: &e2e::Error, me: Option<&Identity>) -> Option<(Fault, String)> 
         ),
         e2e::Error::Refused(NodeRefusal::NoTarget(why)) => {
             (Fault::SessionFault, format!("the node could not reach its target: {why}"))
+        }
+        // A grant that the node refused is a refused key (T-226).
+        e2e::Error::Refused(NodeRefusal::Other(why)) if why == ends::GRANT_REFUSED => {
+            (Fault::Auth, format!("the node refused: {why}"))
         }
         e2e::Error::Refused(NodeRefusal::Other(why)) => (Fault::SessionFault, format!("the node refused: {why}")),
         e2e::Error::Timeout(_) => (Fault::RelayUnreachable, e.to_string()),
@@ -274,18 +280,32 @@ pub fn node(label: &str, key: file::Key, allow: Option<PathBuf>, err: &mut dyn W
     }
     let _ = writeln!(err, "podssh node: {label}: {}", who_may(allow.as_deref()));
     // A member of the net lets in its members too (T-429).
-    if let Some(line) = crate::net::admit::line(&me) {
+    let member = crate::net::admit::line(&me);
+    if let Some(line) = &member {
         let _ = writeln!(err, "podssh node: {label}: {line}");
     }
-    node_end(label, key.identity, crate::net::admit::admit(allow, me))
+    // The pair's token alone as the door leaves a TARGET that is not SSH with
+    // no gate of its own (T-226).
+    if allow.is_none() && member.is_none() {
+        let _ = writeln!(err, "podssh node: {label}: {OPEN_DOOR}");
+    }
+    let _ = writeln!(err, "podssh node: {label}: {}", crate::grants::line(label, allow.as_deref()));
+    let redeem = crate::grants::door(label, me, allow.clone());
+    ends::Node { redeem, ..node_end(label, key.identity, crate::net::admit::admit(allow, me)) }
 }
+
+/// The warning of a node whose door is the pair's connect token alone.
+const OPEN_DOOR: &str = "warning: with no --allow, whoever reaches this node's door (the pair's connect token, or the \
+                         stream of --carrier) reaches TARGET, which only its own login guards, and a TARGET that is \
+                         not SSH has none; --allow FILE, with grants of podssh node NAME --grant-to KEY for the \
+                         others, closes it";
 
 /// A node's channel with this identity and admission, whose lines go to
 /// stderr under `label`.
 pub fn node_end(label: &str, identity: Identity, admit: Arc<ends::Admit>) -> ends::Node {
     let shown = label.to_string();
     let say = Arc::new(move |line: String| podssh_ssh::err_line!("podssh node: {shown}: {line}"));
-    ends::Node { identity: Arc::new(identity), admit, say }
+    ends::Node { identity: Arc::new(identity), admit, say, redeem: None }
 }
 
 /// Who may come in through the channel: the keys of the allowlist at

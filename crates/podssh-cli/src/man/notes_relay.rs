@@ -168,4 +168,5 @@ pub const RELAY: &[&str] = &[
      4096 addresses at most, and forgets the one heard from least lately first. /health, the documents \
      and the sockets of both roads are not braked, and the first refusal of an address is a line on \
      stdout.",
+    super::notes_grant::RELAY,
 ];

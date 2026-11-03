@@ -242,7 +242,7 @@ step_msrv() {
     # shellcheck disable=SC2086
     run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo "+$MSRV" check --locked $LIBS -p podssh-todo \
-            --features podssh-relay/blocking,podssh-relay/plain-ws,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel --all-targets
+            --features podssh-relay/blocking,podssh-relay/plain-ws,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/grant --all-targets
 }
 
 # russh's minimum, which the SSH client and the CLI declare, each on its own.

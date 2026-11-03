@@ -330,6 +330,8 @@ where
             identity: Arc::new(podssh_relay::identity::Identity::from_seed(&key.identity.seed())),
             admit: door,
             say: Arc::new(say.clone()),
+            // Grants used once (T-226), as on the node's other roads.
+            redeem: crate::grants::door(&label, me, allow.clone()),
         }),
         false => {
             let _ = writeln!(err, "podssh {verb}: {label}: no end-to-end channel (--no-e2e): the relay sees each byte");

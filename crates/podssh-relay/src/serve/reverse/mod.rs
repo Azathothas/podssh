@@ -8,7 +8,9 @@
 //! frame in flight for a session just closed dropped, not the node's socket
 //! (T-421), and `1012` to each socket before a planned stop (T-255). Beside
 //! the contract, `POST /v1/renew/<name>` with the stop token renews a pair
-//! for 72 h, its tokens the same, and the status names the expiry (T-592).
+//! for 72 h, its tokens the same, and the status names the expiry (T-592);
+//! and `POST /v1/pair?once=1` makes a pair whose connect token takes one
+//! upgrade alone, which `/relays.json` offers (T-226).
 //!
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
@@ -116,6 +118,11 @@ where
         }
         ("renew", "POST") => renew(&mut stream, name, &cfg).await,
         ("node", _) => node::join(stream, head, pending, pair, cfg).await,
+        // A connect token of `once` takes this upgrade, and no other (T-226).
+        ("connect", _) if !cfg.pairs.spend_connect(&pair) => {
+            cfg.event("reverse connect token spent");
+            answer(&mut stream, request::refusal(403, "reverse: forbidden", &[])).await
+        }
         ("connect", _) => operator::join(stream, head, pending, pair, cfg).await,
         (_, method) => {
             let allow = if matches!(kind, "stop" | "renew") { "POST" } else { "GET" };
@@ -147,7 +154,11 @@ where
     if let Err(refusal) = super::proven(cfg, head, sni, "/v1/pair", body) {
         return answer(stream, refusal).await;
     }
-    let made = match cfg.pairs.make(super::tokens::now_ms()) {
+    // `?once=1`: a connect token that takes one upgrade alone (T-226); the
+    // query holds no credential, and the proof of a key signs the path.
+    let query = head.target.split_once('?').map(|(_, q)| q).unwrap_or("");
+    let once = query.split('&').any(|p| p == "once=1" || p == "once=true");
+    let made = match cfg.pairs.make_with(super::tokens::now_ms(), once) {
         Ok(made) => made,
         Err(NotMade::NameInUse) => {
             return answer(stream, request::refusal(409, "/v1/pair: the name drawn is in use; pair again", &[])).await
@@ -161,10 +172,15 @@ where
         }
     };
     cfg.event("reverse pair");
-    let body = json!({
+    let mut body = json!({
         "name": made.name, "node_token": made.node, "connect_token": made.connect,
         "stop_token": made.stop, "expires": made.expires_ms,
     });
+    // Said only when asked, so that the answer of a pair of before stays
+    // the contract's.
+    if made.once {
+        body["once"] = json!(true);
+    }
     answer(stream, docs::json(&body)).await;
 }
 

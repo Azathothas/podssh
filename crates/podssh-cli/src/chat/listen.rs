@@ -88,6 +88,8 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
         identity: Arc::new(key.identity),
         admit: crate::channel::admit_of(allow),
         say: Arc::new(move |line: String| podssh_ssh::err_line!("podssh chat: {shown}: {line}")),
+        // A chat lets in the keys of its allowlist, and no grant (T-226).
+        redeem: None,
     };
     let (door, mut peers) = Door::new();
     let layer = crate::layered::settings();

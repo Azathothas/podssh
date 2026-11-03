@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**578 entries: 100 open, 3 partial, 2 blocked, 473 done.**
+**579 entries: 100 open, 3 partial, 2 blocked, 474 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 32 | 2 | 0 | 230 | 264 |
-| P3 | 68 | 0 | 2 | 179 | 249 |
-| **All** | 100 | 3 | 2 | 473 | 578 |
+| P2 | 31 | 2 | 0 | 231 | 264 |
+| P3 | 69 | 0 | 2 | 179 | 250 |
+| **All** | 100 | 3 | 2 | 474 | 579 |
 
 ## Entries
 
@@ -298,7 +298,7 @@ repository and CI).
 | [T-223](repo.md) | P3 | S | none | defect | done | `scripts/check-repo.py` passes when it finds nothing to check (GitHub #33) |
 | [T-224](repo.md) | P2 | S | none | chore | done | The gate finds a listener in the source: a scan with an allow-list (GitHub #33) |
 | [T-225](robustness.md) | P3 | M | backlog | chore | done | The interop gate takes each expected exit code from stock OpenSSH, beside the literal (GitHub #34) |
-| [T-226](reverse.md) | P2 | M | M10 | feature | open | Pairing grants that are signed and used once, not bearer tokens that can be replayed (GitHub #35) |
+| [T-226](reverse.md) | P2 | M | M10 | feature | done | Pairing grants that are signed and used once, not bearer tokens that can be replayed (GitHub #35) |
 | [T-227](ssh.md) | P2 | S | backlog | defect | done | `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36) |
 | [T-228](ssh.md) | P2 | M | backlog | feature | done | A credential helper inside podssh, for passphrases and passwords |
 | [T-229](ssh.md) | P3 | L | backlog | feature | done | Hardware keys (FIDO2 `sk-` keys) in `podssh keygen`, the client and `podssh agent` |
@@ -654,3 +654,4 @@ repository and CI).
 | [T-612](resume.md) | P2 | S | M10 | feature | done | A client of a node can turn the resumable layer off: `--no-resume` |
 | [T-613](reverse.md) | P3 | S | M10 | feature | done | `operator`, `proxy` and `pipe`'s remote sides take `--timeout` and `PODSSH_TIMEOUT` as other names of `--ConnectTimeout` |
 | [T-614](mesh.md) | P2 | M | M10 | feature | done | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |
+| [T-615](reverse.md) | P3 | M | M10 | feature | open | A connect token for each session, and a stop token that the node rotates, in podssh's relay role |

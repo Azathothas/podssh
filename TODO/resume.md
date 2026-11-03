@@ -820,7 +820,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:349-389`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:389-403` (the `warnings` of keepalives), and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:390-404` (the `warnings` of keepalives), and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -834,7 +834,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:389-403` (the `warnings` of keepalives).
+   `crates/podssh-cli/src/ssh/resolve.rs:390-404` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:412-427`,
    `crates/podssh-cli/src/man/facts.rs:447-456`), the note at
@@ -986,7 +986,7 @@ The live test needs a node and the layer's client, which are in
 podssh-cli: it is `cargo test -p podssh-cli --test node_live -- --ignored
 move_200mib`, with an echo server on the loopback as the node's TARGET.
 Step 6 needs no ticket of T-163: the operator's part of a pair keeps its
-expiry (`expires_ms`, `crates/podssh-relay/src/pair.rs:345`), and at the
+expiry (`expires_ms`, `crates/podssh-relay/src/pair.rs:336`), and at the
 expiry the relay ends each session of the pair with `1001 pair expired`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:171`), which
 the policy of T-153 does not resume. The repair of T-262 changed step 3:

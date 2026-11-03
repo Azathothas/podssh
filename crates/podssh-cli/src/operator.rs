@@ -51,6 +51,8 @@ pub struct OperatorArgs {
     /// `--carrier ADDR`: the node at the other end of a stream that exists
     /// already, with no relay and no pair (T-595), unparsed.
     pub carrier: Option<String>,
+    /// `--grant FILE`: a grant used once, for the session's channel (T-226).
+    pub grant: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -71,6 +73,7 @@ impl OperatorArgs {
             connect_timeout: get("ConnectTimeout"),
             timeout: get("timeout"),
             carrier: get("carrier"),
+            grant: get("grant"),
             refused,
         }
     }
@@ -92,6 +95,10 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
 /// (T-595), for `operator` and for `proxy node://NAME`, each line naming
 /// `verb`.
 pub(crate) fn run_as(args: &OperatorArgs, verb: &'static str, err: &mut dyn Write) -> i32 {
+    // A grant used once (T-226), on either road, read before anything else.
+    if let Err(refusal) = crate::grants::ask(args.grant.as_deref(), args.no_e2e) {
+        return refusal.report(verb, err);
+    }
     if args.carrier.is_some() {
         return crate::carrier::operator(args, verb, err);
     }

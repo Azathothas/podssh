@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/ends.rs
++++ b/crates/podssh-relay/src/e2e/ends.rs
+@@ -166,7 +166,7 @@
+             return;
+         }
+     };
+-    let target = match tokio::time::timeout(TARGET_WAIT, GRANTED.scope(by_grant, open(peer, ask))).await {
++    let target = match tokio::time::timeout(TARGET_WAIT, GRANTED.scope(false && by_grant, open(peer, ask))).await {
+         Ok(Ok(target)) => target,
+         Ok(Err(refusal)) => {
+             (node.say)(format!("the operator key {peer} came in{to}; refused: {refusal}"));

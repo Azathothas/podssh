@@ -122,7 +122,7 @@ corrects a claim that the code does not support.
 | #32 | `podssh serve` finds a shell with no passwd entry | deleted on GitHub by 2026-11-02 (it was open) | T-222 |
 | #33 | `check-repo.py` passes with nothing to check; no scan for a listener | deleted on GitHub by 2026-11-02 (it was closed) | T-223 (the commit "Each repository check has a floor, and fails on an empty tree"), T-224 (the commit "The repository check finds a listener outside its allowance"); the floors of `cargo todo check` are in T-204 (done). Closed on 2026-10-09 with a comment that names them |
 | #34 | The expected exit codes, from stock OpenSSH | deleted on GitHub by 2026-11-02 (it was closed) | T-225 (`e8bec97`) |
-| #35 | Signed pairing grants that are used once | deleted on GitHub by 2026-11-02 (it was open) | T-226 (M10, in podssh's own relay role since Q63) |
+| #35 | Signed pairing grants that are used once | deleted on GitHub by 2026-11-02 (it was open) | T-226 (M10, in podssh's own relay role since Q63), and T-615 from its draft |
 | #36 | `--direct` has no limit on a stuck write | deleted on GitHub by 2026-11-02 (it was closed (`f502fba`, 2026-10-11)) | T-227 |
 
 ## Requests after the triage (#51 on)
@@ -161,7 +161,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #86 | A `-J` hop that opens its channel and carries nothing ends in a bare 60 s timeout | closed 2026-11-02, its entry done (`f460dcf`) | T-462 (the hop took the channel, as the handshake's line came; a refused one is named at once, as `crates/podssh-cli/tests/jump_hop.rs:180` tests) |
 | #87 | `cp --delta` falls back to a full copy with no word | closed 2026-11-03, its entry done (`9679787`) | T-470 (also: the copy by exec does not read `--delta`, and a server with a command and no `copy-data` gets its delta through that command) |
 | #88 | `health` gives the host's 48 CPUs and 188 GiB, not the container's 4 CPUs and 4 GiB | closed 2026-11-03, its entry done (`0ce6745`) | T-480 (the cgroup's limits, v2 and v1, beside the host's facts, and `effective` in the JSON) |
-| #89 | `sftp`'s `ls -l` is not OpenSSH's long form | closed 2026-11-03, its entry done (`57fd523`) | T-471 (also: `-f`, `-h`, `-r`, `-S` and `-t` of `ls` do nothing; the words "as OpenSSH's sftp" are the about of `--help`, `crates/podssh-cli/src/flags.rs:408`, not the README's) |
+| #89 | `sftp`'s `ls -l` is not OpenSSH's long form | closed 2026-11-03, its entry done (`57fd523`) | T-471 (also: `-f`, `-h`, `-r`, `-S` and `-t` of `ls` do nothing; the words "as OpenSSH's sftp" are the about of `--help`, `crates/podssh-cli/src/flags.rs:409`, not the README's) |
 | #90 | A summary line, and progress in a pipe, for `cp` and `run` | closed 2026-11-03, its entry done (`2e3dcec`) | T-472 |
 | #91 | `job` and `--persist` with no tmux: the command that installs it, and the dependency in the README | closed 2026-11-03, its entry done (`f093299`) | T-481 (the hint from the far host's package manager, the README's first steps, and `job --no-tmux`, whose runner alone signals its own child, so the PID reuse that T-193 set `nohup` aside for cannot kill another process) |
 | #92 | A preflight of the far host: what its server allows, before a long command needs it | closed 2026-11-03, its entry done (`a92c2dd`) | T-482 (`health --preflight`; `doctor --via` is T-439's flag, and `doctor` takes no option of `ssh`); its rows of #83 to #87 are those issues' own entries |
