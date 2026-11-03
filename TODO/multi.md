@@ -2336,7 +2336,7 @@ defect: the dry run runs the command; the check that nothing ran fails.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 

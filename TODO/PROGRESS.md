@@ -152,7 +152,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 547 entries: 111 open, 4 partial, 16 blocked, 416 done.
+`TODO/INDEX.md` holds 547 entries: 111 open, 3 partial, 16 blocked, 417 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -219,7 +219,7 @@ Between entries: the `none` entries, the highest priority first, but for the tes
 defects of the issues of the testers of `v1.0.0` (GitHub #83 to #111) and of the testers' bundle
 and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones before any other
 (T-465, a test that failed once), then the P2 ones
-(T-480 and T-560, each waiting for its run in Actions), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
+(T-560, waiting for its live run), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
 features and documents (T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
 to T-533, T-561, T-562, T-564, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed) follow, by priority, beside M10 (Q85); `v1.0.1`

@@ -93,7 +93,7 @@
 85 issue closed
 86 issue closed
 87 issue closed
-88 issue open
+88 issue closed
 89 issue closed
 90 issue open
 91 issue open
@@ -115,5 +115,5 @@
 107 issue open
 108 issue open
 109 issue open
-110 issue open
+110 issue closed
 111 issue open

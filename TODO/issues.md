@@ -158,7 +158,7 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 | #85 | `-R` refused by a Go server reads as a lost connection | closed 2026-11-03, each entry done (`772275c`) | T-460 (the connection was lost: the failure's data ended it, inferred from the 0.7 s), T-464 (that line names no cause) |
 | #86 | A `-J` hop that opens its channel and carries nothing ends in a bare 60 s timeout | closed 2026-11-02, its entry done (`f460dcf`) | T-462 (the hop took the channel, as the handshake's line came; a refused one is named at once, as `crates/podssh-cli/tests/jump_hop.rs:180` tests) |
 | #87 | `cp --delta` falls back to a full copy with no word | closed 2026-11-03, its entry done (`9679787`) | T-470 (also: the copy by exec does not read `--delta`, and a server with a command and no `copy-data` gets its delta through that command) |
-| #88 | `health` gives the host's 48 CPUs and 188 GiB, not the container's 4 CPUs and 4 GiB | open | T-480 (the cgroup's limits, v2 and v1, beside the host's facts, and `effective` in the JSON) |
+| #88 | `health` gives the host's 48 CPUs and 188 GiB, not the container's 4 CPUs and 4 GiB | closed 2026-11-03, its entry done (`0ce6745`) | T-480 (the cgroup's limits, v2 and v1, beside the host's facts, and `effective` in the JSON) |
 | #89 | `sftp`'s `ls -l` is not OpenSSH's long form | closed 2026-11-03, its entry done (`57fd523`) | T-471 (also: `-f`, `-h`, `-r`, `-S` and `-t` of `ls` do nothing; the words "as OpenSSH's sftp" are the about of `--help`, `crates/podssh-cli/src/flags.rs:397`, not the README's) |
 | #90 | A summary line, and progress in a pipe, for `cp` and `run` | open | T-472 |
 | #91 | `job` and `--persist` with no tmux: the command that installs it, and the dependency in the README | open | T-481 (the hint from the far host's package manager, the README's first steps, and `job --no-tmux`, whose runner alone signals its own child, so the PID reuse that T-193 set `nohup` aside for cannot kill another process) |
@@ -180,7 +180,7 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 | #107 | WARP's road opens on TLS to the edge, and proves no packet through the tunnel | open | T-560 |
 | #108 | WARP's road dials one constant address, not the API's peers | open | T-561 |
 | #109 | WARP's registration has one API name and no second route | open | T-562 (the second name goes in once a live run shows it is the same API) |
-| #110 | The relay's record forgets a host that opens, and keys each road's verdict by the host | open | T-563 |
+| #110 | The relay's record forgets a host that opens, and keys each road's verdict by the host | closed 2026-11-03, its entry done (`7abebd2`) | T-563 |
 | #111 | podssh never raises its soft limit of open files | open | T-564 |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
