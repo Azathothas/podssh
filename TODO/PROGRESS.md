@@ -152,7 +152,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 561 entries: 124 open, 3 partial, 16 blocked, 418 done.
+`TODO/INDEX.md` holds 562 entries: 125 open, 2 partial, 16 blocked, 419 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -169,8 +169,8 @@ the surface for agents: done.
 
 **First (2026-11-02):** `v1.0.0-beta.4` is published, a prerelease at `4e79a1f` (01:59 UTC),
 its files proven by `release-proofs.yml` (run 41375376913) and `update-live.yml` (run
-41375379843); `v1.0.0` is tagged from `35a0d19` the same night (T-250), and its checks after the
-tag finish T-250.
+41375379843); `v1.0.0` is tagged from `35a0d19` the same night, and the check of its published
+files passed on 2026-11-03 (43 passed, 6 skipped).
 
 **The operator's request of 2026-11-01:** `--detach` is in, `session start` asks its prompts on
 the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); since Q61 a

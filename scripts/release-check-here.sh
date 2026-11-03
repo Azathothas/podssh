@@ -244,7 +244,8 @@ checks_here() {
     { wanted container.short || wanted container.sandbox; } && c_containers
     if [ "$MODE" = tag ] && wanted update.check; then
         timed 300 "$LOGS/update.log" $PENV "$W/bin/$PRIMARY" update --check --version "$TAG"
-        by_rc update.check "$PRIMARY" 0 "$LOGS/update.log" "$(tail -n 1 "$LOGS/update.log")"
+        # The line names the binary by its path: the table holds no path of this host.
+        by_rc update.check "$PRIMARY" 0 "$LOGS/update.log" "$(tail -n 1 "$LOGS/update.log" | sed "s|$W/||g")"
     fi
     wanted irc.live && c_irc_live
     if wanted irc.image; then

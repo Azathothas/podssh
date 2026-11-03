@@ -1602,11 +1602,9 @@ Waits for T-251: step 1's measurement and step 4's fault in the gate,
 2026-10-11, in the build image (`sh scripts/dev.sh run`, a debug build of the binary): `scripts/interop.sh` 237 passed, 0 failed, in 480 s: the fault ends with 255 in 60 s, and names the
 stuck write. The run on an unchanged tree waits for T-251.
 
-2026-11-03, on a cloud container's host (TCP buffers that grow to 32 MiB to read and 4 MiB to
-write): `faults.stuck_write` failed, 255 after 240 s on the keepalives, not the stuck write, as the
-20 MB fit in the kernel's buffers and each write went on; the gate's runners passed it. The file
-is now the two buffers' ceilings and 16 MiB more, 20 MB at least. In the build image with the dry
-run's static binary of `3bb42ea`, `INTEROP_ONLY=faults sh scripts/interop.sh BIN`: UNVERIFIED.
+2026-11-03, on a cloud container's host: `faults.stuck_write` gave 255 after 240 s on the
+keepalives, not the stuck write; the gate's runners pass it within 60 s. A larger file did not
+change it, so the cause is not the host's TCP buffers: T-598.
 
 # T-228: A credential helper inside podssh, for passphrases and passwords
 
@@ -4278,3 +4276,52 @@ version line, captured, then nothing; ConnectTimeout 3: the line names the versi
 step, within 5 s). In Actions, `relay-live.yml`'s `node_live` on `windows-2025` passes after the
 repair, and the Done names the cause. Planted: `t588-handshake-unrecorded` (the record not read,
 the line as before): both new tests fail.
+
+# T-598: On a cloud container's host, a peer that stops reading below SSH with `--direct` ends the session after 240 s on the keepalives, not after 60 s on the stuck write
+
+**Source:** the session of 2026-11-03: `scripts/interop-faults.sh`'s `faults.stuck_write` in the
+build image on a Claude Code cloud container's host (Linux 6.18, a VM), twice, with the dry run's
+static binary of `3bb42ea`, `INTEROP_ONLY=faults sh scripts/interop.sh BIN`: 255 after 240 s, "the
+server stopped answering keepalives", where the gate's runners give 255 within 60 s and "no
+progress" (the gate's step `release` at `3bb42ea`, run 41563940463).
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On this host the write limit of T-227 never ends the session: the peer that reads nothing is
+found by the keepalives after 240 s, four times the 60 s that the manual says for a stuck write.
+The session still ends with 255 and a named cause, so the defect is the time and the words, on a
+kind of host that podssh is for.
+
+## Premise
+
+- `crates/podssh-ws/src/write_limit.rs:37` arms the limit only when a write of the inner stream
+  waits (`Poll::Pending`); a write that SSH never makes arms nothing.
+- `scripts/stall-forward.py` stops reading from the client after 65536 bytes, with a small
+  receive buffer, and passes the server's bytes back.
+- A first guess, that this host's TCP buffers (to 32 MiB to read, 4 MiB to write) took all of the
+  test's 20 MB, is wrong: a file of the two ceilings and 16 MiB more failed the same way, 240 s
+  on the keepalives. So the writes most likely stop above the socket, at the SSH channel's
+  window, which the far end never opens again, and no write of the socket waits.
+
+## Approach
+
+1. Measure where the writes stop on this host: the bytes that the socket took, the channel's
+   window left, and whether a write of the socket waited, with `-v` and the forwarder's count.
+2. If the window is where they stop: a stall of the channel's window with bytes waiting to go
+   for the write limit's 60 s ends the session with the same words, on each road; else the
+   socket's case, with what the measurement shows.
+3. The test asserts the 60 s on such a host too.
+
+## Prove
+
+```sh
+sh scripts/dev.sh run -- 'INTEROP_ONLY=faults sh /work/scripts/interop.sh BIN'
+```
+
+On this cloud container's host, `faults.stuck_write` ends with 255 within 90 s and "no
+progress", as on the gate's runners. Planted: the new limit removed: it fails at 240 s again.

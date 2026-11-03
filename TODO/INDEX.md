@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**561 entries: 124 open, 3 partial, 16 blocked, 418 done.**
+**562 entries: 125 open, 2 partial, 16 blocked, 419 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 3 | 0 | 58 | 63 |
+| P1 | 2 | 2 | 0 | 59 | 63 |
 | P2 | 37 | 0 | 14 | 202 | 253 |
-| P3 | 85 | 0 | 2 | 157 | 244 |
-| **All** | 124 | 3 | 16 | 418 | 561 |
+| P3 | 86 | 0 | 2 | 157 | 245 |
+| **All** | 125 | 2 | 16 | 419 | 562 |
 
 ## Entries
 
@@ -322,7 +322,7 @@ repository and CI).
 | [T-247](repo.md) | P3 | S | none | chore | done | `podssh-cli` declares dependencies that it does not use |
 | [T-248](serve.md) | P2 | M | M5 | research | blocked | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
 | [T-249](repo.md) | P2 | M | none | chore | done | A cited line that moved still exists, so the checker does not see a stale citation |
-| [T-250](release.md) | P1 | M | M9 | release | partial | Publish v1.0.0, the first stable release |
+| [T-250](release.md) | P1 | M | M9 | release | done | Publish v1.0.0, the first stable release |
 | [T-251](release.md) | P1 | M | M9 | measurement | done | The check of a release from end to end, with no human |
 | [T-252](irc.md) | P2 | M | M8 | feature | done | `podssh chat --irc`: IRC as a second transport for chat |
 | [T-253](relay.md) | P2 | M | M10 | defect | open | The relay's egress reaches no IPv6 host |
@@ -637,3 +637,4 @@ repository and CI).
 | [T-595](mesh.md) | P2 | L | M10 | feature | open | A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed |
 | [T-596](mesh.md) | P3 | S | M10 | feature | open | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |
 | [T-597](repo.md) | P3 | S | none | chore | open | Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13 |
+| [T-598](ssh.md) | P3 | S | none | defect | open | On a cloud container's host, a peer that stops reading below SSH with `--direct` ends the session after 240 s on the keepalives, not after 60 s on the stuck write |

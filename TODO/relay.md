@@ -2287,7 +2287,8 @@ session on 2026-11-03.
   order is this entry's; the three tests lean on the list's order, so each takes an empty record
   of its own (`RC`, as `faults.failover_mode.one_mint` does) and asserts what it asserted. With
   the dry run's static binary of `3bb42ea` in the build image, `INTEROP_ONLY=faults sh
-  scripts/interop.sh BIN`: UNVERIFIED.
+  scripts/interop.sh BIN` (this cloud session's host, twice): the three passed, 130 passed and 1
+  failed, `faults.stuck_write`, which this host fails apart from this entry (T-598).
 
 # T-593: The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own
 

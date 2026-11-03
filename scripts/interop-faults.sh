@@ -437,13 +437,7 @@ got=$(wc -c <"$FK/out")
 python3 "$HERE/stall-forward.py" --listen 2297 --to 127.0.0.1:2201 --after 65536 >"$FK/stall.log" 2>&1 &
 echo $! >"$FK/stall-forward.pid"
 sleep 1
-# More than the kernel's buffers hold, so that the write stalls: a host whose
-# TCP buffers grow to 32 MiB (a cloud container's) took all of 20 MB, and the
-# keepalives, not the write, ended the run after 240 s.
-bufs=$(awk '{n += $3} END {print n + 0}' /proc/sys/net/ipv4/tcp_rmem /proc/sys/net/ipv4/tcp_wmem 2>/dev/null)
-size=$(( ${bufs:-0} + 16777216 ))
-[ "$size" -ge 20000000 ] || size=20000000
-head -c "$size" /dev/zero >"$FK/twenty"
+head -c 20000000 /dev/zero >"$FK/twenty"
 start=$(date +%s)
 # shellcheck disable=SC2086
 timeout 300 env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2297 -o UserKnownHostsFile="$KH" \

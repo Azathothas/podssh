@@ -787,7 +787,7 @@ The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;
 | The quick tunnel's server holds its whole window in small frames (T-408, 2026-11-01) | **Works**: h2's budget of DATA frames under 256 bytes that wait unread is the connection's whole window in WebSocket frames of no payload, 6 bytes (`settings::FRAME_BUDGET`), where h2's own was half the window, 8 MiB. h2's client as the edge, over a pipe in memory, sent frames of 60 bytes on 64 visitors whose users read nothing: the windows stopped the edge, the connection stayed, and a 65th visitor's message came back: passed; with h2's own budget, the same frames ended the connection with ENHANCE_YOUR_CALM (the control): passed. Planted, the node's builder with no budget: the test failed with ENHANCE_YOUR_CALM after 6,056,720 bytes | `cargo test -p podssh-relay --features quick --test quick_small_frames` |
 | The quick tunnel answers a push of configuration as cloudflared does, and keeps nothing of it (T-404, 2026-11-01) | Over HTTP/2, the body of cloudflared 2026.10.6's own `TestHTTP2ConfigurationSet` gets 200 and `{"lastAppliedVersion":2,"err":null}`, and a body that does not read 502 with the connector's `cf-cloudflared-response-meta`, where each got 404: passed (2026-11-01; planted, 404 again: failed). The features of the registration stay the five of the pin's release, 2026.10.6; 2026.10.7 names none by default (read in its `features/selector.go`, 2026-11-01). Over QUIC, a push, a call on a stream of the RPC, was reset as before, until T-411 | `cargo test -p podssh-relay --lib quick::`; `cargo test -p podssh-relay --features quick --test quick_tunnel` |
 | The quick tunnel over QUIC answers a push of configuration as over HTTP/2 (T-411, 2026-11-01) | **Works** against the reference's bytes: an RPC stream of the edge (its six bytes, no version) gets the bootstrap's one capability, and `updateConfiguration` on it, on the bootstrap's promise or on the capability, the push's version, taken, with no `err`; another method (the UDP sessions of `SessionManager`) an exception; the stream ends when the edge ends its side, or after 5 s, cloudflared's bound. Against `capnp encode`'s bytes of cloudflared's own push (`TestManageConfiguration`: the version 168), sans-IO: passed; over QUIC with the stand-in edge, each answer the reference's bytes: passed. The fixtures made again by `capnp encode` 1.0.1: each unchanged. Planted, the stream reset as before, and a call taken on a finished bootstrap's promise: each failed its test | `cargo test -p podssh-relay --features quick --lib quick::`; `cargo test -p podssh-relay --features quick --test quick_tunnel_quic` |
-| The relay's record keeps a host that opens, rests one cut short twice, and keeps each road apart (T-563, 2026-11-03: `cargo test -p podssh-relay --lib failures`, 10 passed; `cargo test -p podssh-cli --lib relay_ends`, 1 passed; GitHub #110) | A host that opened in the last 10 min, its last session not cut, is tried first; two sessions in a row that its side cut within 300 s of their open rest it, tried last for 5 min with a note; the WebSocket road's hosts are the file's `hosts`, as an older podssh reads them, and each other road is apart; `podssh status` gives `relay_opened`, and doctor a line `opened relays`. Planted (`scripts/plants/t563-open-forgets.patch`, the open that removes its host again): caught. The relay's suite with the gate's features: 526 passed. The gate's `faults.recorded.*` and the plant `t059-faults-recorded` (`ssh-faults`): in the build image. | `cargo test -p podssh-relay --lib failures`; `sh scripts/plant-each.sh --here t563-open-forgets` |
+| The relay's record keeps a host that opens, rests one cut short twice, and keeps each road apart (T-563, 2026-11-03: `cargo test -p podssh-relay --lib failures`, 10 passed; `cargo test -p podssh-cli --lib relay_ends`, 1 passed; GitHub #110) | A host that opened in the last 10 min, its last session not cut, is tried first; two sessions in a row that its side cut within 300 s of their open rest it, tried last for 5 min with a note; the WebSocket road's hosts are the file's `hosts`, as an older podssh reads them, and each other road is apart; `podssh status` gives `relay_opened`, and doctor a line `opened relays`. Planted (`scripts/plants/t563-open-forgets.patch`, the open that removes its host again): caught. The relay's suite with the gate's features: 526 passed. The gate's step `release` failed from its push (`7abebd2`, run 41562803113): three fault tests that list `relay-a.test` second met it first, as this order wants; each takes an empty record of its own since 2026-11-03, and in the build image with the dry run's static binary of `3bb42ea` (`INTEROP_ONLY=faults sh scripts/interop.sh BIN`) the three pass, 130 passed and 1 failed, `faults.stuck_write`, which this cloud host fails apart from it (T-598). | `cargo test -p podssh-relay --lib failures`; `sh scripts/plant-each.sh --here t563-open-forgets` |
 
 ## Other TCP protocols, measured
 
@@ -996,6 +996,64 @@ The artifact: sha256 `e268d403a3071bf1826e85f3315dcc651c0eea46567109551ba790d23c
 
 The plant of the Prove, the same day: one byte of the artifact changed at offset 4096, with the
 same `--sums`: `sums.check` FAIL, "a source did not verify: no check ran. FAILED.", exit 1.
+
+The release check of v1.0.0 at `35a0d19`, 2026-11-03T02:16:21Z, on Linux x86_64 (`sh scripts/release-check.sh v1.0.0 --actions-run build=41355865458 --actions-run deny=41355865505 --actions-run release=41374990313 --actions-run proofs=41376232083 --actions-run plants=41355872516 --actions-run box=41355875375 --actions-run headscale=41355877780 --actions-run relay-node=41355880238 --actions-run relay-backpressure=41355882960 --actions-run warp=41355885655 --actions-run quick=41355888590 --actions-run forwarders=41355891172 --actions-run hop=41355893574 --actions-run doh=41355896323 --actions-run service=41355898738 --actions-run update=41376235134 --table PATH --logs PATH`).
+The published podssh-x86_64-unknown-linux-musl: sha256 `e268d403a3071bf1826e85f3315dcc651c0eea46567109551ba790d23c20453f`.
+
+| Check | Entry | Where | Binary | Limit | Time | Result | Detail |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `src.files` | T-250 | here | - | 300 s | 8 s | PASS | each of the 12 files |
+| `src.kind` | T-250 | here | - | 60 s | - | PASS | prerelease false, as the tag's form wants; published 2026-11-02T02:07:07Z |
+| `src.commit` | T-210 | here | - | 60 s | 1 s | PASS | v1.0.0 is 35a0d19, as git says |
+| `src.checkout` | T-251 | here | - | 10 s | - | PASS | Cargo.toml has 1.0.0 |
+| `sums.names` | T-211 | here | - | 10 s | - | PASS | the 8 binaries, each once |
+| `sums.signature` | T-211 | here | - | 120 s | - | PASS | signed by release.yml at refs/tags/v1.0.0 |
+| `sums.check` | T-211 | here | - | 120 s | 1 s | PASS | 8 binaries match SHA256SUMS |
+| `provenance` | T-210 | here | - | 900 s | 35 s | PASS | 8 of 8: release.yml at refs/tags/v1.0.0, 35a0d19 |
+| `static` | T-218 | here | - | 60 s | - | PASS | 4 of 4: static, each of its machine |
+| `short` | T-218 | here | published | 300 s | 40 s | PASS | 6 ok lines |
+| `sandbox` | T-006 | here | published | 900 s | 64 s | PASS | sandbox-check: 15 ok, 0 FAIL, 0 skip |
+| `readme` | T-251 | here | published | 240 s | - | PASS | man ssh 1105 lines; 256 SHA256:NigTJrTNylmcgwguqQy5lkrZCFlvndOwxvKd5b1wkaw; status JSON |
+| `pipe` | T-176 | here | published | 240 s | - | PASS | exec:cat and unix-connect: each gave 5,000,000 bytes back, sha256 equal |
+| `railway` | T-084 | here | published | 240 s | 3 s | SKIP | railway.new refused this anonymous visitor, its limit (its words withheld): -tt: exit 13; -T: exit 1; an outside refusal (T-422); the exit status through the relay is reverse.two's and actions.node's |
+| `container.short` | T-218 | a fresh container | published | 600 s | 41 s | PASS | podman, ok   proxy github.com 22: SSH-2.0-c8f69ae6 |
+| `container.sandbox` | T-006 | a fresh container | published | 900 s | 63 s | PASS | podman, sandbox-check: 14 ok, 0 FAIL, 1 skip |
+| `update.check` | T-375 | here | published | 300 s | 1 s | PASS | podssh update would replace bin/published with podssh-x86_64-unknown-linux-musl of v1.0.0 |
+| `irc.live` | T-252 | here | published | 700 s | 30 s | SKIP | each network turned the relay's address away before its welcome: irc.oftc.net:6697 exit 69; irc.oftc.net:6697 exit 69; irc.oftc.net:6697 exit 69; irc.libera.chat:6697 exit 77; irc.undernet.org:6667 exit 77; an outside refusal (docs/irc.md); a deployment on another provider is T-346's; IRC is irc.image's, against ngircd |
+| `irc.image` | T-252 | the build image | build | 3600 s | 357 s | PASS | ngircd: plain text and TLS |
+| `headscale` | T-334 | here | build (ts) | 5400 s | 442 s | PASS | each run here passed; the live relay's three are actions.headscale's (exit 3) |
+| `throughput` | T-157 | here | build | 7200 s | 3339 s | PASS | the cells and their MiB/s are in its log |
+| `throughput.loop` | T-157 | here | build | - | - | PASS | the cell through the relay's loop: min 1.71, p50 1.81, p95 1.86, max 1.86 MiB/s (5 runs) |
+| `reverse.two` | T-083 | here | published | 300 s | 4 s | PASS | exit 3 alone, then 3 and 3 at once, through the node of rc7e558499 |
+| `cp.200mib` | T-155 | here | published | 3600 s | 131 s | PASS | 200 MiB up in 53 s, down in 78 s, sha256 equal at both ends |
+| `iroh.n0` | T-163 | here | published | 600 s | 18 s | PASS | refused (255) and named, then let in: exit 3 |
+| `actions.gate` | T-251 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: all:1 passed |
+| `actions.resume` | T-156 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: gate (m6):1 passed |
+| `actions.windows` | T-218 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: windows:1 passed |
+| `actions.macos` | T-218 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: macos:1 passed |
+| `actions.plants` | T-251 | GitHub Actions | - | - | - | PASS | run 41355872516 of plants.yml at 35a0d19: *:all passed |
+| `actions.release` | T-218 | GitHub Actions | - | - | - | PASS | run 41374990313 of release.yml at 35a0d19: linux *:4 macos *:2 windows *:2 notes:1 publish:1 passed |
+| `actions.proofs` | T-211 | GitHub Actions | - | - | - | PASS | run 41376232083 of release-proofs.yml at 6b6174f: proofs:1 passed |
+| `actions.update` | T-375 | GitHub Actions | - | - | - | PASS | run 41376235134 of update-live.yml at 6b6174f: update (*):3 passed |
+| `actions.box` | T-006 | GitHub Actions | - | - | - | PASS | run 41355875375 of box.yml at 35a0d19: box (default):1 box (nolisten):1 box (tt):1 passed |
+| `actions.chat` | T-099 | GitHub Actions | - | - | - | PASS | run 41355875375 of box.yml at 35a0d19: box (chat):1 passed |
+| `actions.headscale` | T-334 | GitHub Actions | - | - | - | PASS | run 41355877780 of ts-headscale.yml at 35a0d19: live:1 passed |
+| `actions.node` | T-155 | GitHub Actions | - | - | - | PASS | run 41355880238 of relay-live.yml at 35a0d19: live:1 passed |
+| `actions.backpressure` | T-062 | GitHub Actions | - | - | - | PASS | run 41355882960 of relay-live.yml at 35a0d19: live:1 passed |
+| `actions.warp` | T-352 | GitHub Actions | - | - | - | PASS | run 41355885655 of warp-live.yml at 35a0d19: live:1 passed |
+| `actions.quick` | T-300 | GitHub Actions | - | - | - | PASS | run 41355888590 of quick-tunnel-live.yml at 35a0d19: live:1 passed |
+| `actions.forwarders` | T-370 | GitHub Actions | - | - | - | PASS | run 41355891172 of forwarder-live.yml at 35a0d19: live:1 passed |
+| `actions.hop` | T-371 | GitHub Actions | - | - | - | PASS | run 41355893574 of hop-live.yml at 35a0d19: live:1 passed |
+| `actions.doh` | T-344 | GitHub Actions | - | - | - | PASS | run 41355896323 of doh-live.yml at 35a0d19: live:1 passed |
+| `actions.service` | T-121 | GitHub Actions | - | - | - | PASS | run 41355898738 of service-live.yml at 35a0d19: unit:1 passed |
+| `actions.deny` | T-341 | GitHub Actions | - | - | - | PASS | run 41355865505 of deny.yml at 35a0d19: deny:1 passed |
+| `throughput.direct` | T-157 | none | - | - | - | SKIP | the direct cell needs the operator's SSH host (Q38; the decision of 2026-10-31 names it as not run) |
+| `serve.box` | T-248 | none | - | - | - | SKIP | podssh serve with vi, less and Ctrl-C in the box: T-248 is held by the operator (Q32) |
+| `reverse.boxes` | T-085 | none | - | - | - | SKIP | two sessions from one box to a node in another box: T-085 is held by the operator (Q32) |
+| `tailnet` | T-334 | none | - | - | - | SKIP | the operator's tailnet and the key of .env/ (Q40): headscale stands in (the decision of 2026-10-31) |
+
+43 passed, 6 skipped (each named), PASSED, exit 0: `v1.0.0`'s published files pass the check of
+T-251 (T-250).
 
 ## Measure again
 

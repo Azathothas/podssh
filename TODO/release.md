@@ -10,7 +10,7 @@ release between entries, and one tag, checked before and after.
 **Milestone:** M9
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -77,6 +77,27 @@ outside refusals of railway.new and the IRC networks, the platforms' signatures)
 --version`: `podssh 1.0.0`; the CLI's tests of update, binary_streams and doctor: 7, 13 and 16
 passed; the banner's test passed. The tag waits for `v1.0.0-beta.4` (after 2026-11-02 01:44 UTC)
 and for the whole release check at this commit (T-251).
+
+2026-11-03, done. Step 3: `v1.0.0` is tagged at `35a0d19` and published, not a prerelease
+(https://github.com/Azathothas/podssh/releases/tag/v1.0.0, 2026-11-02 02:07:07 UTC), by the
+release workflow's `publish` on the branch `release/v1.0.0` at that commit (run 41374973405)
+and the tag's run (41374990313), once the check of T-251 had passed at that commit; twelve files:
+the eight binaries, `SHA256SUMS`, its signature, the provenance and the licenses. Step 4: `sh
+scripts/release-check.sh v1.0.0`, from a worktree of the tag on this cloud session's host, with
+cosign 3.1.4 and gh, and the ACTIONS rows' runs at `35a0d19`, the tag's run, and the proofs
+(41376232083) and update (41376235134) after the publication: 43 passed, 6 skipped (each named),
+PASSED, exit 0. Among the rows: the sources (the twelve files, the signature of `SHA256SUMS` by
+`release.yml` at `refs/tags/v1.0.0`, the provenance of each of the eight binaries, each against
+its sum), the short form and the sandbox's check on the published binary, `update --check`,
+throughput (the relay's loop: p50 1.81 MiB/s), `cp` of 200 MiB (53 s up, 78 s down),
+`reverse.two`, `iroh.n0`, headscale, and the 19 ACTIONS rows; the skips: railway (T-422),
+`irc.live` (each network turned the relay's address away, T-425; `irc.image` passed), the direct
+throughput cell (Q38), `serve.box` and `reverse.boxes` (Q32), the tailnet (Q40). Its table is in
+`docs/STATUS.md`, "The release check". The row `update.check` named the binary by its temporary
+path, so the script now strips the run's directory from that line. No defect of `v1.0.0` was
+found by the check; those of its testers (GitHub #83 to #111) go into `v1.0.1` (T-584). Step 5:
+the issues of the testers were closed with their entries; the install lines name `v1.0.1` since
+T-584's step 1.
 
 # T-251: The check of a release from end to end, with no human
 
