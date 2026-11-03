@@ -192,7 +192,8 @@ async fn a_wrong_cached_address_fails_tls_on_the_name() {
     // stand-in unasked: the wait for it is bounded.
     let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
     match opened {
-        Err(ConnectError::Tls(why)) => {
+        Err(ConnectError::Tls(failure)) => {
+            let why = &failure.why;
             assert!(why.contains("NotValidForName") || why.contains("not valid for"), "{why}")
         }
         Err(other) => panic!("TLS must refuse the name, not this: {other}"),

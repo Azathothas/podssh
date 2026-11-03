@@ -32,6 +32,8 @@ pub(crate) mod clock;
 mod hop;
 // The DERP road's servers and its home (T-379).
 mod derp;
+// How each TLS handshake ended, and what they show together (T-487).
+mod diagnosis;
 // The forwarders of --forwarder (T-369).
 mod forwarder;
 mod host;
@@ -252,6 +254,9 @@ pub(crate) struct Report<'a> {
     json: bool,
     section: String,
     lines: Vec<Line>,
+    /// Each TLS handshake of a road, and the reference's, for the diagnosis
+    /// after the counts (T-487).
+    handshakes: Vec<diagnosis::Handshake>,
     ok: usize,
     failed: usize,
     unknown: usize,
@@ -259,7 +264,8 @@ pub(crate) struct Report<'a> {
 
 impl<'a> Report<'a> {
     fn new(out: &'a mut dyn Write) -> Self {
-        Report { out, json: false, section: String::new(), lines: Vec::new(), ok: 0, failed: 0, unknown: 0 }
+        let (section, lines, handshakes) = (String::new(), Vec::new(), Vec::new());
+        Report { out, json: false, section, lines, handshakes, ok: 0, failed: 0, unknown: 0 }
     }
 
     fn section(&mut self, title: &str) {
@@ -322,29 +328,42 @@ impl<'a> Report<'a> {
         self.line(name, Verdict::Unknown { why: why.into() });
     }
 
+    /// How a road's TLS handshake with `name` ended, for the diagnosis.
+    fn handshake(&mut self, of: diagnosis::Of, name: &str, met: diagnosis::Met) {
+        self.handshakes.push(diagnosis::Handshake { of, name: name.to_string(), met, through: None });
+    }
+
     /// A part's lines and counts, once its section has run (T-511).
     fn ended(self) -> parts::Ended {
-        parts::Ended { lines: self.lines, ok: self.ok, failed: self.failed, unknown: self.unknown }
+        let (lines, handshakes) = (self.lines, self.handshakes);
+        parts::Ended { lines, handshakes, ok: self.ok, failed: self.failed, unknown: self.unknown }
     }
 
     /// The lines of a part that ran apart, in their order; its text went
     /// out as the part ran.
     fn absorb(&mut self, part: parts::Ended) {
         self.lines.extend(part.lines);
+        self.handshakes.extend(part.handshakes);
         self.ok += part.ok;
         self.failed += part.failed;
         self.unknown += part.unknown;
     }
 
     fn finish(self) -> i32 {
+        let found = diagnosis::diagnose(&self.handshakes);
         if self.json {
-            let _ = writeln!(self.out, "{}", self.to_json());
+            let _ = writeln!(self.out, "{}", self.to_json(&found));
         } else {
             let _ = writeln!(
                 self.out,
                 "\n{} ok, {} FAIL, {} ???? (could not be checked)",
                 self.ok, self.failed, self.unknown
             );
+            // After the counts, as a line about them all is known once they
+            // are; it counts as nothing (T-487).
+            for one in &found {
+                let _ = writeln!(self.out, "diagnosis: {}", podssh_ws::text::one_line(&one.detail));
+            }
         }
         let _ = self.out.flush();
         if self.failed > 0 {
@@ -357,9 +376,9 @@ impl<'a> Report<'a> {
 
 impl Report<'_> {
     /// The report as one JSON object: the version and the platform, each
-    /// check with its section, and the counts. The details are the text's,
-    /// so they hide credentials and tokens in the same way.
-    fn to_json(&self) -> String {
+    /// check with its section, the counts, and each diagnosis. The details
+    /// are the text's, so they hide credentials and tokens in the same way.
+    fn to_json(&self, found: &[diagnosis::Diagnosis]) -> String {
         let checks: Vec<serde_json::Value> = self
             .lines
             .iter()
@@ -373,6 +392,7 @@ impl Report<'_> {
                 item
             })
             .collect();
+        let findings: Vec<serde_json::Value> = found.iter().map(diagnosis::Diagnosis::json).collect();
         let doc = serde_json::json!({
             "schema": 1,
             "podssh": crate::help::version(),
@@ -380,6 +400,7 @@ impl Report<'_> {
             "arch": std::env::consts::ARCH,
             "checks": checks,
             "counts": { "ok": self.ok, "fail": self.failed, "unknown": self.unknown },
+            "diagnosis": findings,
         });
         serde_json::to_string_pretty(&doc).unwrap_or_default()
     }

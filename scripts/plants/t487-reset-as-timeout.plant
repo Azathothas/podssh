@@ -1,0 +1,7 @@
+# T-487: a reset of a TLS handshake read as a timeout; the test of an
+# egress that lists names, whose relay hosts are reset after the ClientHello,
+# must fail, as no diagnosis of a list of names comes.
+ENTRY=T-487
+GROUP=cli-tests
+EXPECT='test a_list_of_names_is_said_once_after_the_counts \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test doctor_tls -- a_list_of_names_is_said_once_after_the_counts'

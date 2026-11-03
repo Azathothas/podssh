@@ -438,7 +438,7 @@ mod tests {
         assert!(after_connection(&connect(ConnectError::Tls("NotValidForName".into()))));
         assert!(after_connection(&refused(530, "error code: 1034")));
         assert!(after_connection(&OpenError::Token(TokenError::Failed { status: 409, detail: String::new() })));
-        let unreachable = DialError::Connect { target: "relay:443".into(), detail: "refused".into() };
+        let unreachable = DialError::Connect { target: "relay:443".into(), detail: "refused".into(), cut: None };
         assert!(!after_connection(&connect(ConnectError::Dial(unreachable.clone()))));
         assert!(!after_connection(&OpenError::Token(TokenError::Connect(ConnectError::Dial(unreachable)))));
         assert!(!after_connection(&OpenError::Token(TokenError::RateLimited { retry_after: None })));

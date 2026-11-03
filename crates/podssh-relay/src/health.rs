@@ -6,7 +6,7 @@
 use std::time::{Duration, Instant};
 
 use podssh_ws::dial::{self, ProxyChoice};
-use podssh_ws::{http, Trust};
+use podssh_ws::{http, ConnectError, Trust};
 
 use crate::relay::Relay;
 
@@ -65,8 +65,9 @@ impl Health {
 /// Why a host's `/health` gave no [`Health`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HealthError {
-    /// TCP, the proxy or TLS failed: the error's text.
-    Connect(String),
+    /// TCP, the proxy or TLS failed: the error, whose text is the line's and
+    /// whose cut tells a reset from a timeout (T-487).
+    Connect(ConnectError),
     /// The connection was made (`opened`), and then the answer did not come
     /// in time, broke, had another status, held no JSON, or named another
     /// service.
@@ -76,7 +77,7 @@ pub enum HealthError {
 impl std::fmt::Display for HealthError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HealthError::Connect(text) => f.write_str(text),
+            HealthError::Connect(e) => write!(f, "{e}"),
             HealthError::Answer { opened, why } => write!(f, "{why} (opened {opened})"),
         }
     }
@@ -93,7 +94,7 @@ pub async fn fetch(
     let started = Instant::now();
     let mut tls = podssh_ws::client::open_tls(host, relay.port, host, trust, proxy, timeout)
         .await
-        .map_err(|e| HealthError::Connect(e.to_string()))?;
+        .map_err(HealthError::Connect)?;
     let (tcp, connection) = tls.get_ref();
     let peer_addr = tcp.peer_addr();
     let peer = peer_addr.as_ref().map(|a| a.to_string()).unwrap_or_else(|e| format!("an address it cannot name ({e})"));

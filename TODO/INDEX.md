@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**567 entries: 102 open, 5 partial, 16 blocked, 444 done.**
+**568 entries: 102 open, 5 partial, 16 blocked, 445 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
 | P2 | 25 | 4 | 14 | 215 | 258 |
-| P3 | 77 | 0 | 2 | 166 | 245 |
-| **All** | 102 | 5 | 16 | 444 | 567 |
+| P3 | 77 | 0 | 2 | 167 | 246 |
+| **All** | 102 | 5 | 16 | 445 | 568 |
 
 ## Entries
 
@@ -551,7 +551,7 @@ repository and CI).
 | [T-484](multi.md) | P3 | M | none | feature | open | `each --json` and `each --result-file`: each host's status, failure and streams in one object |
 | [T-485](multi.md) | P3 | S | none | feature | done | `job log --follow`: a job's output as it comes, on one connection, then its status |
 | [T-486](machine.md) | P3 | M | none | feature | open | `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file` |
-| [T-487](ws.md) | P3 | S | none | feature | open | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |
+| [T-487](ws.md) | P3 | S | none | feature | done | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |
 | [T-488](machine.md) | P3 | L | none | feature | done | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
 | [T-489](irc.md) | P3 | S | none | feature | done | `chat --listen --linger`: a listener that stays for each peer after its input ended |
 | [T-490](mesh.md) | P2 | M | M10 | feature | open | chisel's protocol: a chisel server as the road |
@@ -643,3 +643,4 @@ repository and CI).
 | [T-601](reverse.md) | P2 | S | none | defect | done | A node's `serve` that is dropped leaves its writer holding the socket, so the far side never sees the node go while a session of it lives |
 | [T-602](mesh.md) | P2 | S | M10 | defect | done | The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control |
 | [T-603](multi.md) | P2 | S | none | defect | partial | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |
+| [T-604](ws.md) | P3 | S | none | feature | open | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |

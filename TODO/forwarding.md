@@ -377,7 +377,7 @@ X11 channel.
 
 Recommendation: refuse before the connection when the probe fails. podssh's
 rule is an error that tells what to do, never a silent fallback
-(`docs/target-environment.md:105-107`). The alternative, OpenSSH's way (a debug
+(`docs/target-environment.md:116-118`). The alternative, OpenSSH's way (a debug
 line, then a session with no X11), lost: the user asked for X11 and would
 not see why it is missing.
 
@@ -492,7 +492,7 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:272-278` (no bind, no listen),
-  `docs/target-environment.md:88-92` (rule 3), `SECURITY.md:170-197` ("Nothing
+  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:170-197` ("Nothing
   listens") and `README.md:43-52` state the rule from before the ruling.
   `docs/design.md:1045-1047` already allows a local listener for `pipe` after
   a probe.
@@ -590,7 +590,7 @@ The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
 `crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:170-197` and
 `README.md:43-52` state the ruling now, as `AGENTS.md:272-278` and
-`docs/target-environment.md:88-92` did already.
+`docs/target-environment.md:99-103` did already.
 
 ## Done
 
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:340`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:341`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise

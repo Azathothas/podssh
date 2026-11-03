@@ -31,6 +31,8 @@ pub mod clock;
 mod close;
 pub mod cloudflare;
 pub mod crypto;
+// How a dial or a handshake ended, by the kind of its error (T-487).
+pub mod cut;
 pub mod dial;
 // The road of AWS's EC2 Instance Connect Endpoint (T-351).
 pub mod eice;
@@ -85,6 +87,7 @@ pub use client::{
     connect, doctor, https_get, https_post_json, ConnectError, Endpoint, WsClientConfig, DEFAULT_IDLE_TIMEOUT,
     DEFAULT_TIMEOUT, LIVENESS_ALLOWED, LIVENESS_EVERY,
 };
+pub use cut::{Cut, TlsFailure};
 pub use dial::{DialError, HttpProxy, Proxy, ProxyChoice, ProxyKind};
 pub use error::{SessionError, Verdict, WsError};
 pub use frame::Frame;

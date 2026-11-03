@@ -223,6 +223,7 @@ const DOCTOR: &[&str] = &[
     super::notes_pair::DOCTOR_SSHD,
     super::notes_doctor::DOCTOR_AT_ONCE,
     super::notes_doctor::DOCTOR_QUICK,
+    super::notes_doctor::DOCTOR_DIAGNOSIS,
     "Each CONNECT, and the direct TCP check, is tried nine times over a second or more: its line gives \
      the best time (the path's floor), the median, the 95th percentile and the jitter (the median change \
      from one try to the next), and the loss, the tries that timed out and those that broke counted \
@@ -274,8 +275,9 @@ const DOCTOR: &[&str] = &[
      whose host key must be one that GitHub publishes. A 407 says what the proxy asks for.",
     super::notes_vless::DOCTOR_VLESS,
     "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
-     os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
-     counts (ok, fail, unknown). A check tried several times adds samples: tries, connected, best_ms, \
+     os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown), \
+     counts (ok, fail, unknown) and diagnosis (each case after the counts; empty when none). A check tried \
+     several times adds samples: tries, connected, best_ms, \
      median_ms, p95_ms and jitter_ms (null when no try connected), timed_out, broke, refused, and ms, the \
      time of each try that connected. The details are the text's, the exit code is the same, and nothing \
      is printed before the object.",

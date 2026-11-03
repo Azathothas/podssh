@@ -50,8 +50,8 @@ pub enum DialError {
     BadProxy(String),
     /// The name did not resolve (direct connections only).
     Resolve { host: String, detail: String },
-    /// Every address failed.
-    Connect { target: String, detail: String },
+    /// Every address failed; the cut of the last one, by its kind (T-487).
+    Connect { target: String, detail: String, cut: Option<crate::cut::Cut> },
     /// A step did not finish in time.
     Timeout { step: String, after: Duration },
     /// The proxy itself could not be reached.
@@ -70,7 +70,7 @@ impl std::fmt::Display for DialError {
             DialError::InvalidTarget(why) => write!(f, "invalid destination: {why}"),
             DialError::BadProxy(why) => write!(f, "the proxy setting is not usable: {why}"),
             DialError::Resolve { host, detail } => write!(f, "could not resolve {host}: {detail}"),
-            DialError::Connect { target, detail } => write!(f, "could not connect to {target}: {detail}"),
+            DialError::Connect { target, detail, .. } => write!(f, "could not connect to {target}: {detail}"),
             DialError::Timeout { step, after } => write!(f, "{step} timed out after {}s", after.as_secs()),
             DialError::ProxyUnreachable { proxy, detail } => {
                 write!(f, "could not reach the proxy {proxy}: {detail}")

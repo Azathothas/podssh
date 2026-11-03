@@ -173,7 +173,9 @@ async fn open(
         .map_err(|e| ConnectError::Upgrade(format!("{how}: {e}")))?;
     leg.connect = Some((how, started.elapsed()));
     let started = Instant::now();
-    let tls = podssh_ws::tls::connect_over(tcp, &relay.host, trust, STEP).await.map_err(ConnectError::Tls)?;
+    let tls = podssh_ws::tls::connect_over(tcp, &relay.host, trust, STEP)
+        .await
+        .map_err(|why| ConnectError::Tls(why.into()))?;
     leg.tls = Some(started.elapsed());
     let started = Instant::now();
     let host_header = podssh_ws::dial::authority(&relay.host, relay.port);

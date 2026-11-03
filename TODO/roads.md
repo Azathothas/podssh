@@ -1357,7 +1357,7 @@ on TCP, and registers with Cap'n Proto RPC. Read: the measured proxy allows
 and the sandbox refuses UDP (`docs/target-environment.md:23`). If the edge
 needs port 7844, a cage cannot publish a tunnel. A client in a cage can still
 reach the tunnel's name on port 443 with `podssh-ws`
-(`crates/podssh-ws/src/client.rs:159-182`).
+(`crates/podssh-ws/src/client.rs:160-183`).
 
 ## Approach
 
@@ -1420,7 +1420,7 @@ that the section names.
 quick tunnel uses QUIC alone unless the user names `--protocol http2`: cloudflared sets `quic`
 for it, and a protocol that the user names has no fallback (`docs/design.md:287-291`). And the
 client in a cage is the road of T-264, `crates/podssh-ws/src/cloudflare.rs`, whose upgrade is
-cloudflared's; the cited `crates/podssh-ws/src/client.rs:159-182` is the relay's upgrade, with
+cloudflared's; the cited `crates/podssh-ws/src/client.rs:160-183` is the relay's upgrade, with
 its token header.
 
 ## Done
@@ -1464,7 +1464,7 @@ Cloudflare Access. From a cage, podssh cannot reach it: the client is
 ## Premise
 
 Read: podssh's WebSocket client sends its credential in one fixed header,
-`X-Relay-Token` (`crates/podssh-ws/src/client.rs:159-182`,
+`X-Relay-Token` (`crates/podssh-ws/src/client.rs:160-183`,
 `crates/podssh-ws/src/handshake.rs:3`), through `HTTPS_PROXY`, with podssh's
 own TLS provider; the measured proxy allows `CONNECT` to port 443
 (`docs/target-environment.md:21`). Not verified here (to read in the source
@@ -4837,7 +4837,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:171-176`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:173-178`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -5041,7 +5041,7 @@ does not depend on them.
   20 s (`crates/podssh-cli/src/ssh/transport.rs:334-348`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
-  can leave (`crates/podssh-cli/src/doctor/net.rs:184-191`, `:193-274`).
+  can leave (`crates/podssh-cli/src/doctor/net.rs:192-199`, `:201-293`).
 - Read: `cp`, `each`, `job`, `health`, `containers`, `ping` and the `ssh:` address of `pipe` reach
   their server through the same function as `podssh ssh`
   (`crates/podssh-cli/src/ssh/transport.rs:163-167`; `crates/podssh-cli/src/cp/link.rs`,
@@ -5049,7 +5049,7 @@ does not depend on them.
 - Read: on the hosts that podssh is built for, the proxy refuses port 22 and a direct dial is
   dropped with no answer (`docs/target-environment.md:21-22`); a cloud container's proxy takes
   `CONNECT github.com:22` and carries no SSH (`docs/target-environment.md:61-70`; the issue cited
-  `:70-77`).
+  `:70-88`).
 - Read: each road of the release binaries but `--direct` depends on Cloudflare and on one domain
   (`docs/carriers.md:23-25`; T-346).
 - Read: the opener tries the relay hosts in turn, and stops at once on a failure that each host
@@ -5203,7 +5203,7 @@ relay's path and token.
   path is `/connect/<host>/<port>` (`:139-152`); a run has one road, of five kinds
   (`crates/podssh-cli/src/ssh/resolve.rs:23-72`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
-  (`crates/podssh-ws/src/client.rs:66-105`, `:159-182`); a token goes only to the deployment that
+  (`crates/podssh-ws/src/client.rs:66-105`, `:160-183`); a token goes only to the deployment that
   minted it (`docs/decisions.md:88`).
 - Read: a SOCKS5 proxy that the user names in `ALL_PROXY` carries each road already (T-070;
   `crates/podssh-ws/src/socks5.rs:1-7`): podssh takes a third party's proxy that the user chooses.
@@ -5528,7 +5528,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
   port 443 answers (`docs/STATUS.md:120`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
-  (`crates/podssh-cli/src/doctor/net.rs:193-243`).
+  (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
@@ -5651,7 +5651,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
   `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-72`).
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:231-236`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
-  (`crates/podssh-ws/src/client.rs:184-199`), with no ALPN and no client certificate
+  (`crates/podssh-ws/src/client.rs:185-200`), with no ALPN and no client certificate
   (`crates/podssh-ws/src/tls.rs:315-318`).
 - Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
   `SSL_CERT_FILE` (`docs/target-environment.md:61-70`), and reset SSH on port 443
@@ -7500,7 +7500,7 @@ puts the fallback in its `ok` column without a probe.
   (`crates/podssh-relay/src/open.rs:62-84`, `crates/podssh-relay/src/open.rs:137-145`).
 - Read: `doctor`'s line of the fallback is `ok`, with "not asked here"
   (`crates/podssh-cli/src/doctor/forwarder.rs:28-45`); `doctor` has a mark for what it did not
-  measure (`crates/podssh-cli/src/doctor/mod.rs:321-323`).
+  measure (`crates/podssh-cli/src/doctor/mod.rs:327-329`).
 - Read: the operator's rulings Q56 and Q65 (`docs/decisions.md`) let the binary try the forwarders,
   and the Wisp demo server last, "when each relay host fails", unasked (T-370, T-438); since T-438
   there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:236-247`).

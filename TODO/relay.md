@@ -132,9 +132,9 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
 (`docs/relay.md:304-305`). The `health` function of `doctor`
-(`crates/podssh-cli/src/doctor/relay_checks.rs:82-95`) already makes a verified `/health`
+(`crates/podssh-cli/src/doctor/relay_checks.rs:86-103`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:177-194` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:279-290`); `https_request` takes headers (lines
+token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -152,7 +152,7 @@ token header (`crates/podssh-ws/src/client.rs:279-290`); `https_request` takes h
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:25`), and the run has a limit too.
+   (`crates/podssh-cli/src/doctor/relay_checks.rs:26`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs` line 442 at `af0a163`); change `DISPATCHED`, `usage_tail`
    (`crates/podssh-cli/src/help.rs`, line 237 at `24f3e2a`), the notes, `docs/relay.md`, lines 296-302 at `24f3e2a`, and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
@@ -207,7 +207,7 @@ status' with no NAME, the relay's own state, is not implemented yet"), `relay in
 `relay trace github.com 22` 64 ("one word too many"), as a subcommand took one NAME; `--timeout`
 is an unknown flag (64). `spec` is T-060's and done (step 3), and the tests of `spec` read
 `--document`, so the stand-in needs no `/llms-full.txt`. `https_with_token` already sends a token
-in a header (`crates/podssh-ws/src/client.rs:308-330`), for the pairing calls. On the live relay,
+in a header (`crates/podssh-ws/src/client.rs:309-331`), for the pairing calls. On the live relay,
 2026-10-11: `/trace` alone answers without a token with the caller's address, city, coordinates
 and network; a target trace answers `target` with `ok`, `road`, `dialed`, `address_family`,
 `connect_ms`, `first_byte_ms`, `bytes_seen`, `verdict` and `banner`, or `error` alone for a
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:208-222`,
    `crates/podssh-cli/src/man/data.rs:164-172`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:208-282`).
+   notes (`crates/podssh-cli/src/man/notes.rs:208-284`).
 
 ## Decision
 
@@ -2250,7 +2250,7 @@ session on 2026-11-03.
 - `podssh status`: `relay_failures` names the road, and `relay_opened` gives the hosts that opened
   lately (`crates/podssh-cli/src/status.rs:216-223`); `podssh doctor`'s line `failed relays` says
   each host tried last, and a line `opened relays` those tried first
-  (`crates/podssh-cli/src/doctor/mod.rs:388-416`). THE RELAY in the manual
+  (`crates/podssh-cli/src/doctor/mod.rs:409-437`). THE RELAY in the manual
   (`crates/podssh-cli/src/man/facts.rs:371-388`), `docs/relay.md` (step 5 of the selection) and
   `docs/cli.md` (`podssh status`).
 - Tests: in `crates/podssh-relay/src/failures_tests.rs`, the five of T-059 on the road, the round

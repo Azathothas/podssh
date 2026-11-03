@@ -8,6 +8,7 @@
 use podssh_relay::derp::servers::{self, Server};
 use podssh_ws::{ProxyChoice, Trust};
 
+use super::diagnosis::{met_of, Met, Of};
 use super::Report;
 
 /// The probe of each server, in the order of the list; then the home.
@@ -23,13 +24,18 @@ pub(super) async fn check(report: &mut Report<'_>, trust: &Trust) {
     let mut home: Option<Server> = None;
     for server in &list {
         let label = format!("DERP server {server}");
-        match servers::probe(server, trust, &ProxyChoice::FromEnvironment).await {
+        // What its TLS met, beside the line, for the diagnosis (T-487).
+        match servers::probe_kept(server, trust, &ProxyChoice::FromEnvironment).await {
             Ok(took) => {
+                report.handshake(Of::Derp, &server.host, Met::Completed);
                 let ms = took.as_millis();
                 report.ok(&label, format!("{} answered in {ms} ms, certificate verified", servers::PROBE_PATH));
                 home.get_or_insert_with(|| server.clone());
             }
-            Err(why) => report.fail(&label, why),
+            Err(missed) => {
+                report.handshake(Of::Derp, &server.host, met_of(missed.cut));
+                report.fail(&label, missed.why);
+            }
         }
     }
     match home {

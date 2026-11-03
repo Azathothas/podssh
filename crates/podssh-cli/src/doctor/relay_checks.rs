@@ -16,6 +16,7 @@ use podssh_ws::dial::{self, ProxyChoice};
 use podssh_ws::{SessionError, Trust, Verdict};
 
 use super::clock::{format_http_date, parse_http_date};
+use super::diagnosis::{Met, Of};
 use super::Report;
 
 /// The relay version podssh was last measured against (docs/relay.md).
@@ -41,7 +42,9 @@ const CLOCK_LIMIT: i64 = 3600;
 pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, full: bool) {
     let mut answered: Option<(&Relay, Option<String>)> = None;
     for relay in &relays.hosts {
-        match health(relay, trust).await {
+        let (outcome, met) = health(relay, trust).await;
+        report.handshake(Of::Relay, &relay.host, met);
+        match outcome {
             Ok((line, date)) => {
                 report.ok("relay", line);
                 if answered.is_none() {
@@ -78,8 +81,9 @@ pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &T
 
 /// `GET /health` on one host, through the same proxy-aware, verified path
 /// as a session (`podssh_relay::health`, which `podssh relay status` reads
-/// too). Returns the report line and the relay's `Date` header.
-async fn health(relay: &Relay, trust: &Trust) -> Result<(String, Option<String>), String> {
+/// too). Returns the report line and the relay's `Date` header; and what
+/// its TLS handshake met, for the diagnosis (T-487).
+async fn health(relay: &Relay, trust: &Trust) -> (Result<(String, Option<String>), String>, Met) {
     let host = &relay.host;
     match podssh_relay::health::fetch(relay, trust, &ProxyChoice::FromEnvironment, TIMEOUT).await {
         Ok(found) => {
@@ -87,10 +91,14 @@ async fn health(relay: &Relay, trust: &Trust) -> Result<(String, Option<String>)
             if found.version.as_deref() != Some(MEASURED_VERSION) {
                 line.push_str(&format!("; podssh was measured against {MEASURED_VERSION}"));
             }
-            Ok((line, found.date))
+            (Ok((line, found.date)), Met::Completed)
         }
-        Err(HealthError::Connect(text)) => Err(format!("{host}: {text}{}", clock_hint(&text))),
-        Err(e) => Err(format!("{host}: {e}")),
+        Err(HealthError::Connect(e)) => {
+            let text = e.to_string();
+            (Err(format!("{host}: {text}{}", clock_hint(&text))), super::diagnosis::met(&e))
+        }
+        // The connection and its TLS were made: the answer failed after them.
+        Err(e) => (Err(format!("{host}: {e}")), Met::Completed),
     }
 }
 
