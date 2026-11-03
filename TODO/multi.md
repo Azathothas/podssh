@@ -3287,3 +3287,61 @@ session on 2026-11-03.
   and clippy of `podssh-cli` with `-D warnings`, all targets: clean.
 - Not changed: `job list` prints nothing for no job, as the Premise reads; `containers` says so on
   stderr already.
+
+# T-603: On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given
+
+**Source:** the gate at `38f424c` (run 41620927795, its job `macos`): `podssh-cli`'s
+`job_far::log_follow_goes_on_across_calls_with_no_byte_lost_or_twice` gave `["A"]` where it waits
+for `["A", "B"]`, exit 0, and two calls in `-v` ("2 bytes from 0", "0 bytes from 2"), not three.
+It passed on macOS at `a4344a7`, on Linux at each gate, and here 4 runs of 4.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+A test that fails at random, on macOS alone. The job is `echo A; sleep 45; echo B`. The run
+exited 0 with A alone, and its third call said nothing at `-v`. Of the ways that a follow ends
+with 0, two fit: the job's status of 0 before its end, which no part of the far script writes
+early; or a write of the job's bytes to this end's stdout that failed, which the follow took for
+a reader that went away (`| head`), with no word. The second also hid any failure of a write
+that was no broken pipe.
+
+## Premise
+
+- Read, at `38f424c`: `crates/podssh-cli/src/job/follow.rs`, `Sink::write` sets `gone` on any
+  error of the write, and `watch` returns 0 for `gone` before it says the call's bytes.
+- Read: `crates/podssh-cli/src/job/far.sh` and `far_notmux.sh` write a status at the runner's
+  end alone (and 255 for a job that did not start).
+
+## Approach
+
+1. A reader that went away is a broken pipe: the follow ends with 0 and says so at `-v`; any
+   other failed write is a failure of the follow, which says why (exit 1).
+2. The test names what the far end held at its end (the job's `out`, `state` and `status`), so
+   that the next failure on macOS says which side stopped.
+3. The cause, from that line, on the macOS runner.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --lib job::follow
+cargo test -p podssh-cli --test job_far log_follow
+```
+
+Each passes; planted, each failed write taken for a reader that went: the new unit test fails.
+
+## Done
+
+Not done: the cause on macOS, which the next failure there names (step 3).
+
+2026-11-03:
+
+- `crates/podssh-cli/src/job/follow.rs`: the sink keeps the kind and the words of its failed
+  write; `gone` gives 0 and a line at `-v` for a broken pipe, else 1 and the error.
+- `crates/podssh-cli/tests/job_far.rs`: the follow's test says the far job's `out`, `state` and
+  `status` when it fails.
+- `cargo test -p podssh-cli --lib job::follow`: 4 passed; `--test job_far log_follow`: 4 passed.
+  Planted, the failed write taken for a reader that went (`&& false`): the new unit test failed.

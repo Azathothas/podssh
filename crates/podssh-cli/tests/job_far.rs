@@ -257,8 +257,14 @@ fn log_follow_goes_on_across_calls_with_no_byte_lost_or_twice() {
     let id = start_plain(&far, "echo A; sleep 45; echo B");
     let before = far.connections();
     let (code, lines, err) = far.job_lines("log", &[id.as_str(), "--follow", "-v"], Duration::from_secs(120));
-    assert_eq!(code, 0, "{err}");
-    assert_eq!(texts(&lines), ["A", "B"], "{err}");
+    // What the far end held at the end, for a failure to name its side
+    // (T-603: the macOS runner once saw A alone, and an exit of 0).
+    let held = far.job_dir(&id).map_or_else(String::new, |d| {
+        let read = |f: &str| std::fs::read_to_string(d.join(f)).ok();
+        format!("out {:?}, state {:?}, status {:?}", read("out"), read("state"), read("status"))
+    });
+    assert_eq!(code, 0, "{err}\nthe far job: {held}");
+    assert_eq!(texts(&lines), ["A", "B"], "{err}\nthe far job: {held}");
     let calls = err.lines().filter(|l| l.contains(&format!("job {id} on ")) && l.contains(" bytes from ")).count();
     assert!(calls >= 3, "{calls} calls: {err}");
     assert_eq!(far.connections(), before + 1, "one connection: {err}");

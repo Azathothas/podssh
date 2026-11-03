@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**566 entries: 106 open, 4 partial, 16 blocked, 440 done.**
+**567 entries: 106 open, 5 partial, 16 blocked, 440 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 27 | 3 | 14 | 213 | 257 |
+| P2 | 27 | 4 | 14 | 213 | 258 |
 | P3 | 79 | 0 | 2 | 164 | 245 |
-| **All** | 106 | 4 | 16 | 440 | 566 |
+| **All** | 106 | 5 | 16 | 440 | 567 |
 
 ## Entries
 
@@ -642,3 +642,4 @@ repository and CI).
 | [T-600](resume.md) | P2 | S | none | defect | done | A resume that comes before the first link's task carries its session ends the session, as while a node opens its target |
 | [T-601](reverse.md) | P2 | S | none | defect | done | A node's `serve` that is dropped leaves its writer holding the socket, so the far side never sees the node go while a session of it lives |
 | [T-602](mesh.md) | P2 | S | M10 | defect | open | The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control |
+| [T-603](multi.md) | P2 | S | none | defect | partial | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |

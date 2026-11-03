@@ -32,11 +32,14 @@ pub struct Sink<'a> {
     pub came: u64,
     /// The reader went away (`| head`): the follow ends.
     pub gone: bool,
+    /// The kind of the write that failed, and its words: a reader that went
+    /// away is a broken pipe; another failure is said as one (T-603).
+    pub failed: Option<(io::ErrorKind, String)>,
 }
 
 impl<'a> Sink<'a> {
     pub fn new(out: &'a mut dyn Write, jsonl: bool) -> Sink<'a> {
-        Sink { out, jsonl, line: Vec::new(), came: 0, gone: false }
+        Sink { out, jsonl, line: Vec::new(), came: 0, gone: false, failed: None }
     }
 
     /// Each whole line of `data` as an object, the rest kept for the next.
@@ -85,6 +88,7 @@ impl Write for Sink<'_> {
             if self.jsonl { self.lines(data) } else { self.out.write_all(data).and_then(|()| self.out.flush()) };
         if let Err(e) = given {
             self.gone = true;
+            self.failed = Some((e.kind(), e.to_string()));
             return Err(e);
         }
         Ok(data.len())
@@ -173,7 +177,7 @@ async fn watch(
         let words = ["follow", id, from.as_str()];
         let called = far::stream(handle, host, &words, "out", &mut *sink, true, &mut start).await;
         if sink.gone {
-            return Some(0);
+            return Some(gone(sink, host, id, log));
         }
         // The far end says where the bytes of this call began; each byte
         // that came is counted, also of a call that broke.
@@ -237,6 +241,22 @@ async fn watch(
     }
 }
 
+/// The exit of a follow whose output could not be written: 0 for a reader
+/// that went away (`| head`), else a failure that says why, as the output
+/// stopped where the job's did not (T-603).
+fn gone(sink: &Sink<'_>, host: &str, id: &str, log: &Log) -> i32 {
+    match &sink.failed {
+        Some((kind, why)) if *kind != io::ErrorKind::BrokenPipe => {
+            log.error(&format!("job {id} on {host}: its output could not be written here: {why}"));
+            EXIT_FAILURE
+        }
+        _ => {
+            log.verbose(&format!("job {id} on {host}: the reader of the output went away, and the follow ends"));
+            0
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -292,5 +312,29 @@ mod tests {
         assert!(sink.gone);
         assert!(sink.write_all(b"y").is_err());
         assert_eq!(sink.came, 1, "the bytes after are not counted");
+        assert_eq!(sink.failed.as_ref().map(|(kind, _)| *kind), Some(io::ErrorKind::BrokenPipe));
+    }
+
+    /// A write that fails for another cause than a reader that went is a
+    /// failure of the follow, said, where a reader that went is no failure.
+    #[test]
+    fn a_write_that_fails_otherwise_is_a_failure() {
+        struct Stuck;
+        impl Write for Stuck {
+            fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+                Err(io::Error::from(io::ErrorKind::WouldBlock))
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        let log = Log::new(podssh_ssh::LogLevel::Quiet);
+        let mut stuck = Stuck;
+        let mut sink = Sink::new(&mut stuck, false);
+        assert!(sink.write_all(b"x").is_err());
+        assert_eq!(gone(&sink, "h", "id", &log), EXIT_FAILURE);
+        let mut out = Vec::new();
+        let went = Sink { failed: Some((io::ErrorKind::BrokenPipe, "pipe".into())), ..Sink::new(&mut out, false) };
+        assert_eq!(gone(&went, "h", "id", &log), 0);
     }
 }
