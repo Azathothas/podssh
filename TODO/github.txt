@@ -88,9 +88,9 @@
 80 pull closed
 81 pull closed
 82 pull closed
-83 issue open
+83 issue closed
 84 issue closed
-85 issue open
+85 issue closed
 86 issue closed
 87 issue open
 88 issue open

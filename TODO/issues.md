@@ -153,9 +153,9 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 | #74 | `doctor` never tells a name allowlist from an address allowlist | closed 2026-10-31, its entry done | T-366 |
 | #75 | An HTTP CONNECT listener | closed 2026-10-31, its entry done | T-367 |
 | #76 | `ws:` and `ws-listen:` as addresses of `pipe` | closed 2026-10-31, each entry done | T-368, with the reader of requests of T-367 |
-| #83 | A quiet minute ends the session when a Go server's reply to the keepalive carries data | open | T-460 (russh ends the connection on a failure with data, which Go's x/crypto/ssh sends; OpenSSH reads none) |
+| #83 | A quiet minute ends the session when a Go server's reply to the keepalive carries data | closed 2026-11-03, each entry done (`b026d58`) | T-460 (russh ends the connection on a failure with data, which Go's x/crypto/ssh sends; OpenSSH reads none) |
 | #84 | Exit 0 with stdout cut at the relay's 64 MiB | closed 2026-11-02, its entry done (`5b2468a`) | T-461 (the status came before the output's end; no rotation for a plain sshd, whose far end keeps nothing to go on with) |
-| #85 | `-R` refused by a Go server reads as a lost connection | open | T-460 (the connection was lost: the failure's data ended it, inferred from the 0.7 s), T-464 (that line names no cause) |
+| #85 | `-R` refused by a Go server reads as a lost connection | closed 2026-11-03, each entry done (`772275c`) | T-460 (the connection was lost: the failure's data ended it, inferred from the 0.7 s), T-464 (that line names no cause) |
 | #86 | A `-J` hop that opens its channel and carries nothing ends in a bare 60 s timeout | closed 2026-11-02, its entry done (`f460dcf`) | T-462 (the hop took the channel, as the handshake's line came; a refused one is named at once, as `crates/podssh-cli/tests/jump_hop.rs:180` tests) |
 | #87 | `cp --delta` falls back to a full copy with no word | open | T-470 (also: the copy by exec does not read `--delta`, and a server with a command and no `copy-data` gets its delta through that command) |
 | #88 | `health` gives the host's 48 CPUs and 188 GiB, not the container's 4 CPUs and 4 GiB | open | T-480 (the cgroup's limits, v2 and v1, beside the host's facts, and `effective` in the JSON) |

@@ -2907,7 +2907,7 @@ lost while the forwards were asked for". Read at `f8d15bf`.
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3080,9 +3080,13 @@ same day. The WIP `818f7fe` (branch `worktree-agent-t460-ssh`) is carried onto
   Docker, `sh scripts/plant-each.sh --here t460-published-russh t460-failure-data-ends`.
 - `docs/cli.md` (a refused `-R` and the keepalive against Go's servers).
 - The merge: `cargo build`; clippy of `podssh-ssh` with `-D warnings`, all targets: clean; `cargo
-  deny check`: advisories, bans, licenses and sources ok, russh a path package. Waits for GitHub
-  Actions, once the workflow is on `main`: `go-ssh-interop.yml` (8 of 8) and the plants of
-  `host-gossh`; the entry stays `partial` until they pass. The rest the draft named for the main
+  deny check`: advisories, bans, licenses and sources ok, russh a path package. In GitHub Actions at
+  `7f31fef` (2026-11-02): `go-ssh-interop.yml` (run 41496677959), `interop-go-ssh: 8 passed, 0
+  failed`, each quiet session alive after 100 s and `-R`'s refusal a warning (or 255 with
+  `ExitOnForwardFailure=yes`); the plants of `host-gossh` (run 41496696749), 2 caught:
+  `t460-failure-data-ends` (the patch's test of a failure with data failed) and
+  `t460-published-russh` (3 passed, 5 failed, "unexpected trailing data at end of message (15
+  bytes)"). The rest the draft named for the main
   session: `cargo todo interop`; `cargo todo remap` of
   `Cargo.toml`, `docs/development.md`, `vendor/README.md`, `AGENTS.md`, `docs/cli.md` and
   `docs/STATUS.md` (the draft moved their citations by hand, `Cargo.toml:218` among them);
