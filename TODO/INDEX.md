@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**548 entries: 112 open, 3 partial, 16 blocked, 417 done.**
+**549 entries: 113 open, 2 partial, 16 blocked, 418 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 2 | 0 | 58 | 61 |
-| P2 | 30 | 1 | 14 | 201 | 246 |
-| P3 | 81 | 0 | 2 | 157 | 240 |
-| **All** | 112 | 3 | 16 | 417 | 548 |
+| P2 | 30 | 0 | 14 | 202 | 246 |
+| P3 | 82 | 0 | 2 | 157 | 241 |
+| **All** | 113 | 2 | 16 | 418 | 549 |
 
 ## Entries
 
@@ -599,7 +599,7 @@ repository and CI).
 | [T-549](mesh.md) | P3 | M | M10 | feature | open | Serveo as a last fallback: a node's alias by SSH, and a client's hop through it |
 | [T-550](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node takes its net's members as its door, with no `--allow` |
 | [T-551](mesh.md) | P3 | M | M10 | feature | open | A copy to a node races the roads that `podssh ssh` races, not the pair's road alone |
-| [T-560](roads.md) | P2 | S | none | defect | partial | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
+| [T-560](roads.md) | P2 | S | none | defect | done | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
 | [T-561](roads.md) | P2 | M | none | feature | open | WARP's road dials one constant address, not the peers that WARP's API gave |
 | [T-562](roads.md) | P3 | S | none | feature | open | WARP's registration dials one name of the API, with no second route |
 | [T-563](relay.md) | P2 | S | none | defect | done | The relay's record forgets a host that opens, and one road's failure moves the host on each road |
@@ -624,3 +624,4 @@ repository and CI).
 | [T-582](mesh.md) | P3 | L | M10 | feature | open | MASQUE over HTTP/3: WARP's connect-ip on UDP, where a probe found that UDP passes |
 | [T-583](ssh.md) | P3 | S | none | feature | open | The warning before the relay's idle cut with `--persist` and `--upgrade` |
 | [T-584](release.md) | P1 | M | none | release | open | Publish `v1.0.1`, the repairs of the testers' defects |
+| [T-585](roads.md) | P3 | S | none | defect | open | WARP's road names a proxy that re-terminates TLS on a road with no proxy |

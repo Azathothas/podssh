@@ -7640,7 +7640,7 @@ session on 2026-11-03.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -7710,7 +7710,7 @@ test fails.
 ## Done
 
 Drafted 2026-11-02 by an agent, which built nothing; merged and measured by the main session on
-2026-11-03; partial: the live run of `warp-live.yml` waits for the push.
+2026-11-03.
 
 - `crates/podssh-warp/src/probe.rs` (new): the probe's targets (`1.1.1.1:443`, and IPv6's
   resolver), its ceiling of 3 s for each try, two tries 700 ms apart, and its verdict: carried (a
@@ -7747,8 +7747,12 @@ Drafted 2026-11-02 by an agent, which built nothing; merged and measured by the 
   tests' 20 s (`probes_reach`), and the counts asked are the same.
 - Planted (`scripts/plants/t560-probe-skipped.patch`), `sh scripts/plant-each.sh --here
   t560-probe-skipped`: caught, the silent front door's test failed.
-- Live (Q52), `warp-live.yml` by hand: the probe answered inside WARP's tunnel, and each later
-  step with it: waits for its run at the push.
+- Live (Q52), `warp-live.yml` by hand at `12520f2` (run 41561332374): "ok the probe inside WARP's
+  tunnel was answered" in both attempts. The second attempt passed each step: the banner directly
+  and through the box's proxy, OpenSSH with `podssh proxy warp://`, the proxy of names alone, and
+  16 MiB each way to a node of the live relay. The first failed the direct banner before its probe,
+  as WARP's endpoint showed a certificate of Let's Encrypt and its API answered 500, which podssh
+  named as a proxy that re-terminates TLS on a road with no proxy: T-585.
 
 # T-561: WARP's road dials one constant address, not the peers that WARP's API gave
 
@@ -7842,3 +7846,44 @@ cargo test -p podssh-warp --features stand-in
 A stand-in API whose first name refuses registers through the second, and the record keeps it.
 Planted: the second route dropped, and that test fails. Live (Q52): one registration through
 the second name, with a throwaway device (Q59).
+
+# T-585: WARP's road names a proxy that re-terminates TLS on a road with no proxy
+
+**Source:** `warp-live.yml` at `12520f2` (run 41561332374, its first attempt, 2026-11-03).
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The step that dials WARP's endpoint directly, with no proxy on the way, ended with "a proxy
+re-terminates TLS: the endpoint 162.159.198.2:443 showed a certificate of O=Let's Encrypt, CN=YE1,
+not of WARP's key"; the same run's steps before and after, and its second attempt, passed. The line
+blames a proxy that the road did not use, so a user looks for a proxy that is not there.
+
+## Premise
+
+- The road's dial with `ProxyChoice::Direct` and the proxy's dial both end in the same words when
+  the endpoint's certificate is not WARP's key (read in `crates/podssh-warp/src/road.rs`, the
+  fault of a certificate that is not the pin).
+- The run's first attempt also had WARP's API answer 500 to the device's record, read again:
+  WARP's side was failing then.
+
+## Approach
+
+1. With no proxy on the way, the line says that the endpoint itself showed another certificate,
+   names the certificate, and says that WARP's side may be failing; the words of a proxy that
+   re-terminates TLS stay for a road through a proxy.
+2. A test against the stand-in edge, which shows another certificate with no proxy: the line
+   names the endpoint and no proxy.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --features stand-in
+```
+
+Planted: the proxy's words on the direct road: the test fails.
