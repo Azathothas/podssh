@@ -1203,3 +1203,47 @@ session on 2026-11-03.
   moved by hand, and those of `docs/cli.md` in each entry; `cargo todo remap` from the tree
   before the draft confirmed them. rustfmt and clippy of `podssh-cli` with `-D warnings`, all
   targets: clean.
+
+# T-584: Publish `v1.0.1`, the repairs of the testers' defects
+
+**Source:** the operator's ruling Q87 (2026-11-02, `docs/decisions.md`): `v1.0.1` goes out
+unattended once the testers' defects pass the checks of a release, then the next beta.
+**Category:** release
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The repairs of the defects that the testers of `v1.0.0` found (GitHub #83 to #111, the bundle and
+the relay sweep of 2026-11-02) are on `main` and in no release: a user of `v1.0.0`, and `podssh
+update`, still get each defect.
+
+## Premise
+
+- `TODO/release.md:40` says "new entry: repair it, and publish `v1.0.1` by the same steps.", the
+  steps of T-250.
+- `docs/development.md:860` says "0. The version of the tag in `Cargo.toml` (`version`), then".
+
+## Approach
+
+1. The version 1.0.1 in `Cargo.toml`, then `cargo update -w` for `Cargo.lock` and
+   `fuzz/Cargo.lock`; the tag's notes in `docs/releases/`: each repair with its entry, what
+   waits, and how to check a download, as `v1.0.0`'s.
+2. Before the tag: the gate green at the commit, the release workflow and the changelog workflow
+   by hand on it, and the release check (T-251) on the gate's artifact and a local build.
+3. The tag once, by the release workflow's input `publish`; then `release-proofs.yml`,
+   `update-live.yml` and the release check on the published files.
+4. The README's install lines and `docs/STATUS.md`; then `v1.1.0-beta.1` (T-446), no earlier
+   than a day after the beta before it.
+
+## Prove
+
+```sh
+gh release view v1.0.1 -R Azathothas/podssh --json isPrerelease,assets --jq '.isPrerelease, (.assets | length)'
+sh scripts/release-check.sh v1.0.1; echo "exit=$?"
+```
+
+The release is not a prerelease, with a binary for each target, `SHA256SUMS` and the signatures;
+the check of T-251 exits 0 on the published files, and its result is in `docs/STATUS.md`.
