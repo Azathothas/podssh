@@ -6,6 +6,10 @@
 //! its ProxyCommand, to OpenSSH's sshd behind `podssh node`, 8 MiB each way
 //! with equal digests. The node tests of the stand-in run against the role
 //! with `PODSSH_RELAY_UNDER_TEST=podssh` (`throughput_harness/cells.rs`).
+//! The renewal of T-592: `podssh relay pair --renew` and a node in its
+//! pair's last day renew it at the role, with its tokens, so that an
+//! operator's file past its end still reaches the node; the stand-in, whose
+//! contract renews no pair, gets the way of the next pair and 69.
 
 mod live_harness;
 mod ssh_harness;
@@ -101,6 +105,107 @@ fn podssh_ssh_reaches_a_node_through_the_role_and_relay_reads_its_pair() {
     assert!(String::from_utf8_lossy(&out.stdout).starts_with("lab: stopped"), "{}", said(&out));
     let out = podssh(&s, &ca, &["relay", "status", "lab"]);
     assert!(!out.status.success(), "no pair after revoke: {}", said(&out));
+}
+
+/// Milliseconds since the epoch, now.
+fn now_ms() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64
+}
+
+/// The end that the pair's file at `path` names.
+fn expires_of(path: &std::path::Path) -> i64 {
+    let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    doc["expires"].as_i64().unwrap()
+}
+
+/// The pair's file at `path`, naming the end `ms` and nothing else new: the
+/// record of a pair in its last day, or of an operator's file past its end,
+/// where the role's own pairs live 72 h.
+fn set_expires(path: &std::path::Path, ms: i64) {
+    let mut doc: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    doc["expires"] = ms.into();
+    // The file keeps its mode, 0600.
+    std::fs::write(path, doc.to_string()).unwrap();
+}
+
+/// T-592: the owner's `relay pair --renew` at the role, then a node whose
+/// pair is in its last day by its record: it renews the pair by itself and
+/// says so, and the store keeps the new end; an operator's file whose end
+/// has passed still reaches the node, as the role names the later end, and
+/// `podssh ssh` logs in to the test's server through it.
+#[test]
+fn a_node_renews_its_pair_in_its_last_day() {
+    let s = Session::start("serve-renew");
+    let Some((_, host, ca)) = role(&s) else { return };
+    let file = s.home.join("lab-operator.json");
+    let file_text = file.display().to_string();
+    let out = podssh(&s, &ca, &["relay", "pair", "lab", "--relay-host", &host, "--operator-file", &file_text]);
+    assert!(out.status.success(), "podssh relay pair against the role: {}", said(&out));
+    let out = podssh(&s, &ca, &["relay", "pair", "--renew", "lab"]);
+    assert!(out.status.success(), "the owner's renewal: {}", said(&out));
+    assert!(String::from_utf8_lossy(&out.stdout).starts_with("lab: expires "), "{}", said(&out));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("its tokens are the same"), "{}", said(&out));
+    let stored = s.home.join("cache").join("podssh").join(podssh_relay::pair::file_name("lab").unwrap());
+    set_expires(&stored, now_ms() + 23 * 3_600_000);
+    set_expires(&file, now_ms() + 2_000);
+    let args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", s.port)];
+    let mut node = without_proxy(s.command(&args));
+    let node = node.envs(role_env(&ca)).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
+    let mut node = node.spawn().unwrap();
+    let lines = lines_of(&mut node);
+    s.keep(node);
+    wait_for(&lines, "online").expect("the node is online on the role");
+    let renewed = wait_for(&lines, "the pair is renewed at its relay until").expect("the node renews its pair");
+    assert!(renewed.contains("each operator's file holds"), "{renewed}");
+    assert!(expires_of(&stored) > now_ms() + 71 * 3_600_000, "the store keeps the new end");
+    // Past the end that the operator's file names.
+    while expires_of(&file) >= now_ms() {
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    let out = podssh(&s, &ca, &["relay", "status", "--pair-file", &file_text, "lab"]);
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(out.status.success() && text.starts_with("lab: online"), "{}", said(&out));
+    assert!(!text.contains("expires in"), "the role's end, 72 h ahead, not the file's: {text}");
+    let mut login = vec!["ssh".to_string()];
+    login.extend(s.common());
+    login.extend(["--pair-file".to_string(), file_text.clone(), "node://tester@lab".into(), "greet".into()]);
+    let login: Vec<&str> = login.iter().map(String::as_str).collect();
+    let out = podssh(&s, &ca, &login);
+    assert_eq!(out.status.code(), Some(0), "{}", said(&out));
+    assert_eq!(String::from_utf8_lossy(&out.stdout), ssh_harness::GREETING);
+}
+
+/// T-592: the stand-in relay, whose contract has no renewal, answers its
+/// path with 404: `relay pair --renew` says that it renews no pair, with the
+/// way of the next pair, exits 69, and leaves the store as it was. The mode
+/// `expirefirst` is the stand-in's alone, so the role never stands in.
+#[test]
+fn renew_on_a_relay_with_none_says_so() {
+    let s = Session::start("serve-renew-none");
+    let cell = match Cell::fake_relay_mode(&s, "expirefirst:600", "the stand-in relay") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+    let run = |words: &[&str]| {
+        let mut args: Vec<String> = words.iter().map(|w| w.to_string()).collect();
+        args.extend(["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()]);
+        s.stand_in(&args, &ca).stdin(Stdio::null()).output().unwrap()
+    };
+    let out = run(&["relay", "pair", "lab", "--relay-host", &relay]);
+    assert!(out.status.success(), "podssh relay pair: {}", said(&out));
+    let stored = s.home.join("cache").join("podssh").join(podssh_relay::pair::file_name("lab").unwrap());
+    let before = std::fs::read(&stored).unwrap();
+    let out = run(&["relay", "pair", "--renew", "lab"]);
+    assert_eq!(out.status.code(), Some(69), "{}", said(&out));
+    assert!(out.stdout.is_empty(), "no line of a renewal: {}", said(&out));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("renews no pair") && err.contains("podssh relay pair lab --operator-file NEW"), "{err}");
+    assert_eq!(std::fs::read(&stored).unwrap(), before, "the store is as it was");
 }
 
 /// The SHA-256 of `path`, by the system's `sha256sum`.

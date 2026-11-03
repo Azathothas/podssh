@@ -116,7 +116,7 @@ where
     let (mut frames, reader) = frames_of(session.clone());
     let liveness = session.watch_liveness(PING_EVERY, PINGS_ALLOWED);
     tokio::pin!(liveness);
-    let left = Duration::from_millis(pair.expires_ms.saturating_sub(tokens::now_ms()));
+    let left = Duration::from_millis(pair.expires_ms().saturating_sub(tokens::now_ms()));
     let expiry = tokio::time::sleep(left);
     tokio::pin!(expiry);
     let (mut expired, mut cause): (bool, Option<Fault>) = (false, None);
@@ -147,9 +147,15 @@ where
             },
             _ = &mut liveness => break,
             () = &mut expiry, if !expired => {
-                expired = true;
-                cfg.pairs.end(&pair.name, 1001, "pair expired");
-                cfg.event("reverse expired");
+                // A renewal (T-592) moved the end: its new time is waited for.
+                match renewed(&pair) {
+                    Some(at) => expiry.as_mut().reset(at),
+                    None => {
+                        expired = true;
+                        cfg.pairs.end(&pair.name, 1001, "pair expired");
+                        cfg.event("reverse expired");
+                    }
+                }
             }
             () = outbox.ended(), if closing.is_none() => closing = Some(Instant::now()),
             () = sleep_until(give_up), if give_up.is_some() => break,
@@ -166,6 +172,14 @@ async fn sleep_until(at: Option<Instant>) {
         Some(at) => tokio::time::sleep_until(at).await,
         None => std::future::pending().await,
     }
+}
+
+/// When the timer of `pair`'s expiry fires: the instant of its new end, when
+/// a renewal moved it (T-592); `None` when it ends now. Read by the node's
+/// socket and by each operator's leg.
+pub(super) fn renewed(pair: &Pair) -> Option<Instant> {
+    let left = pair.expires_ms().saturating_sub(tokens::now_ms());
+    (left > 0).then(|| Instant::now() + Duration::from_millis(left))
 }
 
 /// The node's socket ended: its sessions end with it, each operator hearing

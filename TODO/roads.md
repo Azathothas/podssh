@@ -513,7 +513,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-298`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:317-482`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:317-483`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1156,7 +1156,7 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:306-327`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:308-329`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
@@ -3815,7 +3815,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1082`, `:1092`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:260-264`).
+  (`docs/reverse.md:264-268`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -5526,7 +5526,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:140`).
+  port 443 answers (`docs/STATUS.md:141`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not

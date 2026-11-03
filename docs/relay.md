@@ -276,13 +276,15 @@ while the old link carries the session. Then the old link stops at a record
 boundary and says `RETIRE`, and the new one resumes from the offsets of its
 own handshake. A move that fails is no fault: at the cap the relay closes
 the link with `1009`, and the layer resumes the session. `-v` prints one
-line for each move. A pair lives 72 h at most, and the relay renews none:
-`podssh ssh node://` and `podssh operator` warn an hour before it expires,
-and at the expiry the relay ends each session of the pair (`1001 pair
-expired`), which the layer does not resume. The node says the expiry 24 h,
-6 h and 1 h before it, with the command that makes the next pair;
+line for each move. A pair lives 72 h at most, and the default relay renews
+none: `podssh ssh node://` and `podssh operator` warn an hour before it
+expires, and at the expiry the relay ends each session of the pair (`1001
+pair expired`), which the layer does not resume. The node says the expiry
+24 h, 6 h and 1 h before it, with the command that makes the next pair;
 `podssh relay pair NAME` makes it in the last 24 h of the old one, and the
-node takes it at the expiry with no new start (T-395).
+node takes it at the expiry with no new start (T-395). podssh's own relay
+role renews a pair by its stop token, with its tokens (T-592, "The relay
+role's reverse road", below).
 
 ### Connect options (query string)
 
@@ -468,6 +470,18 @@ through the default one:
   client tells apart from a lost link (T-255).
 - The role pings each reverse socket every 20 s, and drops one that answers
   nothing for 60 s, so that a dead node's socket does not hold its name.
+- Beside the contract, a renewal (T-592): `POST /v1/renew/<name>` with the
+  pair's stop token, which its owner alone holds, answers `{"expires": MS}`,
+  72 h from then and never earlier than the pair's end, and the pair keeps
+  its three tokens, so that each operator's file keeps working; the file of
+  `--pairs` keeps the new end, and the timers of the node's socket and of
+  each operator's leg wait for it. Another token, and a pair that does not
+  exist or ended, get the `403 reverse: forbidden` of each failed
+  authentication; a method other than POST, `405`. `GET /v1/status/<name>`
+  names `expires` beside `online` and `sessions`. A relay of the contract
+  has no such path (the stand-in answers `404`), which a client reads as
+  no renewal. There is no cap on renewals: the owner ends the pair with its
+  stop token at any time.
 
 ## Tokens for the keys of a list (T-448)
 

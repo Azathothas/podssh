@@ -4,7 +4,9 @@
 //! its operator's part alone, as an operator's host holds it: the relay
 //! answers the status to the connect token, which that part holds. In the
 //! pair's last day the expiry says how long is left. `--json` gives the same
-//! as one object, for a check.
+//! as one object, for a check. The expiry is the one that the relay names
+//! where it names one (podssh's relay role, whose renewal moves it, T-592),
+//! else the file's.
 
 use std::io::Write;
 
@@ -23,6 +25,8 @@ pub(crate) fn pair(args: &RelayArgs, label: Option<&str>, out: &mut dyn Write) -
     if let Some(label) = label {
         pairs::check_label(label)?;
     }
+    // Before the part: a file past its end asks its relay (T-592).
+    crate::pins::apply(args.relay_addr.as_deref())?;
     let (shown, part) = match (args.pair_file.as_deref(), label) {
         (Some(file), _) => {
             let shown = label.unwrap_or(file).to_string();
@@ -34,12 +38,14 @@ pub(crate) fn pair(args: &RelayArgs, label: Option<&str>, out: &mut dyn Write) -
             return Err(Refusal::usage("missing NAME: `podssh relay status NAME`, or --pair-file FILE"));
         }
     };
-    crate::pins::apply(args.relay_addr.as_deref())?;
     pairs::online()?;
     let (trust, proxy) = (pairs::trust(args.ca_file.as_deref()), ProxyChoice::FromEnvironment);
     let ctx = pairs::context(&part.relay, &trust, &proxy);
-    let presence = block_on(pair::status(&ctx, &part))?.map_err(|e| pairs::refusal(&e))?;
-    let left_ms = part.expires_ms.saturating_sub(pairs::now_ms()).max(0);
+    let presence = block_on(pair::renew::status(&ctx, &part))?.map_err(|e| pairs::refusal(&e))?;
+    // The end that podssh's relay role names, which a renewal moves past the
+    // file's (T-592); a relay of the contract names none.
+    let expires_ms = presence.expires.unwrap_or(part.expires_ms);
+    let left_ms = expires_ms.saturating_sub(pairs::now_ms()).max(0);
     let _ = if args.json {
         let doc = json!({
             "schema": 1,
@@ -47,12 +53,12 @@ pub(crate) fn pair(args: &RelayArgs, label: Option<&str>, out: &mut dyn Write) -
             "label": shown,
             "online": presence.online,
             "sessions": presence.sessions,
-            "expires": pairs::utc(part.expires_ms),
+            "expires": pairs::utc(expires_ms),
             "seconds_left": left_ms / 1000,
         });
         writeln!(out, "{doc}")
     } else {
-        let until = expiry(part.expires_ms, left_ms);
+        let until = expiry(expires_ms, left_ms);
         match (presence.online, presence.sessions) {
             (true, 1) => writeln!(out, "{shown}: online, 1 session; {until}"),
             (true, n) => writeln!(out, "{shown}: online, {n} sessions; {until}"),

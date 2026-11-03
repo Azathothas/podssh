@@ -215,6 +215,54 @@ async fn a_slow_operator_meets_the_bound_and_the_nodes_other_session_goes_on() {
     assert!(!role.said("reverse node closed"), "no 1003 for the node: {:?}", role.events.lock().unwrap());
 }
 
+/// T-592: the pair's owner renews it by its stop token, and each token
+/// holds past the end that it had, on the role's wall clock, which a paused
+/// clock of tokio does not move: so the pair is one made 72 h less 3 s
+/// before. The node's socket, joined before the renewal, is not ended at the
+/// old end; the status names the new one; an operator's session opens after
+/// it. Another token gets the 403 of each failed authentication, and a GET
+/// the 405 of a POST.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_renewal_by_the_stop_token_extends_the_pair_and_keeps_its_tokens() {
+    let role = Role::start().await;
+    let (lifetime, now) = (podssh_relay::serve::reverse::pairs::LIFETIME_MS, podssh_relay::serve::tokens::now_ms());
+    let pair = role.pair_made_at(now + 3_000 - lifetime);
+    let (name, connect) = (pair.name.clone(), pair.connect_token().to_string());
+    let (node_token, stop_token) = (pair.node_token().to_string(), pair.stop_token().to_string());
+    let path = format!("/v1/renew/{name}");
+    let (stop, stopped) = oneshot::channel();
+    let test = async {
+        role.until_said("reverse node").await;
+        for other in [connect.as_str(), node_token.as_str()] {
+            assert_eq!(role.http("POST", &path, Some(other)).await.0, 403, "the stop token alone renews");
+        }
+        assert_eq!(role.http("GET", &path, Some(stop_token.as_str())).await.0, 405, "a renewal is a POST");
+        let renewed = role.http("POST", &path, Some(stop_token.as_str())).await;
+        // Past the old end.
+        tokio::time::sleep(Duration::from_secs(4)).await;
+        let status = role.http("GET", &format!("/v1/status/{name}"), Some(connect.as_str())).await;
+        let session = operate(&role, &name, &connect, pattern(64 * 1024, 5), None).await;
+        let _ = stop.send(());
+        (renewed, status, session)
+    };
+    let ((renewed, (status, body), (outcome, got)), (exit, _)) = tokio::time::timeout(2 * LIMIT, async {
+        tokio::join!(test, node(pair, Local { opened: 0.into(), flood: None }, stopped))
+    })
+    .await
+    .expect("in time");
+    assert_eq!(renewed.0, 200, "{}", renewed.1);
+    let until = serde_json::from_str::<serde_json::Value>(&renewed.1).unwrap()["expires"].as_u64().unwrap();
+    assert!(until >= now + lifetime, "72 h from the renewal: {}", renewed.1);
+    assert!(role.said("reverse renew"), "{:?}", role.events.lock().unwrap());
+    assert!(!role.said("reverse expired"), "the role ended the renewed pair at its old end");
+    assert_eq!(status, 200, "the connect token past the old end: {body}");
+    let presence: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!((presence["online"].as_bool(), presence["expires"].as_u64()), (Some(true), Some(until)), "{body}");
+    assert_eq!(Sha256::digest(&got), Sha256::digest(pattern(64 * 1024, 5)), "{outcome:?}");
+    assert!(outcome.is_success(), "{outcome:?}");
+    assert!(matches!(exit, Exit::Stopped), "{exit:?}");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn after_a_planned_stops_1012_the_node_joins_its_pair_again() {
     let role = Role::start().await;

@@ -86,7 +86,10 @@ pub(super) const NODE: &[&str] = &[
      hours at most: the node says its expiry 24 hours, 6 hours and 1 hour before it, with the command \
      that makes the next pair (podssh relay pair NAME, see podssh relay), and at the expiry it goes \
      on with the pair stored under NAME since, if one expires later; else it exits 77. A node of \
-     --pair-file needs a new FILE and a new start. A stopped node deletes the stored pair only while it \
+     --pair-file needs a new FILE and a new start. Where its relay renews pairs (podssh relay serve), \
+     the node renews its own at the start of its last 24 hours instead, then each hour until it took, \
+     with its tokens the same, and says each renewal; the store keeps the new expiry, and the lines \
+     above are said only where the relay renews none. A stopped node deletes the stored pair only while it \
      is the node's own. A broken \
      connection to the relay is made again, after a growing wait. After a loss the relay can still \
      hold the old connection, and answer 409: the node then connects again for the time that it keeps \

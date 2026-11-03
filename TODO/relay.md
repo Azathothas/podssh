@@ -131,7 +131,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 ("'relay' is not implemented yet; nothing was done."). Its help shows `--relay-host URL`
 (`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
-(`docs/relay.md:304-305`). The `health` function of `doctor`
+(`docs/relay.md:306-307`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:86-103`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:177-194` fetches `/relays.json`. `https_get` sends no
 token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes headers (lines
@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags/relay.rs:9-44`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags/relay.rs:9-47`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:312-333` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:291-300`).
+   and above all not the `stop_token` (`docs/reverse.md:295-304`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -592,7 +592,7 @@ pairs need, and the file of Decision 1.
 
 # T-062: Measure whether the relay's backpressure close (1013) operates
 
-**Source:** `docs/relay.md:328-340`; the reverse close table of the pinned contract
+**Source:** `docs/relay.md:330-342`; the reverse close table of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the comment on the SSH
 window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Category:** measurement
@@ -610,8 +610,8 @@ rule is true.
 
 ## Premise
 
-Not measured. Read: `docs/relay.md:317` gives the forward codes `1013` `client receive backlog`
-and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:328-340`
+Not measured. Read: `docs/relay.md:319` gives the forward codes `1013` `client receive backlog`
+and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:330-342`
 says that no frame is dropped, and that the check reads `bufferedAmount`, which Workers may not
 supply. The comment on the SSH window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`)
 said that the relay drops a frame when more than 1 MiB waits (`1011 relay backpressure`). That is
@@ -634,7 +634,7 @@ so the comment applied a rule of the reverse path to the forward path.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
 5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:26-30`) and
-   into `docs/relay.md:328-340`. Change the window (512 KiB) only if the result asks for it.
+   into `docs/relay.md:330-342`. Change the window (512 KiB) only if the result asks for it.
 
 ## Decision
 
@@ -667,10 +667,10 @@ size, which shows that the target and the path work. The slow run then gives the
 ## Correction
 
 2026-10-08, T-024: the comment on the SSH window now gives the forward path's rule that
-`docs/relay.md:317` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
+`docs/relay.md:319` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
 (`crates/podssh-ssh/src/run.rs:26-29`). The two texts agree now. The question of this entry
 stays: whether the relay's check operates at all (it reads `bufferedAmount`,
-`docs/relay.md:328-340`).
+`docs/relay.md:330-342`).
 
 2026-10-31. The blocker cleared: the operator made the relay's own loop the
 target (Q42, `docs/decisions.md`). The target of item 1 is the relay
@@ -779,7 +779,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:659-661`, `docs/relay.md:313`); the target still sees one
+   socket within 15 s (`docs/design.md:659-661`, `docs/relay.md:315`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
    against the brake of `docs/relay.md:252`. When the minting attempt is the silent one, the next
@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:304`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:305`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -1485,7 +1485,7 @@ Measured on 2026-10-31 by T-062, twice from a cloud container and once from GitH
 through the relay's own loop, a pair's node gave the relay each of 48 MiB within 15 s, while the
 outer forward client read 16 KiB/s. After 90 s the client had read 1.46 MB, and no Close had
 come; 48.9 MB that it had not read had left the node, and the relay or its edge held them
-(`docs/STATUS.md`, "The relay"). Read: the forward codes in `docs/relay.md:317` (2 MiB queued),
+(`docs/STATUS.md`, "The relay"). Read: the forward codes in `docs/relay.md:319` (2 MiB queued),
 and the reverse row of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`, 1 MiB). The forward check
 reads `bufferedAmount`, which Workers may not supply (`docs/relay.md`, "Backpressure").
@@ -1878,8 +1878,8 @@ relay's operator has no way to move the binaries in the field to another deploym
   in regions of AWS, GCP and Azure, each a name of the same domain (`:30-68`). Inferred: each is a
   placement of the same Worker.
 - Read: the pairs of the reverse road live on the control host alone
-  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:398-403`). The audit cited
-  `docs/relay.md:390-395`; the fact is at `:398-403`.
+  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:400-405`). The audit cited
+  `docs/relay.md:392-397`; the fact is at `:400-405`.
 - Read: a release binary is uploaded or copied into its host, which cannot build it or download
   it (Q48, `docs/decisions.md:54`); a machine keeps one token for each deployment, and podssh
   "never sends a token to a deployment that did not mint it" (`docs/decisions.md:93`).
@@ -2014,7 +2014,7 @@ and of any length. A relay, or a proxy on the way, can so write to the user's te
 
 ## Premise
 
-- Read: `crates/podssh-relay/src/token.rs:210` and `crates/podssh-relay/src/pair.rs:274` took
+- Read: `crates/podssh-relay/src/token.rs:210` and `crates/podssh-relay/src/pair.rs:277` took
   `response.header("retry-after")` as it was, and the lines of `TokenError::RateLimited` and
   `PairError::RateLimited` print it.
 - Read: the body of a refusal goes through `Response::body_text`, which `one_line` makes safe

@@ -242,7 +242,7 @@ pub(crate) async fn serve(
         }
         let say_pair = |line: String| (channel.say)(line);
         let proxy = ProxyChoice::FromEnvironment;
-        let (repair, expiry) = crate::node_expiry::watch(&label, &pair, stored, channel.say.clone());
+        let (repair, expiry) = crate::node_expiry::watch(&label, &pair, stored, channel.say.clone(), &trust);
         let mut config = NodeConfig {
             pair,
             label: stored.then(|| label.clone()),

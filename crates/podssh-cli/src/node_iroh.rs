@@ -401,7 +401,8 @@ where
         let Ok((pair, stored)) = pair else { return };
         let say_pair = |line: String| say(line);
         let proxy = ProxyChoice::FromEnvironment;
-        let (repair, expiry) = crate::node_expiry::watch(&label_text, &pair, stored, Arc::new(say.clone()));
+        let said: crate::node_expiry::Say = Arc::new(say.clone());
+        let (repair, expiry) = crate::node_expiry::watch(&label_text, &pair, stored, said, &trust_pair);
         let mut config = NodeConfig {
             pair,
             label: stored.then(|| label_text.clone()),

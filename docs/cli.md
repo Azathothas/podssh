@@ -3050,6 +3050,25 @@ commands. The rules behind them:
   `seconds_left`. `--pair-file` with another subcommand is refused (64).
   `pair::status` takes the operator's part (`OperatorPart`), of a stored
   pair or of a file.
+- **A renewal, on podssh's relay role** (T-592, GitHub #117). `relay pair
+  --renew NAME` renews the pair stored under NAME at the relay that made
+  it (`crates/podssh-cli/src/relay_renew.rs`): `POST /v1/renew/<name>` with
+  the stop token, 72 h from then with the same tokens, so that each
+  operator's file holds and the node goes on with no next pair; one line on
+  stdout, `NAME: expires AT`, and the store keeps the new end. A relay that
+  renews none (`404` or `405` at the path; the default relay's contract has
+  no such request) is said so with the way of the next pair, exit 69; a
+  refused stop token (403) is a pair that was stopped or ended, 77; an
+  expired stored pair, 77; `--operator-file` and `--relay-host` with it,
+  64. A node renews its own pair the same way at the start of its last
+  24 h, then each hour until it took, and says each renewal
+  (`crates/podssh-cli/src/node_expiry.rs`); where the relay renews none, it
+  says the lines of T-395. An operator's file is never touched: past the
+  end that it names, the operator asks its relay's status once
+  (`renewed` of `crates/podssh-cli/src/pairs.rs`), takes the later end that
+  podssh's role names, and refuses the part as expired (77) as before
+  where the relay names none, refuses it, or is offline. `relay status`
+  shows the end that the relay names, else the file's.
 - **One pair for each label.** A pair that has not expired is not replaced:
   a second pair would leave the first with no holder, for up to 72 hours.
   When a new pair cannot be stored, or its operator file cannot be written,

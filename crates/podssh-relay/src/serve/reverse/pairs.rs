@@ -4,7 +4,9 @@
 //! each token, never the token, so that its file gives nobody a credential;
 //! a token is compared by its digest, in constant time. The pairs live in
 //! memory and, when the user names a file, in that file of mode 0600, so
-//! that a node and its sessions come back after a restart.
+//! that a node and its sessions come back after a restart. Its owner, who
+//! alone holds the stop token, renews a pair (T-592): 72 h from then, its
+//! tokens the same, so that each operator's file keeps working.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -66,7 +68,9 @@ pub enum NotMade {
 /// One pair and what its sockets share.
 pub struct Pair {
     pub name: String,
-    pub expires_ms: u64,
+    /// When it ends, in ms since the epoch: later at each renewal (T-592),
+    /// which the timers of its sockets read again ([`Pair::expires_ms`]).
+    expires: AtomicU64,
     /// The cap of one session, both ways together: the contract's 64 MiB,
     /// none on a carrier (T-595).
     pub session_bytes: u64,
@@ -143,8 +147,16 @@ impl Pair {
     /// and its sessions have no cap of bytes, as the relay's limits do not
     /// hold on a stream of the user's.
     pub fn carried(name: &str) -> Pair {
-        let (expires_ms, session_bytes) = (u64::MAX, u64::MAX);
-        Pair { name: name.to_string(), expires_ms, session_bytes, digests: [[0; 32]; 3], state: Default::default() }
+        Pair::new(name.to_string(), u64::MAX, u64::MAX, [[0; 32]; 3])
+    }
+
+    fn new(name: String, expires_ms: u64, session_bytes: u64, digests: [[u8; 32]; 3]) -> Pair {
+        Pair { name, expires: AtomicU64::new(expires_ms), session_bytes, digests, state: Default::default() }
+    }
+
+    /// When the pair ends now, in ms since the epoch.
+    pub fn expires_ms(&self) -> u64 {
+        self.expires.load(Ordering::SeqCst)
     }
 
     pub fn lock(&self) -> MutexGuard<'_, State> {
@@ -177,8 +189,7 @@ impl Pairs {
             let mut map = pairs.map.lock().unwrap_or_else(|e| e.into_inner());
             for kept in load(path)?.into_iter().filter(|p| p.expires > now) {
                 let digests = kept.digests()?;
-                let (expires_ms, session_bytes) = (kept.expires, super::SESSION_BYTES);
-                let pair = Pair { name: kept.name, expires_ms, session_bytes, digests, state: Default::default() };
+                let pair = Pair::new(kept.name, kept.expires, super::SESSION_BYTES, digests);
                 map.insert(pair.name.clone(), Arc::new(pair));
             }
         }
@@ -196,7 +207,7 @@ impl Pairs {
         };
         {
             let mut map = self.map.lock().unwrap_or_else(|e| e.into_inner());
-            map.retain(|_, p| p.expires_ms > now_ms);
+            map.retain(|_, p| p.expires_ms() > now_ms);
             if map.contains_key(&made.name) {
                 return Err(NotMade::NameInUse);
             }
@@ -204,8 +215,7 @@ impl Pairs {
                 return Err(NotMade::Full);
             }
             let digests = [digest(&made.node), digest(&made.connect), digest(&made.stop)];
-            let (expires_ms, session_bytes) = (made.expires_ms, super::SESSION_BYTES);
-            let pair = Pair { name: made.name.clone(), expires_ms, session_bytes, digests, state: Default::default() };
+            let pair = Pair::new(made.name.clone(), made.expires_ms, super::SESSION_BYTES, digests);
             map.insert(made.name.clone(), Arc::new(pair));
         }
         if let Err(why) = self.save() {
@@ -220,12 +230,32 @@ impl Pairs {
     /// `now_ms` or was ended.
     pub fn find(&self, name: &str, role: Role, token: Option<&str>, now_ms: u64) -> Option<Arc<Pair>> {
         let pair = self.map.lock().unwrap_or_else(|e| e.into_inner()).get(name).cloned()?;
-        if pair.expires_ms <= now_ms {
+        if pair.expires_ms() <= now_ms {
             self.end(name, 1001, "pair expired");
             return None;
         }
         let taken = token.is_some_and(|t| pair.takes(role, t)) && !pair.lock().ended;
         taken.then_some(pair)
+    }
+
+    /// Renew the pair `name` at `now_ms` (T-592): it ends [`LIFETIME_MS`]
+    /// after, never earlier than it did, with its tokens; the file keeps it.
+    /// The new expiry, or `None` for no such pair, or one that ended; a file
+    /// that took no write leaves the old expiry, and says why. The caller
+    /// checked the stop token.
+    pub fn renew(&self, name: &str, now_ms: u64) -> Result<Option<u64>, String> {
+        let Some(pair) = self.map.lock().unwrap_or_else(|e| e.into_inner()).get(name).cloned() else {
+            return Ok(None);
+        };
+        if pair.lock().ended || pair.expires_ms() <= now_ms {
+            return Ok(None);
+        }
+        let before = pair.expires.fetch_max(now_ms.saturating_add(LIFETIME_MS), Ordering::SeqCst);
+        if let Err(why) = self.save() {
+            pair.expires.store(before, Ordering::SeqCst);
+            return Err(why);
+        }
+        Ok(Some(pair.expires_ms()))
     }
 
     /// End the pair `name` (a stop, or its expiry): each of its sockets gets
@@ -289,7 +319,7 @@ impl Pairs {
             .values()
             .map(|p| Kept {
                 name: p.name.clone(),
-                expires: p.expires_ms,
+                expires: p.expires_ms(),
                 node: hex(&p.digests[0]),
                 connect: hex(&p.digests[1]),
                 stop: hex(&p.digests[2]),
@@ -400,66 +430,6 @@ fn base36(n: usize) -> Result<String, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+#[path = "pairs_tests.rs"]
+mod tests;
 
-    #[test]
-    fn a_pair_has_the_shapes_of_the_default_relays_and_takes_its_own_tokens_alone() {
-        let pairs = Pairs::default();
-        let made = pairs.make(1_000).unwrap();
-        assert_eq!(made.name.len(), 34);
-        assert!(crate::relay::check_node_name(&made.name).is_ok());
-        for token in [&made.node, &made.connect, &made.stop] {
-            assert_eq!(token.len(), 64);
-            assert!(token.bytes().all(|b| b.is_ascii_digit() || b.is_ascii_lowercase()), "{token:?}");
-        }
-        assert_eq!(made.expires_ms, 1_000 + LIFETIME_MS);
-        assert!(pairs.find(&made.name, Role::Node, Some(&made.node), 2_000).is_some());
-        assert!(pairs.find(&made.name, Role::Connect, Some(&made.node), 2_000).is_none(), "the node's token");
-        assert!(pairs.find(&made.name, Role::Stop, None, 2_000).is_none(), "no token");
-        assert!(pairs.find("p-other", Role::Node, Some(&made.node), 2_000).is_none());
-        assert!(pairs.find(&made.name, Role::Node, Some(&made.node), made.expires_ms).is_none(), "expired");
-        assert!(pairs.is_empty(), "an expired pair is forgotten");
-    }
-
-    #[test]
-    fn a_carriers_pair_never_expires_has_no_cap_and_takes_no_token() {
-        let pair = Pair::carried("carrier");
-        assert_eq!((pair.expires_ms, pair.session_bytes), (u64::MAX, u64::MAX));
-        for role in [Role::Node, Role::Connect, Role::Stop] {
-            assert!(!pair.takes(role, ""), "{role:?}");
-        }
-        let pairs = Pairs::default();
-        let made = pairs.make(1_000).unwrap();
-        let found = pairs.find(&made.name, Role::Connect, Some(&made.connect), 2_000).unwrap();
-        assert_eq!(found.session_bytes, super::super::SESSION_BYTES, "a pair of the role keeps the contract's cap");
-    }
-
-    #[test]
-    fn a_closed_session_is_in_flight_for_its_grace_alone() {
-        let mut state = State::default();
-        let id = SessionId::parse(b"0123456789abcdef0123456789abcdef").unwrap();
-        assert_eq!(state.in_flight(&id), None, "an id never given");
-        state.closed.insert(id, (Instant::now(), false));
-        assert_eq!(state.in_flight(&id), Some(true), "said once");
-        assert_eq!(state.in_flight(&id), Some(false));
-        state.closed.insert(id, (Instant::now() - IN_FLIGHT, false));
-        assert_eq!(state.in_flight(&id), None, "closed long before");
-    }
-
-    #[test]
-    fn the_file_keeps_digests_and_no_token() {
-        let dir = std::env::temp_dir().join(format!("podssh-pairs-{}-{}", std::process::id(), line!()));
-        crate::cache::private_dir(&dir).unwrap();
-        let path = dir.join("pairs.json");
-        let made = Pairs::open(Some(path.clone())).unwrap().make(super::super::super::tokens::now_ms()).unwrap();
-        let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains(&made.name) && !text.contains(&made.node) && !text.contains(&made.stop), "{text}");
-        let again = Pairs::open(Some(path.clone())).unwrap();
-        let now = super::super::super::tokens::now_ms();
-        assert!(again.find(&made.name, Role::Connect, Some(&made.connect), now).is_some(), "after a restart");
-        again.end(&made.name, 1001, "operator stopped reverse relay");
-        assert!(Pairs::open(Some(path)).unwrap().is_empty(), "a stopped pair leaves the file");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-}

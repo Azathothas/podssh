@@ -7,6 +7,8 @@
 //! `trace` ask the relay about itself (`relay_diag.rs`, T-058). `status
 //! --pair-file FILE` asks for the pair of an operator's file, on a host that
 //! stores none, and `--json` gives a pair's state as one object (T-591).
+//! `pair --renew NAME` renews the stored pair at podssh's relay role
+//! (`relay_renew.rs`, T-592).
 
 use std::io::Write;
 
@@ -30,6 +32,9 @@ pub struct RelayArgs {
     pub ca_file: Option<String>,
     /// `pair`: a new file for the operator's part of the pair.
     pub operator_file: Option<String>,
+    /// `pair --renew`: the stored pair renewed at its relay, not a new one
+    /// (T-592).
+    pub renew: bool,
     /// `status`: the pair, or its operator's part, in a file, in place of the
     /// store (T-591).
     pub pair_file: Option<String>,
@@ -60,6 +65,10 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         let _ = writeln!(err, "podssh relay: --operator-file goes with `podssh relay pair NAME` only");
         return EXIT_USAGE;
     }
+    if args.renew && sub != Some("pair") {
+        let _ = writeln!(err, "podssh relay: --renew goes with `podssh relay pair --renew NAME` only");
+        return EXIT_USAGE;
+    }
     if args.pair_file.is_some() && sub != Some("status") {
         let _ = writeln!(err, "podssh relay: --pair-file goes with `podssh relay status [NAME]` only");
         return EXIT_USAGE;
@@ -74,6 +83,8 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
     }
     let name = args.args.first().map(String::as_str);
     let done = match (sub, name) {
+        // The stored pair, renewed at podssh's relay role (T-592).
+        (Some("pair"), Some(label)) if args.renew => crate::relay_renew::run(args, label, out, err),
         (Some("pair"), Some(label)) => make(args, label, out, err),
         (Some("revoke"), Some(label)) => revoke(args, label, out, err),
         (Some("status"), Some(label)) => crate::relay_status::pair(args, Some(label), out),

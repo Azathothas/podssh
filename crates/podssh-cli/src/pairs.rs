@@ -114,7 +114,8 @@ pub(crate) fn online() -> Result<(), Refusal> {
 
 /// The operator's part for `label`: from `--pair-file` (a pair, or its
 /// operator's part), else from the pair stored under `label`. Refused when it
-/// has expired.
+/// has expired; past the end that it names, its relay is asked first, as the
+/// pair's owner may have renewed it there (T-592).
 pub(crate) fn operator_part(label: &str, pair_file: Option<&str>) -> Result<pair::OperatorPart, Refusal> {
     let part = match pair_file {
         Some(path) => pair::read_operator_file(Path::new(path))
@@ -131,15 +132,53 @@ pub(crate) fn operator_part(label: &str, pair_file: Option<&str>) -> Result<pair
         },
     };
     if part.expires_ms <= now_ms() {
-        return Err(Refusal {
-            message: format!(
-                "the pair under {label:?} expired at {}; make a new one with `podssh relay pair {label}`",
-                utc(part.expires_ms)
-            ),
-            code: Fault::PairExpired.code(),
-        });
+        return renewed(part, label);
     }
     Ok(part)
+}
+
+/// A part past the end that its file names: podssh's relay role may have
+/// renewed the pair, whose tokens stay (T-592), so its relay's status is
+/// asked once, and the later end that it names is taken. Offline, or where
+/// the relay refuses the token or names no later end (a relay of the
+/// contract names none), the refusal of an expired pair (77), as before.
+fn renewed(mut part: pair::OperatorPart, label: &str) -> Result<pair::OperatorPart, Refusal> {
+    let named = utc(part.expires_ms);
+    let expired = |also: String| Refusal {
+        message: format!(
+            "the pair under {label:?} expired at {named}{also}; make a new one with `podssh relay pair {label}`"
+        ),
+        code: Fault::PairExpired.code(),
+    };
+    if podssh_relay::open::offline() {
+        return Err(expired(String::new()));
+    }
+    match ended_at(&part) {
+        Ok(Some(expires)) if expires > now_ms() => {
+            part.expires_ms = expires;
+            Ok(part)
+        }
+        Ok(_) | Err(PairError::Forbidden) => Err(expired(String::new())),
+        Err(e) => Err(expired(format!(", by its file, and its relay could not say whether it was renewed: {e}"))),
+    }
+}
+
+/// The end that the relay names in its status of `part`, asked in a thread
+/// of its own with the trust of `SSL_CERT_FILE` or the settings, as a caller
+/// may run inside a runtime.
+fn ended_at(part: &pair::OperatorPart) -> Result<Option<i64>, PairError> {
+    std::thread::scope(|scope| {
+        let asking = scope.spawn(|| {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| PairError::Store(format!("could not start the async runtime: {e}")))?;
+            let (trust, proxy) = (trust(None), ProxyChoice::FromEnvironment);
+            let ctx = context(&part.relay, &trust, &proxy);
+            runtime.block_on(pair::renew::status(&ctx, part)).map(|status| status.expires)
+        });
+        asking.join().unwrap_or_else(|_| Err(PairError::Store("the status's thread ended in a panic".into())))
+    })
 }
 
 /// How a session of the reverse road ended after `ready`, in words, the same

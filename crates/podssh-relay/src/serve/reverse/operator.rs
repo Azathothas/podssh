@@ -85,7 +85,7 @@ where
     let (mut frames, reader) = frames_of(session.clone());
     let liveness = session.watch_liveness(PING_EVERY, PINGS_ALLOWED);
     tokio::pin!(liveness);
-    let left = Duration::from_millis(pair.expires_ms.saturating_sub(tokens::now_ms()));
+    let left = Duration::from_millis(pair.expires_ms().saturating_sub(tokens::now_ms()));
     let expiry = tokio::time::sleep(left);
     tokio::pin!(expiry);
     let open_by = tokio::time::sleep(OPEN_WAIT);
@@ -144,9 +144,15 @@ where
             }
             _ = &mut liveness => break,
             () = &mut expiry, if !expired => {
-                expired = true;
-                cfg.pairs.end(&pair.name, 1001, "pair expired");
-                phase = Phase::Closing;
+                // A renewal (T-592) moved the end: its new time is waited for.
+                match super::node::renewed(&pair) {
+                    Some(at) => expiry.as_mut().reset(at),
+                    None => {
+                        expired = true;
+                        cfg.pairs.end(&pair.name, 1001, "pair expired");
+                        phase = Phase::Closing;
+                    }
+                }
             }
             () = outbox.ended(), if closing.is_none() => {
                 closing = Some(Instant::now());

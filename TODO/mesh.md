@@ -3221,7 +3221,7 @@ The draft's calls, 2026-11-02:
    numbers an address, whose wait is an estimate, so a client told 60 s could meet a second
    `429`.
 2. `/v1/mint` and `/v1/pair` share one count, as on the default relay
-   (`crates/podssh-relay/src/pair.rs:91` says "the brake that pairs share with mints"; the
+   (`crates/podssh-relay/src/pair.rs:94` says "the brake that pairs share with mints"; the
    contract's limits, `docs/relay.md`, "Limits that users see": "mint, pair, upgrades with no
    token"). Each request at the two paths counts, whatever its answer: a keyed mint's `401`
    (T-448), a `403`, `--mint nobody`'s `503`. Lost: a count for each path, which lets one client
@@ -3284,7 +3284,7 @@ first after the minute passes. Planted, the brake removed, and the test fails.
 
 2026-11-02 (the drafting agent). The Premise holds; the Approach needs two facts that it does not
 name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it:
-`crates/podssh-relay/src/serve/reverse/mod.rs:123` says "async fn pair". And the role had no
+`crates/podssh-relay/src/serve/reverse/mod.rs:130` says "async fn pair". And the role had no
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
@@ -3744,7 +3744,7 @@ of podssh's.
 
 ## Premise
 
-- `crates/podssh-cli/src/man/notes_pair.rs:156` says "Tailscale's free servers for tailcat", and
+- `crates/podssh-cli/src/man/notes_pair.rs:159` says "Tailscale's free servers for tailcat", and
   `crates/podssh-cli/src/man/notes_ssh.rs:229` says "Four words name public forwarders".
 - `docs/carriers.md` (the forward road, item 7 and its "Ruled out"; the reverse road, item 2):
   Tailscale's main fleet serves Tailscale's clients; the public Wisp lists come from web proxies
@@ -6073,7 +6073,7 @@ the issue.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -6084,9 +6084,10 @@ pair that its operators hold.
 
 ## Premise
 
-- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:22-23`,
-  set as the pair is made, `:195`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
-  `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs:57`).
+- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:24-25`,
+  set as the pair is made, `:206`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
+  `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs`, line 57 at
+  `b02d8c4`).
 - Read: the default relay renews no pair (T-395's Correction: no such request in its document); a
   change of that deployment is an item of `docs/relay-operator.md`, which no entry waits for
   (Q63).
@@ -6126,12 +6127,40 @@ For the operator to confirm (Q86):
   stays reachable. Lost: renewal by hand alone, which nobody runs in time on a server that only
   the node reaches (T-395's reason for the next pair).
 
+Calls of the draft (2026-11-03), for the operator to confirm with the rest (Q86):
+
+- Each failed renewal gets the `403 reverse: forbidden` of each failed authentication: another
+  token, a pair that does not exist, one that ended. Lost: Approach item 1's `404` for no such
+  pair, which a client could not tell from a relay that has no renewal (item 2) and which would
+  confirm a pair's name to whoever asks.
+- Past the end that its file names, an operator asks its relay's status once, and takes the later
+  end that podssh's role names there; offline, or where the relay names none (a relay of the
+  contract), refuses the token or cannot be asked, the part is refused as expired (77), as before.
+  The status goes with the trust of `SSL_CERT_FILE` or the settings' `CaFile`, as the part's
+  reader takes no `--ca-file`. Lost: a check that stays local, which would stop each operator's
+  file at its old end, the issue's problem; a dial with no check, where the default relay's `403`
+  would lose the date of the end; `--ca-file` passed through each of the nine readers of a part.
+- A node of `--pair-file` renews too, at its relay and in its own memory, and says that its file
+  names the old end; podssh rewrites no file that the user named. Lost: no renewal for such a
+  node, which would end at 72 h where its relay could have kept it.
+- A renewal that did not take is tried again each hour, with a line that names the end; the lines
+  of T-395 come once the relay is known to renew none (404, 405) or refused the stop token. Lost:
+  those lines at each failure too, which would send the owner to make a next pair that the
+  renewal makes needless.
+- `relay pair --renew` refuses `--operator-file` and `--relay-host` (64): the renewal keeps the
+  operators' files, and asks the relay that made the stored pair. Lost: a renewal that writes a
+  new operator's file, which the issue does not need.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_reverse
 cargo test -p podssh-cli --test relay_serve_node
+cargo test -p podssh-relay --features serve --lib serve::reverse
+cargo test -p podssh-relay --features pair --lib pair::renew
+cargo test -p podssh-cli --lib relay_renew
+cargo test -p podssh-cli --test node_expiry --test operator --test node
 ```
 
 New tests: in `relay_serve_reverse`,
@@ -6142,6 +6171,91 @@ says so, and past the old expiry the operator's first file still reaches the nod
 `renew_on_a_relay_with_none_says_so` (the stand-in relay, which has no such path: 69, and its
 words). Planted: `t592-renewal-new-tokens` (a renewal that draws new tokens): the first test fails
 at the old connect token.
+
+## Correction
+
+Read at `b02d8c4` (2026-11-03), for the draft:
+
+- The Premise holds at each cited line.
+- Approach item 1's `404` for no such pair: the role answers each failed renewal with the `403
+  reverse: forbidden` of each failed authentication (Decision), as item 2 reads `404` or `405` as a
+  relay with no renewal; the stand-in answers `404` at the path, as at each path that it lacks
+  (`scripts/fake-relay.py`).
+- Approach item 2, "The operator's file is never touched: its tokens hold": the tokens hold at the
+  relay, but each reader of an operator's part refused one past the end that its file names, before
+  any dial (`operator_part` of `crates/podssh-cli/src/pairs.rs`), so the operator's file stopped
+  at its old end all the same. The draft asks the relay's status once past that end, and the role
+  names `expires` in it (item 1).
+- A pair's end in the role was a plain field, which the timers of the node's socket and of each
+  operator's leg read once at their start; a renewal moves it, so it is atomic, and a timer that
+  fires waits again for a later end (`renewed` of `crates/podssh-relay/src/serve/reverse/node.rs`).
+- The Prove's "on a paused clock": the role reads the wall clock (`tokens::now_ms`), which a
+  paused clock of tokio does not move; the test makes a pair as if made 72 h less 3 s before, and
+  waits past its old end.
+- The Prove's `a_node_renews_its_pair_in_its_last_day`, "the role with a pair of 23 h": the role's
+  pairs live 72 h, and no flag shortens them. The test sets the end that the store's file names to
+  23 h and the operator's file's to 2 s, as a pair in its last day and a file past its end name
+  them; the role's own end, past which a token holds, is the library's test.
+- `crates/podssh-relay/src/pair.rs` was at 496 lines: the renewal, and a status that reads the
+  role's `expires`, are its submodule `crates/podssh-relay/src/pair/renew.rs` (`Status`, beside
+  the contract's `Presence`). The role's `pairs.rs` gives its tests to `pairs_tests.rs`.
+- `relay status --pair-file` read the part before it set the pins of `--relay-addr` and
+  `PODSSH_RELAY_ADDR`; it sets them first, as a part past its end asks its relay.
+
+## Done
+
+2026-11-03, drafted (`DRAFT T-592`), unbuilt: each result below is UNVERIFIED until the main
+session builds the draft and runs its tests and its plant.
+
+What changed:
+
+- `crates/podssh-relay/src/serve/reverse/pairs.rs`: a pair's end is atomic (`Pair::expires_ms`);
+  `Pairs::renew`, 72 h from then and never earlier, the tokens kept, the file of `--pairs` written,
+  the old end kept when the file took no write; the tests in `pairs_tests.rs` (new), with one of
+  the renewal and one of the file after it.
+- `crates/podssh-relay/src/serve/reverse/mod.rs`: `/v1/renew/` among the role's paths; `renew`,
+  `POST` with the stop token, `{"expires": ...}`, 403 for each failure and 503 for a file that
+  took no write, 405 for another method; the status names `expires`.
+- `crates/podssh-relay/src/serve/reverse/node.rs` and `operator.rs`: the timer of a pair's end
+  waits again when a renewal moved it (`renewed`).
+- `crates/podssh-relay/src/pair.rs` and `crates/podssh-relay/src/pair/renew.rs` (new): `renew`
+  (`Renewed::Until`, `Renewed::NotServed` for 404 or 405), `Pair::with_expiry`, `Status` and
+  `status`; unit tests.
+- `crates/podssh-cli/src/relay_renew.rs` (new): `relay pair --renew NAME`, its refusals, its line,
+  the store; unit tests. `crates/podssh-cli/src/relay_cmd.rs` (`RelayArgs::renew`, its dispatch,
+  `--renew` with another subcommand, 64), `crates/podssh-cli/src/tree.rs`,
+  `crates/podssh-cli/src/lib.rs`, `crates/podssh-cli/src/flags/relay.rs` (the row).
+- `crates/podssh-cli/src/node_expiry.rs`: `Renewer`, the node's renewal in its last day, then each
+  hour until it took, the store's copy, the lines; `watch` takes the trust of the relay, in
+  `crates/podssh-cli/src/node.rs`, `node_derp.rs`, `node_iroh.rs` and `node_piping.rs`.
+- `crates/podssh-cli/src/pairs.rs`: `renewed` and `ended_at`, the status past a part's end;
+  `crates/podssh-cli/src/relay_status.rs`: the relay's end, and the pins first;
+  `crates/podssh-cli/src/layered.rs`: the operator's warning names the renewal.
+- `crates/podssh-cli/src/man/notes_relay.rs`, `notes_pair.rs`, `facts.rs` and `examples.rs`.
+- `crates/podssh-relay/tests/relay_serve_reverse.rs`:
+  `a_renewal_by_the_stop_token_extends_the_pair_and_keeps_its_tokens`;
+  `crates/podssh-relay/tests/role_harness/mod.rs`: `pair_made_at`.
+- `crates/podssh-cli/tests/relay_serve_node.rs`: `a_node_renews_its_pair_in_its_last_day` and
+  `renew_on_a_relay_with_none_says_so`.
+- `scripts/plants/t592-renewal-new-tokens.patch` and `.plant` (`git apply --check`: applies).
+- `docs/relay.md`, `docs/reverse.md`, `docs/mesh.md`, `docs/cli.md` and `docs/STATUS.md`.
+
+To measure at the merge:
+
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_reverse`: UNVERIFIED.
+- `cargo test -p podssh-cli --test relay_serve_node`: UNVERIFIED.
+- `cargo test -p podssh-relay --features serve --lib serve::reverse`: UNVERIFIED.
+- `cargo test -p podssh-relay --features pair --lib pair::renew`: UNVERIFIED.
+- `cargo test -p podssh-cli --lib relay_renew` and `--lib node_expiry`: UNVERIFIED.
+- `cargo test -p podssh-cli --test node_expiry --test operator --test node --test relay`, the
+  lines of T-395 and the offline refusals of an expired pair after the change: UNVERIFIED.
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract`, the status
+  with its new field: UNVERIFIED.
+- `cargo test -p podssh-cli --test man_page --test man_flag_parity --test flag_table` and `--lib
+  man::examples`: UNVERIFIED.
+- `cargo build -p podssh-relay --features blocking,serve`, and clippy of both crates with `-D
+  warnings`: UNVERIFIED.
+- The plant (`sh scripts/plant-each.sh --here t592-renewal-new-tokens`): UNVERIFIED.
 
 # T-595: A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed
 
@@ -6179,7 +6293,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:243-254`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:246-257`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -6533,8 +6647,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:252-254`), and needs the net's role exit, signed by
-  its owner (`:250-251`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:255-257`), and needs the net's role exit, signed by
+  its owner (`:253-254`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:92`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

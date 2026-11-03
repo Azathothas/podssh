@@ -464,7 +464,8 @@ fn relay() -> Vec<Block> {
                  layer moves the session to a new link at {moved} MiB of a link or after {move_hours} hours, \
                  and -v prints a line for each move. A pair expires after 72 hours at most: podssh ssh \
                  node:// and podssh operator warn {warning} minutes before, and then the relay ends each \
-                 session of the pair. --direct has no limit.",
+                 session of the pair, unless its owner renewed it on podssh relay serve (podssh relay pair \
+                 --renew). --direct has no limit.",
                 cap = relay::SESSION_BYTE_CAP >> 20,
                 hours = relay::SESSION_TIME_CAP.as_secs() / 3600,
                 budget = relay::SESSION_BYTE_BUDGET >> 20,

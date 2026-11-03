@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 568 entries: 96 open, 4 partial, 16 blocked, 452 done.
+`TODO/INDEX.md` holds 568 entries: 95 open, 5 partial, 16 blocked, 452 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -351,7 +351,12 @@ unattended (Q87).
   the count of failures; the roost's words name the package to install and run nothing.
 - T-592: a renewal in podssh's relay role (`POST /v1/renew/<name>`, by the stop token) keeps the
   pair's three tokens, with no cap on renewals, and the node renews its own pair in its last 24 h
-  where its relay renews.
+  where its relay renews. Its draft (partial) adds: each failed renewal gets the role's `403`, not
+  a `404`; an operator past the end that its file names asks its relay's status once, with the
+  trust of `SSL_CERT_FILE` or the settings, and is refused as before (77) offline or where the
+  relay names no later end; a node of `--pair-file` renews too, and its file is not rewritten; a
+  renewal that did not take is tried each hour; `relay pair --renew` refuses `--operator-file` and
+  `--relay-host` (64).
 - T-593: `XDG_CACHE_HOME` and `HOME/.cache` are the user's cache only when the uid owns them, else
   the passwd entry's home; a file kept in another user's home before is read there and said,
   never moved.
