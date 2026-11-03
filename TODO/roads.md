@@ -5027,7 +5027,7 @@ does not depend on them.
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:278`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:272-316`) and a check of `--upgrade`
+  (`crates/podssh-cli/src/ssh/transport.rs:274-318`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:340-343`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
@@ -5038,7 +5038,7 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:264-274`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:332-346`, `crates/podssh-relay/src/open.rs:30`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:334-348`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:184-191`, `:193-274`).
@@ -7473,7 +7473,7 @@ nothing). Read at `01e371e`.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7486,9 +7486,9 @@ puts the fallback in its `ok` column without a probe.
 ## Premise
 
 - Read: the fallback follows each failure of the relay whose exit is 69 or 77
-  (`crates/podssh-cli/src/forwarder/fallback.rs:57-74`), on by default
-  (`crates/podssh-cli/src/forwarder/fallback.rs:43-55`), after the direct road
-  (`crates/podssh-cli/src/ssh/transport.rs:212-231`); the module's own words are that "a target
+  (`crates/podssh-cli/src/forwarder/fallback.rs:90-110`), on by default
+  (`crates/podssh-cli/src/forwarder/fallback.rs:54-66`), after the direct road
+  (`crates/podssh-cli/src/ssh/transport.rs:212-233`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
   (`crates/podssh-cli/src/proxy.rs:351-352`), and each other answer, the 502 of a target that the
@@ -7499,7 +7499,7 @@ puts the fallback in its `ok` column without a probe.
   policy or of a token, or after a 502 whose target's name fails
   (`crates/podssh-relay/src/open.rs:62-84`, `crates/podssh-relay/src/open.rs:137-145`).
 - Read: `doctor`'s line of the fallback is `ok`, with "not asked here"
-  (`crates/podssh-cli/src/doctor/forwarder.rs:33-40`); `doctor` has a mark for what it did not
+  (`crates/podssh-cli/src/doctor/forwarder.rs:28-45`); `doctor` has a mark for what it did not
   measure (`crates/podssh-cli/src/doctor/mod.rs:353-355`).
 - Read: the operator's rulings Q56 and Q65 (`docs/decisions.md`) let the binary try the forwarders,
   and the Wisp demo server last, "when each relay host fails", unasked (T-370, T-438); since T-438
@@ -7542,17 +7542,96 @@ a 502 too, for a target that the relay cannot reach and a forwarder can: rare, a
 
 **Ruled, Q69 (2026-11-02):** as recommended: on by default, after a failure where no relay host answered about the target alone; its line says what each forwarder gets; `doctor` marks it as not measured.
 
+The draft's calls (2026-11-02), within Q69:
+
+- Each relay 502 is the target's, whatever its body, as the record of failures already takes it
+  (`crates/podssh-relay/src/failures.rs:124`): the relay dials the target before its upgrade, and
+  the relay role's 502 always names the target. Lost: a 502 only when its body starts with
+  `relay:`, which would also send the target on after a 502 of a front of the relay; no front of
+  the default relay answers 502 of its own (it is a Worker), and the narrower rule leaves #106's
+  case to chance.
+- One host of the round that answered about the target is enough, not the last alone: the round
+  goes on after a 502 whose name resolves, and a later host's dial failure says nothing new of the
+  target. Lost: `failure.last()` alone, which would send the target on after a 502, then a host
+  that timed out.
+- The bound: 10 s for each forwarder, its dial and its first word together (`EACH_WAIT`, in the
+  fallback only; `--forwarder` keeps the 20 s of each step). Lost: the 20 s of `CONNECT_TIMEOUT`,
+  which a line that names the bound would make 80 s at most for four forwarders.
+- When a forwarder carries the session, each failure before it is still a line of its own, before
+  the carrier's, as now; only a fallback that none carries is one line for all. Lost: one line in
+  both cases, which would hide in a session that works which forwarder refused it.
+- `doctor`: each line of the fallback but a bad word is `????` (on, off, the user's relay hosts),
+  as none measured anything. Lost: `ok` for off, which is a setting read, not a check.
+- The relay's refusal of a token (401, 403 with no word of policy) is followed, as Q69 says: a
+  forwarder takes no token.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --lib forwarder::fallback
 cargo test -p podssh-cli --test forwarder_cli -- fallback
-cargo test -p podssh-cli --test doctor -- fallback
+cargo test -p podssh-cli --lib doctor::forwarder
 ```
 
 Planted: the fallback after each 69 and 77, as now: the test of the relay's 502 dials the stand-in
 forwarder, and fails.
+
+## Correction
+
+2026-11-02 (the drafting agent): two citations of `crates/podssh-cli/src/proxy.rs` in the Premise
+were read at `01e371e`, before T-431's draft moved `sysexit` down the file; they now cite it where
+it is. The Prove's third line was `cargo test -p podssh-cli --test doctor -- fallback`: each run of
+`crates/podssh-cli/tests/doctor.rs` but its live one is offline, where doctor attempts no network
+section and so writes no line `fallback`. The line is tested as a unit
+(`crates/podssh-cli/src/doctor/forwarder.rs`, `doctor::forwarder::tests`), and through the binary
+in the world of `crates/podssh-cli/tests/forwarder_cli.rs`, behind its proxy (the module
+`forwarder_fallback`, which the second line of the Prove runs).
+
+## Done
+
+Drafted 2026-11-02 by an agent in a worktree, which built nothing; merged and measured by the main
+session on 2026-11-03.
+
+- `crates/podssh-cli/src/forwarder/fallback.rs`: `answered`, whether a relay host of the round
+  answered about the target (its 502, or its 400 or 403 of policy); `not_after` takes it; `EACH_WAIT`
+  (10 s) and `bounded`, the open of one forwarder within it; `announce(TARGET)`, the line "each
+  relay host failed: podssh sends HOST:PORT to the public forwarders of other products, in order:
+  mudlet, ssheasy, mudix, wisp, 10 s at most each; PODSSH_FORWARDER_FALLBACK=no turns this off";
+  `none_carried`, the one line of a fallback that none carried; with -v, why the forwarders are not
+  tried. `after_relay` and `after_relay_pipe` take `answered`, their target as one pair.
+- The fallback's tries: `crates/podssh-cli/src/forwarder/reach.rs` (`carry`, its last flag now
+  `fallback`) and `crates/podssh-cli/src/forwarder/pipe.rs` (`open` takes `fallback`): 10 s each,
+  the failures kept for the end: before the carrier's line, or one line for all.
+- The callers: `crates/podssh-cli/src/ssh/transport.rs` and `crates/podssh-cli/src/proxy.rs` give
+  `answered` of the relay's failure.
+- `doctor` (`crates/podssh-cli/src/doctor/forwarder.rs`): `fallback_verdict`, `????` with "not
+  asked here: ..." in each case but a bad word, which fails.
+- The manual: the note of the forwarders of `ssh` (`crates/podssh-cli/src/man/notes_ssh.rs`), the
+  note of `doctor`'s section (`crates/podssh-cli/src/man/notes.rs`), the variable
+  (`crates/podssh-cli/src/man/facts/roads.rs`), each in its own lines; `docs/cli.md`,
+  `docs/design.md` (the road table) and `docs/carriers.md`, each in its own lines.
+- Tests: the units of `forwarder::fallback` (the rule of each answer, and the line); of
+  `doctor::forwarder` (the line, `????` and counted apart); `crates/podssh-cli/tests/forwarder_fallback/mod.rs`,
+  a module of `forwarder_cli`, whose relay stand-in (`forwarder_support`'s `relay`) answers
+  `/connect/` with a status and a body: its 502 that names the target, 400 `blocked address range`
+  and 403 of the ALLOW list end `ssh` with 255 and `proxy` with 77, with the relay's words, no
+  announce, -v's reason, and no forwarder dialed; 403 `invalid token` goes on to mudlet, which
+  carries the session, after the announce line; four forwarders that close give one line, in
+  order; `doctor --json` gives `fallback` as `unknown`. The three asserts of `forwarder_cli.rs`
+  that read the old announce read the new one. `cargo test -p podssh-cli --lib
+  forwarder::fallback`: 3 passed; `cargo test -p podssh-cli --test forwarder_cli` (the whole file,
+  as its older tests read the changed lines): 16 passed, 8 of them the fallback's; `cargo test -p
+  podssh-cli --lib doctor::forwarder`: 1 passed, `--lib doctor::` 39; `cargo test -p podssh-cli
+  --lib man`: 65 passed; `--test doctor`: 13 passed, 2 ignored (live); `--test proxy`: 10 passed.
+- Planted: `scripts/plants/t509-answered-ignored.plant` (`answered` always false, the fallback
+  after each 69 and 77 as before): `sh scripts/plant-each.sh --here
+  t509-answered-ignored`: caught, the test of the relay's answer about the target failed.
+- The merge: the draft did not build: `failed`, the fallback's kept lines in `forwarder/pipe.rs`
+  and `forwarder/reach.rs`, took its type from its first use (`say(line)`, a `&str`), so it was a
+  `Vec<str>`; it is a `Vec<String>` by name. `cargo todo remap` from the tree before the draft, in
+  place of the moves by hand; rustfmt and clippy of `podssh-cli` with `-D warnings`, all targets:
+  clean.
 
 # T-560: WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet
 

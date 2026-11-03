@@ -9,6 +9,8 @@
 //! target that cannot go, is refused before anything connects.
 
 mod cloud_support;
+// The fallback after a relay that answered about the target (T-509).
+mod forwarder_fallback;
 mod forwarder_support;
 mod ssh_harness;
 
@@ -384,7 +386,7 @@ fn builtin_fallback_runs_only_after_each_relay_host_failed() {
     let (code, out, err) = run(podssh(&w, &ssh(&w, &[], "greet"), &no_direct), Vec::new());
     assert_eq!(code, Some(0), "{err}");
     assert_eq!(String::from_utf8_lossy(&out), ssh_harness::GREETING);
-    assert!(err.contains("each relay host failed: podssh tries the public forwarders"), "{err}");
+    assert!(err.contains("each relay host failed: podssh sends 127.0.0.1:"), "{err}");
     assert!(err.contains("the forwarder mudlet (wss://web-proxy.mudlet.org/) carries the session"), "{err}");
     let connects = w.proxy.connects.lock().unwrap().clone();
     let first = connects.iter().position(|c| c.starts_with("web-proxy.mudlet.org")).expect("the fallback");
@@ -411,7 +413,7 @@ fn the_direct_road_comes_before_the_public_forwarders() {
     assert_eq!(code, Some(0), "{err}");
     assert_eq!(String::from_utf8_lossy(&out), ssh_harness::GREETING);
     assert!(err.contains("each relay host failed") && err.contains("directly"), "{err}");
-    assert!(!err.contains("podssh tries the public forwarders"), "{err}");
+    assert!(!err.contains("to the public forwarders of other products"), "{err}");
     assert!(w.stands.seen.lock().unwrap().is_empty(), "no forwarder was asked");
     no_token(&w);
 }
@@ -433,7 +435,7 @@ fn builtin_fallback_is_not_for_the_user_s_relay_nor_when_turned_off() {
     for (road, set) in cases {
         let (code, _, err) = run(podssh(&w, &ssh(&w, road, "greet"), set), Vec::new());
         assert_eq!(code, Some(255), "{road:?} {set:?}: {err}");
-        assert!(!err.contains("podssh tries the public forwarders"), "{err}");
+        assert!(!err.contains("to the public forwarders of other products"), "{err}");
     }
     assert!(w.stands.seen.lock().unwrap().is_empty(), "no forwarder was asked");
     let before = w.proxy.connects.lock().unwrap().len();

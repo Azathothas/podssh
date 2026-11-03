@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**547 entries: 117 open, 2 partial, 16 blocked, 412 done.**
+**547 entries: 116 open, 2 partial, 16 blocked, 413 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 58 | 60 |
-| P2 | 34 | 0 | 14 | 198 | 246 |
+| P2 | 33 | 0 | 14 | 199 | 246 |
 | P3 | 83 | 0 | 2 | 155 | 240 |
-| **All** | 117 | 2 | 16 | 412 | 547 |
+| **All** | 116 | 2 | 16 | 413 | 547 |
 
 ## Entries
 
@@ -573,7 +573,7 @@ repository and CI).
 | [T-506](multi.md) | P3 | S | none | defect | open | `session list` and `detached list` print nothing when there is nothing to list, and `session list` drops a session that does not answer |
 | [T-507](release.md) | P3 | S | none | defect | open | `update` to a release with no `--rollback` names `--rollback` as the way back |
 | [T-508](copy.md) | P3 | S | none | feature | open | `scp` and `sftp` take no `--timeout`, where `cp` and `mv` need one with no terminal, and no manual says why |
-| [T-509](roads.md) | P2 | S | none | defect | open | The fallback to other products' forwarders follows a failure at the target, which no forwarder mends, and `doctor` counts it as checked |
+| [T-509](roads.md) | P2 | S | none | defect | done | The fallback to other products' forwarders follows a failure at the target, which no forwarder mends, and `doctor` counts it as checked |
 | [T-510](copy.md) | P3 | S | none | feature | open | `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever |
 | [T-511](machine.md) | P3 | M | none | feature | open | `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them |
 | [T-512](cli.md) | P3 | S | none | docs | open | The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal |

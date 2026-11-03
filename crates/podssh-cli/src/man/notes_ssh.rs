@@ -37,7 +37,7 @@ const FIRST: &[&str] = &[
      that reach a server as podssh ssh does (cp, each, job, health, containers, ping, pipe ssh:) do the \
      same, and so does the first hop of -J.",
     "Each host that is dialed, the destination after HostName and each hop of -J, is checked before \
-     anything connects, on each road, by the rule of the relay: letters, digits, ., - and _, not first a \
+     anything connects, on each road, by the rule of the relay: letters, digits, dots, hyphens and underscores, not first a \
      - or a ., at most 253 characters, or an IPv4 or IPv6 address; else the exit is 64. A name beyond \
      ASCII goes in its ASCII form, whose labels begin xn--. An IPv6 address with a zone (fe80::1%eth0) is \
      taken where this host dials it (--direct) or a jump host does, and refused through the relay.",
@@ -225,17 +225,17 @@ const FIRST: &[&str] = &[
      mudix, an older copy of Mudlet's Worker, wss://mudix.delwing.workers.dev/, on one person's name; then \
      wisp, Mercury Workshop's demo server of the Wisp protocol, wisp+wss://wisp.mercurywork.shop/, which \
      is for demo and testing, allows 500 kB/s for each address and resolves names through a resolver that \
-     blocks malware and adult names. They serve their own products' users. When each relay host failed, \
-     and the relay was podssh's own choice \
-     (no --relay-host, PODSSH_RELAY or RelayHost of the settings file, and no -4 or -6), podssh tries them \
-     in that order before the run ends, wisp last and never first, after the direct road when that one is \
-     tried (PODSSH_DIRECT), as \
+     blocks malware and adult names. They serve their own products' users. When each relay host failed with \
+     no word about the target (a dial, TLS, a time-out, an upgrade, the relay's own 5xx, a refused token), \
+     and the relay was podssh's own choice (no --relay-host, PODSSH_RELAY or RelayHost, no -4 or -6), \
+     podssh sends the target to them in that order, 10 s at most each, wisp last and never first, after the \
+     direct road when that one is tried (PODSSH_DIRECT), as \
      the direct road sends the target to no one else; podssh proxy, which has no direct road, tries them \
-     at once. It says so on stderr with the name of each; a failure that a \
-     forwarder would share, as a bad setting, ends the run as before. No relay token goes to them. \
-     PODSSH_FORWARDER_FALLBACK set to no, or ForwarderFallback no in the settings file, turns this off; \
-     podssh doctor says whether it is on, and podssh doctor --forwarder mudlet,ssheasy,mudix,wisp asks \
-     them.",
+     at once. The relay's 502 of a target that it could not reach, and its refusal of a target by its \
+     policy, end the run with its words, as no forwarder reaches that target better. A line says what goes \
+     to whom first, and one line gives each one's reason when none carries the session; a bad setting ends \
+     the run as before, and no relay token goes to them. PODSSH_FORWARDER_FALLBACK=no, or ForwarderFallback \
+     no, turns this off; doctor's line fallback says so, unmeasured, and doctor --forwarder WORDS asks them.",
     "--shadowsocks FILE reaches the first hop through Shadowsocks servers, in place of the relay: a server \
      that takes the target in an address header and dials it, with a key in place of a token. FILE must be \
      yours and closed to others (chmod 600), as a pair file is: each line is an ss:// URI of SIP002, \

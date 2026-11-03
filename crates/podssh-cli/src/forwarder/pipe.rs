@@ -65,7 +65,7 @@ pub fn run(forwarders: &[Forwarder], host: &str, port: u16, ca_file: Option<&str
 }
 
 async fn session(forwarders: &[Forwarder], host: &str, port: u16, trust: &Trust, err: &mut dyn Write) -> i32 {
-    let opened = open(forwarders, host, port, trust, &mut |line: &str| {
+    let opened = open(forwarders, host, port, trust, false, &mut |line: &str| {
         let _ = writeln!(err, "podssh: {line}");
     })
     .await;
@@ -85,12 +85,15 @@ pub async fn carry(end: End, err: &mut dyn Write) -> i32 {
 
 /// The pipe's end at the first of `forwarders` that carries `host:port`,
 /// with that forwarder's name, or the exit code once `say` has the line of
-/// each failure.
+/// each failure. With `fallback`, as the fallback of T-370 tries them: each
+/// has [`super::fallback::EACH_WAIT`], and when none carries the pipe one
+/// line names each one's reason (T-509).
 pub async fn open(
     forwarders: &[Forwarder],
     host: &str,
     port: u16,
     trust: &Trust,
+    fallback: bool,
     say: &mut dyn FnMut(&str),
 ) -> Result<(End, String), i32> {
     if podssh_relay::open::offline() {
@@ -98,25 +101,43 @@ pub async fn open(
         return Err(EX_UNAVAILABLE);
     }
     let mut code = EX_UNAVAILABLE;
+    let mut failed: Vec<String> = Vec::new();
     for forwarder in forwarders {
+        let timeout = if fallback { super::fallback::EACH_WAIT } else { podssh_relay::open::CONNECT_TIMEOUT };
         let dial = Dial {
             trust,
             proxy: &ProxyChoice::FromEnvironment,
-            timeout: podssh_relay::open::CONNECT_TIMEOUT,
+            timeout,
             close_at_end: false,
             // A pipe has no -v; a forwarder's notes are not the target's.
             note: Arc::new(|_: &str| {}),
         };
-        match podssh_ws::forwarder::open(&forwarder.template, host, port, &dial).await {
-            Ok(carried) => return Ok((end(carried, forwarder.name.clone()), forwarder.name.clone())),
+        let opened = match fallback {
+            true => super::fallback::bounded(&forwarder.template, host, port, &dial).await,
+            false => podssh_ws::forwarder::open(&forwarder.template, host, port, &dial).await,
+        };
+        match opened {
+            Ok(carried) => {
+                for line in &failed {
+                    say(line);
+                }
+                return Ok((end(carried, forwarder.name.clone()), forwarder.name.clone()));
+            }
+            Err(e) if fallback => {
+                failed.push(e.line(&forwarder.name));
+                code = super::reach::exit_code(&e);
+            }
             Err(e) => {
                 say(&e.line(&forwarder.name));
                 code = super::reach::exit_code(&e);
-                if code == EX_USAGE {
-                    break;
-                }
             }
         }
+        if code == EX_USAGE {
+            break;
+        }
+    }
+    if !failed.is_empty() {
+        say(&super::fallback::none_carried(&podssh_ws::dial::authority(host, port), "pipe", &failed));
     }
     Err(code)
 }

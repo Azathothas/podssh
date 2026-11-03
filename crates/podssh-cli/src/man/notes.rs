@@ -233,8 +233,8 @@ const DOCTOR: &[&str] = &[
      line for each forwarder, in order: the upgrade, then a session to github.com port 22 through it, whose \
      host key must be one that GitHub publishes, as the relay's forward line asks; a forwarder that closes \
      before GitHub's bytes says its code and its reason. With none named, its line fallback says whether a \
-     run whose relay hosts all failed tries the forwarders that podssh names (see podssh ssh), and asks \
-     none of them.",
+     run whose relay hosts all failed tries the forwarders that podssh names (see podssh ssh); it asks none \
+     of them, so it is ???? (unknown in --json), never ok.",
     "With --shadowsocks FILE, the section shadowsocks gives a line for the first server of FILE, a \
      subscription's first when the file starts with one (its list fetched or kept, as a run takes it): \
      the TCP through HTTPS_PROXY when one is set, the server's salt and first chunk with their time, then a \

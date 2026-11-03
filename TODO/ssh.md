@@ -1538,7 +1538,7 @@ Read:
 2. Preferred change: wrap the direct stream in a writer that fails a write
    that makes no progress for 60 s, with the constant of the relay leg
    (`crates/podssh-ws/src/client.rs:34-35`). Only
-   `crates/podssh-cli/src/ssh/transport.rs:272-316` changes, and both roads behave
+   `crates/podssh-cli/src/ssh/transport.rs:274-318` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
    `crates/podssh-ssh/src/run_config.rs:73`. russh resets that timer only in a loop
@@ -4135,7 +4135,10 @@ destination behind it.
 - Planted: `scripts/plants/t503-direct-unchecked.plant`, the direct road's check removed: the test
   of each road fails. `sh scripts/plant-each.sh --here t503-direct-unchecked`: caught, the test of
   each road failed.
-- The merge: `cargo todo remap` from the tree before the draft, in place of its text diff;
+- The merge: the note of `podssh ssh` named the underscore as `_`, a word that the manual's test
+  of names (`man::notes::tests::each_name_in_a_note_exists`) reads as a variable; it says
+  "underscores" since T-509's merge, where `cargo test -p podssh-cli --lib man` found it.
+  `cargo todo remap` from the tree before the draft, in place of its text diff;
   rustfmt of `podssh-cli` (one refusal of `dialed.rs`) and clippy of `podssh-ws` and `podssh-cli`
   with `-D warnings`, all targets: clean.
 

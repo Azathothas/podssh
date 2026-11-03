@@ -1,0 +1,9 @@
+# T-509: the fallback takes no account of a relay host's answer about the
+# target, so it follows the relay's 502 and its refusal by policy as before
+# and a stand-in forwarder carries the session; the test of the relay's
+# answer must fail.
+ENTRY=T-509
+GROUP=cli-tests
+EXPECT='test forwarder_fallback::the_relay_s_answer_about_the_target_ends_the_run_with_no_fallback \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test forwarder_cli -- forwarder_fallback::the_relay_s_answer_about_the_target_ends_the_run_with_no_fallback'
+LIMIT=2400
