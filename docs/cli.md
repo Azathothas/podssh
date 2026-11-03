@@ -311,7 +311,16 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   key than its record's (cfrs #32); a key that the API never gave is never
   taken. Else the certificate is a proxy's that re-terminates TLS: it is
   named by its issuer (69), and the road is not tried again with it in the
-  run. A key that the edge does not know exits 77. The host key is recorded
+  run. Once the tunnel opens, the probe proves that it carries a packet
+  (T-560): one TCP connection inside it to `1.1.1.1:443` (IPv6's resolver
+  for a device of IPv6 alone), within 3 s, tried twice 700 ms apart; a
+  SYN-ACK or a reset that comes back through the tunnel is its answer. A
+  front door that took TLS and HTTP/2 and relays nothing is said in one line
+  of the road, "the tunnel opened and carried nothing" (69), not left to each
+  stream's timeout, and it is not remembered for the run as a proxy is.
+  `PODSSH_WARP_PROBE=no` skips the probe, for a host where that target is
+  filtered inside WARP, and `-v` says that the tunnel is taken unproven. A
+  key that the edge does not know exits 77. The host key is recorded
   under `warp://HOST`; `-p` and `Port` give the port; `--direct`, `-4`, `-6`,
   `HostName` and a `-J` hop before it are refused (64), and `-J warp://HOST`
   makes HOST the first hop of a chain. `podssh proxy warp://HOST:PORT` is

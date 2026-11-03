@@ -54,6 +54,14 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       stays its own. Another value is a configuration error (78).",
     ),
     (
+        &["PODSSH_WARP_PROBE"],
+        "no skips the probe of a WARP tunnel that has just opened: one TCP connection inside it to \
+      1.1.1.1:443, whose answer must come back through it within 3 s, tried twice 700 ms apart; without it, \
+      a front door that takes TLS and relays nothing gives a tunnel whose streams go quiet. For a host where \
+      that target is filtered inside WARP; -v says that the probe was skipped. Unset, empty or yes keeps it; \
+      another word is a configuration error (78). A build with the feature warp.",
+    ),
+    (
         &["PODSSH_TOR_PORTS"],
         "The ports that a first hop of a tor:// destination may have, which Arti reaches through the proxy: \
       a list such as 443,80, or any. Unset or empty: 443 alone when a proxy is set, as a cage's proxy allows \

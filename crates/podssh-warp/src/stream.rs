@@ -16,6 +16,10 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::stack::Core;
 
+/// The words of a connection that the far end reset: an answer that came
+/// back through the tunnel, which the probe of T-560 counts as one.
+pub(crate) const RESET: &str = "refused: the far end reset the connection";
+
 /// A TCP connection inside the tunnel. Its drop closes it, with a FIN, and
 /// the tunnel ends with its last connection and its stack.
 pub struct Stream {
@@ -56,7 +60,7 @@ impl Stream {
                 tcp::State::Established | tcp::State::CloseWait => Poll::Ready(Ok(())),
                 _ => Poll::Ready(Err(match ended {
                     Some(why) => format!("the tunnel ended: {why}"),
-                    None => "refused: the far end reset the connection".to_string(),
+                    None => RESET.to_string(),
                 })),
             }
         })

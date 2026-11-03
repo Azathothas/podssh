@@ -1,0 +1,7 @@
+# T-560: the probe of a tunnel that has just opened is skipped, so a front
+# door that takes TLS and the CONNECT and then relays nothing gives a road
+# that is open; the test of the silent front door must fail.
+ENTRY=T-560
+GROUP=resume
+EXPECT='test a_silent_front_door_is_named_within_the_ceiling \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-warp --features stand-in --test road -- a_silent_front_door_is_named_within_the_ceiling'

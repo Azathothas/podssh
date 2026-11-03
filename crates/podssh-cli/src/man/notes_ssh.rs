@@ -141,7 +141,9 @@ const FIRST: &[&str] = &[
      to WARP's API for the device's record again: a new key that the API gives is kept in the record and \
      tried, and once more a second later; a key that the API never gave is never taken. Else the \
      certificate is a proxy's that re-terminates TLS: it is named by its issuer, and the road is not \
-     tried again in the run. TCP \
+     tried again in the run. Once the tunnel opens, one TCP connection inside it to 1.1.1.1:443 must be \
+     answered through it, tried twice 700 ms apart: a front door that takes TLS and relays nothing is \
+     named so (69), not left to time out each stream; PODSSH_WARP_PROBE=no skips the probe. TCP \
      inside the tunnel is smoltcp's, in this process, with no TUN device. The host key is recorded under \
      warp://HOST. -p and Port give the port; --direct, -4, -6 and HostName cannot go with it, and -J with \
      it first makes HOST the first hop of a chain.",

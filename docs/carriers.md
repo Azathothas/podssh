@@ -121,6 +121,15 @@ The candidates, ranked:
      podssh reads the record again from the API and tries a new key that it
      gives; a key that the API never gave is never taken, so a proxy that
      re-terminates TLS still breaks the road.
+   - A tunnel that carries nothing (T-560, drafted 2026-11-02; GitHub #107):
+     a front door that completes the CONNECT, TLS and the CONNECT of HTTP/2
+     and then relays nothing gave a road that was open, each stream in it
+     quiet. Once the tunnel opens, podssh connects inside it to `1.1.1.1:443`
+     (IPv6's resolver for a device of IPv6 alone), 3 s at most, twice 700 ms
+     apart; a SYN-ACK or a reset that comes back is the answer, inside the one
+     connection of the road. Its failure is a line of the road (69), which the
+     run does not remember as it remembers a proxy; `PODSSH_WARP_PROBE=no`
+     skips it.
 5. **Tor through Arti** (class A).
    - Who, and the account: volunteers [F17]; no account.
    - Through a proxy: Arti 2.2.0 and later dials through an HTTP CONNECT

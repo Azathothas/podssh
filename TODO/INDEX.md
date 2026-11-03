@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**547 entries: 113 open, 3 partial, 16 blocked, 415 done.**
+**547 entries: 112 open, 4 partial, 16 blocked, 415 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 58 | 60 |
-| P2 | 32 | 1 | 14 | 199 | 246 |
+| P2 | 31 | 2 | 14 | 199 | 246 |
 | P3 | 81 | 0 | 2 | 157 | 240 |
-| **All** | 113 | 3 | 16 | 415 | 547 |
+| **All** | 112 | 4 | 16 | 415 | 547 |
 
 ## Entries
 
@@ -599,7 +599,7 @@ repository and CI).
 | [T-549](mesh.md) | P3 | M | M10 | feature | open | Serveo as a last fallback: a node's alias by SSH, and a client's hop through it |
 | [T-550](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node takes its net's members as its door, with no `--allow` |
 | [T-551](mesh.md) | P3 | M | M10 | feature | open | A copy to a node races the roads that `podssh ssh` races, not the pair's road alone |
-| [T-560](roads.md) | P2 | S | none | defect | open | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
+| [T-560](roads.md) | P2 | S | none | defect | partial | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
 | [T-561](roads.md) | P2 | M | none | feature | open | WARP's road dials one constant address, not the peers that WARP's API gave |
 | [T-562](roads.md) | P3 | S | none | feature | open | WARP's registration dials one name of the API, with no second route |
 | [T-563](relay.md) | P2 | S | none | defect | open | The relay's record forgets a host that opens, and one road's failure moves the host on each road |
