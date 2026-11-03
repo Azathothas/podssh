@@ -66,6 +66,9 @@ pub(super) struct Far {
     pub(super) containers: Option<String>,
     /// The user `health-...`: the answer of a container's cgroup (T-480).
     pub(super) health: Option<&'static str>,
+    /// The users `preflight-ok-...` and `preflight-no-...`: what the server
+    /// allows of the probes of `health --preflight` (T-482).
+    pub(super) preflight: Option<super::health::Preflight>,
     /// The channels of `prompt`, each with the keys of its line (T-191).
     pub(super) prompts: HashMap<ChannelId, Vec<u8>>,
     /// The commands of `wait-signal` (T-293).
@@ -85,5 +88,11 @@ impl Far {
     pub(super) fn named(&mut self, user: &str) {
         self.containers = user.starts_with("containers-").then(|| user.to_string());
         self.health = super::health::of_user(user);
+        self.preflight = super::health::preflight_of(user);
+        // The server that refuses: no direct-tcpip, and no sftp subsystem.
+        if self.preflight == Some(super::health::Preflight::Refuses) {
+            self.nofwd = true;
+            self.sftp_root = None;
+        }
     }
 }

@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:4166-4169`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:4237-4240`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4346-4455`); they cannot define a group.
+  (`docs/cli.md:4417-4526`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:246`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:4166-4169`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:4237-4240`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:90-110`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:374-415`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:4166-4169`), which is not a failure of podssh.
+  status (`docs/cli.md:4237-4240`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2017,7 +2017,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-145`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-148`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -2086,7 +2086,7 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-145`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-148`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.
 
 2026-10-13 (the draft of T-197): T-193 runs a job under tmux only; the
@@ -2753,7 +2753,7 @@ keepalive reply that cannot be decoded, the relay's cap of 64 MiB, a refused `tc
 **Milestone:** none
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2773,7 +2773,8 @@ relay reaches; nothing reports the far side.
   `--via` is the second proxy of T-439 (`crates/podssh-cli/src/doctor/mod.rs:81-82`), so the
   issue's `doctor --via HOST` names a flag that exists.
 - Read: `podssh health` resolves the host as `ssh` does, logs in on the same road, and runs one
-  exec (`crates/podssh-cli/src/health/mod.rs:127-145`).
+  exec (`crates/podssh-cli/src/health/mod.rs:170-208`, the login and the exec as this entry's
+  change split them).
 - Read: what a preflight asks is in podssh already: the SFTP server's extensions
   (`crates/podssh-ssh/src/sftp/mod.rs:234-237`), the request of a remote forward
   (`crates/podssh-ssh/src/remote.rs:121-135`), a channel `direct-tcpip`
@@ -2835,6 +2836,31 @@ relay reaches; nothing reports the far side.
   (1), so a refused target still shows a server that opens the channel.
 - The keepalive goes last: where its reply cannot be decoded (#83), it ends the connection, and
   each other probe has run by then.
+- Once the login is done, the exit with `--preflight` is `doctor`'s: 1 when a check failed or the
+  facts did not come, else 0; 255 stays for a login that failed. A failure of the facts as 255
+  lost: it would hide the checks, which ran. A tenth line `facts` lost: `error` and the line on
+  stderr already say it.
+- `exec tools` fails when no sh ran the probe, or when a tool that `job` or the copy by exec cannot
+  do without is missing (`cat`, `mv`, `rm`, `mkdir`, `sleep`, `wc`); each other missing tool is
+  `ok`, named with what it stops. The list is the union of `TOOLS` of
+  `crates/podssh-cli/src/cp/byexec.rs`, the `need` lines of `crates/podssh-cli/src/job/far.sh`,
+  `dd` (`cp --delta`) and `head` (`ping` through the host). The Approach's list lost: it named
+  `sh`, which is the probe itself, and missed `wc`, `rm` and `sleep`, which `job` needs.
+- A missing tmux is `FAIL`: `ssh --persist` has no way round it, and `job` refuses without
+  `--no-tmux`. `ok` with a note lost, as `--persist` then does not work.
+- "In the form of `doctor`" is doctor's `Verdict`, its labels, the widths of its lines and the keys
+  of its JSON (`section`, `check`, `status`, `detail`, `counts`), not its `Report`: that one prints
+  each line as its check ends and gives doctor's own object, where the preflight's lines come
+  after the facts and its JSON is a key of `health`'s object.
+- The server's version line and the method of the login are kept by podssh-ssh in the run's record
+  for the destination (`outcome::logged_in`), and `auth::authenticate` gives the method: nothing
+  kept them after the login.
+- The tool `health` of `podssh mcp` takes `preflight`, a boolean, with 180 s by default then. Its
+  `readOnlyHint` stays: nothing that a probe asks stays, and the probes reach only the allowed host,
+  its own loopback, so the gate of `--allow-host` holds. `ClearAllForwardings=yes`, which the tools
+  force, clears the user's forwards, not a probe.
+- In `scripts/interop-health.sh`, OpenSSH as it is runs on port 2202: the `PermitListen 2290` of
+  2201 refuses a forward of port 0.
 
 ## Prove
 
@@ -2851,6 +2877,62 @@ allows each probe (each line `ok`, exit 0), and one that refuses `tcpip-forward`
 `scripts/interop-health.sh`: OpenSSH with `AllowTcpForwarding no`, and Dropbear with `-j -k`,
 each `FAIL` on both forwards; OpenSSH as it is, each `ok`. Planted (new, t482-forward-unasked):
 the probe of the forward reads a refusal as `ok`; the refusing mode's test fails.
+
+## Done
+
+Drafted 2026-11-03 by a drafting agent, with no build and no run of a test: each step of the
+Approach, in one commit.
+
+- `crates/podssh-ssh/src/preflight.rs` (new): the probes on a connection that is logged in, each
+  within its limit, each answer `Came`, `Silent` or `Lost`: `remote_forward` (`tcpip-forward` for
+  `127.0.0.1`, port 0, then its cancel), `jump` (`direct-tcpip` to `127.0.0.1:22`, closed at once),
+  `keepalive` (`keepalive@openssh.com` with a reply wanted, by `send_global_request`, which tells a
+  reply from a connection that ended where `send_ping` does not) and `sftp` (the subsystem, its
+  extensions and sizes, then closed).
+- `crates/podssh-ssh/src/auth.rs`, `crates/podssh-ssh/src/run.rs`,
+  `crates/podssh-ssh/src/handshake.rs`, `crates/podssh-ssh/src/outcome.rs`: `authenticate` gives
+  the method that let the user in, and the destination's version line and method are kept.
+  `crates/podssh-ssh/src/missing.rs`: `script()`, T-481's probe apart from its command, which the
+  preflight's exec runs at its end. `crates/podssh-ssh/src/lib.rs`: the module.
+- `crates/podssh-cli/src/health/preflight/mod.rs` (new): the road, the checks, their lines and their
+  JSON, and the run of each probe in its order, `????` once the connection ended;
+  `crates/podssh-cli/src/health/preflight/judge.rs`: the verdict of each answer;
+  `crates/podssh-cli/src/health/preflight/tools.rs`: the exec of the tools, its answer, `exec tools`
+  and `tmux`; `crates/podssh-cli/src/health/preflight/tests.rs`: unit tests of each verdict, of the
+  exec's line and answer, and of the lines and the keys.
+- `crates/podssh-cli/src/health/mod.rs`: `--preflight`, the login apart, the checks after the
+  facts, the exit, a run's limit 70 s longer, `preflight` in the JSON (null without the flag).
+  `crates/podssh-cli/src/health/show.rs`: `count` for the preflight;
+  `crates/podssh-cli/src/ssh/mod.rs`: `road` for the preflight.
+- `crates/podssh-cli/src/flags/health.rs`: the row of `--preflight`. The manual: three notes
+  (`crates/podssh-cli/src/man/notes_health.rs`), an example
+  (`crates/podssh-cli/src/man/examples.rs`), and the exits 0, 1 and 255
+  (`crates/podssh-cli/src/man/data.rs`).
+- `crates/podssh-cli/src/mcp/verbs.rs`, `crates/podssh-cli/src/mcp/verbs_tests.rs`: the tool
+  `health` takes `preflight`.
+- `crates/podssh-cli/tests/health.rs`: three tests, a server that allows each probe, one that
+  refuses both forwards and has no SFTP, and a login that fails. The test's server
+  (`crates/podssh-cli/tests/ssh_harness/health.rs`, `crates/podssh-cli/tests/ssh_harness/far.rs`,
+  `crates/podssh-cli/tests/ssh_harness/mod.rs`): the users `preflight-ok-...` and
+  `preflight-no-...`, and `cancel_tcpip_forward`; the command `x11-probe` moved to
+  `crates/podssh-cli/tests/ssh_harness/x11.rs`, so that `mod.rs` keeps under 500 lines.
+- `scripts/interop-health.sh`: `health.preflight.openssh` (port 2202), `health.preflight.noforward`
+  (a new sshd on 2217 with `AllowTcpForwarding no`) and `health.preflight.dropbear` (a new Dropbear
+  on 2218 with `-j -k`); `scripts/interop-baseline.txt`: the three ids, and the floor 9.
+- Planted: `scripts/plants/t482-forward-unasked.plant` (group `cli-tests`): a refused
+  `tcpip-forward` read as `ok`; `git apply --check` of its patch passed.
+- `docs/cli.md` (the section "`health --preflight`", and the tool of `mcp`), `docs/STATUS.md` (a
+  row).
+
+Measured here, with no build: the tools' script, rebuilt from the sources, under sh and dash names
+each tool after the mark, and gives `missing notmux apt-get ubuntu root` for a tool that is not
+there; `rustfmt --check` on each changed Rust file, no difference; `podssh-todo interop`, the
+ids meet the baseline.
+
+For the merge to fill in: `cargo test -p podssh-cli --lib health::`, UNVERIFIED; `--test health`,
+UNVERIFIED; `--lib mcp::`, UNVERIFIED; `cargo test -p podssh-ssh --lib missing`, UNVERIFIED;
+clippy, UNVERIFIED; the interop's `health.preflight.*`, UNVERIFIED; the plant
+`t482-forward-unasked`, UNVERIFIED.
 
 # T-484: `each --json` and `each --result-file`: each host's status, failure and streams in one object
 

@@ -43,7 +43,8 @@
 //! `cut N` and `cut-eof N` give the status 0 and N bytes, then cut the
 //! connection with no word, with no EOF or after it (T-461, `cut.rs`).
 //! For `gone-...` users the server ends the connection right after the
-//! login, and `nosession-...` refuses each session (T-464, `gone.rs`).
+//! login, and `nosession-...` refuses each session (T-464, `gone.rs`). The
+//! users `preflight-...` get a server for `health --preflight` (T-482).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -82,7 +83,6 @@ pub use serve::{start, start_counting, start_podssh, start_shell, start_with};
 #[allow(unused_imports)]
 pub use shell::Shell;
 use sudo::{elevation, Elevated};
-use x11::x11_probe;
 
 /// What `greet` prints.
 pub const GREETING: &str = "hello over the iroh road\n";
@@ -103,10 +103,10 @@ impl server::Handler for Far {
         // `pass-pty-...` is both: a password, then a pty (T-382).
         self.pty = user.trim_start_matches("pass-").starts_with("pty-");
         self.mangle = sftp::Mangle::of(user);
-        self.named(user);
         self.nofwd = pass::refuses_forwarding(user);
         self.mute = pass::mutes_forwarding(user);
         self.gone = gone::of(user);
+        self.named(user);
         if let Some(auth) = pass::none(user) {
             return Ok(auth);
         }
@@ -214,10 +214,22 @@ impl server::Handler for Far {
     async fn tcpip_forward(
         &mut self,
         _address: &str,
-        _port: &mut u32,
+        port: &mut u32,
         session: &mut Session,
     ) -> Result<bool, Self::Error> {
+        if let Some(granted) = health::forward(self.preflight, port) {
+            return Ok(granted);
+        }
         gone::forward(self.gone, session)
+    }
+
+    async fn cancel_tcpip_forward(
+        &mut self,
+        _address: &str,
+        _port: u32,
+        _session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        Ok(health::cancels(self.preflight))
     }
 
     async fn pty_request(
@@ -340,16 +352,7 @@ impl server::Handler for Far {
             return console::watch(channel, self.pty_size, session);
         }
         if command == "x11-probe" {
-            let cookie = self.x11_cookie.clone().unwrap_or_default();
-            let handle = session.handle();
-            tokio::spawn(async move {
-                let status = x11_probe(&handle, &cookie).await;
-                let _ =
-                    handle.data(channel, format!("x11 status {status}\nx11-req cookie {cookie}\n").into_bytes()).await;
-                let _ = handle.exit_status_request(channel, 0).await;
-                let _ = handle.eof(channel).await;
-                let _ = handle.close(channel).await;
-            });
+            x11::run(self.x11_cookie.clone().unwrap_or_default(), channel, session);
             return Ok(());
         }
         if let Some(ran) = ends::append(&command, channel, session) {

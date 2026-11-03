@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:358-359`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1011`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:154-430`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:157-433`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-297`).
 
 ## Decision
@@ -3153,7 +3153,7 @@ the task (`transport::settle`); five commands do not.
   waits for it up to `CARRIAGE_WAIT`.
 - Read: `crates/podssh-cli/src/job/far.rs:64-82`,
   `crates/podssh-cli/src/pipe/ssh.rs:68-91`,
-  `crates/podssh-cli/src/health/mod.rs:129-136`,
+  `crates/podssh-cli/src/health/mod.rs:171-179`,
   `crates/podssh-cli/src/containers/mod.rs:186-197` and
   `crates/podssh-cli/src/ssh/upgrade.rs:91-104` take `reached.stream` and
   drop `reached.layer`.

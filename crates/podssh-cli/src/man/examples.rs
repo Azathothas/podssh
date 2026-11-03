@@ -26,6 +26,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "a host's load, memory, uptime, network and disks, from one command that only reads",
             "podssh health user@example.org".into(),
         ),
+        (
+            "and what its server allows before a long command needs it: SFTP, -R, -J, tmux, a keepalive",
+            "podssh health --preflight user@example.org".into(),
+        ),
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (

@@ -2,7 +2,9 @@
 //! script as a Debian host does (`ssh_harness/health.rs`), or as a container
 //! with the limits of a cgroup does (T-480): one line for each fact, the
 //! same facts as one JSON object, and the codes of a failure. The reader of
-//! the answer has its own tests (`health::parse`, `health::cgroup`).
+//! the answer has its own tests (`health::parse`, `health::cgroup`). With
+//! `--preflight` (T-482), the server in two modes: one that allows each
+//! probe, and one that refuses both forwards and has no SFTP.
 
 mod cleanup;
 mod ssh_harness;
@@ -104,6 +106,113 @@ fn the_json_is_one_object() {
     assert_eq!(doc["network"][0]["interface"], "eth0", "{doc}");
     assert_eq!(doc["disks"].as_array().map(Vec::len), Some(1), "{doc}");
     assert_eq!((doc["processes"].as_u64(), doc["error"].as_str()), (Some(146), None), "{doc}");
+    assert_eq!(doc["preflight"], Value::Null, "no preflight was asked for: {doc}");
+}
+
+/// A line of the preflight, as `doctor` prints one: its label, its check
+/// and its detail.
+fn check(line: &str) -> Option<(&str, &str, &str)> {
+    let shaped = line.len() > 23 && line.starts_with("  ") && line.is_char_boundary(23);
+    shaped.then(|| (line[2..6].trim(), line[8..22].trim(), &line[23..]))
+}
+
+/// The checks of the section `preflight` of a run's stdout, in order.
+fn checks(out: &str) -> Vec<(&str, &str, &str)> {
+    let lines: Vec<&str> = out.lines().collect();
+    let at = lines.iter().position(|l| *l == "preflight").unwrap_or_else(|| panic!("no section: {out}"));
+    lines[at + 1..].iter().copied().filter_map(check).collect()
+}
+
+/// `--preflight` against a server that allows each probe: after the facts,
+/// each check `ok` in its order, the counts, and exit 0; the JSON holds the
+/// same checks in the form of `doctor --json`.
+#[test]
+fn the_preflight_of_a_server_that_allows_each_probe_is_ok() {
+    let dir = scratch("preflight-ok");
+    let (_runtime, port) = server(&dir);
+    let ran = health_as(&dir, port, "preflight-ok-u", &["--preflight"]);
+    assert_eq!(ran.code, Some(0), "{}\n{}", ran.out, ran.err);
+    assert!(ran.out.lines().any(|l| l == "processes 146"), "the facts come first: {}", ran.out);
+    let got = checks(&ran.out);
+    let names: Vec<&str> = got.iter().map(|(_, name, _)| *name).collect();
+    let order = ["login", "road", "sftp", "remote forward", "jump", "exec tools", "tmux", "cgroup", "keepalive"];
+    assert_eq!(names, order, "{}", ran.out);
+    assert!(got.iter().all(|(label, ..)| *label == "ok"), "{}", ran.out);
+    let detail = |name: &str| got.iter().find(|(_, n, _)| *n == name).map(|(.., d)| *d).unwrap_or_default();
+    assert!(detail("login").starts_with("preflight-ok-u@127.0.0.1 with no method"), "{}", ran.out);
+    assert!(detail("login").contains("the server's version: SSH-2.0-"), "{}", ran.out);
+    assert!(detail("road").starts_with("direct: not the relay"), "{}", ran.out);
+    assert!(detail("remote forward").contains("port 40022, and stopped at the cancel: -R works"), "{}", ran.out);
+    assert!(detail("jump").ends_with("-J, -L, -D and -W through this host work"), "{}", ran.out);
+    assert!(detail("keepalive").contains("with a failure"), "russh's server refuses it: {}", ran.out);
+    assert_eq!(ran.out.lines().last(), Some("9 ok, 0 FAIL, 0 ???? (could not be checked)"), "{}", ran.out);
+    let ran = health_as(&dir, port, "preflight-ok-u", &["--preflight", "--json"]);
+    assert_eq!(ran.code, Some(0), "{}", ran.err);
+    let doc: Value = serde_json::from_str(&ran.out).unwrap_or_else(|e| panic!("{e}: {}", ran.out));
+    assert_eq!((doc["exit"].as_i64(), doc["processes"].as_u64()), (Some(0), Some(146)), "{doc}");
+    let counts = &doc["preflight"]["counts"];
+    let counted = (counts["ok"].as_u64(), counts["fail"].as_u64(), counts["unknown"].as_u64());
+    assert_eq!(counted, (Some(9), Some(0), Some(0)), "{doc}");
+    let listed = doc["preflight"]["checks"].as_array().expect("the checks");
+    assert!(listed.iter().all(|c| c["section"] == "preflight" && c["status"] == "ok"), "{doc}");
+    assert_eq!(listed[3]["check"], "remote forward", "{doc}");
+}
+
+/// A server that refuses `tcpip-forward`, answers `direct-tcpip` with
+/// administratively prohibited and has no SFTP: both forwards `FAIL` with
+/// what they stop, `sftp` `ok` with the copy by exec, and exit 1.
+#[test]
+fn the_preflight_names_what_a_refusing_server_stops() {
+    let dir = scratch("preflight-no");
+    let (_runtime, port) = server(&dir);
+    let ran = health_as(&dir, port, "preflight-no-u", &["--preflight"]);
+    assert_eq!(ran.code, Some(1), "{}\n{}", ran.out, ran.err);
+    let got = checks(&ran.out);
+    let of = |name: &str| got.iter().find(|(_, n, _)| *n == name).map(|(l, _, d)| (*l, *d)).unwrap_or_default();
+    let (label, detail) = of("remote forward");
+    assert_eq!(label, "FAIL", "{}", ran.out);
+    assert!(detail.contains("refused tcpip-forward: -R cannot work on this host"), "{detail}");
+    let (label, detail) = of("jump");
+    assert_eq!(label, "FAIL", "{}", ran.out);
+    assert!(detail.contains("open failed: administratively prohibited: -J, -L, -D and -W"), "{detail}");
+    let (label, detail) = of("sftp");
+    assert_eq!(label, "ok", "{}", ran.out);
+    assert!(detail.starts_with("no SFTP subsystem: podssh cp copies by exec"), "{detail}");
+    for name in ["login", "road", "exec tools", "tmux", "cgroup", "keepalive"] {
+        assert_eq!(of(name).0, "ok", "{name}: {}", ran.out);
+    }
+    assert_eq!(ran.out.lines().last(), Some("7 ok, 2 FAIL, 0 ???? (could not be checked)"), "{}", ran.out);
+    let ran = health_as(&dir, port, "preflight-no-u", &["--preflight", "--json"]);
+    assert_eq!(ran.code, Some(1), "{}", ran.err);
+    let doc: Value = serde_json::from_str(&ran.out).unwrap_or_else(|e| panic!("{e}: {}", ran.out));
+    assert_eq!((doc["exit"].as_i64(), doc["preflight"]["counts"]["fail"].as_u64()), (Some(1), Some(2)), "{doc}");
+    let failed: Vec<&str> = doc["preflight"]["checks"]
+        .as_array()
+        .expect("the checks")
+        .iter()
+        .filter(|c| c["status"] == "FAIL")
+        .filter_map(|c| c["check"].as_str())
+        .collect();
+    assert_eq!(failed, ["remote forward", "jump"], "{doc}");
+}
+
+/// A login that fails with `--preflight`: 255, as without it, and the
+/// section's one line, `login` `FAIL`, in the text and in the JSON.
+#[test]
+fn a_preflight_whose_login_fails_is_255_with_its_line() {
+    let dir = scratch("preflight-fail");
+    let gone = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let closed = gone.local_addr().unwrap().port();
+    drop(gone);
+    let ran = health(&dir, closed, &["--preflight"]);
+    assert_eq!(ran.code, Some(255), "{}", ran.err);
+    let got = checks(&ran.out);
+    assert_eq!(got.iter().map(|(l, n, _)| (*l, *n)).collect::<Vec<_>>(), [("FAIL", "login")], "{}", ran.out);
+    let ran = health(&dir, closed, &["--preflight", "--json"]);
+    assert_eq!(ran.code, Some(255), "{}", ran.err);
+    let doc: Value = serde_json::from_str(&ran.out).unwrap_or_else(|e| panic!("{e}: {}", ran.out));
+    assert_eq!(doc["preflight"]["checks"][0]["check"], "login", "{doc}");
+    assert_eq!(doc["preflight"]["checks"][0]["status"], "FAIL", "{doc}");
 }
 
 /// A container of 4 CPUs and 4 GiB on a host of 16 (T-480): the lines give

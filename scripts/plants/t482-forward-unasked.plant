@@ -1,0 +1,7 @@
+# T-482: the probe of the remote forward reads a refusal of tcpip-forward
+# as ok, so a host where -R cannot work passes the preflight; the test of
+# the server that refuses both forwards must fail.
+ENTRY=T-482
+GROUP=cli-tests
+EXPECT='test the_preflight_names_what_a_refusing_server_stops \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test health -- the_preflight_names_what_a_refusing_server_stops'

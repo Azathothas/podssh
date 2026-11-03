@@ -27,7 +27,7 @@ harness result interop 13 scripts/interop-result.sh
 harness mcp interop 6 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
 harness snippets interop 7 scripts/interop-snippets.sh
-harness health interop 6 scripts/interop-health.sh
+harness health interop 9 scripts/interop-health.sh
 harness containers interop 8 scripts/interop-containers.sh
 harness expect interop 6 scripts/interop-expect.sh
 harness broadcast interop 3 scripts/interop-broadcast.sh
@@ -742,6 +742,9 @@ health.openssh.lines pass
 health.dropbear.memory pass
 health.dropbear.effective pass
 health.dropbear.lines pass
+health.preflight.openssh pass
+health.preflight.noforward pass
+health.preflight.dropbear pass
 
 # scripts/interop-containers.sh
 containers.list pass

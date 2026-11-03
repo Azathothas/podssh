@@ -36,6 +36,11 @@ pub struct Facts {
     /// The run handed its stdin, stdout and stderr to a control master
     /// (T-039), which carries their bytes.
     pub shared: bool,
+    /// The destination's SSH version line, made safe for a terminal, and
+    /// the method that let the user in (`none`, `publickey`, ...): what
+    /// `podssh health --preflight` says of the login (T-482).
+    pub server_version: Option<String>,
+    pub method: Option<&'static str>,
 }
 
 impl Facts {
@@ -48,6 +53,8 @@ impl Facts {
             relay_host: None,
             relay_close: None,
             shared: false,
+            server_version: None,
+            method: None,
         }
     }
 }
@@ -138,6 +145,14 @@ pub fn fresh() {
 
 pub fn relay_host(host: &str) {
     facts().relay_host = Some(host.to_string());
+}
+
+/// The destination's login: the version line that its server sent, and
+/// the method that let the user in.
+pub fn logged_in(version: Option<String>, method: &'static str) {
+    let mut facts = facts();
+    facts.server_version = version;
+    facts.method = Some(method);
 }
 
 /// The relay leg's end, as the relay stream recorded it.

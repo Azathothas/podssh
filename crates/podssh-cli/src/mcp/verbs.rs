@@ -13,11 +13,14 @@ use serde_json::{json, Map, Value};
 use super::allow::Allow;
 use super::child::{text, Captured, Plan, Ran};
 use super::tools::{
-    destination, forced, known, limit, limit_property, object_needing, streams, string, Settings, OWN_CAP,
+    boolean, destination, forced, known, limit, limit_property, object_needing, streams, string, Settings, OWN_CAP,
 };
 
 /// The limit of a call of these tools when it names none.
 const LIMIT: u64 = 60;
+/// The limit of a call of `health` with `preflight` when it names none:
+/// the probes come after the facts, each with a limit of its own.
+const PREFLIGHT_LIMIT: u64 = 180;
 /// The hex digits of a job's ID, as `podssh job` makes it.
 const JOB_ID: usize = 8;
 /// The bytes of a log in one call when it names none, and the most.
@@ -48,8 +51,12 @@ pub fn list(allow: &Allow) -> Vec<Value> {
     vec![
         tool("health", "The far host's load, memory, disks and processes",
             format!("podssh health --json on an allowed host ({hosts}): its load, CPUs, memory, uptime, network, \
-                disks and processes, read over one exec that only reads, as one JSON object."),
-            json!({ "destination": dest, "timeout_seconds": limit_property(LIMIT) }), &["destination"], &read_only),
+                disks and processes, read over one exec that only reads, as one JSON object; with preflight, \
+                also what its server allows (SFTP, -R, -J, the tools of sh, tmux, a keepalive) in preflight."),
+            json!({ "destination": dest, "timeout_seconds": limit_property(LIMIT),
+                "preflight": { "type": "boolean", "description": "also podssh health --preflight's checks; the \
+                    default limit is then 180 s" } }),
+            &["destination"], &read_only),
         tool("job_start", "Start a job that outlives the call",
             format!("podssh job start on an allowed host ({hosts}): the command runs in the host's tmux, and goes \
                 on after the call; the result's id names it for job_log, job_wait and job_stop."),
@@ -82,7 +89,8 @@ pub fn list(allow: &Allow) -> Vec<Value> {
 /// The child of a call of one of these tools; `None` for another tool.
 pub fn plan(settings: &Settings, name: &str, arguments: &Map<String, Value>) -> Option<Result<Plan, String>> {
     let names: &[&str] = match name {
-        "health" | "job_list" => &["destination", "timeout_seconds"],
+        "health" => &["destination", "timeout_seconds", "preflight"],
+        "job_list" => &["destination", "timeout_seconds"],
         "job_start" => &["destination", "command", "timeout_seconds"],
         "job_log" => &["destination", "id", "offset", "max_bytes", "timeout_seconds"],
         "job_wait" => &["destination", "id", "wait_seconds"],
@@ -102,7 +110,14 @@ fn plan_of(settings: &Settings, name: &str, arguments: &Map<String, Value>) -> R
     argv.extend(forced(settings));
     let mut cap = OWN_CAP;
     match name {
-        "health" => argv.extend(words(&["--json", "--", &destination])),
+        "health" => {
+            argv.extend(words(&["--json"]));
+            if boolean(arguments, "preflight")?.unwrap_or(false) {
+                argv.extend(words(&["--preflight"]));
+                seconds = limit(arguments, PREFLIGHT_LIMIT)?;
+            }
+            argv.extend(words(&["--", &destination]));
+        }
         "job_list" => argv.extend(words(&["list", "--json", &destination])),
         "job_start" => {
             let command = string(arguments, "command")?.filter(|c| !c.is_empty()).ok_or("command: required")?;

@@ -1,6 +1,22 @@
 //! The X client of the test's server (T-037).
 
-use russh::server;
+use russh::server::{self, Session};
+use russh::ChannelId;
+
+/// The command `x11-probe` on `channel`: [`x11_probe`] with the cookie of
+/// the client's `x11-req`, then the X server's status and that cookie, and
+/// the status 0. From a task: the session's loop must go on, to carry the
+/// `x11` channel's messages.
+pub(super) fn run(cookie: String, channel: ChannelId, session: &mut Session) {
+    let handle = session.handle();
+    tokio::spawn(async move {
+        let status = x11_probe(&handle, &cookie).await;
+        let _ = handle.data(channel, format!("x11 status {status}\nx11-req cookie {cookie}\n").into_bytes()).await;
+        let _ = handle.exit_status_request(channel, 0).await;
+        let _ = handle.eof(channel).await;
+        let _ = handle.close(channel).await;
+    });
+}
 
 /// An X client's first packet on a new `x11` channel to the client, with
 /// `cookie` (hexadecimal): the X server's first byte of answer, or `none`

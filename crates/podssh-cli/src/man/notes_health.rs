@@ -1,5 +1,5 @@
-//! The notes of `podssh health` (T-189, T-480), apart from the others so that
-//! each file stays short.
+//! The notes of `podssh health` (T-189, T-480, T-482), apart from the others
+//! so that each file stays short.
 
 pub const HEALTH: &[&str] = &[
     "podssh health logs in to one host as podssh ssh does (the relay or --direct, ssh_config, -J, -i), and \
@@ -38,4 +38,28 @@ pub const HEALTH: &[&str] = &[
      cgroup v2 cpuset, cgroup v1 cfs_quota_us, cgroup v1 cpuset or host), memory_total_kib, \
      memory_available_kib, memory_from, and the cgroup's cpu_used, cpu_busy_percent, throttled_periods and \
      periods. cgroup, where one was read, holds its version, its path, and each value as it was read.",
+    "PREFLIGHT: with --preflight, after the facts, the same login asks what the server allows of what a long \
+     command needs later, each probe in 10 s at most, in lines as podssh doctor gives them: ok, FAIL or ????, \
+     a name, and what came. login: the user, the hops of -J, the method that let the user in, and the \
+     server's version line. road: the relay's limits on a session (64 MiB both ways, 180 s with no payload, \
+     12 h, from its /relays.json where one was read), or none with --direct. sftp: the subsystem, its sizes \
+     and its extensions, and what podssh cp does without copy-data, posix-rename@openssh.com, \
+     hardlink@openssh.com and limits@openssh.com; no subsystem is ok, as podssh cp then copies by exec. \
+     remote forward: a tcpip-forward on the server's loopback, on a port that the server chooses, then its \
+     cancel at once; a refusal, or no answer, is FAIL, as -R cannot work there. jump: a direct-tcpip channel \
+     to the server's own loopback, port 22, closed at once; one that opens, or one refused as connect failed, \
+     is ok; administratively prohibited, an unknown channel type, or no answer is FAIL, as -J, -L, -D and -W \
+     through that host cannot work.",
+    "exec tools: one exec of sh names each tool on PATH that the copy by exec, podssh job, podssh cp --delta \
+     and podssh ping use; a missing cat, mv, rm, mkdir, sleep or wc is FAIL, and each other missing tool is \
+     named with what it stops. A host whose login runs no sh fails it. tmux: from the same exec; a missing \
+     tmux is FAIL, with what could install it, as podssh job names it, and podssh job --no-tmux. cgroup: the \
+     CPUs and the memory to plan from, from the facts. keepalive, last: one keepalive@openssh.com with a \
+     reply wanted; a reply, a success or a failure, is ok; no reply, or a connection that ends at it, is \
+     FAIL, and -o ServerAliveInterval=0 is the way round it. Nothing that a probe asks stays: the forward is \
+     cancelled, and the channel and the SFTP session are closed, at once.",
+    "With --preflight, once the login is done, the exit is that of podssh doctor: 1 when a check failed or \
+     the facts did not come, else 0. A login that fails is 255, as without it, and its line is FAIL. With \
+     --json, preflight holds checks, each with section, check, status and detail as podssh doctor --json \
+     gives them, and counts (ok, fail and unknown); without --preflight it is null.",
 ];
