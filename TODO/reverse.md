@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:345`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:274-276`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:276-278`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:86-276`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:86-278`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:271-276`).
+   the code and the reason (`docs/reverse.md:273-278`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -425,7 +425,7 @@ through `curl` (`docs/design.md:592-593`).
 
 Read: `podssh-relay` declares the workspace minimum, Rust 1.88 (`crates/podssh-relay/Cargo.toml:5-6`,
 `Cargo.toml` lines 45-48 at `0d92eef`), above podbox's 1.85. `podssh proxy` already runs async code from sync code with
-a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:201-214`).
+a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:210-223`).
 
 Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it supplies
 (`docs/design.md:585-589`); that is T-066, not this entry.
@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:4092`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:4108`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:394-397`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:159-169`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:417`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:4088-4092`).
+`podssh proxy` sysexits (`docs/cli.md:4104-4108`).
 
 ## Approach
 
@@ -2375,7 +2375,7 @@ and the keys' flags of `ssh`, or that `proxy --help` name `operator`. Read at `3
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2388,16 +2388,16 @@ documents works; the form that a user expects is missing.
 ## Premise
 
 - Read: with one word, `proxy` splits `node://NAME` at its last `:`
-  (`crates/podssh-cli/src/proxy.rs:350`) and says that `"//NAME"` is not a port (`:320-321`), the
+  (`crates/podssh-cli/src/proxy.rs:360`) and says that `"//NAME"` is not a port (`:330-331`), the
   issue's words; with a second word, that `"node://NAME"` is not a host name or an IPv6 address
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
-  which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:118`); not reproduced.
+  which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:126`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
   (`crates/podssh-cli/src/man/notes_pair.rs:255-257`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
   byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:380`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
-  `iap://`, `eice://`, `warp://` and `tor://` (`crates/podssh-cli/src/proxy.rs:99-114`).
+  `iap://`, `eice://`, `warp://` and `tor://` (`crates/podssh-cli/src/proxy.rs:107-122`).
 
 ## Approach
 
@@ -2422,6 +2422,16 @@ a ProxyCommand that names it reads as the rest do. Lost: `operator` alone with a
 `proxy --help` (the issue's second choice), which leaves one verb whose destination form differs;
 and `proxy NAME` with no scheme, which a host of the same name would take.
 
+The calls of the draft (2026-11-03). A word of `node:` and a NAME that is no port is meant as a
+node, as `pipe` writes one, and is refused with the three forms; `node:22`, one word, stays the
+host `node` and its port, as before. Lost: each word of `node:` refused, which would break a host
+named `node` in the one-word form. `--idle-warn` is refused with `node://`: it warns before the
+idle cut of the relay's forward road, and the operator's leg pings the relay. Lost: the flag taken
+and doing nothing. A run of `node://` adds its line to the log of the sessions, with the road
+`node`, as each run of `proxy` that names a destination does, and the line says that it opened
+when the run exits 0. Lost: no line, as `operator` writes none, which would leave a run of `proxy`
+out of the log.
+
 ## Prove
 
 ```sh
@@ -2438,6 +2448,48 @@ OpenSSH, `openssh_through_proxy_node_reaches_the_node_s_sshd` (`ssh -o ProxyComm
 node://NAME' HOST true` exits 0; it says that it did not run where this host has no OpenSSH).
 Planted: `t587-node-read-as-host` (`proxy` reads `node://` as a host again): the first test
 fails.
+
+## Done
+
+Drafted 2026-11-03, in the commit "DRAFT T-587"; merged and run by the main session the same day.
+
+- `crates/podssh-cli/src/proxy_node.rs` (new): `run`, the first step of `proxy`. A target of
+  `node://NAME[/ROUTE]` becomes the `OperatorArgs` of its name and route, `--relay-addr`,
+  `--ca-file`, `--pair-file`, `--client-key`, `--node-key`, `--no-e2e` and `--resume-deadline`, and
+  goes to `operator::to_node` with the verb `proxy`. A PORT (a second word, or
+  `node://NAME:PORT`), a user, an empty NAME, and `--relay-host`, `--relay-failover`,
+  `--forwarder`, `--shadowsocks`, `--via`, `--vless`, `--wstunnel`, `--exit` and `--idle-warn` are
+  refused (64), each refusal with the three forms of a node's ProxyCommand on a second line; a
+  flag of a node beside another target is refused (64). Its unit tests: 3 passed.
+- `crates/podssh-cli/src/operator.rs`: `run_operator` is `to_node(args, "operator", err)`, and
+  `to_node` is its old body, each line naming the verb that runs it.
+- `crates/podssh-cli/src/proxy.rs`: `ProxyArgs::node`; `proxy_node::run` before each other road;
+  `--client-key` alone names `node://NAME` beside `--exit NAME`; the usage line names
+  `node://NAME`.
+- `crates/podssh-cli/src/parsed.rs`, `crates/podssh-cli/src/tree.rs` and
+  `crates/podssh-cli/src/dispatch.rs`: `Parsed::Proxy` carries `node`, read by
+  `proxy_node::Flags::from_matches`; `crates/podssh-cli/src/lib.rs` names the module.
+- The rows: `crates/podssh-cli/src/flags/node.rs` and `crates/podssh-cli/src/flags/relay.rs`, the
+  rows `--pair-file`, `--node-key`, `--no-e2e` and `--resume-deadline` of `proxy`, each beginning
+  `node://NAME:`, and `--client-key` with `--exit, and node://NAME`;
+  `crates/podssh-cli/src/flags.rs`, the about of `proxy` names `node://NAME` and `operator NAME`;
+  `crates/podssh-cli/src/positionals.rs` and `crates/podssh-cli/src/help.rs`, the help of HOST and
+  PORT, and the usage tail.
+- The manual: `crates/podssh-cli/src/man/notes_proxy.rs`, a note of `proxy node://NAME`;
+  `crates/podssh-cli/src/man/notes_pair.rs`, the first note of `operator` names it.
+- `docs/cli.md` (a rule in the section of the reverse road), `docs/reverse.md` (the operator's
+  section) and `docs/STATUS.md` (a row).
+- Tests: `crates/podssh-cli/tests/proxy.rs`, `proxy_of_a_node_refuses_a_port_and_the_relay_s_flags`
+  (in memory); `crates/podssh-cli/tests/proxy/to_node.rs` (new), through the stand-in relay,
+  `proxy_carries_a_session_to_a_node_by_its_name`, and `openssh_through_proxy_node_reaches_the_node_s_sshd`
+  (OpenSSH's client with `ProxyCommand=podssh proxy node://NAME`): each passed. The merge gave
+  `mod to_node` its `#[path]`, as a test's root looks for its modules beside it.
+- Planted (`scripts/plants/t587-node-read-as-host.patch`): its SETUP installs with `apk`, so it ran by
+  hand: caught, `proxy_carries_a_session_to_a_node_by_its_name` failed.
+
+Measured, 2026-11-03: `cargo test -p podssh-cli --test proxy`, 14 passed; `--test operator`, 7
+passed; `--test relay`, 10 passed; `--lib proxy_node`, 3 passed; the whole lib, 706; `man_page` 10
+and `flag_table` 9; `cargo clippy --all-targets -D warnings`: clean.
 
 # T-589: `operator` and `proxy` take no `--ConnectTimeout`, so a ProxyCommand has no bound of its own on reaching its far end
 
@@ -2464,7 +2516,7 @@ cannot set.
   (`crates/podssh-cli/src/flags/operator.rs:7`), and have no ConnectTimeout; `ssh` has one
   (`crates/podssh-cli/src/flags.rs:169-170`).
 - Read: `operator`'s waits are 30 s for each request of the relay
-  (`crates/podssh-cli/src/operator.rs:71`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
+  (`crates/podssh-cli/src/operator.rs:79`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
   node's `ready` (`crates/podssh-relay/src/reverse/operator.rs:56`); `proxy`'s, 20 s for each
   relay host (`crates/podssh-relay/src/open.rs:30`), in the order of the failover.
 - Inferred, which the Prove measures: OpenSSH's ConnectTimeout bounds the wait for the server's

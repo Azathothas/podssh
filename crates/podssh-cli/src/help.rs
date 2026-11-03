@@ -295,7 +295,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "node" => "[OPTIONS] NAME [TARGET] [ROUTE=TARGET]...",
         "exit" => "[OPTIONS] NAME --listen ADDR:PORT",
         "operator" => "[OPTIONS] NAME",
-        "proxy" => "[OPTIONS] [--] HOST PORT",
+        "proxy" => "[OPTIONS] [--] HOST PORT | node://NAME[/ROUTE]",
         "health" => "[OPTIONS] [user@]host",
         "play" => "[OPTIONS] FILE",
         "config" => "import FORMAT FILE",

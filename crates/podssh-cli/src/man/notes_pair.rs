@@ -254,7 +254,8 @@ pub(super) const NODE: &[&str] = &[
 pub(super) const OPERATOR: &[&str] = &[
     "podssh operator NAME carries stdin to the node of the pair under the label NAME, and the bytes of \
      the node's TARGET to stdout, as podssh proxy carries a forward session. It is the ProxyCommand of \
-     OpenSSH for a node: ssh -o ProxyCommand='podssh operator NAME' user@NAME.",
+     OpenSSH for a node: ssh -o ProxyCommand='podssh operator NAME' user@NAME. podssh proxy node://NAME is \
+     the same pipe, with the same flags and codes, by the form of a node that podssh ssh takes.",
     "Before the node takes the session, up to 1 MiB of stdin is kept, and sent then. The session ends \
      when stdin ends or the node's TARGET closes; it exits 0 only when the node took the session. An \
      error is one line on stderr; the codes are in EXIT STATUS.",

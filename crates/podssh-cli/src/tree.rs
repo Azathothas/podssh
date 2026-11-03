@@ -263,6 +263,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             wstunnel: crate::wstunnel::Flags { url: get("wstunnel"), secret_file: get("wstunnel-secret-file") },
             exit: crate::exit::Flags { name: get("exit"), client_key: get("client-key") },
             idle_warn: get("idle-warn"),
+            node: crate::proxy_node::Flags::from_matches(&matches),
             refused,
         };
     }

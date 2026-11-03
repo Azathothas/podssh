@@ -28,9 +28,19 @@ pub const EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
 /// `--exit NAME` of `proxy`.
 pub const PROXY_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
     "carry the pipe from NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay: it dials HOST PORT from its own host", None);
-/// `--client-key FILE` of `proxy`, for its exit.
+/// `--client-key FILE` of `proxy`, for its exit and for a node (T-587).
 pub const PROXY_CLIENT_KEY: FlagRow = row(None, "client-key", Some("FILE"), FlagKind::Supported,
-    "with --exit: this client's key in FILE, made when missing (default: client.key in the cache)", None);
+    "with --exit, and node://NAME: this client's key in FILE, made when missing (default: client.key in the cache)", None);
+/// The flags of a pair and of its channel, of `proxy node://NAME` (T-587),
+/// as `operator` has them.
+pub const PROXY_PAIR_FILE: FlagRow = row(None, "pair-file", Some("FILE"), FlagKind::Supported,
+    "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None);
+pub const PROXY_NODE_KEY: FlagRow = row(None, "node-key", Some("KEY"), FlagKind::Supported,
+    "node://NAME: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None);
+pub const PROXY_NO_E2E: FlagRow = row(None, "no-e2e", None, FlagKind::Supported,
+    "node://NAME: no end-to-end channel, to a node that runs none either; the relay then sees each byte", None);
+pub const PROXY_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
+    "node://NAME: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
 /// `--exit NAME` of `pipe`.
 pub const PIPE_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
     "relay:HOST:PORT and relay:%h:%p start at NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay", None);

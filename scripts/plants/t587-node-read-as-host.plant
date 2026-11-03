@@ -1,0 +1,10 @@
+# T-587: `podssh proxy` reads node://NAME as a host again, as before: the
+# word splits at its last `:` and `//lab` is no port, so the pipe to a node
+# through the stand-in relay (Python and openssl) exits 64 with no echo, and
+# its test must fail.
+ENTRY=T-587
+GROUP=resume-cli
+EXPECT='proxy_carries_a_session_to_a_node_by_its_name \.\.\. FAILED'
+SETUP='apk add --no-cache python3 openssl'
+RUN='cargo test --locked -p podssh-cli --test proxy -- proxy_carries_a_session_to_a_node_by_its_name'
+LIMIT=2700

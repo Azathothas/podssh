@@ -211,9 +211,9 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("target")
                     .value_name("HOST")
-                    .help("the host that the relay connects to, or an IPv6 address; HOST:PORT or [IPV6]:PORT in one word also works"),
+                    .help("the host that the relay connects to, or an IPv6 address; HOST:PORT or [IPV6]:PORT in one word also works; node://NAME[/ROUTE], with no PORT, is the node of a pair, as podssh operator NAME reaches it"),
             )
-            .arg(Arg::new("port").value_name("PORT").help("the TCP port on that host")),
+            .arg(Arg::new("port").value_name("PORT").help("the TCP port on that host; none after node://NAME")),
         "ping" => cmd.arg(
             Arg::new("destination")
                 .value_name("[user@]host")

@@ -10,7 +10,8 @@
 //! `-N`): a WebSocket Close is not a TCP half-close, and sending one would cut
 //! off a reply that is still on its way. Since T-175 it is the pipe of
 //! `stdio` and `relay:HOST:PORT`: one pump, and the relay's end of
-//! `crate::pipe::relay`.
+//! `crate::pipe::relay`. `node://NAME` is the pipe of `podssh operator NAME`
+//! (`crate::proxy_node`, T-587).
 
 use std::io::Write;
 
@@ -59,6 +60,8 @@ pub struct ProxyArgs {
     /// `--idle-warn SECONDS`: the lead of the warning before the relay's
     /// idle cut (T-463), unparsed.
     pub idle_warn: Option<String>,
+    /// The flags of a pair and of its channel, for `node://NAME` (T-587).
+    pub node: crate::proxy_node::Flags,
 }
 
 /// Run the verb; returns the process exit code. A run that named its
@@ -80,6 +83,11 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
 }
 
 fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
+    // node://NAME, the pipe of `operator NAME`, first: each other road's
+    // flag is its refusal there, and the flags of a node go with it alone.
+    if let Some(code) = crate::proxy_node::run(args, err) {
+        return code;
+    }
     // A road of its own takes no forwarder (T-369), no Shadowsocks server
     // (T-373), no second proxy (T-439), no VLESS server (T-440) and no
     // wstunnel server (T-441).
@@ -132,7 +140,8 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             }
             let _ = writeln!(
                 err,
-                "usage: podssh proxy [OPTIONS] [--] HOST PORT   (as an OpenSSH ProxyCommand: podssh proxy %h %p)"
+                "usage: podssh proxy [OPTIONS] [--] HOST PORT | node://NAME   (as an OpenSSH ProxyCommand: podssh \
+                 proxy %h %p)"
             );
             return EXIT_USAGE;
         }
@@ -291,11 +300,12 @@ fn exit_alone(args: &ProxyArgs) -> Result<(), &'static str> {
     }
 }
 
-/// `--client-key` is the exit's channel's alone.
+/// `--client-key` is the channel's of the exit, or of a node, which takes
+/// it before this.
 fn key_alone(args: &ProxyArgs) -> Result<(), crate::relay_settings::Refusal> {
     match (&args.exit.name, &args.exit.client_key) {
         (None, Some(_)) => {
-            let why = "--client-key is this client's key for --exit NAME: give --exit too";
+            let why = "--client-key is this client's key for --exit NAME or node://NAME: give one of them";
             Err(crate::relay_settings::Refusal::usage(why))
         }
         _ => Ok(()),

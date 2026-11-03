@@ -4,7 +4,8 @@
 //! ProxyCommand of OpenSSH for a node. stdout carries those bytes and nothing
 //! else; it exits 0 only after the node took the session. SIGHUP, which
 //! OpenSSH sends it at its exit, SIGTERM and SIGINT end the session with its
-//! `CLOSE`, as the end of stdin does (T-586).
+//! `CLOSE`, as the end of stdin does (T-586). `podssh proxy node://NAME`
+//! runs the same pipe, by [`to_node`] (T-587).
 
 use std::io::Write;
 
@@ -42,21 +43,28 @@ pub struct OperatorArgs {
 
 /// Run the verb; returns the process exit code.
 pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
+    to_node(args, "operator", err)
+}
+
+/// The pipe of stdin and stdout to the node of `args`: the whole of `podssh
+/// operator NAME`, and of `podssh proxy node://NAME` (T-587), one function so
+/// that the two cannot drift; each line names `verb`. The exit code.
+pub(crate) fn to_node(args: &OperatorArgs, verb: &'static str, err: &mut dyn Write) -> i32 {
     let (label, part, ask) = match prepare(args) {
         Ok(ready) => ready,
-        Err(refusal) => return refusal.report("operator", err),
+        Err(refusal) => return refusal.report(verb, err),
     };
     // The channel of T-088: this operator's key, and the node's by the pins
     // of the label or by --node-key.
-    let say_line = |line: String| podssh_ssh::err_line!("podssh operator: {label}: {line}");
+    let say_line = |line: String| podssh_ssh::err_line!("podssh {verb}: {label}: {line}");
     let channel = match ask.operator(crate::channel::Expect::Pinned(label.clone()), &say_line) {
         Ok(channel) => channel,
-        Err(why) => return Refusal::config(why).report("operator", err),
+        Err(why) => return Refusal::config(why).report(verb, err),
     };
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
-            let _ = writeln!(err, "podssh operator: could not start the async runtime: {e}");
+            let _ = writeln!(err, "podssh {verb}: could not start the async runtime: {e}");
             return Fault::SessionFault.code();
         }
     };
@@ -76,7 +84,7 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
     // stdout carries the session's bytes alone: each line goes to stderr.
     let say = |line: Line| {
         if let Line::Always(text) = line {
-            podssh_ssh::err_line!("podssh operator: {label}: {text}");
+            podssh_ssh::err_line!("podssh {verb}: {label}: {text}");
         }
     };
     // stdin and stdout <-> the resumable layer <-> the operator's leg, a new
@@ -88,7 +96,7 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
         // the node hears as a `CLOSE` and keeps nothing of (T-586).
         crate::hangup::take(crate::hangup::Which::All);
         let shown = label.clone();
-        let pin_say = move |line: String| podssh_ssh::err_line!("podssh operator: {shown}: {line}");
+        let pin_say = move |line: String| podssh_ssh::err_line!("podssh {verb}: {shown}: {line}");
         let carried =
             crate::layered::carry_through(&config, link, first, io, Some(part.expires_ms), &say, channel, pin_say);
         Ok::<_, ConnectError>(carried.await)
@@ -100,11 +108,11 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
         Ok(carried) => match judged(&label, &carried) {
             None => 0,
             Some((code, why)) => {
-                let _ = writeln!(err, "podssh operator: {label}: {why}");
+                let _ = writeln!(err, "podssh {verb}: {label}: {why}");
                 code
             }
         },
-        Err(e) => pairs::connect_refusal(&e, &label).report("operator", err),
+        Err(e) => pairs::connect_refusal(&e, &label).report(verb, err),
     }
 }
 

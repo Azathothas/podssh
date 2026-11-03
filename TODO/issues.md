@@ -168,7 +168,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #93 | `pipe http-listen:` takes `ssh:USER@HOST`, and a worked example of CONNECT | closed 2026-11-03, its entry done (`7417676`) | T-483 |
 | #94 | `each --json` and `--result-file`: each host's status and streams in one object | open | T-484 (a record of each session, in place of the process's, which T-183's Done names) |
 | #95 | `cp --no-clobber`, `--update` and `--backup` | open | T-473 |
-| #96 | `job log --follow` on one connection | open | T-485 |
+| #96 | `job log --follow` on one connection | closed 2026-11-03, its entry done (`b7080bd`) | T-485 |
 | #97 | `--result-file` for `cp`, `mv`, `run` and `sftp`, in one schema | open | T-486 (the copy's bytes are `transferred`, as `bytes` keeps the meaning of `ssh`'s), with T-484's record of a session for `run` |
 | #98 | A warning before the relay's 180 s idle cut | closed 2026-11-02, its entry done (`b39a29d`) | T-463 |
 | #99 | `doctor` says once that each TLS handshake was reset | open | T-487 (the kind of each failure kept, not read from the system's words; a reference handshake with `github.com`; a diagnosis after the counts) |

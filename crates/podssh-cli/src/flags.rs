@@ -377,7 +377,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "job", aliases: &["job"], flags: JOB_FLAGS,
         about: "jobs on a host that outlive the connection, each in its tmux, and a queue of them: start, submit, list, log, wait, fetch, stop" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
-        about: "ProxyCommand form: a byte pipe, not an SSH client" },
+        about: "ProxyCommand form: a byte pipe, not an SSH client; node://NAME reaches a node, as operator NAME does" },
     Verb { name: "pipe", aliases: &["pipe"], flags: PIPE_FLAGS,
         about: "join two byte streams, as socat does: stdio, fd:N, exec:CMD, with no listener unless one side is tcp-listen:, unix-listen:, http-listen: or ws-listen:" },
     Verb { name: "node", aliases: &["node"], flags: NODE_FLAGS,

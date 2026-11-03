@@ -65,6 +65,9 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
     super::node::PROXY_EXIT, super::node::PROXY_CLIENT_KEY,
     // The warning before the relay's idle cut (T-463).
     super::idle::PROXY_IDLE_WARN,
+    // A node by its name, as operator reaches it (T-587).
+    super::node::PROXY_PAIR_FILE, super::node::PROXY_NODE_KEY, super::node::PROXY_NO_E2E,
+    super::node::PROXY_DEADLINE,
 ];
 
 /// `doctor` checks the relay path `ssh` and `proxy` would take, so it takes

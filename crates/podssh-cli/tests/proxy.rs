@@ -1,5 +1,13 @@
 //! `podssh proxy`: what it parses, and how it refuses bad input. The relay
 //! path itself is exercised by `proxy_live.rs` (network, ignored by default).
+//! `node://NAME` (T-587) is refused where it cannot be the node of a pair,
+//! and goes to a node through the stand-in relay (`to_node`).
+
+mod ssh_harness;
+mod throughput_harness;
+// `proxy node://NAME` through the stand-in relay, to a node (T-587).
+#[path = "proxy/to_node.rs"]
+mod to_node;
 
 use podssh_cli::dispatch::{run, Streams};
 use podssh_cli::proxy::parse_target;
@@ -46,9 +54,56 @@ fn the_positionals_and_options_reach_the_verb() {
             wstunnel: Default::default(),
             exit: Default::default(),
             idle_warn: None,
+            node: Default::default(),
             refused: vec![],
         }
     );
+}
+
+/// `node://NAME` (T-587): a PORT, the relay's flags and each road in the
+/// relay's place are refused (64), each with its words and the three forms
+/// of a node's ProxyCommand; the flags of a node beside a host are refused
+/// too, before anything is read or dialled.
+#[test]
+fn proxy_of_a_node_refuses_a_port_and_the_relay_s_flags() {
+    let cases: [(&[&str], &str); 12] = [
+        (&["proxy", "node://lab", "22"], "takes no PORT"),
+        (&["proxy", "node://lab:22"], "takes no PORT"),
+        (&["proxy", "node://user@lab"], "takes no user"),
+        (&["proxy", "node:lab"], "is not the form of a node"),
+        (&["proxy", "--relay-host", "relay.example", "node://lab"], "--relay-host does not apply to node://lab"),
+        (&["proxy", "--relay-failover", "serial", "node://lab"], "--relay-failover does not apply"),
+        (&["proxy", "--forwarder", "mudlet", "node://lab"], "--forwarder does not apply"),
+        (&["proxy", "--shadowsocks", "servers.txt", "node://lab"], "--shadowsocks does not apply"),
+        (&["proxy", "--via", "https://proxy.example", "node://lab"], "--via does not apply"),
+        (&["proxy", "--vless", "servers.txt", "node://lab"], "--vless does not apply"),
+        (&["proxy", "--wstunnel", "wss://ws.example", "node://lab"], "--wstunnel does not apply"),
+        (&["proxy", "--exit", "gw", "node://lab"], "--exit does not apply"),
+    ];
+    for (argv, says) in cases {
+        let (rc, out, err) = run_case(argv);
+        assert_eq!(rc, 64, "{argv:?}: {err}");
+        assert!(out.is_empty(), "{argv:?} wrote to stdout");
+        assert!(err.contains(says), "{argv:?}: {err}");
+        for form in ["podssh proxy node://NAME", "podssh operator NAME", "podssh pipe - node:NAME"] {
+            assert!(err.contains(form), "{argv:?}: the refusal names {form}: {err}");
+        }
+    }
+    for argv in [
+        &["proxy", "--pair-file", "lab.json", "host.example", "22"][..],
+        &["proxy", "--node-key", "SHA256:x", "host.example", "22"][..],
+        &["proxy", "--no-e2e", "host.example", "22"][..],
+        &["proxy", "--resume-deadline", "8h", "host.example", "22"][..],
+    ] {
+        let (rc, _, err) = run_case(argv);
+        assert_eq!(rc, 64, "{argv:?}: {err}");
+        assert!(err.contains("goes with node://NAME"), "{argv:?}: {err}");
+    }
+    let (rc, _, err) = run_case(&["proxy", "--client-key", "client.key", "host.example", "22"]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("--exit NAME or node://NAME"), "{err}");
+    // node:PORT in one word stays the host node and its port.
+    assert_eq!(parse_target(Some("node:22"), None).unwrap(), ("node".into(), 22));
 }
 
 /// `--idle-warn SECONDS` reaches the verb (T-463).

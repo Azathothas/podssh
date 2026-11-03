@@ -41,6 +41,17 @@ pub const PROXY: &[&str] = &[
      tunnel's half-close (the end of the stream, on HTTP/2): the target's bytes come until it closes.",
     super::notes_vless::PROXY_VLESS,
     super::notes_roads::PROXY_WSTUNNEL,
+    "podssh proxy node://NAME[/ROUTE] is the pipe of podssh operator NAME[/ROUTE] (see its notes): stdin to \
+     the node of the pair under the label NAME, and the bytes of its TARGET, or of its ROUTE, to stdout, with \
+     the pair stored under NAME or that of --pair-file, the end-to-end channel and its flags --client-key, \
+     --node-key and --no-e2e, --resume-deadline, and the same exit codes. As the ProxyCommand of OpenSSH: ssh \
+     -o ProxyCommand='podssh proxy node://NAME' user@NAME. The node names the service, so a PORT is refused \
+     (64), as are the relay's flags (--relay-host, --relay-failover), --forwarder, --shadowsocks, --via, \
+     --vless, --wstunnel, --exit and --idle-warn, each of which takes the relay's place or speaks of it; \
+     --relay-addr and --ca-file reach the pair's relay. The flags of a node with another target are refused \
+     (64). A word that starts with node: and is no node://NAME is refused with the three forms of a node's \
+     ProxyCommand: podssh proxy node://NAME, podssh operator NAME and podssh pipe - node:NAME; node:PORT stays \
+     the host node and its port.",
     "podssh proxy --exit NAME HOST PORT carries the pipe from NAME, a node of your net that lends its egress \
      (see podssh node --exit and podssh exit), in place of the relay: the node resolves HOST, checks each of its \
      addresses and dials HOST PORT from its own host, over the pair kept under NAME, in the resumable layer and \
