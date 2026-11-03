@@ -65,6 +65,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh job start --no-tmux user@build.example.org -- make all".into(),
         ),
         (
+            "a job's output as it comes, on one connection; the exit is the job's status",
+            "podssh job log --follow user@build.example.org 0123abcd".into(),
+        ),
+        (
             "copy the project here to a stronger host, only what changed, then run its tests there",
             "podssh run user@build.example.org -- cargo test".into(),
         ),

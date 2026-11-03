@@ -5,7 +5,9 @@
 //! A queue of detached jobs comes on top (T-197, [`queue`]): `submit`
 //! queues a command, which a runner on the host starts when a slot is free;
 //! `wait` reads the state until the job ends, and exits with its status;
-//! `fetch` copies the output and named files back ([`fetch`]). The host is a
+//! `fetch` copies the output and named files back ([`fetch`]); `log
+//! --follow` gives the output as it comes, then exits with the job's status
+//! (T-485, [`follow`]). The host is a
 //! plain POSIX host reached with SSH: nothing of podssh runs there but the
 //! far script ([`far`]), under sh, with tmux, which it probes before
 //! anything starts.
@@ -23,13 +25,14 @@
 //!
 //! **Exit codes are those of `podssh ssh`**: 64 a usage error and 78 a
 //! setting, before anything connects; 255 a failure of podssh (no
-//! connection, no login, no tmux, no such job); `wait` the job's status;
-//! 75 when the `--timeout` of `wait` passed, or when `fetch` finds the job
-//! still queued or running; else 0.
+//! connection, no login, no tmux, no such job); `wait` and `log --follow`
+//! the job's status; 75 when the `--timeout` of `wait` or of `log --follow`
+//! passed, or when `fetch` finds the job still queued or running; else 0.
 
 mod args;
 pub mod far;
 pub mod fetch;
+pub mod follow;
 pub mod list;
 pub mod queue;
 
@@ -152,6 +155,25 @@ async fn perform(action: &Action, labels: &[String], plans: &[Resolved], log: &A
             let dir = PathBuf::from(dir.clone().unwrap_or_else(|| format!("podssh-job-{id}")));
             fetch::fetch(resolved, host, id, &dir, files.as_deref(), log).await
         }
+        Action::Follow { id, from_end, jsonl, timeout } => {
+            let mut sink = follow::Sink::new(&mut *out, *jsonl);
+            let mut place = follow::Place { from: (!*from_end).then_some(0), state: None };
+            let followed = follow::follow(resolved, host, id, &mut sink, &mut place, log);
+            let Some(limit) = timeout else { return followed.await };
+            // The follow is dropped at the limit, and its sink says the end.
+            let ended = tokio::time::timeout(*limit, Box::pin(followed)).await;
+            match ended {
+                Ok(code) => code,
+                Err(_) => {
+                    sink.end(place.state.as_deref(), None);
+                    log.error(&format!(
+                        "the --timeout of {} s passed, and job {id} on {host} has not ended",
+                        limit.as_secs()
+                    ));
+                    sysexits::EX_TEMPFAIL
+                }
+            }
+        }
         _ => {
             let Some(handles) = far::connect(resolved, log).await else { return EXIT_FAILURE };
             let handle = handles.last().expect("the destination's connection");
@@ -267,17 +289,19 @@ async fn act(action: &Action, host: &str, handle: &Connection, log: &Log, out: &
             let _ = out.write_all(text.as_bytes());
             Ok(())
         }
-        Action::Log(id) => match far::stream(handle, host, &["log", id.as_str()], "out", out).await? {
-            far::Streamed::Out => Ok(()),
-            far::Streamed::Other(line) => {
-                if let Some(why) = far::refusal(host, &line) {
-                    return Err(why);
+        Action::Log(id) => {
+            match far::stream(handle, host, &["log", id.as_str()], "out", out, false, &mut None).await? {
+                far::Streamed::Out => Ok(()),
+                far::Streamed::Other(line) => {
+                    if let Some(why) = far::refusal(host, &line) {
+                        return Err(why);
+                    }
+                    let state = line.strip_prefix("no-out ").ok_or_else(|| unexpected(host, &line))?;
+                    log.info(&format!("job {id} on {host} has no output yet: it is {state}"));
+                    Ok(())
                 }
-                let state = line.strip_prefix("no-out ").ok_or_else(|| unexpected(host, &line))?;
-                log.info(&format!("job {id} on {host} has no output yet: it is {state}"));
-                Ok(())
             }
-        },
+        }
         Action::Stop(id) => {
             let lines = far::lines(handle, host, &["stop", id.as_str()]).await?;
             let first = first_line(host, &lines)?;
@@ -301,7 +325,7 @@ async fn act(action: &Action, host: &str, handle: &Connection, log: &Log, out: &
             }
             Ok(())
         }
-        Action::Submit { .. } | Action::Wait { .. } | Action::Fetch { .. } => {
+        Action::Submit { .. } | Action::Wait { .. } | Action::Fetch { .. } | Action::Follow { .. } => {
             unreachable!("perform runs them with connections of their own")
         }
     }

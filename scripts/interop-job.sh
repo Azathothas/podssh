@@ -3,7 +3,8 @@
 # both running; a stop of one ends its tmux session and leaves the other
 # running (the planted defect, a stop of each session named podssh-job-,
 # ends both); the log gives the output of a job that printed and ended, and
-# the list its status; with tmux off PATH, start exits 255 and names tmux,
+# the list its status; log --follow gives five ticks once each, then the
+# status (T-485); with tmux off PATH, start exits 255 and names tmux,
 # and both start and ssh --persist name apk's command for it (T-481); then
 # the jobs of --no-tmux on each server, with tmux still off PATH: two run,
 # a stop of one leaves the other, and a third gives J and 5 (T-481). Then
@@ -51,8 +52,16 @@ for srv in openssh:2201 dropbear:2203; do
     [ "$rc" = 0 ] && [ "$(cat "$JW/log")" = J ] && grep -q "^$c  done  *5  " "$JW/list" \
         && ok "job.${srv%%:*}.log" "a job that printed J and exited 5: its log is J, and the list gives 5" \
         || bad "job.${srv%%:*}.log" "exit $rc; the log: $(head -c 200 "$JW/log")" "$JW/list"
+    # log --follow (T-485): five ticks, each once and in order, then 3.
+    t=$(j start "$H" -- 'for i in 1 2 3 4 5; do echo tick $i; sleep 1; done; exit 3' 2>"$JW/err")
+    j log --follow "$H" "$t" >"$JW/log" 2>>"$JW/err"
+    rc=$?
+    [ "$rc" = 3 ] && [ "$(cat "$JW/log")" = "$(printf 'tick %s\n' 1 2 3 4 5)" ] \
+        && ok "job.${srv%%:*}.follow" "log --follow of five ticks: each once, in order, then exit 3" \
+        || bad "job.${srv%%:*}.follow" "exit $rc; the log: $(head -c 200 "$JW/log")" "$JW/err"
     j stop "$H" "$b" >/dev/null 2>&1
     j stop "$H" "$c" >/dev/null 2>&1
+    j stop "$H" "$t" >/dev/null 2>&1
 done
 tmuxbin=$(command -v tmux)
 if [ -n "$tmuxbin" ] && mv "$tmuxbin" "$tmuxbin.off"; then

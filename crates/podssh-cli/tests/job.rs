@@ -67,6 +67,11 @@ fn a_bad_command_line_is_64_before_anything_connects() {
         (&["job", "wait", "a,b", "abcd1234"][..], "gives 2 hosts"),
         // T-481: --no-tmux goes with the two that start a job.
         (&["job", "--no-tmux", "list", "web1"][..], "--no-tmux goes with podssh job start or submit"),
+        // T-485: the flags of log --follow.
+        (&["job", "--follow", "stop", "web1", "abcd1234"][..], "--follow goes with podssh job log"),
+        (&["job", "--from-end", "log", "web1", "abcd1234"][..], "--from-end goes with podssh job log --follow"),
+        (&["job", "--jsonl", "log", "web1", "abcd1234"][..], "not with log without --follow"),
+        (&["job", "--timeout", "2s", "log", "web1", "abcd1234"][..], "--timeout goes with podssh job wait or log"),
     ] {
         let (code, out, err) = podssh(&home, args);
         assert_eq!(code, 64, "{args:?}: {err}");
@@ -85,6 +90,7 @@ fn a_host_out_of_reach_is_255_and_stdout_stays_empty() {
         &["job", "submit", "web1.example.org,web2.example.org", "--", "true"][..],
         &["job", "wait", "web1.example.org", "abcd1234"][..],
         &["job", "fetch", "web1.example.org", "abcd1234"][..],
+        &["job", "log", "--follow", "web1.example.org", "abcd1234"][..],
     ] {
         let (code, out, err) = podssh(&home, args);
         assert_eq!(code, 255, "{args:?}: {err}");
@@ -103,7 +109,7 @@ fn the_help_and_the_manual_name_each_subcommand() {
     assert_eq!(code, 0);
     let words =
         ["start", "submit", "list", "log", "wait", "fetch", "stop", "tmux", "--slots", "--timeout", "--no-tmux"];
-    for word in words {
+    for word in words.into_iter().chain(["--follow", "--from-end", "--jsonl"]) {
         assert!(man.contains(word), "{word}: {man}");
     }
 }

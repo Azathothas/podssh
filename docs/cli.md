@@ -1794,6 +1794,27 @@ them (T-197; `crates/podssh-cli/src/job/`).
   running, the host with the fewest gets the job, the first of the list on
   a tie, and stdout gives `HOST ID`. A host that does not answer is left
   out, and said; with none, nothing is queued (255).
+- **`log --follow HOST ID`** (T-485) gives the job's output as it comes,
+  on one connection, then exits with the job's status. Each call of the far
+  action `follow ID FROM` answers `out N`, N the offset where its bytes
+  begin, then each new byte of `out`, read each second with `tail -c +N`
+  into a file of the job's directory and counted with `wc -c`, so that each
+  byte goes once; it ends once the status is there and nothing more came,
+  once the job is lost, or after 20 s. Then a call of `state`: `done N`
+  ends the run with N, `running` or `queued` calls `follow` again from the
+  count of the bytes that came, and `lost` ends it with 255. A call that
+  broke goes on, on a new connection (5 in a row at most, as `wait`), where
+  the output stopped, with no byte twice; and a call of 20 s keeps the 30 s
+  that each piece of an answer has, so a dead link is found as for each
+  call. `--from-end` starts at the size of the output then; `--timeout
+  DURATION` ends it with 75, the job running on. `--jsonl`: one object for
+  each line, `{"event":"line","text":...}` or, for bytes that are not
+  UTF-8, `"base64"`, a line of more than 1 MiB with no newline given as it
+  is; then `{"event":"end","state":...,"status":...}` (the state last read
+  at a `--timeout`). A reader that went (`| head`) ends the follow, with 0.
+  `--follow` alone, with no `-f`: on `ssh`, `-f` is `--detach`, and `job`
+  takes the connection's options of `ssh`. The script goes with each call,
+  some 19 KiB each 20 s on a quiet job.
 - `wait HOST ID` reads the job's state every 5 s, each read a call of its
   own, and exits with the job's status, or 255 for a job that is lost.
   After a lost connection it connects again, 5 times in a row at most,
@@ -1813,10 +1834,11 @@ them (T-197; `crates/podssh-cli/src/job/`).
 - **The exit status** is that of `podssh ssh`: 0; 64 for a usage error and
   78 for a setting, before anything connects; 255 when the host cannot be
   reached or logged in to, has no tmux, has no job of that ID, gives no
-  answer, or a job of `--no-tmux` runs on after its stop. `wait` gives the
-  job's status; 75 when its `--timeout` passed, and when `fetch` finds the
-  job queued or running. `--no-tmux` with another subcommand than `start`
-  and `submit` is 64.
+  answer, or a job of `--no-tmux` runs on after its stop. `wait` and `log
+  --follow` give the job's status; 75 when their `--timeout` passed, and
+  when `fetch` finds the job queued or running. `--no-tmux` with another
+  subcommand than `start` and `submit` is 64, and so are `--from-end`,
+  `--jsonl` and `--timeout` with `log` without `--follow`.
 
 ## A word with no subcommand
 

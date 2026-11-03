@@ -170,8 +170,8 @@ impl Far {
     }
 
     /// `podssh VERB FLAGS... ARGS...` from the local home, with no relay and
-    /// the host's key taken: (exit code, stdout, stderr).
-    pub fn podssh(&self, verb: &str, args: &[&str]) -> (i32, String, String) {
+    /// the host's key taken, its stdout and stderr piped.
+    pub fn command(&self, verb: &str, args: &[&str]) -> Command {
         let known = format!("UserKnownHostsFile={}", self.local.join("known_hosts").display());
         let mut all = vec![verb, "--direct", "-o", "StrictHostKeyChecking=accept-new", "-o", known.as_str()];
         all.extend_from_slice(args);
@@ -187,9 +187,51 @@ impl Far {
         for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "SSH_AUTH_SOCK", "PODSSH_OFFLINE"] {
             cmd.env_remove(name);
         }
-        let out = cmd.output().unwrap();
+        cmd
+    }
+
+    /// [`Far::command`], run to its end: (exit code, stdout, stderr).
+    pub fn podssh(&self, verb: &str, args: &[&str]) -> (i32, String, String) {
+        let out = self.command(verb, args).output().unwrap();
         let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
         (out.status.code().unwrap_or(-1), text(&out.stdout), text(&out.stderr))
+    }
+
+    /// `podssh job SUB HOST WORDS...` with each line of its stdout and the
+    /// time it came, within `limit`: (exit code, the lines, stderr).
+    pub fn job_lines(&self, sub: &str, words: &[&str], limit: Duration) -> (i32, Vec<(Instant, String)>, String) {
+        use std::io::{BufRead, Read};
+        let host = self.host();
+        let mut args = vec![sub, host.as_str()];
+        args.extend_from_slice(words);
+        let mut child = self.command("job", &args).spawn().unwrap();
+        let (stdout, mut stderr) = (child.stdout.take().unwrap(), child.stderr.take().unwrap());
+        let lines = std::thread::spawn(move || {
+            let mut seen = Vec::new();
+            for line in std::io::BufReader::new(stdout).lines() {
+                let Ok(line) = line else { break };
+                seen.push((Instant::now(), line));
+            }
+            seen
+        });
+        let err = std::thread::spawn(move || {
+            let mut text = String::new();
+            let _ = stderr.read_to_string(&mut text);
+            text
+        });
+        let until = Instant::now() + limit;
+        let code = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status.code().unwrap_or(-1);
+            }
+            if Instant::now() >= until {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("podssh job {sub} did not end within {limit:?}");
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        };
+        (code, lines.join().unwrap(), err.join().unwrap())
     }
 
     /// `podssh job SUB HOST WORDS...`.

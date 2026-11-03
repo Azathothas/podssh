@@ -96,7 +96,7 @@
 88 issue closed
 89 issue closed
 90 issue closed
-91 issue open
+91 issue closed
 92 issue open
 93 issue closed
 94 issue open

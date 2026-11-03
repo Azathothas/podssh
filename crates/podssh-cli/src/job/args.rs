@@ -36,6 +36,10 @@ pub struct JobArgs {
     /// `--no-tmux` of `start` and `submit` (T-481): the job runs under
     /// nohup, for a host where tmux cannot be installed.
     pub no_tmux: bool,
+    /// `--follow`, `--from-end` and `--jsonl` of `log` (T-485).
+    pub follow: bool,
+    pub from_end: bool,
+    pub jsonl: bool,
     /// The connection flags, read as `ssh` reads them: `job`'s rows share
     /// their ids. The destination is the host.
     pub ssh: SshArgs,
@@ -61,6 +65,9 @@ impl JobArgs {
             files: one("files"),
             json: flag("json"),
             no_tmux: flag("no-tmux"),
+            follow: flag("follow"),
+            from_end: flag("from-end"),
+            jsonl: flag("jsonl"),
             ssh: SshArgs::from_matches(m),
             refused,
         }
@@ -87,6 +94,15 @@ pub enum Action {
         json: bool,
     },
     Log(String),
+    /// `log --follow` (T-485): the output as it comes, from the start or,
+    /// with `--from-end`, from its size now; `jsonl`, one object for each
+    /// line; `timeout` at most.
+    Follow {
+        id: String,
+        from_end: bool,
+        jsonl: bool,
+        timeout: Option<Duration>,
+    },
     /// Wait for the end of the job, `timeout` at most (T-197).
     Wait {
         id: String,
@@ -161,6 +177,13 @@ fn command(sub: &str, words: &[String], dashed: bool) -> Result<String, String> 
     Ok(command)
 }
 
+/// The value of `--timeout`, of `wait` and of `log --follow`.
+fn timeout(args: &JobArgs) -> Result<Option<Duration>, String> {
+    // The parser's words name podssh already; the report names the verb.
+    let parse = |raw: &str| crate::non_interactive::parse_duration("--timeout", raw);
+    args.timeout.as_deref().map(parse).transpose().map_err(|r| r.message.trim_start_matches("podssh: ").to_string())
+}
+
 /// The action of `args`, or why the command line is refused (64).
 pub fn action(args: &JobArgs) -> Result<Action, String> {
     let Some(sub) = args.subcommand.as_deref() else {
@@ -175,13 +198,19 @@ pub fn action(args: &JobArgs) -> Result<Action, String> {
     // Each flag of some subcommands is refused with another, as a typo.
     for (given, flag, only) in [
         (args.slots.is_some(), "--slots", &["submit"][..]),
-        (args.timeout.is_some(), "--timeout", &["wait"][..]),
+        (args.timeout.is_some(), "--timeout", &["wait", "log --follow"][..]),
         (args.files.is_some(), "--files", &["fetch"][..]),
         (args.json, "--json", &["list"][..]),
         (args.no_tmux, "--no-tmux", &["start", "submit"][..]),
+        (args.follow, "--follow", &["log"][..]),
+        (args.from_end, "--from-end", &["log --follow"][..]),
+        (args.jsonl, "--jsonl", &["log --follow"][..]),
     ] {
-        if given && !only.contains(&sub) {
-            return Err(format!("{flag} goes with podssh job {}, not with {sub}", only.join(" or ")));
+        // `log --follow` is `log` with the flag.
+        let fits = |one: &&str| *one == sub || (*one == "log --follow" && sub == "log" && args.follow);
+        if given && !only.iter().any(fits) {
+            let with = if sub == "log" && only.contains(&"log --follow") { "log without --follow" } else { sub };
+            return Err(format!("{flag} goes with podssh job {}, not with {with}", only.join(" or ")));
         }
     }
     let (words, plain) = (args.words.as_slice(), args.no_tmux);
@@ -193,19 +222,12 @@ pub fn action(args: &JobArgs) -> Result<Action, String> {
         }
         ("list", []) => Ok(Action::List { json: args.json }),
         ("list", [extra, ..]) => Err(format!("list takes no word after the host: {extra}")),
+        ("log", [one]) if args.follow => {
+            Ok(Action::Follow { id: id(one)?, from_end: args.from_end, jsonl: args.jsonl, timeout: timeout(args)? })
+        }
         ("log", [one]) => Ok(Action::Log(id(one)?)),
         ("stop", [one]) => Ok(Action::Stop(id(one)?)),
-        ("wait", [one]) => {
-            // The parser's words name podssh already; the report names the verb.
-            let parse = |raw: &str| crate::non_interactive::parse_duration("--timeout", raw);
-            let timeout = args
-                .timeout
-                .as_deref()
-                .map(parse)
-                .transpose()
-                .map_err(|r| r.message.trim_start_matches("podssh: ").to_string())?;
-            Ok(Action::Wait { id: id(one)?, timeout })
-        }
+        ("wait", [one]) => Ok(Action::Wait { id: id(one)?, timeout: timeout(args)? }),
         ("fetch", [one, rest @ ..]) if rest.len() <= 1 => {
             let files = args.files.as_deref().map(files).transpose()?;
             Ok(Action::Fetch { id: id(one)?, dir: rest.first().cloned(), files })

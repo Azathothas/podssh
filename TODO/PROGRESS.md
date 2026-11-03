@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 563 entries: 111 open, 3 partial, 16 blocked, 433 done.
+`TODO/INDEX.md` holds 563 entries: 110 open, 3 partial, 16 blocked, 434 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -233,7 +233,7 @@ to T-533, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed; and of #112 to #124, T-587, T-589 to T-591 and T-594, with M10's T-595, T-592 and
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119
 to #123 are T-597, a `none` entry in its turn. Overnight a fork of
-policy is decided and listed below for the operator to confirm (Q86). The drafts that wait to be merged (2026-11-03; each branch also on GitHub as `draft/worktree-agent-*`): T-595's first step (`84272a3`, `.claude/worktrees/agent-ae7237865014745d9`), T-587, T-589 and T-591 (`5494bdd`, `2608b91`, `5e36feb`, `agent-a3fd99090197b1174`), T-485 (`1d17d43`, `agent-ac83f1d6c3e1cad56`).
+policy is decided and listed below for the operator to confirm (Q86). The drafts that wait to be merged (2026-11-03; each branch also on GitHub as `draft/worktree-agent-*`): T-595's first step (`84272a3`, `.claude/worktrees/agent-ae7237865014745d9`), T-587, T-589 and T-591 (`5494bdd`, `2608b91`, `5e36feb`, `agent-a3fd99090197b1174`).
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):

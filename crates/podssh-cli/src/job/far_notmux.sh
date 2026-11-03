@@ -152,9 +152,11 @@ runplain() {
     sh -c "$c" </dev/null >"$d/out" 2>&1 &
     kid=$!
     r=$$
+    # The watcher ends with the runner, or with the job's directory, as a
+    # runner killed from outside may stay a zombie where nothing reaps it.
     (
         trap '' TERM
-        while kill -0 "$r" 2>/dev/null; do
+        while kill -0 "$r" 2>/dev/null && [ -d "$d" ]; do
             sleep 1
             [ -f "$d/stop" ] && kill -USR1 "$r" 2>/dev/null
         done

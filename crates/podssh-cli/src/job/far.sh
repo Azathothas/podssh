@@ -161,6 +161,17 @@ scan() {
     done
 }
 
+# The size of the file $1 in bytes, 0 when it cannot be read: some wc pad
+# their count with blanks.
+size() {
+    # shellcheck disable=SC2046 # the count, out of its blanks
+    set -- $(wc -c 2>/dev/null <"$1")
+    case $1 in
+    '' | *[!0-9]*) printf 0 ;;
+    *) printf '%s' "$1" ;;
+    esac
+}
+
 case $a in
 start | submit)
     # $4: plain for a job with no tmux (T-481), which the user asked for;
@@ -283,6 +294,56 @@ log)
         sessions
         say "no-out $(state_of "$d")"
     fi
+    ;;
+follow)
+    # The output from the byte $2, or from its end now ($2 is end) (T-485):
+    # `out N`, N the offset where the bytes start, then each byte that
+    # comes, read each second with tail into a file of the job's directory
+    # and counted with wc, so that each byte goes once. The call ends once
+    # the status is there and nothing more came, once the job is lost, or
+    # after 20 s, so that the client's wait for each piece of an answer
+    # never ends a call on a link that lives.
+    d=$(dir_of "$1") || {
+        say "no-job $1"
+        exit 0
+    }
+    need tail wc sleep cat rm
+    n=$2
+    if [ "$n" = end ]; then
+        n=0
+        [ -f "$d/out" ] && n=$(size "$d/out")
+    fi
+    case $n in
+    '' | *[!0-9]*)
+        say "unknown follow $2"
+        exit 0
+        ;;
+    esac
+    say "out $n"
+    p=$d/follow.$$
+    t=0
+    while [ "$t" -lt 20 ]; do
+        ended=
+        [ -f "$d/status" ] && ended=yes
+        g=0
+        if [ -f "$d/out" ]; then
+            tail -c "+$((n + 1))" "$d/out" >"$p" 2>/dev/null
+            g=$(size "$p")
+            [ "$g" -eq 0 ] || cat "$p"
+            n=$((n + g))
+        fi
+        if [ "$g" -gt 0 ]; then
+            # The output is whole once the status is there: read on at once.
+            [ -z "$ended" ] || continue
+        else
+            [ -z "$ended" ] || break
+            sessions
+            [ "$(state_of "$d")" != lost ] || break
+        fi
+        t=$((t + 1))
+        sleep 1
+    done
+    rm -f "$p"
     ;;
 files)
     # The job's directory and state, then each file that the pattern $2

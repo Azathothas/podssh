@@ -11,8 +11,11 @@
 //! leaves the other, a job's status stays, a PID file that names another
 //! process never gets it signalled (the planted defect, a stop by the PID
 //! of the file, kills it), and with no setsid a stop ends the command and
-//! the server lives. With no tmux on this host, the test of tmux says so
-//! and passes.
+//! the server lives. `log --follow` (T-485): ticks once each as they come,
+//! then the status, on one connection; a quiet job across three calls with
+//! no byte lost or twice (the planted defect, each call from offset 0,
+//! gives a byte twice); `--from-end`, `--timeout`, `--jsonl`, and a lost
+//! job. With no tmux on this host, the test of tmux says so and passes.
 #![cfg(unix)]
 
 mod cleanup;
@@ -32,6 +35,20 @@ fn plain_tools(setsid: bool) -> Vec<&'static str> {
         tools.push("setsid");
     }
     tools
+}
+
+/// A far host with no tmux, for `log --follow` (T-485): the tools of the
+/// jobs with no tmux, and tail and wc.
+fn follow_far(name: &str) -> Far {
+    let mut tools = plain_tools(true);
+    tools.extend(["tail", "wc"]);
+    let bin = bin_of(&format!("{name}-bin"), &tools, &[]);
+    Far::new(name, bin.display().to_string(), None)
+}
+
+/// The text of each line that a run printed.
+fn texts(lines: &[(Instant, String)]) -> Vec<&str> {
+    lines.iter().map(|(_, line)| line.as_str()).collect()
 }
 
 /// Whether the process `pid` ends within 20 s.
@@ -208,4 +225,95 @@ fn with_no_setsid_a_stop_ends_the_command_and_the_server_lives() {
     assert!(ends(spid), "the command ends");
     let (code, list, err) = far.job("list", &[]);
     assert_eq!((code, list.as_str()), (0, ""), "the server answers: {err}");
+}
+
+/// T-485: a job that prints `tick N` each second for 5 s and exits 3:
+/// `log --follow` prints each tick once, in order, each within 2 s of its
+/// write (and 1 s more for the login), and exits 3, over one connection.
+#[test]
+fn log_follow_gives_each_tick_once_as_it_comes_then_the_status() {
+    let far = follow_far("ticks");
+    let began = Instant::now();
+    let id = start_plain(&far, "for i in 1 2 3 4 5; do echo tick $i; sleep 1; done; exit 3");
+    let before = far.connections();
+    let (code, lines, err) = far.job_lines("log", &[id.as_str(), "--follow"], Duration::from_secs(60));
+    assert_eq!(code, 3, "{err}");
+    assert_eq!(texts(&lines), ["tick 1", "tick 2", "tick 3", "tick 4", "tick 5"], "{err}");
+    assert_eq!(far.connections(), before + 1, "one connection: {err}");
+    // Tick N is written N - 1 s after the job's start, which comes after
+    // `began`.
+    for (n, (at, line)) in lines.iter().enumerate() {
+        let after = at.duration_since(began);
+        assert!(after <= Duration::from_secs(n as u64 + 3), "{line} came {after:?} after the start");
+    }
+}
+
+/// T-485: a job quiet for 45 s, then printing, is followed across three
+/// calls of 20 s at most, with no byte lost or twice; `-v` says each call.
+/// The planted defect, each call from the offset 0, gives A again.
+#[test]
+fn log_follow_goes_on_across_calls_with_no_byte_lost_or_twice() {
+    let far = follow_far("quiet");
+    let id = start_plain(&far, "echo A; sleep 45; echo B");
+    let before = far.connections();
+    let (code, lines, err) = far.job_lines("log", &[id.as_str(), "--follow", "-v"], Duration::from_secs(120));
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(texts(&lines), ["A", "B"], "{err}");
+    let calls = err.lines().filter(|l| l.contains(&format!("job {id} on ")) && l.contains(" bytes from ")).count();
+    assert!(calls >= 3, "{calls} calls: {err}");
+    assert_eq!(far.connections(), before + 1, "one connection: {err}");
+}
+
+/// T-485: `--from-end` gives only what the job writes after the follow
+/// began; `--timeout` exits 75 on a job that runs on.
+#[test]
+fn log_follow_from_the_end_and_its_timeout() {
+    let far = follow_far("fromend");
+    let id = start_plain(&far, "echo OLD; sleep 4; echo NEW; sleep 1");
+    let until = Instant::now() + Duration::from_secs(10);
+    while far.job("log", &[id.as_str()]).1 != "OLD\n" {
+        assert!(Instant::now() < until, "no OLD in the log");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let (code, lines, err) = far.job_lines("log", &[id.as_str(), "--follow", "--from-end"], Duration::from_secs(60));
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(texts(&lines), ["NEW"], "{err}");
+    let long = start_plain(&far, "sleep 300");
+    let began = Instant::now();
+    let words = [long.as_str(), "--follow", "--timeout", "2s"];
+    let (code, _, err) = far.job_lines("log", &words, Duration::from_secs(30));
+    assert_eq!(code, 75, "{err}");
+    assert!(began.elapsed() < Duration::from_secs(10), "{:?}", began.elapsed());
+    assert!(err.contains("the --timeout of 2 s passed"), "{err}");
+}
+
+/// T-485: a job whose runner is gone is lost: `log --follow` exits 255,
+/// and `--jsonl`'s last object says so; a job that ends gives each line
+/// as an object, bytes that are not UTF-8 as base64, and its status.
+#[test]
+fn log_follow_ends_a_lost_job_with_255_and_jsonl_gives_each_line() {
+    let far = follow_far("lost");
+    let id = start_plain(&far, "printf 'a\\377b\\n'; echo c; exit 2");
+    let (code, lines, err) = far.job_lines("log", &[id.as_str(), "--follow", "--jsonl"], Duration::from_secs(60));
+    assert_eq!(code, 2, "{err}");
+    let objects: Vec<serde_json::Value> = lines.iter().map(|(_, l)| serde_json::from_str(l).unwrap()).collect();
+    assert_eq!(objects.len(), 3, "{lines:?}");
+    assert_eq!(objects[0], serde_json::json!({ "event": "line", "base64": "Yf9i" }));
+    assert_eq!(objects[1], serde_json::json!({ "event": "line", "text": "c" }));
+    assert_eq!(objects[2], serde_json::json!({ "event": "end", "state": "done", "status": 2 }));
+    // The runner and its command killed from outside: nothing is left to
+    // write the status.
+    let id = start_plain(&far, "echo $$ > l.pid; exec sleep 300");
+    let command = far.pid_in("l.pid");
+    let dir = far.job_dir(&id).expect("the job's directory");
+    let runner: i32 = std::fs::read_to_string(dir.join("pid")).unwrap().trim().parse().unwrap();
+    for pid in [runner, command] {
+        // SAFETY: a signal to a process that this test made run.
+        unsafe { libc::kill(pid, libc::SIGKILL) };
+    }
+    let (code, lines, err) = far.job_lines("log", &[id.as_str(), "--follow", "--jsonl"], Duration::from_secs(60));
+    assert_eq!(code, 255, "{err}");
+    assert!(err.contains("is lost"), "{err}");
+    let last: serde_json::Value = serde_json::from_str(&lines.last().expect("the end").1).unwrap();
+    assert_eq!(last, serde_json::json!({ "event": "end", "state": "lost", "status": null }));
 }

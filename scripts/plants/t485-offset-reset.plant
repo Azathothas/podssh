@@ -1,0 +1,7 @@
+# T-485: each call of log --follow asks for the output from the offset 0,
+# so a job that is followed across calls gives its bytes again; the test of
+# the quiet job, followed across three calls, must fail.
+ENTRY=T-485
+GROUP=cli-tests
+EXPECT='test log_follow_goes_on_across_calls_with_no_byte_lost_or_twice \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test job_far -- log_follow_goes_on_across_calls_with_no_byte_lost_or_twice'
