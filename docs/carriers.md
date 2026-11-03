@@ -960,6 +960,18 @@ has a second carrier beside Piping Server (T-530, T-531), and `podssh
 funnel` a name whose TLS the edge does not end (T-532). A node with no
 other road tries it unasked (Q76, 2026-11-02).
 
+A carrier with no endpoint (T-595, GitHub #124): a tester's container,
+whose egress allowed a list of names, reset each road of this page, while
+the platform's own `ssh` into the container worked. A stream that exists
+already then carries the node's socket of the reverse road: the stdin and
+stdout that such a channel gives the program that it starts, a descriptor,
+or a program that the client starts (`--carrier ADDR`, [cli.md](cli.md)).
+The client serves the relay role's side of the socket in its own process.
+It needs no endpoint, no account and no upgrade: the platform that carries
+the stream is the door, and it sees the frames, their sizes and their
+times; the end-to-end channel keeps the bytes from it, and the layer runs
+above it as on each road.
+
 ## Servers that a user runs
 
 Since Q66 (2026-11-02, [decisions.md](decisions.md)), podssh speaks, as a

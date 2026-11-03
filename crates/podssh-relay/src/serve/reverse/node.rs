@@ -4,7 +4,8 @@
 //! `open {id}` and `close {id}`, and reads the node's `ready`, `reject` and
 //! `close` and its binary frames, each the session's 32 hex characters and
 //! the payload; a fault of the node's bytes closes its socket with the row of
-//! the contract's close table, and its operators hear that cause.
+//! the contract's close table, and its operators hear that cause. A
+//! carrier's node (T-595) has the same socket with no upgrade before it.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,13 +13,15 @@ use std::time::Duration;
 use podssh_ws::frame;
 use podssh_ws::http::request::Request;
 use podssh_ws::server;
+use podssh_ws::session::RelaySession;
 use serde_json::Value;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
 use super::outbox::{frames_of, Outbox};
 use super::pairs::{Answer, NodeLink, Pair};
-use super::{close, hello, CLOSE_WAIT, PINGS_ALLOWED, PING_EVERY, SESSION_BYTES};
+use super::{close, hello, CLOSE_WAIT, PINGS_ALLOWED, PING_EVERY};
 use crate::reverse::control;
 use crate::reverse::framing::legs::decode_node_frame;
 use crate::reverse::framing::{CodecError, SessionId, CONTROL_FRAME_MAX};
@@ -55,22 +58,58 @@ where
     }
     let session = Arc::new(server::session(stream, pending, None));
     let outbox = Outbox::start(session.clone(), cfg.pairs.writers.clone());
-    let joined = {
-        let mut guard = pair.lock();
-        let state = &mut *guard;
-        match state.node.as_mut() {
-            Some(link) if link.serial == serial && !state.ended => {
-                link.outbox = Some(outbox.clone());
-                true
-            }
-            _ => false,
-        }
-    };
-    if !joined {
+    if !joined(&pair, serial, &outbox) {
         // Stopped or expired while the upgrade was answered.
         outbox.close(1001, "pair expired");
         return;
     }
+    socket(session, outbox, pair, cfg, serial).await
+}
+
+/// A node's socket that is a WebSocket from its first byte, with no upgrade
+/// before it: a carrier's (T-595), in the process of the carrier's client.
+/// It holds `pair` at once, or is refused while a node holds it; then a task
+/// serves it as [`join`] serves one.
+pub fn carried<S>(session: Arc<RelaySession<S>>, pair: Arc<Pair>, cfg: Arc<Config>) -> Result<JoinHandle<()>, String>
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    let serial = cfg.pairs.serial();
+    {
+        let mut state = pair.lock();
+        if state.ended || state.node.is_some() {
+            return Err("a node holds the carrier's role".into());
+        }
+        state.node = Some(NodeLink { serial, outbox: None });
+    }
+    let outbox = Outbox::start(session.clone(), cfg.pairs.writers.clone());
+    if !joined(&pair, serial, &outbox) {
+        outbox.close(1001, "the carrier's role ended");
+        return Err("the carrier's role ended".into());
+    }
+    Ok(tokio::spawn(socket(session, outbox, pair, cfg, serial)))
+}
+
+/// Give the node's socket under `serial` its writer, unless the pair ended,
+/// or another socket took its place, meanwhile.
+fn joined(pair: &Pair, serial: u64, outbox: &Outbox) -> bool {
+    let mut guard = pair.lock();
+    let state = &mut *guard;
+    match state.node.as_mut() {
+        Some(link) if link.serial == serial && !state.ended => {
+            link.outbox = Some(outbox.clone());
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Serve the node's socket of `pair`, joined under `serial` with its writer
+/// `outbox`, until it ends.
+async fn socket<S>(session: Arc<RelaySession<S>>, outbox: Outbox, pair: Arc<Pair>, cfg: Arc<Config>, serial: u64)
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
     outbox.text(hello());
     cfg.event("reverse node");
 
@@ -231,7 +270,7 @@ fn data(pair: &Pair, node: &Outbox, wire: &[u8], cfg: &Config) -> Result<(), Fau
         return Ok(());
     }
     session.bytes += payload.len() as u64;
-    if session.bytes > SESSION_BYTES {
+    if session.bytes > pair.session_bytes {
         let session = state.forget(&id);
         drop(state);
         if let Some(session) = session {

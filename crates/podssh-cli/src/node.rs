@@ -17,6 +17,7 @@
 //! (T-379, T-452, `node_derp`). A node of the layer and the channel also waits
 //! at the transit relay of Q65 for the pair's operators (T-436, `node_transit`).
 //! With `--exit`, it lends this host's egress to its net (T-431, `node_exit`).
+//! With `--carrier ADDR`, its one road is a stream that exists already (T-595).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -55,6 +56,10 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     }
     // What fills the budget of replay buffers, said on each road (T-586).
     crate::node_flags::tell_budget(args);
+    // A stream that exists already, the node's one road (T-595).
+    if args.carrier.is_some() {
+        return crate::node_carrier::run(args, err);
+    }
     if let Some(key) = &args.temporary {
         return crate::node_temp::run(args, key, err);
     }

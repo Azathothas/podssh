@@ -11,8 +11,11 @@
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
 //! sides cannot drift apart; `scripts/fake_reverse.py` stays the second
-//! reading of the contract.
+//! reading of the contract. A carrier (T-595, [`carrier`]) serves the same
+//! node's side and operator's side for one node over a stream of the user's,
+//! in the process of its client.
 
+pub mod carrier;
 pub mod node;
 pub mod operator;
 pub mod outbox;

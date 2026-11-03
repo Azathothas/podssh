@@ -1,7 +1,7 @@
 //! The notes of the two ends of the reverse road, `node` and `operator`,
 //! apart from the others for the length of the file: the pair, the layer, a
 //! roost (T-166), the end-to-end channel and its keys (T-087, T-088), the
-//! iroh road, and the DERP road (T-379).
+//! iroh road, the DERP road (T-379), and a carrier (T-595).
 
 pub(super) const NODE: &[&str] = &[
     "podssh node serves TARGET, a TCP service, to the operators of the pair stored under NAME (see \
@@ -239,6 +239,23 @@ pub(super) const NODE: &[&str] = &[
      owner, else the node does not start (78); a key of --allow, or an operator of the connect token alone, \
      never reaches the exit. TARGET is then optional. It goes on the pair's, the iroh, the DERP, the transit and \
      the Piping Server roads; --no-e2e, --quick-tunnel, --temporary and a udp: TARGET are refused with it (64).",
+    "With --carrier ADDR, the node's one road is a stream that exists already, for a host whose every road out \
+     is closed but that grants one channel, such as the exec channel of a platform's own SSH: stdio (or -), \
+     the stdin and stdout that such a channel gives the program that it starts; fd:N, a descriptor that the \
+     node inherited (Unix); or exec:CMD, a program that the node starts with no shell, as podssh pipe reads \
+     these. The stream carries the node's socket of the reverse road, its WebSocket frames with no HTTP \
+     before them, and its other end, podssh operator --carrier, serves the relay's side of that socket in its \
+     own process. No relay, no pair and no token: whoever holds the stream reached the node through what \
+     carries it, so NAME is a label alone, for the node's key, and each operator comes in unless --allow \
+     names its keys. The resumable layer, the end-to-end channel, the routes, a roost and a udp: TARGET are as \
+     on the pair's road; the relay's limits (64 MiB a session, a pair's 72 hours) do not hold. The node \
+     dials TARGET first, then sends one Ping, its first frame, and says online: the other end opens no \
+     session before it. One stream is the node's life: at its end the sessions end, and the node exits 0 \
+     after the other end's Close, or 69 for a stream that failed; a program of exec: is waited for 2 s, then \
+     ended. --carrier stdio refuses a terminal on stdin (64), whose keys the node would read as frames. \
+     --pair-file, --relay-addr, --ca-file, --iroh, --derp, --quick-tunnel, --relay, --temporary, --install, \
+     --detach and the flags that go with them are refused with --carrier (64), as the stream is the node's \
+     parent's; so is --exit, whose client takes no carrier.",
 ];
 
 pub(super) const OPERATOR: &[&str] = &[
@@ -274,4 +291,17 @@ pub(super) const OPERATOR: &[&str] = &[
     "NAME/ROUTE names a route of the node (see podssh node): the route travels in the end-to-end \
      channel, encrypted, and the node refuses one that it does not have, or that this operator's key \
      may not use, before it dials anything.",
+    "With --carrier ADDR, the node is at the other end of a stream that exists already, with no relay and \
+     no pair: exec:CMD, a program that podssh starts with no shell, such as the platform's own SSH into a \
+     host whose every road out is closed, exec:'ssh -T sandbox podssh node --carrier stdio NAME TARGET'; or \
+     fd:N, a descriptor that podssh inherited (Unix). stdio is refused (64): stdin and stdout carry the \
+     session's bytes. This end serves the relay's side of the node's socket in its own process, waits up to \
+     60 s for the node's first frame, then carries the session as on the pair's road, so OpenSSH reaches the \
+     node's sshd with ssh -o ProxyCommand=\"podssh operator --carrier 'exec:ssh -T sandbox podssh node \
+     --carrier stdio box 127.0.0.1:22' box\" user@box. NAME is a label alone, under which the node's key is \
+     pinned at its first sight, so a stream that another key answers is refused (77). A stream of exec: \
+     that is lost is started again for the next link of a resume; the node that it starts is a new one, \
+     which knows no session of the one before, and the session ends with its reason. A stream of fd: has \
+     one life. At the end the node hears a Close, and the program of exec: is waited for 5 s, then ended. \
+     --pair-file, --relay-addr and --ca-file are refused with --carrier (64).",
 ];

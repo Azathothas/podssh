@@ -1,0 +1,22 @@
+--- a/crates/podssh-cli/src/carrier.rs
++++ b/crates/podssh-cli/src/carrier.rs
+@@ -155,7 +155,7 @@
+     // The node's key, pinned under NAME: a stream that something else
+     // answers is seen.
+     let channel = match ask.operator(crate::channel::Expect::Pinned(label.clone()), &say_line) {
+-        Ok(channel) => channel,
++        Ok(channel) => channel.filter(|_| false),
+         Err(why) => return Refusal::config(why).report("operator", err),
+     };
+     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+--- a/crates/podssh-cli/src/node_carrier.rs
++++ b/crates/podssh-cli/src/node_carrier.rs
+@@ -151,7 +151,7 @@
+     let mode = if plain { "in plain mode, with no resumable layer".into() } else { crate::node_flags::layer_mode() };
+     let _ = writeln!(err, "podssh node: {label}: serving {target} over the carrier {text} {mode}, until it ends");
+     let channel = match key {
+-        Some(key) => Some(crate::channel::node(&label, key, allow, err)),
++        Some(key) => Some(crate::channel::node(&label, key, allow, err)).filter(|_| false),
+         None => {
+             let _ = writeln!(
+                 err,

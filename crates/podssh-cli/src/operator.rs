@@ -4,7 +4,8 @@
 //! ProxyCommand of OpenSSH for a node. stdout carries those bytes and nothing
 //! else; it exits 0 only after the node took the session. SIGHUP, which
 //! OpenSSH sends it at its exit, SIGTERM and SIGINT end the session with its
-//! `CLOSE`, as the end of stdin does (T-586).
+//! `CLOSE`, as the end of stdin does (T-586). With `--carrier ADDR`, the
+//! node is at the other end of a stream, with no relay (T-595, `carrier`).
 
 use std::io::Write;
 
@@ -37,11 +38,17 @@ pub struct OperatorArgs {
     pub no_e2e: bool,
     /// This client's own resume deadline, unparsed (T-306).
     pub resume_deadline: Option<String>,
+    /// `--carrier ADDR`: the node at the other end of a stream that exists
+    /// already, with no relay and no pair (T-595), unparsed.
+    pub carrier: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
 /// Run the verb; returns the process exit code.
 pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
+    if args.carrier.is_some() {
+        return crate::carrier::operator(args, err);
+    }
     let (label, part, ask) = match prepare(args) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report("operator", err),

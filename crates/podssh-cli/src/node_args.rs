@@ -75,6 +75,9 @@ pub struct NodeArgs {
     pub exit: bool,
     /// `--routes RANGES`: the private ranges that the exit dials too, unparsed.
     pub routes: Option<String>,
+    /// `--carrier ADDR`: the node's one road, a stream that exists already
+    /// (T-595), unparsed.
+    pub carrier: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -117,6 +120,7 @@ impl NodeArgs {
             resume_deadline: get("resume-deadline"),
             exit: matches.get_flag("exit"),
             routes: get("routes"),
+            carrier: get("carrier"),
             refused,
         }
     }

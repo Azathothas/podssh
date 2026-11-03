@@ -3,7 +3,8 @@
 //! and the operator `ready` once the node readied it; after that the
 //! operator's binary frames are the payload alone, with no framing, and the
 //! role puts the id before each for the node. A text frame of the operator
-//! closes its socket with `1003`.
+//! closes its socket with `1003`. A carrier's operator (T-595) has the same
+//! socket, a pipe in its own process, with no upgrade before it.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,13 +12,14 @@ use std::time::Duration;
 use podssh_ws::frame;
 use podssh_ws::http::request::Request;
 use podssh_ws::server;
+use podssh_ws::session::RelaySession;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::oneshot;
 use tokio::time::Instant;
 
 use super::outbox::{frames_of, Outbox};
 use super::pairs::{Pair, Session};
-use super::{close, new_id, open, CLOSE_WAIT, MAX_SESSIONS, OPEN_WAIT, PINGS_ALLOWED, PING_EVERY, SESSION_BYTES};
+use super::{close, new_id, open, CLOSE_WAIT, MAX_SESSIONS, OPEN_WAIT, PINGS_ALLOWED, PING_EVERY};
 use crate::reverse::framing::legs::encode_node_frame;
 use crate::reverse::framing::{SessionId, OPERATOR_PAYLOAD_MAX};
 use crate::serve::{answer, tokens, Config};
@@ -45,7 +47,15 @@ where
     if stream.write_all(&server::switching(&key)).await.is_err() {
         return;
     }
-    let session = Arc::new(server::session(stream, pending, None));
+    leg(Arc::new(server::session(stream, pending, None)), pair, cfg).await
+}
+
+/// An operator's socket that is a WebSocket already, carried until its
+/// session ends: the role's after the upgrade, and a carrier's leg (T-595).
+pub async fn leg<S>(session: Arc<RelaySession<S>>, pair: Arc<Pair>, cfg: Arc<Config>)
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
     let outbox = Outbox::start(session.clone(), cfg.pairs.writers.clone());
     let Some(id) = new_id() else {
         outbox.close(1011, "socket error");
@@ -185,7 +195,7 @@ async fn carry(pair: &Pair, id: &SessionId, payload: &[u8]) -> Result<(), (u16, 
             return Ok(());
         };
         session.bytes += payload.len() as u64;
-        if session.bytes > SESSION_BYTES {
+        if session.bytes > pair.session_bytes {
             return Err((1009, "session byte cap"));
         }
         state.node_outbox()

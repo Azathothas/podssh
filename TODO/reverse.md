@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:3954`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:3980`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -758,7 +758,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-143`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:308` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-269`; update `docs/cli.md`, `docs/reverse.md` and
+   `crates/podssh-cli/src/man/examples.rs:8-276`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:394-397`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:159-169`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:417`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:3950-3954`).
+`podssh proxy` sysexits (`docs/cli.md:3976-3980`).
 
 ## Approach
 
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:103`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:104`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1588,10 +1588,10 @@ operator's at `crates/podssh-relay/src/e2e/ends.rs:129-137`. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
 their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-113`.
-The command line: the targets at `crates/podssh-cli/src/node.rs:207-243`,
-`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:245-260`, the dial of each
+The command line: the targets at `crates/podssh-cli/src/node.rs:212-248`,
+`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:250-265`, the dial of each
 target at `crates/podssh-cli/src/node_target.rs:14-39`, the routes at
-`crates/podssh-cli/src/node.rs:264-272`; the channel's glue at
+`crates/podssh-cli/src/node.rs:269-277`; the channel's glue at
 `crates/podssh-cli/src/channel.rs:300-309` and
 `crates/podssh-cli/src/channel.rs:353-372`; `node://NAME/ROUTE` at
 `crates/podssh-cli/src/ssh/node.rs:33-64`, and `iroh:TICKET/ROUTE` at
@@ -1957,7 +1957,7 @@ session through a node loses a link that it need not lose.
 - Measured: CI's step `m6` at `a220c13` failed in that test with `relay close 1011: node
   unavailable`; the step had passed at each push since T-156.
 - Read: `podssh node` prints its `serving` line after its probe of TARGET, before its socket to
-  the relay opens (`crates/podssh-cli/src/node.rs:314-319`), and the tests waited for that line
+  the relay opens (`crates/podssh-cli/src/node.rs:319-324`), and the tests waited for that line
   (`crates/podssh-cli/tests/m6_exit.rs:99`, `crates/podssh-cli/tests/node_plain.rs:41`,
   `crates/podssh-cli/tests/pipe_remote.rs:194`).
 - Measured, native, 2026-10-10: on a host at 42 % of its CPU, the control lost a link in each of
@@ -2035,7 +2035,7 @@ podssh knew in advance, and said nowhere.
 ## Premise
 
 - Read, at `ea2bd4f`: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:107`).
-- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:344`, `repair:
+- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:349`, `repair:
   None`).
 
 ## Approach
@@ -2328,7 +2328,7 @@ only the node reaches is then locked out until somebody starts it again.
 ## Premise
 
 - Read: the `409` arm of `run` gave `Exit::NameInUse` when the node had lost no socket
-  (`crates/podssh-relay/src/reverse/node.rs:219-237`); only after a loss did it connect again.
+  (`crates/podssh-relay/src/reverse/node.rs:223-241`); only after a loss did it connect again.
 - Measured: the run of job 124857212234: `b2` exited at its first `409`.
 
 ## Approach
@@ -2393,7 +2393,7 @@ documents works; the form that a user expects is missing.
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
   which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:118`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
-  (`crates/podssh-cli/src/man/notes_pair.rs:245-247`), and `pipe` takes `node:NAME`
+  (`crates/podssh-cli/src/man/notes_pair.rs:262-264`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
   byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:380`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
@@ -2464,7 +2464,7 @@ cannot set.
   (`crates/podssh-cli/src/flags/operator.rs:7`), and have no ConnectTimeout; `ssh` has one
   (`crates/podssh-cli/src/flags.rs:169-170`).
 - Read: `operator`'s waits are 30 s for each request of the relay
-  (`crates/podssh-cli/src/operator.rs:71`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
+  (`crates/podssh-cli/src/operator.rs:78`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
   node's `ready` (`crates/podssh-relay/src/reverse/operator.rs:56`); `proxy`'s, 20 s for each
   relay host (`crates/podssh-relay/src/open.rs:30`), in the order of the failover.
 - Inferred, which the Prove measures: OpenSSH's ConnectTimeout bounds the wait for the server's

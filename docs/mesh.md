@@ -266,6 +266,16 @@ relays (T-579); and roads over UDP where UDP passes: Hysteria 2 (T-580),
 TUIC (T-581) and MASQUE over HTTP/3 (T-582). A domain that looks taken over
 is never used (Q79). The manual says which it tries last, and why (T-533).
 
+A carrier with no endpoint of its own (T-595, GitHub #124): a stream that
+exists already, as the exec channel of a platform's own SSH into a host
+whose every road out is closed, carries the node's socket of the reverse
+road, and the client's end serves the relay role's side of that socket in
+its own process, for that one node (`podssh node --carrier ADDR`, `podssh
+operator --carrier ADDR`; [cli.md](cli.md)). The stream is the door, the
+end-to-end channel pins the node's key under its label, and no protocol is
+new. The exit over such a stream, for egress through the channel's other
+end, is T-596.
+
 The standard protocols of Q66, so that a server that the user runs is a
 road with no relay: HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and
 HTTP/2 (T-439); VLESS over a WebSocket and over XHTTP (T-440); wstunnel's

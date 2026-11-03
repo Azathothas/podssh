@@ -23,6 +23,9 @@
 // The ACME client of `podssh relay serve --acme NAME` (T-447).
 pub mod acme;
 pub mod agent;
+// `--carrier ADDR`: the node's road over a stream that exists already, and
+// the relay role's side of it in its client (T-595).
+pub mod carrier;
 pub mod channel;
 pub mod chat;
 pub mod clap_error;
@@ -80,6 +83,8 @@ pub mod mcp;
 pub mod net;
 pub mod node;
 pub mod node_args;
+// `podssh node --carrier ADDR`: the node's socket on a stream (T-595).
+pub mod node_carrier;
 // A pair's expiry said before it comes, and the next pair taken at it (T-395).
 pub mod node_expiry;
 // `podssh node --install`: the node as a service of this user (T-121).

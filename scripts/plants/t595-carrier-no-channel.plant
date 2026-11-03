@@ -1,0 +1,7 @@
+# T-595: the end-to-end channel skipped at both ends of a carrier with no
+# --no-e2e, so that a stream that another key answers carries the session;
+# the test of the pin must fail.
+ENTRY=T-595
+GROUP=cli-tests
+EXPECT='test a_node_key_that_the_pin_does_not_hold_is_refused_with_77 \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test node_carrier -- a_node_key_that_the_pin_does_not_hold_is_refused_with_77'

@@ -84,6 +84,9 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "lend this host's egress to the members of its net: a session may name a target of its own, which the node resolves, then dials at a public address alone, or in a range of --routes; needs a net that gives this node the role exit; TARGET is then optional", None),
     row(None, "routes", Some("RANGES"), FlagKind::Supported,
         "with --exit: the private ranges that the exit dials too, ADDR/BITS or one address, separated by commas, each for the members that the net's policy lets reach the address", None),
+    // A stream that exists already as the node's one road (T-595).
+    row(None, "carrier", Some("ADDR"), FlagKind::Supported,
+        "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier; stdin may not be a terminal", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
     super::derp::NODE_DERP,

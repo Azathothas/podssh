@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 563 entries: 117 open, 1 partial, 16 blocked, 429 done.
+`TODO/INDEX.md` holds 563 entries: 116 open, 2 partial, 16 blocked, 429 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -359,7 +359,10 @@ unattended (Q87).
   holds it or `unreleased`, held by a check of `scripts/check-repo.py`.
 - T-595: one flag, `--carrier ADDR` (`stdio`, `fd:N`, `exec:CMD`), at the node and at its
   clients; the node's socket of the reverse road on the stream, the relay role's side of it in
-  the client's process; the stream is the door, the end-to-end channel on by default.
+  the client's process; the stream is the door, the end-to-end channel on by default. Its draft
+  (partial) adds: the node's first frame is a Ping, and no session opens before it; a stream of
+  `exec:` is started again once for each wait of a leg; `--exit` with `--carrier` is refused until
+  T-596.
 
 **For the operator to confirm (Q86):** T-503 checks each host after the first hop too (a later hop
 of `-J`, and the destination behind it), on each road, by the direct road's rule, so that

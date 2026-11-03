@@ -19,4 +19,7 @@ pub const PAIR_FLAGS: &[FlagRow] = &[
     row(None, "no-e2e", None, FlagKind::Supported,
         "carry the bytes with no end-to-end channel, to a node that runs none either; the relay then sees them", None),
     super::node::OWN_DEADLINE,
+    // The node at the other end of a stream that exists already (T-595).
+    row(None, "carrier", Some("ADDR"), FlagKind::Supported,
+        "reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair: exec:CMD, a program started with no shell, as exec:'ssh -T HOST podssh node --carrier stdio NAME TARGET', or fd:N (Unix); NAME is then the label under which the node's key is pinned", None),
 ];
