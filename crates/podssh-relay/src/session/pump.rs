@@ -107,6 +107,20 @@ impl End {
             End::LocalEnd | End::Closed(_) | End::GaveUp(_) => false,
         }
     }
+
+    /// A loss, in words: the client's line of a loss before its resume, and
+    /// of the end of a session that ends with its link (T-612).
+    pub fn loss(&self) -> String {
+        match self {
+            End::Lost(Some(e)) => format!("the link failed: {e}"),
+            End::Lost(None) => "the link ended with no word from the far end".to_string(),
+            End::Broken(e) => format!("the link broke: {e}"),
+            End::Closing => "the link ended before the far end answered this side's CLOSE".to_string(),
+            End::Stopped | End::Retired => "the link was replaced".to_string(),
+            End::Moving => "the link nears the relay's limits".to_string(),
+            End::LocalEnd | End::Closed(_) | End::GaveUp(_) => "the session ended".to_string(),
+        }
+    }
 }
 
 /// The end of a link, and the offsets of the session at that moment.

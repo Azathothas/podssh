@@ -311,6 +311,9 @@ fn prepare(args: &OperatorArgs) -> Result<Prepared, Refusal> {
         ));
     }
     crate::layered::own_deadline(args.resume_deadline.as_deref())?;
+    // --no-resume as on the pair's road: no stream of exec: is started again
+    // for a resume (T-612).
+    crate::no_resume::ask(args.no_resume);
     Ok((label, text, found, ask, bound))
 }
 

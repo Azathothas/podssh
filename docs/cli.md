@@ -121,7 +121,13 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   (T-153). `--resume-deadline TIME` waits at most TIME, never longer than
   the node keeps the session; when the node forgot the session, as after a
   sleep of this host longer than its deadline, the line says so, with how
-  long this side was away by the wall clock (T-306). A link that goes
+  long this side was away by the wall clock (T-306). `--no-resume` asks the
+  node, in the layer's handshake (`once.v1`), to end the session with its
+  link (T-612): a lost link ends the session, with a line, no spare link
+  or move goes beside it, and the node forgets the session and its
+  connection to TARGET as the link ends; `-v` says that the node took the
+  ask, and a line that a node of an earlier podssh does not know it and
+  keeps the session as before. A link that goes
   silent gets a spare link beside it once the node has not answered for
   3 s, which resumes the session when it greets first: a new address of
   this host costs seconds, not the 30 s after which a silent link is dead
@@ -1927,12 +1933,13 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   it, the end-to-end channel, and the host key under `node://NAME`. The
   path comes after the first `:` after the name, as a `/` there names a
   route (T-089); with no `:`, it is the login directory. `--pair-file`,
-  `--client-key`, `--node-key` and `--no-e2e` are those of `ssh`. A port,
+  `--client-key`, `--node-key`, `--no-e2e` and `--no-resume` (T-612) are
+  those of `ssh`. A port,
   `-J` and `--direct` cannot reach a node, and exit 64 before anything
   connects. The session carries no relay budget of its own: the layer
   moves it to a new leg before the relay's limits (T-155), and a node in
   plain mode that the relay cuts is a broken connection, which the copy
-  goes on after. `scp` and `mv` take the same operand, and `sftp` the
+  goes on after; so is a session of `--no-resume` whose link ends. `scp` and `mv` take the same operand, and `sftp` the
   destination `node://[user@]NAME[/ROUTE][:path]`.
 - **A member of the net** (T-453): `[user@]NAME:path`, where NAME is a
   member with the role `node` of the net held here (`podssh net`), is that
@@ -3363,7 +3370,7 @@ commands. The rules behind them:
 - **`proxy node://NAME[/ROUTE]` is `operator NAME[/ROUTE]`** (T-587, GitHub
   #113): one function carries both, with the pair stored under NAME or that
   of `--pair-file`, the channel's `--client-key`, `--node-key` and
-  `--no-e2e`, `--resume-deadline`, and the same codes, so that a
+  `--no-e2e`, `--resume-deadline`, `--no-resume`, and the same codes, so that a
   ProxyCommand names a node in the form that `ssh` and `cp` take: `ssh -o
   ProxyCommand='podssh proxy node://lab' user@lab`. The node's TARGET or
   route names the service, so a PORT is refused (64), as `cf://HOST` takes
@@ -3389,6 +3396,21 @@ commands. The rules behind them:
   the exit is 69; a session that opened is never cut, as the road says its
   open first. 0 is refused (64), and so is `-o ConnectTimeout=N`, as these
   verbs take no `-o`; with none, each wait is as before.
+- **`--no-resume`** (T-612, the operator's ruling Q90) of `operator`,
+  `proxy node://NAME`, `pipe`'s `node:`, `udp:node:` and `iroh:` sides, and
+  of `ssh`, `cp`, `mv`, `scp` and `sftp` to a node: a session that ends with
+  its link. The client names `once.v1` in the layer's `OPEN`; a node that
+  knows the ask names it in its `GREETING`, and with both names it forgets
+  the session and shuts its connection to TARGET as the link ends, whatever
+  the end, so that its budget of replay buffers holds nothing of it. The
+  client carries the session on its first link alone: no resume, no move
+  before the relay's limits and no spare link, so a lost link, or the
+  relay's limits, end the session, as on a node of `--plain`; a line says
+  so, and the exit is that of the leg's end. A node of an earlier podssh
+  ignores the name, as each name that it does not know, and keeps the
+  session for its deadline; a line says so too, and the client still does
+  not resume. `ssh` and the copies refuse the flag with a destination that
+  is no node (64), and so does a `pipe` with no side of a node.
 - **`node --iroh` needs no pair** (T-163, a build with the feature
   `iroh`). Its key is the node's key of each road (`--iroh-key` and
   `--iroh-ephemeral` are `--key` and `--ephemeral-key` by their earlier
@@ -3862,6 +3884,10 @@ own, and the forward road starts at the node.
   `relay:`. A listening side refuses it (64), as each client opens a road
   long after the start, and so does a pipe with no `node:`, `relay:` or
   `ssh:` side.
+- **`--no-resume` ends the session of each `node:`, `udp:node:` and
+  `iroh:` side with its link** (T-612), as `operator --no-resume` does
+  (above), for each client of a listening side too; a pipe with none of
+  those sides refuses it (64).
 - **A serial line is a stream too** (the operator's ruling of 2026-10-08,
   T-181). `serial:PATH[,BAUD]` opens a device such as `/dev/ttyUSB0` at
   BAUD, one of the speeds that Linux names from 1200 to 4000000 (115200 when

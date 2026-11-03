@@ -286,6 +286,9 @@ fn run_copy(
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
         return refused(verb, &refusal, err, did);
     }
+    // Each session to a node ends with its link (T-612); resolve checks that
+    // a node is named.
+    crate::no_resume::ask(args.ssh.no_resume);
     let resolve_for = |server: &Remote| {
         let mut ssh = args.ssh.clone();
         ssh.destination = Some(server.destination());

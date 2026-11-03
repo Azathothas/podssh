@@ -22,7 +22,9 @@ pub(super) const NODE: &[&str] = &[
      waits as long, and a resume of it hears the end. A new session past the 64 MiB ends at once with the \
      reason, which counts the sessions with a link and those waiting for their operator, and says when the \
      first of those is forgotten; the node says the same on stderr, once a minute at most, and once when \
-     its buffers pass three quarters of the 64 MiB. podssh ssh node:// and podssh operator speak the layer. For an \
+     its buffers pass three quarters of the 64 MiB. An operator that asks for no resume (podssh operator \
+     --no-resume, and the same flag of ssh, cp, scp, sftp, proxy and pipe) gets a session that the node \
+     forgets as its link ends, which holds nothing after. podssh ssh node:// and podssh operator speak the layer. For an \
      operator that does not, --plain carries each session's bytes as they are, TARGET dialled at the \
      start of the session: a lost link then ends the session. The node's first line names its mode.",
     "A roost: with --sshd, the node serves a standard sshd, TARGET, or 127.0.0.1:22 when no TARGET is \
@@ -298,6 +300,12 @@ pub(super) const OPERATOR: &[&str] = &[
      would only get again (a stopped or expired pair) ends the session. When the node forgot the \
      session, as after a sleep of this host longer than its deadline, the line says so, with how long \
      this side was away by the wall clock.",
+    "--no-resume asks the node, in the layer's handshake, to end the session with its link: no new link \
+     replaces a lost one, and none goes beside it, and the node forgets the session and closes its \
+     connection to TARGET as the link ends, so that its budget of replay buffers is free at once. A lost \
+     link then ends the session, as on a node of podssh node --plain, with a line that says so, and the \
+     relay's limits of a session end it too. A node of an earlier podssh, which does not know the ask, \
+     keeps the session for its deadline as before, and a line says so; this side still does not resume it.",
     "With --pair-file, the pair comes from FILE, or its operator's part alone, as podssh relay pair \
      writes it for the operator, and the store is not used.",
     "--ConnectTimeout SECONDS, 1 to 86400, bounds the time from the start to the session's open: the \

@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/session/once.rs
++++ b/crates/podssh-relay/src/session/once.rs
+@@ -20,7 +20,7 @@
+ /// turned the resumes off.
+ pub fn asked(settings: &Settings) -> Vec<String> {
+     let mut names: Vec<String> = settings.features.iter().map(|name| name.to_string()).collect();
+-    if !settings.resumes && !names.iter().any(|name| name == ONCE) {
++    if false && !settings.resumes && !names.iter().any(|name| name == ONCE) {
+         names.push(ONCE.to_string());
+     }
+     names

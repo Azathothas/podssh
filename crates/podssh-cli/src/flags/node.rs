@@ -28,6 +28,17 @@ pub const SSH_ENV_FILE: FlagRow = row(None, "env-file", Some("FILE"), FlagKind::
 pub const OWN_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
     "node://NAME and iroh:TICKET: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
 
+/// `--no-resume` of the clients of a node (T-612): `ssh`, `cp`, `mv`, `scp`
+/// and `sftp`; then `operator`, `proxy` and `pipe`, each in its words.
+pub const NO_RESUME: FlagRow = row(None, "no-resume", None, FlagKind::Supported,
+    "node://NAME, iroh:TICKET, derp:TICKET, a node's cf://HOST and --exit NAME: no resume; the session ends with its link, and the node, asked so, keeps nothing of it after a loss; a node that does not know the ask keeps it as before, which a line says", None);
+pub const OPERATOR_NO_RESUME: FlagRow = row(None, "no-resume", None, FlagKind::Supported,
+    "no resume: the session ends with its link, and the node, asked so, keeps nothing of it after a loss; a node that does not know the ask keeps it as before, which a line says", None);
+pub const PROXY_NO_RESUME: FlagRow = row(None, "no-resume", None, FlagKind::Supported,
+    "node://NAME: no resume, as operator --no-resume: the session ends with its link, and the node keeps nothing of it after a loss", None);
+pub const PIPE_NO_RESUME: FlagRow = row(None, "no-resume", None, FlagKind::Supported,
+    "node:, udp:node: and iroh:: no resume, as operator --no-resume: each session ends with its link, and the node keeps nothing of it after a loss", None);
+
 /// `--exit NAME` of `ssh`, `cp`, `scp` and `sftp` (T-431).
 pub const EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
     "start the road at NAME, a node of your net that lends its egress (podssh node --exit): it dials the destination, or the first hop of -J, from its own host, on each road between the two; the host key is the destination's", None);

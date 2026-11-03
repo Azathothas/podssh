@@ -2,9 +2,10 @@
 //! offline, with a scratch HOME and cache: each refusal and its code, a pair
 //! file of either form, stdout that stays empty, and no token in any output.
 //! Through the stand-in relay of the reverse road (Python and openssl), an
-//! operator that its parent hangs up closes its session (T-586), and the
-//! bound of `--ConnectTimeout` ends a wait for `ready` that the relay's own
-//! limit would not (T-589).
+//! operator that its parent hangs up closes its session (T-586), the bound
+//! of `--ConnectTimeout` ends a wait for `ready` that the relay's own limit
+//! would not (T-589), and an operator of `--no-resume` whose link is lost
+//! leaves the node nothing (T-612).
 
 mod pair_harness;
 mod ssh_harness;
@@ -207,34 +208,28 @@ fn an_operator_that_its_parent_hangs_up_closes_the_session() {
     hung_up::run();
 }
 
-#[cfg(unix)]
-mod hung_up {
+/// The TARGET of a node of the tests through the stand-in relay, which
+/// counts its connections.
+mod target {
     use std::io::{Read, Write};
     use std::net::TcpListener;
-    use std::process::Stdio;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::{mpsc, Arc};
-    use std::time::{Duration, Instant};
-
-    use super::throughput_harness::{lines_of, wait_for, Cell, Session};
+    use std::sync::Arc;
+    use std::time::Duration;
 
     /// The line that the target writes to each connection.
-    const TARGET_LINE: &[u8] = b"the target's last line\n";
-    /// The bound on each wait for the operator: its bytes, its exit.
-    const LIMIT: Duration = Duration::from_secs(60);
-    /// How soon the node lets the target go after the signal.
-    const LET_GO: Duration = Duration::from_secs(3);
+    pub(super) const TARGET_LINE: &[u8] = b"the target's last line\n";
 
     /// A TCP service that writes [`TARGET_LINE`] to each connection, then
     /// reads it to its end, a minute at most: its port, the connections that
     /// it took, and those that ended.
-    struct Target {
-        port: u16,
-        opened: Arc<AtomicUsize>,
-        closed: Arc<AtomicUsize>,
+    pub(super) struct Target {
+        pub(super) port: u16,
+        pub(super) opened: Arc<AtomicUsize>,
+        pub(super) closed: Arc<AtomicUsize>,
     }
 
-    fn target() -> Target {
+    pub(super) fn target() -> Target {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let (opened, closed) = (Arc::new(AtomicUsize::new(0)), Arc::new(AtomicUsize::new(0)));
@@ -254,6 +249,23 @@ mod hung_up {
         });
         Target { port, opened, closed }
     }
+}
+
+#[cfg(unix)]
+mod hung_up {
+    use std::io::Read;
+    use std::process::Stdio;
+    use std::sync::atomic::Ordering;
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    use super::target::{target, TARGET_LINE};
+    use super::throughput_harness::{lines_of, wait_for, Cell, Session};
+
+    /// The bound on each wait for the operator: its bytes, its exit.
+    const LIMIT: Duration = Duration::from_secs(60);
+    /// How soon the node lets the target go after the signal.
+    const LET_GO: Duration = Duration::from_secs(3);
 
     pub(super) fn run() {
         let s = Session::start("op-hangup");
@@ -333,5 +345,114 @@ mod hung_up {
         };
         let lines: Vec<String> = said.try_iter().collect();
         assert_eq!(status.code(), Some(0), "the exit of a session that the node took: {lines:?}");
+    }
+}
+
+/// `--no-resume` (T-612): through the stand-in relay, an operator that asked
+/// for no resume, killed with its session open (so that it sends nothing
+/// more, as when its link is lost), leaves the node nothing: the relay tells
+/// the node of the loss, and the node shuts its connection to the target
+/// within 3 s. The control: an operator with no ask, killed the same way,
+/// leaves the session to a resume, and the node keeps that connection for its
+/// deadline. It says that it did not run where this host cannot run the
+/// stand-in.
+#[test]
+fn an_operator_of_no_resume_leaves_the_node_nothing_at_a_loss() {
+    no_resume::run();
+}
+
+mod no_resume {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+    use std::sync::atomic::Ordering;
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    use super::target::{target, Target, TARGET_LINE};
+    use super::throughput_harness::{lines_of, wait_for, Cell, Session};
+
+    /// The bound on the wait for the target's line.
+    const LIMIT: Duration = Duration::from_secs(60);
+    /// How soon the node lets the target go after the loss of a session of
+    /// --no-resume, and how long the control's connection stays held.
+    const LET_GO: Duration = Duration::from_secs(3);
+
+    /// Run `operator` until the target's line came on its stdout, then kill
+    /// it: the connections that the target took by then, the node's preflight
+    /// among them.
+    fn killed_after_the_line(operator: &mut Command, target: &Target) -> usize {
+        let mut child =
+            operator.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        // Its stdin stays open: only the kill ends the session.
+        let _stdin = child.stdin.take().expect("stdin");
+        let said = lines_of(&mut child);
+        let mut stdout = child.stdout.take().expect("stdout");
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let mut line = vec![0u8; TARGET_LINE.len()];
+            let _ = tx.send(stdout.read_exact(&mut line).map(|()| line));
+        });
+        let line = match rx.recv_timeout(LIMIT) {
+            Ok(Ok(line)) => line,
+            other => {
+                let _ = child.kill();
+                panic!("no line of the target ({other:?}): {:?}", said.try_iter().collect::<Vec<_>>());
+            }
+        };
+        assert_eq!(line, TARGET_LINE);
+        let took = target.opened.load(Ordering::SeqCst);
+        // The acknowledgements of the handshakes go out first, so that the
+        // node has nothing more to send on the session.
+        std::thread::sleep(Duration::from_millis(300));
+        child.kill().expect("the kill");
+        let _ = child.wait();
+        took
+    }
+
+    pub(super) fn run() {
+        let s = Session::start("op-no-resume");
+        let target = target();
+        let cell = match Cell::fake_relay_mode(&s, "normal", "the stand-in relay") {
+            Ok(cell) => cell,
+            Err((_, why)) => {
+                eprintln!("did not run: {why}");
+                return;
+            }
+        };
+        let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+        let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+        let command = |args: &[&str]| {
+            let words: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+            // The pins go before the verb's own words.
+            let mut cmd = s.stand_in(&words[..1], &ca);
+            cmd.args(["--relay-addr", "relay-a.test=127.0.0.1"]).args(&words[1..]);
+            cmd
+        };
+        let pairing = ["relay", "pair", "lab", "--relay-host", relay.as_str()];
+        let out = command(&pairing).stdin(Stdio::null()).output().unwrap();
+        assert!(out.status.success(), "podssh relay pair: {}", String::from_utf8_lossy(&out.stderr));
+        let at_target = format!("127.0.0.1:{}", target.port);
+        let mut node = command(&["node", "lab", at_target.as_str()]);
+        let mut node = node.stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
+        let node_lines = lines_of(&mut node);
+        s.keep(node);
+        wait_for(&node_lines, "online").expect("the node is online");
+
+        // --no-resume: the node lets the target go at once.
+        let took = killed_after_the_line(&mut command(&["operator", "--no-resume", "lab"]), &target);
+        let lost = Instant::now();
+        while target.closed.load(Ordering::SeqCst) < took {
+            if lost.elapsed() > LET_GO {
+                let lines: Vec<String> = node_lines.try_iter().collect();
+                panic!("the node still held its connection to the target {LET_GO:?} after the loss: {lines:?}");
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        // The control: with no ask, the node keeps the session and its
+        // connection, for a resume that does not come here.
+        let took = killed_after_the_line(&mut command(&["operator", "lab"]), &target);
+        std::thread::sleep(LET_GO);
+        let closed = target.closed.load(Ordering::SeqCst);
+        assert!(closed < took, "the node keeps a session of no --no-resume: {closed} of {took} connections closed");
     }
 }

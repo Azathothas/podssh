@@ -1,0 +1,8 @@
+# T-612: the client's OPEN names no once.v1 though its resumes are off, as
+# before: the far end never hears the ask and keeps the lost session, with
+# its target and a whole buffer of its budget, so the test of a session that
+# ends with its link must fail.
+ENTRY=T-612
+GROUP=resume
+EXPECT='test a_session_that_ends_with_its_link_leaves_the_far_end_nothing \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test session_newest -- a_session_that_ends_with_its_link_leaves_the_far_end_nothing'

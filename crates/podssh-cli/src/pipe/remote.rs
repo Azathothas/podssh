@@ -54,6 +54,7 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
         return Err(Refusal::usage("--exit NAME starts relay:HOST:PORT and relay:%h:%p at the exit: name one of them"));
     }
     carrier(args, addresses)?;
+    no_resume(args, addresses)?;
     let relays = if addresses.iter().any(relay) {
         Some(crate::relay_settings::relays(args.ssh.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok())?)
     } else {
@@ -94,6 +95,22 @@ fn carrier(args: &PipeArgs, addresses: [&Address; 2]) -> Result<(), Refusal> {
     if args.ssh.pair_file.is_some() {
         return Err(Refusal::usage("--pair-file is for a relay and its pair, and --carrier has neither"));
     }
+    Ok(())
+}
+
+/// `--no-resume` (T-612): each session of a `node:`, `udp:node:` or `iroh:`
+/// side ends with its link, which the node is asked for; a pipe with none
+/// has no session to ask for (64).
+fn no_resume(args: &PipeArgs, addresses: [&Address; 2]) -> Result<(), Refusal> {
+    if !args.ssh.no_resume {
+        return Ok(());
+    }
+    if !addresses.iter().any(|a| matches!(a, Address::Node(_) | Address::UdpNode(_) | Address::Iroh(_))) {
+        return Err(Refusal::usage(
+            "--no-resume ends the session of a node:, udp:node: or iroh: side with its link: name one",
+        ));
+    }
+    crate::no_resume::ask(true);
     Ok(())
 }
 

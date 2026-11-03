@@ -134,6 +134,8 @@ pub mod node_target;
 pub mod node_temp;
 // The soft limit of open files, raised at start within the hard one (T-564).
 pub mod nofile;
+// `--no-resume` of a client of a node (T-612).
+pub mod no_resume;
 pub mod non_interactive;
 pub mod operator;
 pub mod pager;

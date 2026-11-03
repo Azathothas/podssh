@@ -97,6 +97,9 @@ pub struct Link {
     /// Whether the client moves the session to a new link before the
     /// relay's limits: both named `move.v1`.
     moves: bool,
+    /// Whether the session ends with its link: its client asked, and the far
+    /// end knows the ask (T-612).
+    once: bool,
     failed: Option<LinkError>,
 }
 
@@ -114,6 +117,7 @@ impl Link {
             held: 0,
             heartbeat: false,
             moves: false,
+            once: false,
             failed: None,
         }
     }
@@ -140,6 +144,18 @@ impl Link {
     /// Whether the session moves before the relay's limits.
     pub fn moves(&self) -> bool {
         self.moves
+    }
+
+    /// End the session with its link, whatever the end (T-612): both sides
+    /// named `once.v1`.
+    pub fn with_once(mut self) -> Link {
+        self.once = true;
+        self
+    }
+
+    /// Whether the session ends with its link.
+    pub fn once(&self) -> bool {
+        self.once
     }
 
     /// Whether each side acknowledges the other's bytes: both named

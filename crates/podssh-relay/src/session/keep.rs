@@ -15,7 +15,9 @@
 //! but lost the link before it answered the `CLOSE`, keeps its id alone
 //! until the deadline: its target is shut and its buffer goes, and a resume
 //! hears the `CLOSE` again (T-586). Each slot is charged against the far
-//! end's budget by what it can hold ([`super::budget`]).
+//! end's budget by what it can hold ([`super::budget`]). A session whose
+//! client asked it to end with its link ([`super::once`], T-612) is
+//! forgotten, and its target shut, as its link ends, whatever the end.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -370,9 +372,11 @@ where
         L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let ended = pump::run(&mut app, link, decoder, &mut carry, watch).await;
-        if ended.end.resumable() && closed_but_unanswered(&ended.end, &carry) {
+        // Its client asked for no resume (T-612): nothing waits for one.
+        let kept = ended.end.resumable() && !lock(&carry.state).once();
+        if kept && closed_but_unanswered(&ended.end, &carry) {
             self.keep_id_alone(id, app, admitted).await;
-        } else if ended.end.resumable() {
+        } else if kept {
             self.idle(id, app, carry, admitted);
         } else {
             lock(&self.slots).remove(&id);

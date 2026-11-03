@@ -72,7 +72,7 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
     super::idle::PROXY_IDLE_WARN,
     // A node by its name, as operator reaches it (T-587).
     super::node::PROXY_PAIR_FILE, super::node::PROXY_NODE_KEY, super::node::PROXY_NO_E2E,
-    super::node::PROXY_DEADLINE,
+    super::node::PROXY_DEADLINE, super::node::PROXY_NO_RESUME,
     // A node at the other end of a stream, as operator reaches it (T-595).
     super::operator::PROXY_CARRIER,
     // The bound on the open of each road (T-589).

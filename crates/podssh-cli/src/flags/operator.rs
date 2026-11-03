@@ -21,6 +21,8 @@ pub const PAIR_FLAGS: &[FlagRow] = &[
     row(None, "no-e2e", None, FlagKind::Supported,
         "carry the bytes with no end-to-end channel, to a node that runs none either; the relay then sees them", None),
     super::node::OWN_DEADLINE,
+    // A session that ends with its link (T-612).
+    super::node::OPERATOR_NO_RESUME,
     OPERATOR_CONNECT_TIMEOUT,
     // The node at the other end of a stream that exists already (T-595).
     row(None, "carrier", Some("ADDR"), FlagKind::Supported,

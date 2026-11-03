@@ -40,6 +40,9 @@ pub struct OperatorArgs {
     pub no_e2e: bool,
     /// This client's own resume deadline, unparsed (T-306).
     pub resume_deadline: Option<String>,
+    /// `--no-resume`: the session ends with its link, which the node is
+    /// asked for (T-612).
+    pub no_resume: bool,
     /// `--ConnectTimeout SECONDS`, the bound on the session's open, unparsed
     /// (T-589).
     pub connect_timeout: Option<String>,
@@ -178,8 +181,10 @@ fn prepare(args: &OperatorArgs) -> Result<Prepared, Refusal> {
             "--client-key is this operator's key in the end-to-end channel, which --no-e2e turns off",
         ));
     }
-    // This client's own deadline only shortens the node's (T-306).
+    // This client's own deadline only shortens the node's (T-306), and
+    // --no-resume turns the resumes off (T-612).
     crate::layered::own_deadline(args.resume_deadline.as_deref())?;
+    crate::no_resume::ask(args.no_resume);
     crate::pins::apply(args.relay_addr.as_deref())?;
     let part = pairs::operator_part(&label, args.pair_file.as_deref())?;
     pairs::online()?;

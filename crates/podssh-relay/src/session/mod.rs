@@ -25,7 +25,8 @@
 //!   a far end keeps across links, charged against its [`budget`] (T-586);
 //! - [`deadline`]: how long each end waits for a new link (T-306), and
 //!   [`hearing`]: what the client heard from the far end, for a notice of
-//!   its silence (T-302);
+//!   its silence (T-302); [`once`]: a session that ends with its link, at
+//!   its client's ask (T-612);
 //! - [`sessions`]: the secrets and offsets that a far end keeps, by id.
 //!
 //! The records, the offsets, the secrets, the handshakes, the link and the
@@ -43,6 +44,7 @@ pub mod hearing;
 pub mod keep;
 pub mod link;
 pub mod offset;
+pub mod once;
 pub mod pump;
 pub mod race;
 pub mod record;
@@ -109,6 +111,11 @@ pub struct Settings {
     /// silent, so that a new address of the client resumes the session in
     /// seconds (T-305): off here, on in podssh's commands.
     pub spare_links: bool,
+    /// Whether the client carries the session across links (T-153). `false`
+    /// is `--no-resume` (T-612): the client asks the far end, in its `OPEN`,
+    /// to end the session with its link, and carries it on that link alone
+    /// ([`once`]). A far end reads its client's ask, never this.
+    pub resumes: bool,
 }
 
 impl Default for Settings {
@@ -123,6 +130,7 @@ impl Default for Settings {
             move_bytes: resume::MOVE_BYTES,
             move_age: resume::MOVE_AGE,
             spare_links: false,
+            resumes: true,
         }
     }
 }
@@ -159,6 +167,10 @@ impl Settings {
         // A move resends from the far end's offset: it needs the buffer.
         if named("move.v1") && named("replay.v1") {
             link = link.with_moves();
+        }
+        // The client asked, and the far end knows the ask (T-612).
+        if named(once::ONCE) {
+            link = link.with_once();
         }
         link
     }

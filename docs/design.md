@@ -742,7 +742,7 @@ functions of bytes only.
 | The latest screen, not each byte | Frames of the difference of screens, at most one each half round trip (20 to 250 ms), after 8 ms of collection, so Ctrl-C stops a flood within a round trip (paper §2.3; `src/network/transportsender.h:49-50`, `src/network/transportsender-impl.h:55-71`) | T-303, on request, to `podssh serve` |
 | No head-of-line blocking | Each datagram is an idempotent difference from a numbered state, so a lost one costs only itself (paper §2.2) | The iroh road carries a stream (T-162); datagrams: T-304 |
 | Congestion | A smoothed round trip and a timeout of 50 ms to 1 s, as TCP computes them; ECN slows the sender (`src/network/network.h:139-140`, `src/network/network.cc:461-500`) | TCP or QUIC under the layer; a rate limit for copies (T-145) |
-| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:442`, `crates/podssh-cli/src/layered.rs:453`); with the layer, a notice once a question waited 5 s with no answer, counting up: in the window's title, saved on the terminal's stack of titles and taken back, so the screen is not touched, where the terminal is known to keep that stack; a line with no pty (T-302, `docs/terminal.md`) |
+| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:453`, `crates/podssh-cli/src/layered.rs:464`); with the layer, a notice once a question waited 5 s with no answer, counting up: in the window's title, saved on the terminal's stack of titles and taken back, so the screen is not touched, where the terminal is known to keep that stack; a line with no pty (T-302, `docs/terminal.md`) |
 | A new client | Only the client process that holds the key comes back (paper §2.1; GitHub mobile-shell/mosh#394); mosh.org suggests screen or tmux | T-158 and T-159 attach from a new process; T-161 gives the screen |
 | Encryption | AES-128 in OCB mode, with a key that SSH carries (paper §2.2) | SSH, and the Noise channel above the layer (T-088) |
 | The start | SSH runs `mosh-server`, which prints a port and a key, then forks (`src/frontend/mosh-server.cc:450-462`); it listens on a UDP port of 60001 to 60999 (`src/network/network.h:142-143`) | No listener (`AGENTS.md`, section 5, rule 2): a node or a roost reaches out (T-083, T-166); a start from a standard sshd: T-167 |
@@ -813,7 +813,7 @@ nonce, a public key and a proof have 32 bytes, and a session id 16. Features
 are a count byte (16 at most), then each name as a length byte and 1 to 32
 bytes of `a-z`, `0-9`, `.`, `-` and `_`; a side ignores a name that it does
 not know (`replay.v1`, `heartbeat.v1` and `move.v1` come with T-152 to
-T-155; a far end's `deadline.SECONDS` with T-306). A reason is UTF-8, 1024
+T-155; a far end's `deadline.SECONDS` with T-306; `once.v1` with T-612). A reason is UTF-8, 1024
 bytes at most. The codes of `REFUSE`: 1 an
 unknown session, 2 a wrong proof, 3 an offset no longer kept, 4 the
 version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
@@ -932,6 +932,18 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   (GitHub #112). A refusal for the budget names what holds it: the sessions
   with a link, those that wait for their client, and when the first of
   those is forgotten.
+- **A session that ends with its link** (T-612, `--no-resume`), when both
+  sides name `once.v1`: the client names it in its `OPEN` only when its
+  user asked, and a far end that knows the ask names it in its `GREETING`
+  always. With both names the far end forgets the session and shuts its
+  target as the link ends, whatever the end (a loss, a `CLOSE` with no
+  answer, a stop), so its budget holds nothing of it after; the client
+  carries the session on its first link alone, with no resume, no move and
+  no spare link, and the relay's limits end it too. A far end that does not
+  know the name ignores it and keeps the session for its deadline, and the
+  client, which sees no `once.v1` among the names that both gave, says so
+  and still does not resume. A resume of such a session, which no podssh
+  client sends, finds it forgotten.
 - **A move** (T-155), when both sides name `move.v1` and
   `replay.v1`. At 48 MiB of a link both ways, or at 11 h, the client opens a
   new link and waits for its `GREETING` while the old link carries the

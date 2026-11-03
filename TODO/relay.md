@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:295-304`).
+   and above all not the `stop_token` (`docs/reverse.md:298-307`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -791,7 +791,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:121-296`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:177-215`); the variable to VARIABLES and the modes to THE
+   (`crates/podssh-cli/src/ssh/args.rs:180-218`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:46-298`, 170-183); both to `docs/relay.md:84-127`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:209-223`,
    `crates/podssh-cli/src/man/data.rs:168-176`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:243-319`).
+   notes (`crates/podssh-cli/src/man/notes.rs:247-323`).
 
 ## Decision
 
@@ -1063,7 +1063,7 @@ Lifted on 2026-11-02 by Q63: see below.
 The Premise, a measurement of the default deployment, stands. Approach item 2 says that podssh
 "already says what happened" (`crates/podssh-relay/src/relay.rs:204-207`): true, but the direct
 road after the relay hosts (T-363) does not run in this case. It runs only when no relay host
-opened a session, and never with `-4` or `-6` (`docs/cli.md:384-388`); here the relay opened
+opened a session, and never with `-4` or `-6` (`docs/cli.md:390-394`); here the relay opened
 (101), then closed with 1011.
 
 By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh

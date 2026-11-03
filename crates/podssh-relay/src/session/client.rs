@@ -18,6 +18,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError, Step};
 use super::hearing::Hearing;
+use super::once;
 use super::pump::{self, Carry, Ended};
 use super::record::{kind, Record, Role};
 use super::secret::{Entropy, SessionId};
@@ -220,8 +221,11 @@ where
             let found = Found::Plain { first: first.first().copied() };
             return Ok(Client { link, found, early: first, layer: None, settings, hearing: Arc::default() });
         }
-        let (handshake, open) =
-            ClientHandshake::start(ask, settings.features, entropy).map_err(ClientError::Handshake)?;
+        // The `OPEN` names the features, and the ask of a session that ends
+        // with its link when the user turned the resumes off (T-612).
+        let named = once::asked(&settings);
+        let named: Vec<&str> = named.iter().map(String::as_str).collect();
+        let (handshake, open) = ClientHandshake::start(ask, &named, entropy).map_err(ClientError::Handshake)?;
         let mut buf = vec![0u8; 64 * 1024];
         let mut decoder = Decoder::new();
         decoder.push(&first);

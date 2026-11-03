@@ -48,7 +48,7 @@ pub const PROXY: &[&str] = &[
     "podssh proxy node://NAME[/ROUTE] is the pipe of podssh operator NAME[/ROUTE] (see its notes): stdin to \
      the node of the pair under the label NAME, and the bytes of its TARGET, or of its ROUTE, to stdout, with \
      the pair stored under NAME or that of --pair-file, the end-to-end channel and its flags --client-key, \
-     --node-key and --no-e2e, --resume-deadline, and the same exit codes. As the ProxyCommand of OpenSSH: ssh \
+     --node-key and --no-e2e, --resume-deadline, --no-resume, and the same exit codes. As the ProxyCommand of OpenSSH: ssh \
      -o ProxyCommand='podssh proxy node://NAME' user@NAME. The node names the service, so a PORT is refused \
      (64), as are the relay's flags (--relay-host, --relay-failover), --forwarder, --shadowsocks, --via, \
      --vless, --wstunnel, --exit and --idle-warn, each of which takes the relay's place or speaks of it; \

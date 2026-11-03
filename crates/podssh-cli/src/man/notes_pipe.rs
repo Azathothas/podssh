@@ -100,7 +100,9 @@ pub const PIPE: &[&str] = &[
      until it closes, as a named pipe's do, whose listening side closes it at its end of input; node: \
      and iroh: end their session. With a node: side, SIGHUP, SIGTERM and SIGINT end the node's session \
      as an end of input does, so that the node keeps nothing of it, and the road's status is then 0 \
-     when the node took the session (see podssh operator). The pipe ends when both \
+     when the node took the session (see podssh operator). --no-resume ends the session of each node:, \
+     udp:node: and iroh: side with its link, as podssh operator --no-resume does, and a pipe with none of \
+     them refuses it (64). The pipe ends when both \
      have ended, when a side's reader is gone, when a program has exited and its output has ended, or \
      when a road has ended. podssh waits for each program, as a shell does.",
     "A road that failed gives the exit status, as podssh proxy gives it: 69 for a road out of reach, 77 \

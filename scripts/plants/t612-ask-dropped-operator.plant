@@ -1,0 +1,10 @@
+# T-612: the ask dropped from the client's OPEN, as before: `podssh operator
+# --no-resume` killed with its session open leaves the node a session that it
+# keeps, with its connection to the target, so the operator's test through
+# the stand-in relay (Python and openssl) must fail.
+ENTRY=T-612
+GROUP=resume-cli
+EXPECT='test an_operator_of_no_resume_leaves_the_node_nothing_at_a_loss \.\.\. FAILED'
+SETUP='apk add --no-cache python3 openssl'
+RUN='cargo test --locked -p podssh-cli --test operator -- an_operator_of_no_resume_leaves_the_node_nothing_at_a_loss'
+LIMIT=2700
