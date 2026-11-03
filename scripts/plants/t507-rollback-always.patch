@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/update/keep.rs
++++ b/crates/podssh-cli/src/update/keep.rs
+@@ -21,7 +21,7 @@
+
+ /// Whether the binary of `version` has `podssh update --rollback`.
+ pub fn has_rollback(version: &Version) -> bool {
+-    Version::parse(ROLLBACK_SINCE).is_some_and(|first| *version >= first)
++    Version::parse(ROLLBACK_SINCE).is_some_and(|first| *version >= first || first.is_prerelease())
+ }
+
+ /// The command that moves `prev` over `exe` with no podssh: `mv`, its paths

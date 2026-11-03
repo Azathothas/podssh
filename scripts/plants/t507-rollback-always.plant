@@ -1,0 +1,8 @@
+# T-507: the check of the version always true, as before the entry: an update
+# to 1.0.0-beta.3, whose binary has no --rollback, names podssh update
+# --rollback as the way back; the test of the update to beta.3 must fail.
+ENTRY=T-507
+GROUP=cli-tests
+EXPECT='test update_keep::the_way_back_names_rollback_only_for_a_release_that_has_it \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test update -- update_keep::the_way_back_names_rollback_only_for_a_release_that_has_it'
+LIMIT=2400

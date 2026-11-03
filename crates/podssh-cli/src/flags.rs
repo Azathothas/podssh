@@ -346,7 +346,7 @@ pub use run::RUN_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 pub use session::SESSION_FLAGS;
 pub use ts::TS_FLAGS;
-pub use update::UPDATE_FLAGS;
+pub use update::{ROLLBACK_SINCE, UPDATE_FLAGS};
 
 /// One verb: its names, its flags, and the flag table its `-P` belongs to.
 #[derive(Clone, Copy)]

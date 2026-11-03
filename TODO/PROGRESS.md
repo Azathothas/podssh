@@ -152,7 +152,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 547 entries: 114 open, 3 partial, 16 blocked, 414 done.
+`TODO/INDEX.md` holds 547 entries: 113 open, 3 partial, 16 blocked, 415 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -219,13 +219,13 @@ Between entries: the `none` entries, the highest priority first, but for the tes
 defects of the issues of the testers of `v1.0.0` (GitHub #83 to #111) and of the testers' bundle
 and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones before any other
 (T-465, a test that failed once), then the P2 ones
-(T-480, T-560, T-563), then the P3 one (T-507), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
+(T-480, T-560, T-563), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
 features and documents (T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
 to T-533, T-561, T-562, T-564, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed) follow, by priority, beside M10 (Q85); `v1.0.1`
 goes out unattended once the defects pass the checks of a release (Q87). Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts wait to be merged
-(`.claude/worktrees/agent-*`): the defects T-507, T-560 and T-563, and the features T-561, T-562,
+(`.claude/worktrees/agent-*`): the defects T-560 and T-563, and the features T-561, T-562,
 T-564, T-483, T-488 and T-489; T-480 waits for `cgroup-interop.yml`.
 
 **Skip** the entries that the operator holds (status

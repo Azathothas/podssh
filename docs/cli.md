@@ -3702,6 +3702,16 @@ asked: no other command looks for a release. `podssh update --rollback`
   a detached run (T-390) can start `podssh.prev` after the new binary
   failed to start again and again: `update::keep::fallback` names it, and
   changes no file.
+- **The way back that the line names (T-507).** The kept file itself:
+  `mv podssh.prev podssh`, with the paths of this host (on Windows `cmd /c
+  move /Y`, which cmd and PowerShell both run), needs no podssh and is
+  always named. `--rollback` came in `1.0.0-beta.4` (`ROLLBACK_SINCE`
+  beside its flag row); `--version` can install a release before it, whose
+  binary says "unknown flag '--rollback'" (64), so the line names
+  `podssh update --rollback` beside the move only when the version now in
+  place has it, by the version that the trial read: no second run of the
+  new binary. The line of `--rollback` says the same of the binary that
+  it put back.
 - **Through the proxy.** Each connection goes through `HTTPS_PROXY` when it
   is set, one after another: the list, then each file, through the redirect
   that GitHub gives an asset, whose query is a credential of the moment and

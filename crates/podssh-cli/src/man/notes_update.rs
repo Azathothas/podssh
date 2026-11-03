@@ -22,6 +22,11 @@ pub const UPDATE: &[&str] = &[
      place, so that a second --rollback goes forward again. A run that started before, as an installed node, \
      goes on with its own binary until it starts again. With nothing kept the exit is 69; with a kept binary \
      that does not run here, 65, and nothing changes; with --check or --version, 64.",
+    "THE WAY BACK is the kept file itself: mv podssh.prev podssh puts it back with no podssh (on Windows, cmd \
+     /c move /Y podssh.prev.exe podssh.exe, which PowerShell runs too), and the last line of an update names \
+     that command with its paths. --rollback is in 1.0.0-beta.4 and later: the line names it beside the move \
+     only when the binary now in place has it, as the binary of an older release, which --version can install, \
+     refuses it as an unknown flag. The line of --rollback says the same of the binary that it put back.",
     "Exit 0 when the binary was replaced, or there was nothing to do; 69 when GitHub, the release or one of \
      its files did not come; 65 when a check failed, the run of the new binary too; 73 when the binary could \
      not be replaced, as in a directory that this user cannot write; 78 when no release has a binary for this \

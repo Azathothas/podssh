@@ -316,11 +316,10 @@ pub async fn update(opts: &Options, check: bool, asked: Option<&Version>, out: &
     })?;
     let _ = writeln!(out, "{name}: it ran here, and said {}", replaced.said);
     let _ = writeln!(out, "{exe}: replaced; it is podssh {version} now");
+    // The way back that the binary now in place can run (T-507).
     let _ = match &replaced.prev {
-        Ok(prev) => {
-            writeln!(out, "the binary before it is {}: podssh update --rollback puts it back", replace::shown(prev))
-        }
-        Err(why) => writeln!(out, "the binary before it is not kept ({why}): podssh update --rollback has none"),
+        Ok(prev) => writeln!(out, "{}", keep::way_back(prev, &opts.exe, &version)),
+        Err(why) => writeln!(out, "the binary before it is not kept ({why}): there is none to put back"),
     };
     Ok(())
 }
