@@ -26,6 +26,8 @@
 //! - [`probe`]: one connection inside a tunnel that has just opened, so that
 //!   a front door which takes TLS and relays nothing is named as such
 //!   (T-560).
+//! - [`endpoints`]: the device's endpoints in turn, the one that last opened
+//!   first, then the record's and the API's peers, one at a time (T-561).
 //!
 //! Its rules are podssh's: one outbound connection, through `HTTPS_PROXY`
 //! when one is set; no listener and no TUN device; no credential in output.
@@ -35,6 +37,7 @@ pub mod capsule;
 pub mod der;
 pub mod device;
 pub mod dns;
+pub mod endpoints;
 // The far end of the stand-in takes connections inside its tunnel.
 #[cfg(any(test, feature = "stand-in"))]
 pub mod inside;
@@ -61,6 +64,9 @@ pub use stream::Stream;
 /// on 2026-10-31, and usque's HTTP/2 mode dials this one (its
 /// `config/endpoints.go`, `DefaultEndpointH2V4`).
 pub const ENDPOINT_H2: &str = "162.159.198.2:443";
+/// The port of HTTP/2 at each endpoint, the API's peers too (T-561): the
+/// port of a peer in the API's answer is QUIC's or WireGuard's, or 0.
+pub const PORT_H2: u16 = 443;
 /// The name that the client sends in TLS (usque's `internal/consts.go`,
 /// `ConnectSNI`).
 pub const SERVER_NAME: &str = "consumer-masque.cloudflareclient.com";

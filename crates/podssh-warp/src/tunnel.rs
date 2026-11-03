@@ -9,6 +9,7 @@
 //! [`pump`] moves the packets of such a stream both ways, for the client and
 //! for the stand-in's far end alike.
 
+use std::net::SocketAddr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
@@ -92,10 +93,18 @@ pub fn client_builder() -> h2::client::Builder {
     builder
 }
 
-/// Open the tunnel of `device`, through `proxy`, each step within `limit`.
-pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Link, Opening> {
-    let (ip, port) = (device.endpoint.ip().to_string(), device.endpoint.port());
-    let tcp = dial::dial(&ip, port, proxy, limit).await.map_err(Opening::Dial)?;
+/// Open the tunnel of `device` at `endpoint`, through `proxy`: the dial
+/// within `dial_limit`, which is shorter while another endpoint waits after
+/// this one (T-561), and each later step within `limit`.
+pub async fn open(
+    device: &Device,
+    endpoint: SocketAddr,
+    proxy: &ProxyChoice,
+    dial_limit: Duration,
+    limit: Duration,
+) -> Result<Link, Opening> {
+    let (ip, port) = (endpoint.ip().to_string(), endpoint.port());
+    let tcp = dial::dial(&ip, port, proxy, dial_limit).await.map_err(Opening::Dial)?;
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     // A certificate from a minute ago, for a clock a little ahead of the edge's.
     let (config, pinned) = crate::tls::config(&device.key, &device.endpoint_point, now - 60).map_err(Opening::Local)?;

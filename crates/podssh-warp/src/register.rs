@@ -10,6 +10,7 @@
 //! them; T-352's Decision). A team's token (a Cloudflare One organization)
 //! goes in `CF-Access-Jwt-Assertion`, as usque sends it.
 
+use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::Engine as _;
@@ -173,6 +174,36 @@ pub struct Answer {
     pub endpoint_key: Option<String>,
     pub address_v4: Option<String>,
     pub address_v6: Option<String>,
+    /// The endpoints of its peers, on port 443 (T-561).
+    pub peers: Vec<SocketAddr>,
+}
+
+/// The endpoints of the peers of a device's answer (T-561): each peer's
+/// `endpoint.v4`, then its `endpoint.v6`, on port 443 whatever port the
+/// answer gives (`:0` for MASQUE, WireGuard's for a new device), as HTTP/2
+/// is served on 443; a name, or a text that is no address, is passed by,
+/// as the names of MASQUE had no A record. usque keeps them as its
+/// endpoints of QUIC, and dials 162.159.198.2 for HTTP/2.
+pub fn peers(value: &serde_json::Value) -> Vec<SocketAddr> {
+    let mut out = Vec::new();
+    let Some(peers) = value["config"]["peers"].as_array() else { return out };
+    for peer in peers {
+        for family in ["v4", "v6"] {
+            let Some(text) = peer["endpoint"][family].as_str() else { continue };
+            let ip = match text.parse::<SocketAddr>() {
+                Ok(at) => at.ip(),
+                Err(_) => match text.trim_start_matches('[').trim_end_matches(']').parse::<IpAddr>() {
+                    Ok(ip) => ip,
+                    Err(_) => continue,
+                },
+            };
+            let at = SocketAddr::new(ip, crate::PORT_H2);
+            if !out.contains(&at) {
+                out.push(at);
+            }
+        }
+    }
+    out
 }
 
 /// The parts of a device's answer (usque's `models.AccountData`).
@@ -192,6 +223,7 @@ pub fn read_answer(body: &[u8]) -> Result<Answer, String> {
         endpoint_key: text(&peer["public_key"]),
         address_v4: text(&addresses["v4"]),
         address_v6: text(&addresses["v6"]),
+        peers: peers(&value),
     })
 }
 
@@ -244,7 +276,9 @@ pub async fn register(api: &Api, team: Option<&str>, now: SystemTime) -> Result<
     let endpoint = crate::ENDPOINT_H2.parse().map_err(|_| Fault::Local("the endpoint of HTTP/2".into()))?;
     let v4 = enrolled.address_v4.and_then(|t| t.parse::<std::net::Ipv4Addr>().ok());
     let v6 = enrolled.address_v6.and_then(|t| t.parse::<std::net::Ipv6Addr>().ok());
-    Device::new(made.id, token.to_string(), key, &pem, endpoint, v4, v6, tos, team.is_some()).map_err(Fault::Answer)
+    let device = Device::new(made.id, token.to_string(), key, &pem, endpoint, v4, v6, tos, team.is_some());
+    // The API's own peers, after the endpoint of HTTP/2 (T-561).
+    device.map(|device| device.with_peers(enrolled.peers)).map_err(Fault::Answer)
 }
 
 /// The device's record as WARP's API holds it now: `GET /reg/ID` with the
@@ -331,7 +365,28 @@ mod tests {
         assert_eq!(answer.endpoint_key.as_deref(), Some("PEM"));
         assert_eq!(answer.address_v4.as_deref(), Some("172.16.0.2"));
         assert_eq!(answer.address_v6.as_deref(), Some("2606:4700::1"));
+        assert_eq!(answer.peers, vec!["162.159.198.1:443".parse::<SocketAddr>().unwrap()]);
         assert!(read_answer(br#"{"id":"../x"}"#).is_err());
         assert!(read_answer(b"not json").is_err());
+    }
+
+    /// Each peer's IPv4 then IPv6, on port 443 whatever the answer's port;
+    /// a bare address too; a name, a text that is no address and a peer seen
+    /// twice are passed by (T-561).
+    #[test]
+    fn the_peers_of_an_answer_are_read_v4_then_v6_on_port_443() {
+        let body = serde_json::json!({"config": {"peers": [
+            {"endpoint": {"v4": "162.159.198.1:0", "v6": "[2606:4700:103::]:0", "host": "engage.example:2408"}},
+            {"endpoint": {"v4": "162.159.192.1:2408", "v6": "2606:4700:d0::a29f:c001"}},
+            {"endpoint": {"v4": "not an address", "v6": "[2606:4700:103::]:0"}},
+            {"public_key": "no endpoint"}
+        ]}});
+        let want: Vec<SocketAddr> =
+            ["162.159.198.1:443", "[2606:4700:103::]:443", "162.159.192.1:443", "[2606:4700:d0::a29f:c001]:443"]
+                .iter()
+                .map(|t| t.parse().unwrap())
+                .collect();
+        assert_eq!(peers(&body), want);
+        assert_eq!(peers(&serde_json::json!({"config": {}})), Vec::<SocketAddr>::new());
     }
 }

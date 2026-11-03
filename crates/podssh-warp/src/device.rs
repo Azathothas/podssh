@@ -42,6 +42,13 @@ struct Record {
     /// Whether a team's token enrolled it (a Cloudflare One organization).
     #[serde(default)]
     team: bool,
+    /// The endpoints of the API's peers, each `ADDRESS:443`, tried after
+    /// `endpoint` (T-561); a record of before has none.
+    #[serde(default)]
+    peers: Vec<String>,
+    /// The endpoint that last opened the tunnel, tried first (T-561).
+    #[serde(default)]
+    reached: Option<String>,
 }
 
 /// A registered device.
@@ -54,7 +61,8 @@ pub struct Device {
     pub endpoint_point: Vec<u8>,
     /// The endpoint's key as the API gave it, PEM.
     pub endpoint_pem: String,
-    /// Where the edge serves HTTP/2.
+    /// Where the edge serves HTTP/2: the record's endpoint, 162.159.198.2:443
+    /// since the registration.
     pub endpoint: SocketAddr,
     pub address_v4: Option<Ipv4Addr>,
     pub address_v6: Option<Ipv6Addr>,
@@ -64,6 +72,15 @@ pub struct Device {
     /// setting of the run, which the record never holds. Cloudflare's
     /// resolver of a family that the device has; none skips the probe.
     pub probe: Option<SocketAddr>,
+    /// The endpoints of the API's peers, on port 443, tried after
+    /// `endpoint` (T-561).
+    pub peers: Vec<SocketAddr>,
+    /// The endpoint that last opened the tunnel, tried first; a run that
+    /// opens none forgets it (T-561).
+    pub reached: Option<SocketAddr>,
+    /// The one endpoint of the run (`PODSSH_WARP_ENDPOINT`, a stand-in),
+    /// tried alone: a setting of the run, never of the record.
+    pub only: Option<SocketAddr>,
 }
 
 impl fmt::Debug for Device {
@@ -76,6 +93,9 @@ impl fmt::Debug for Device {
             .field("registered", &self.registered)
             .field("team", &self.team)
             .field("probe", &self.probe)
+            .field("peers", &self.peers)
+            .field("reached", &self.reached)
+            .field("only", &self.only)
             .finish_non_exhaustive()
     }
 }
@@ -111,6 +131,9 @@ impl Device {
             registered,
             team,
             probe: None,
+            peers: Vec::new(),
+            reached: None,
+            only: None,
         };
         device.probe = crate::probe::target(&device.addresses());
         Ok(device)
@@ -141,6 +164,8 @@ impl Device {
             address_v6: self.address_v6.map(|a| a.to_string()),
             registered: self.registered.clone(),
             team: self.team,
+            peers: self.peers.iter().map(SocketAddr::to_string).collect(),
+            reached: self.reached.map(|at| at.to_string()),
         };
         let text = serde_json::to_string_pretty(&record).unwrap_or_default();
         let Record { mut token, mut key, .. } = record;
@@ -154,8 +179,20 @@ impl Device {
         // serde_json's words can quote a value, so only its place is said.
         let record: Record = serde_json::from_str(text)
             .map_err(|e| format!("not a record of a device (line {}, column {})", e.line(), e.column()))?;
-        let Record { version, id, token, key, endpoint_key, endpoint, address_v4, address_v6, registered, team } =
-            record;
+        let Record {
+            version,
+            id,
+            token,
+            key,
+            endpoint_key,
+            endpoint,
+            address_v4,
+            address_v6,
+            registered,
+            team,
+            peers,
+            reached,
+        } = record;
         let (token, key_text) = (Zeroizing::new(token), Zeroizing::new(key));
         if version != VERSION {
             return Err(format!("a record of version {version}, where podssh reads {VERSION}"));
@@ -170,14 +207,48 @@ impl Device {
             endpoint.parse().map_err(|_| format!("its endpoint {endpoint:?} is not ADDRESS:PORT"))?;
         let v4 = parse_opt::<Ipv4Addr>(address_v4.as_deref(), "address_v4")?;
         let v6 = parse_opt::<Ipv6Addr>(address_v6.as_deref(), "address_v6")?;
-        Device::new(id, token.to_string(), key, &endpoint_key, endpoint, v4, v6, registered, team)
+        let peers = peers
+            .iter()
+            .map(|peer| peer.parse::<SocketAddr>().map_err(|_| format!("its peer {peer:?} is not ADDRESS:PORT")))
+            .collect::<Result<Vec<_>, _>>()?;
+        let reached = reached
+            .filter(|at| !at.is_empty())
+            .map(|at| at.parse::<SocketAddr>().map_err(|_| format!("its reached {at:?} is not ADDRESS:PORT")))
+            .transpose()?;
+        let mut device = Device::new(id, token.to_string(), key, &endpoint_key, endpoint, v4, v6, registered, team)?
+            .with_peers(peers);
+        device.reached = reached;
+        Ok(device)
     }
 
-    /// The same device at another endpoint (`PODSSH_WARP_ENDPOINT`, or a
-    /// stand-in).
+    /// The same device with one endpoint for the run (`PODSSH_WARP_ENDPOINT`,
+    /// or a stand-in), tried alone (T-561); the record's endpoint, its peers
+    /// and the one that last opened stay as they are.
     pub fn at(mut self, endpoint: SocketAddr) -> Device {
-        self.endpoint = endpoint;
+        self.only = Some(endpoint);
         self
+    }
+
+    /// The same device with the endpoints of the API's `peers` (T-561).
+    pub fn with_peers(mut self, peers: Vec<SocketAddr>) -> Device {
+        self.peers = peers;
+        self
+    }
+
+    /// The endpoints that a run tries, in turn (T-561): the run's one
+    /// endpoint alone when it has one; else the one that last opened, the
+    /// record's endpoint of HTTP/2, then the API's peers, each once.
+    pub fn endpoints(&self) -> Vec<SocketAddr> {
+        if let Some(only) = self.only {
+            return vec![only];
+        }
+        let mut out: Vec<SocketAddr> = Vec::new();
+        for at in self.reached.into_iter().chain([self.endpoint]).chain(self.peers.iter().copied()) {
+            if !out.contains(&at) {
+                out.push(at);
+            }
+        }
+        out
     }
 
     /// The same device with the probe of its tunnel at `probe`, or with none
@@ -249,6 +320,35 @@ mod tests {
         assert_eq!(again.endpoint_point, first.endpoint_point);
         assert_eq!(again.endpoint, first.endpoint);
         assert_eq!(again.addresses(), first.addresses());
+    }
+
+    /// The record keeps the API's peers and the endpoint that last opened;
+    /// a record of before T-561 reads with neither. The endpoints go in turn:
+    /// the one that opened, the record's, then the peers, each once; the
+    /// run's one endpoint alone, which the record does not keep.
+    #[test]
+    fn the_endpoints_go_in_turn_and_the_record_keeps_them() {
+        let texts = ["162.159.198.1:443", "[2606:4700:103::]:443"];
+        let peers: Vec<SocketAddr> = texts.iter().map(|p| p.parse().unwrap()).collect();
+        let mut first = device().with_peers(peers.clone());
+        first.reached = Some(peers[1]);
+        let again = Device::from_json(&first.to_json()).unwrap();
+        assert_eq!((again.peers.clone(), again.reached), (peers.clone(), Some(peers[1])));
+        let h2: SocketAddr = crate::ENDPOINT_H2.parse().unwrap();
+        assert_eq!(again.endpoints(), vec![peers[1], h2, peers[0]]);
+        let only: SocketAddr = "127.0.0.1:4443".parse().unwrap();
+        let run = again.clone().at(only);
+        assert_eq!(run.endpoints(), vec![only]);
+        let kept = Device::from_json(&run.to_json()).unwrap();
+        assert_eq!((kept.endpoint, kept.only, kept.reached), (h2, None, Some(peers[1])));
+        let mut record: serde_json::Value = serde_json::from_str(&device().to_json()).unwrap();
+        let fields = record.as_object_mut().unwrap();
+        fields.remove("peers");
+        fields.remove("reached");
+        let before = Device::from_json(&record.to_string()).unwrap();
+        assert_eq!((before.peers.len(), before.reached, before.endpoints()), (0, None, vec![h2]));
+        record["peers"] = serde_json::json!(["not an address"]);
+        assert!(Device::from_json(&record.to_string()).unwrap_err().contains("its peer"));
     }
 
     /// The probe goes to the resolver of the device's IPv4 by default; its

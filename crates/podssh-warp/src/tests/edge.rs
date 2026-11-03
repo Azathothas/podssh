@@ -111,7 +111,7 @@ async fn an_endpoint_of_another_key_is_not_trusted() {
         false,
     )
     .unwrap();
-    let opened = tunnel::open(&device, &ProxyChoice::Direct, LIMIT).await;
+    let opened = tunnel::open(&device, device.endpoint, &ProxyChoice::Direct, LIMIT, LIMIT).await;
     assert!(matches!(opened, Err(Opening::Intercepted { .. })), "{:?}", opened.err());
     let first = Warp::open(&device, &ProxyChoice::Direct, LIMIT).await.unwrap_err();
     assert!(matches!(&first, Fault::Intercepted(line) if line.contains("re-terminates TLS")), "{first:?}");

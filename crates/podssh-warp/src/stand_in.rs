@@ -251,6 +251,11 @@ impl StandIn {
         self.seen.tunnels.load(Ordering::SeqCst)
     }
 
+    /// The TLS connections that it accepted.
+    pub fn connections(&self) -> usize {
+        self.seen.connections.load(Ordering::SeqCst)
+    }
+
     /// End each connection of a client at once, with no word.
     pub fn cut(&self) {
         self.seen.cut.send_replace(true);

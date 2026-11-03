@@ -138,6 +138,11 @@ async fn a_registration_gives_a_device_with_the_endpoint_s_key() {
     assert_eq!(device.token(), TOKEN);
     assert_eq!(device.endpoint_point, endpoint.point());
     assert_eq!(device.endpoint, crate::ENDPOINT_H2.parse::<std::net::SocketAddr>().unwrap());
+    // The API's own peers, on port 443, after the endpoint of HTTP/2 (T-561).
+    let peers = ["162.159.198.1:443", "[2606:4700:103::]:443"];
+    let peers: Vec<std::net::SocketAddr> = peers.iter().map(|p| p.parse().unwrap()).collect();
+    assert_eq!(device.peers, peers);
+    assert_eq!(device.endpoints()[0], device.endpoint);
     assert_eq!(device.address_v4, Some(Ipv4Addr::new(172, 16, 0, 2)));
     assert!(!device.team);
     let asked = stand_in.asked.lock().unwrap_or_else(PoisonError::into_inner).clone();
@@ -161,6 +166,7 @@ async fn a_registration_gives_a_device_with_the_endpoint_s_key() {
     // The record keeps it all, for the next run.
     let again = crate::Device::from_json(&device.to_json()).unwrap();
     assert_eq!(again.endpoint_point, device.endpoint_point);
+    assert_eq!(again.peers, device.peers);
 }
 
 /// A team's token goes in its header, on the registration alone.

@@ -1,9 +1,9 @@
 --- a/crates/podssh-warp/src/road.rs
 +++ b/crates/podssh-warp/src/road.rs
-@@ -269,7 +269,7 @@
-     async fn over(device: &Device, link: Link, proxy: Option<String>, limit: Duration) -> Result<Warp, Fault> {
+@@ -339,7 +339,7 @@
+     ) -> Result<Warp, Fault> {
          let stack = Stack::start(&device.addresses(), link).map_err(Fault::Local)?;
-         let mut warp = Warp { stack, endpoint: device.endpoint, proxy, probed: None };
+         let mut warp = Warp { stack, endpoint, proxy, probed: None };
 -        let Some(to) = device.probe else { return Ok(warp) };
 +        let Some(to) = device.probe.filter(|_| false) else { return Ok(warp) };
          match crate::probe::run(&warp.stack, to, limit).await {

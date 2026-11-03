@@ -1,8 +1,9 @@
 //! The device of WARP's road, in a build with the feature `warp`: read from
 //! its record in the cache, else registered once, with the user's
 //! acceptance of the Terms, and kept; its tunnel, with a new key of the
-//! endpoint that WARP's API gives kept in the record (T-399); and the exit
-//! code of each fault.
+//! endpoint that WARP's API gives (T-399), the API's peers and the endpoint
+//! that opened (T-561) kept in the record; the run's settings of the
+//! endpoint and of the probe (T-560); and the exit code of each fault.
 
 use std::time::SystemTime;
 
@@ -129,41 +130,59 @@ pub async fn device(
     for_run(device)
 }
 
-/// The tunnel of `device` through the environment's proxy (T-399): a
-/// certificate of another key than the record's sends the road to WARP's
-/// API for the device's record again, through the same proxy and with
-/// `trust`, and a new key that the API gives is kept in the record of the
-/// cache, as the front door shows it.
+/// What the road learns of a device in a run, which its record keeps: the
+/// endpoint's key that WARP's API gave (T-399), the API's peers and the
+/// endpoint that opened (T-561).
+type Learnt = (Vec<u8>, Vec<std::net::SocketAddr>, Option<std::net::SocketAddr>);
+
+fn learnt(device: &Device) -> Learnt {
+    (device.endpoint_point.clone(), device.peers.clone(), device.reached)
+}
+
+/// The tunnel of `device` through the environment's proxy, at each of its
+/// endpoints in turn (T-561): a certificate of another key than the
+/// record's sends the road to WARP's API for the device's record again,
+/// through the same proxy and with `trust` (T-399). A new key that the API
+/// gives, its peers and the endpoint that opened are kept in the record of
+/// the cache.
 pub async fn tunnel(device: &mut Device, trust: &Trust, verbose: &(dyn Fn(&str) + Sync)) -> Result<Warp, Fault> {
     let limit = podssh_relay::open::CONNECT_TIMEOUT;
     let proxy = ProxyChoice::FromEnvironment;
     let api = Api::cloudflare(trust.clone(), proxy.clone(), limit);
-    let pinned = device.endpoint_point.clone();
+    let before = learnt(device);
     if device.probe.is_none() {
         verbose(&format!("{PROBE_ENV}=no: WARP's tunnel is taken as it opens, with no packet through it proven"));
     }
     let opened = Warp::open_reading(device, &api, &proxy, limit).await;
-    if device.endpoint_point != pinned {
-        keep_key(device, verbose);
+    if learnt(device) != before {
+        keep(device, verbose);
     }
-    if let Ok(Some(to)) = opened.as_ref().map(|warp| warp.probed) {
-        verbose(&format!("a packet went inside WARP's tunnel to {to} and its answer came back"));
+    if let Ok(warp) = &opened {
+        verbose(&format!("WARP's tunnel opened at {}", warp.endpoint));
+        if let Some(to) = warp.probed {
+            verbose(&format!("a packet went inside WARP's tunnel to {to} and its answer came back"));
+        }
     }
     opened
 }
 
-/// The record in the cache with the endpoint's key that WARP's API gave
-/// `device`; the rest of the record stays, its endpoint too, as
-/// `PODSSH_WARP_ENDPOINT` changes a run, not the record.
-fn keep_key(device: &Device, verbose: &(dyn Fn(&str) + Sync)) {
+/// The record in the cache with what the road learnt of `device`: the
+/// endpoint's key that WARP's API gave, the API's peers, and the endpoint
+/// that opened, or none when none did; the rest of the record stays, its
+/// endpoint too, as `PODSSH_WARP_ENDPOINT` changes a run, not the record.
+fn keep(device: &Device, verbose: &(dyn Fn(&str) + Sync)) {
     let Some(text) = podssh_relay::cache::load_file(DEVICE_FILE) else { return };
     let text = zeroize::Zeroizing::new(text);
     let Ok(mut record) = Device::from_json(&text) else { return };
+    let new_key = record.endpoint_pem != device.endpoint_pem;
     if record.id != device.id || record.rekey(&device.endpoint_pem).is_err() {
         return;
     }
+    record.peers = device.peers.clone();
+    record.reached = device.reached;
     match podssh_relay::cache::store_file(DEVICE_FILE, record.to_json().as_bytes()) {
-        Ok(_) => verbose("WARP's API gave its endpoint a new key, which the device's record keeps"),
-        Err(why) => verbose(&format!("the endpoint's new key was not kept ({why}): the next run asks the API again")),
+        Ok(_) if new_key => verbose("WARP's API gave its endpoint a new key, which the device's record keeps"),
+        Ok(_) => verbose("the device's record keeps WARP's peers and the endpoint that opened"),
+        Err(why) => verbose(&format!("the device's record was not written again ({why}): the next run asks again")),
     }
 }
