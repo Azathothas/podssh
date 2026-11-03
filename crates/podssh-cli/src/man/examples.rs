@@ -256,6 +256,13 @@ fn examples() -> Vec<(&'static str, String)> {
              node://user@box:notes.txt"
                 .into(),
         ),
+        (
+            "or the other way: that host's programs reach the internet through this one, an exit of your net, by \
+             HTTPS_PROXY=http://127.0.0.1:1080 in the sandbox",
+            "podssh node gw --exit --carrier 'exec:ssh -T sandbox podssh exit gw --listen 127.0.0.1:1080 \
+             --carrier stdio'"
+                .into(),
+        ),
         ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
         (
             "the node in the background under a name, started again whenever it ends; a second start of the name refuses",

@@ -144,6 +144,13 @@ impl Role {
         }
     }
 
+    /// Whether a node's socket is joined now: false once its stream ended
+    /// and none took its place, so that a client of a stream with one life
+    /// can end with it (T-596).
+    pub fn joined(&self) -> bool {
+        self.up().0
+    }
+
     /// Whether a node's socket is joined, and whether its node spoke.
     fn up(&self) -> (bool, bool) {
         let joined = self.pair.lock().node_outbox().is_some();

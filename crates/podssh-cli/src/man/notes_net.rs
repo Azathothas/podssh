@@ -69,4 +69,15 @@ pub const EXIT: &[&str] = &[
      first line names): SOCKS here takes no credentials, and each host that found the port would spend the exit's \
      egress. PODSSH_LISTEN=no refuses it before anything binds (78), and a refused bind is 77. The proxy runs until \
      Ctrl-C or SIGTERM (0).",
+    "With --carrier ADDR, the exit is the node at the other end of ADDR, a stream that exists already, with no \
+     relay and no pair, as podssh node NAME --exit --carrier serves it: stdio (or -), the stdin and stdout that \
+     the exec channel of a platform's own SSH gives the program that it starts; fd:N (Unix); or exec:CMD, a \
+     program started with no shell. So a host whose every road out is closed, but that such a channel reaches, \
+     gets egress through the channel's other end: there, podssh node gw --exit --carrier \"exec:ssh -T sandbox \
+     podssh exit gw --listen 127.0.0.1:1080 --carrier stdio\"; in the sandbox, HTTPS_PROXY=http://127.0.0.1:1080. \
+     Each connection is a session of the one stream; NAME is a member of the net, whose key the channel checks, \
+     and the net's rule of the exit holds as on each road. The stream starts with the proxy; one of stdio or \
+     fd:N has one life, and when its node leaves, the proxy ends (0); a program of exec: is started again for \
+     the next connection. Ctrl-C ends the stream with a Close, which ends the node (0). --pair-file, \
+     --relay-addr and --ca-file are refused with it (64), and so is --carrier stdio on a terminal.",
 ];

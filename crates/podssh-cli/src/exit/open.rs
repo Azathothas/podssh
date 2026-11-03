@@ -3,7 +3,9 @@
 //! resumable layer and the end-to-end channel, whose word names the target
 //! (`crate::channel::Ask::to_exit`); a lost leg is replaced, as `podssh
 //! operator` replaces it. `podssh proxy --exit`, `podssh pipe --exit` and
-//! each client of `podssh exit --listen` open theirs so.
+//! each client of `podssh exit --listen` open theirs so. Over a carrier
+//! (T-596), a session is a leg of the command's one stream
+//! (`crate::carrier::shared`), with no pair, no relay and no expiry.
 //!
 //! The node's verdict comes before any answer: the channel touches the
 //! plain side of the session only once the node let the operator in and
@@ -43,6 +45,8 @@ pub struct To {
     pub client_key: Option<String>,
     pub node_key: Option<String>,
     pub ca_file: Option<String>,
+    /// The stream whose other end is the exit, in place of its pair (T-596).
+    pub carrier: Option<String>,
     /// No line for each session that ends well.
     pub quiet: bool,
 }
@@ -57,8 +61,29 @@ impl To {
             client_key: args.client_key.clone().or_else(|| args.iroh_key.clone()),
             node_key: args.node_key.clone(),
             ca_file: args.ca_file.clone(),
+            // `--exit` beside `--carrier` is refused for these (64): the
+            // exit over a carrier is `podssh exit --listen`'s.
+            carrier: None,
             quiet: args.quiet > 0,
         }
+    }
+}
+
+/// The road of an exit's session: the pair kept under its name, or the
+/// shared client of a carrier.
+enum Road {
+    Pair { part: podssh_relay::pair::OperatorPart, trust: podssh_ws::Trust },
+    Carrier(Arc<crate::carrier::Client>),
+}
+
+impl Road {
+    fn of(to: &To) -> Result<Road, Refusal> {
+        if let Some(text) = to.carrier.as_deref() {
+            return crate::carrier::shared(text).map(Road::Carrier);
+        }
+        let part = crate::pairs::operator_part(&to.name, to.pair_file.as_deref())?;
+        crate::pairs::online()?;
+        Ok(Road::Pair { part, trust: crate::pairs::trust(to.ca_file.as_deref()) })
     }
 }
 
@@ -105,10 +130,7 @@ pub async fn open(to: &To, host: &str, port: u16) -> Result<End, Refused> {
     let ask = crate::channel::Ask::of(to.client_key.as_deref(), None, to.node_key.as_deref(), false)
         .and_then(|ask| ask.to_exit(host, port))
         .map_err(|why| Refused::of(Refusal::usage(why), Kind::Failed))?;
-    let part = crate::pairs::operator_part(&to.name, to.pair_file.as_deref())
-        .and_then(|part| crate::pairs::online().map(|()| part))
-        .map_err(|refusal| Refused::of(refusal, Kind::Failed))?;
-    let trust = crate::pairs::trust(to.ca_file.as_deref());
+    let road = Road::of(to).map_err(|refusal| Refused::of(refusal, Kind::Failed))?;
     let label = to.name.clone();
     let shown = format!("exit {label}");
     let say_line = |line: String| podssh_ssh::err_line!("podssh: {shown}: {line}");
@@ -123,21 +145,32 @@ pub async fn open(to: &To, host: &str, port: u16) -> Result<End, Refused> {
     let quiet = to.quiet;
     let task = tokio::spawn(async move {
         let proxy = ProxyChoice::FromEnvironment;
-        let config = OperatorConfig {
-            relay: &part.relay,
-            name: &part.name,
-            connect_token: part.connect_token(),
-            trust: &trust,
-            proxy: &proxy,
-            timeout: podssh_relay::open::CONNECT_TIMEOUT,
-            limits: OperatorLimits::default(),
-            wire: Wire::Tls,
+        let (config, expires_ms) = match &road {
+            Road::Pair { part, trust } => {
+                let config = OperatorConfig {
+                    relay: &part.relay,
+                    name: &part.name,
+                    connect_token: part.connect_token(),
+                    trust,
+                    proxy: &proxy,
+                    timeout: podssh_relay::open::CONNECT_TIMEOUT,
+                    limits: OperatorLimits::default(),
+                    wire: Wire::Tls,
+                };
+                (config, Some(part.expires_ms))
+            }
+            // No pair, so no expiry: the stream lives as long as its ends.
+            Road::Carrier(client) => (client.config(), None),
         };
         let (link, leg_end) = tokio::io::duplex(PIPE);
         let leg = match operator::start(&config, leg_end).await {
             Ok(leg) => leg,
             Err(e) => {
-                tell(&told, Err(Refused::of(crate::pairs::connect_refusal(&e, &label), Kind::Failed)));
+                let refusal = match &road {
+                    Road::Pair { .. } => crate::pairs::connect_refusal(&e, &label),
+                    Road::Carrier(_) => crate::carrier::refusal_of(&e),
+                };
+                tell(&told, Err(Refused::of(refusal, Kind::Failed)));
                 return None;
             }
         };
@@ -149,8 +182,12 @@ pub async fn open(to: &To, host: &str, port: u16) -> Result<End, Refused> {
         };
         let pin_shown = shown.clone();
         let pin_say = move |line: String| podssh_ssh::err_line!("podssh: {pin_shown}: {line}");
-        let carried = carry_through(&config, link, leg, app, Some(part.expires_ms), &say, channel, pin_say).await;
-        let judged = crate::operator::judged(&label, &carried);
+        let carried = carry_through(&config, link, leg, app, expires_ms, &say, channel, pin_say).await;
+        // A carrier's closes name the stream, not a relay.
+        let judged = match &road {
+            Road::Pair { .. } => crate::operator::judged(&label, &carried),
+            Road::Carrier(_) => crate::carrier::judged(&carried),
+        };
         // Told already when the node let the session in; else its end is
         // the verdict.
         let kind = match &carried.channel {

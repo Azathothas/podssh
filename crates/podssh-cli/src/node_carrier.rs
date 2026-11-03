@@ -8,7 +8,8 @@
 //! alone, for the node's key. One stream for the node's life: at its end the
 //! sessions end, and the node exits 0 after its client's Close, or 69 for a
 //! stream that failed. TARGET, the routes, a roost, a UDP TARGET, the layer
-//! and the end-to-end channel are as on the pair's road.
+//! and the end-to-end channel are as on the pair's road, and so is the exit
+//! (`--exit`, T-596), whose client is `podssh exit --listen --carrier`.
 
 use std::io::Write;
 use std::sync::Arc;
@@ -31,12 +32,11 @@ const CHILD_LIMIT: Duration = Duration::from_secs(2);
 
 /// The flags that a node of a carrier takes none of, checked before anything
 /// else, an `--install` among them: its stream is its parent's, so it
-/// reaches no relay, has no pair, and goes to no background.
+/// reaches no relay, has no pair, and goes to no background. `--exit` goes
+/// with it (T-596): `podssh exit --listen --carrier` is its client, and the
+/// net's rule of the exit holds as on each road.
 pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     let Some(text) = args.carrier.as_deref() else { return Ok(()) };
-    if args.exit {
-        return Err(Refusal::usage("--exit over a carrier is not built yet: its client comes with it"));
-    }
     let refused = [
         (args.pair_file.is_some(), "--pair-file"),
         (args.relay_addr.is_some(), "--relay-addr"),
@@ -127,6 +127,11 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
             Some(crate::channel::load_node_key(&place)?)
         }
     };
+    // An exit says its net, or why it cannot be one (78), before the stream
+    // starts, as on each road (T-431, T-596).
+    if let Some(key) = &key {
+        crate::node_exit::ready(&label, &key.identity.public())?;
+    }
     let (plain, allow, sshd) = (args.plain, flags.allow, args.sshd);
     Ok(Ready { label, text, found, targets, plain, key, allow, sshd, udp })
 }
@@ -255,7 +260,7 @@ mod tests {
     #[test]
     fn a_node_of_a_carrier_takes_no_flag_of_a_relay_a_pair_or_the_background() {
         let base = || args(Some("exec:cat"));
-        let given: [(&str, NodeArgs); 8] = [
+        let given: [(&str, NodeArgs); 7] = [
             ("--pair-file", NodeArgs { pair_file: Some("x".into()), ..base() }),
             ("--iroh", NodeArgs { iroh: true, ..base() }),
             ("--derp", NodeArgs { derp: true, ..base() }),
@@ -263,7 +268,6 @@ mod tests {
             ("--install", NodeArgs { install: true, ..base() }),
             ("--detach", NodeArgs { detach: true, ..base() }),
             ("--relay-addr", NodeArgs { relay_addr: Some("a=127.0.0.1".into()), ..base() }),
-            ("--exit", NodeArgs { exit: true, ..base() }),
         ];
         for (flag, args) in given {
             let refusal = check(&args).unwrap_err();
@@ -271,6 +275,8 @@ mod tests {
             assert!(refusal.message.contains(flag), "{flag}: {}", refusal.message);
         }
         assert!(check(&base()).is_ok());
+        // The exit over a carrier (T-596): its client is exit --listen --carrier.
+        assert!(check(&NodeArgs { exit: true, ..base() }).is_ok(), "--exit goes with --carrier");
         assert_eq!(check(&args(Some("tcp:127.0.0.1:22"))).unwrap_err().code, 64);
         assert!(check(&args(None)).is_ok(), "no carrier, nothing to check");
     }

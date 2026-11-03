@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/net/admit.rs
++++ b/crates/podssh-cli/src/net/admit.rs
+@@ -101,6 +101,9 @@ pub fn verdict(me: &PublicKey, peer: &PublicKey, asks: Asks<'_>) -> Verdict {
+     if matches!(asks, Asks::Egress | Asks::Dial { .. }) && !mine.has_role("exit") {
+         return Verdict::Refused(no_role(doc, &mine.name));
+     }
++    if matches!(asks, Asks::Egress | Asks::Dial { .. }) {
++        return Verdict::Member(member.name.clone());
++    }
+     match policy::check(doc, member, want) {
+         Ok(_) => Verdict::Member(member.name.clone()),
+         Err(why) => Verdict::Refused(why),

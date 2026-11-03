@@ -4,8 +4,9 @@
 //! pipe to that role. Two sessions of 2 MiB each way carry their bytes whole,
 //! and the client's Close ends the node with 1000; a stream that the client
 //! was given has one life, and one that it started is started again for the
-//! next leg; a node that has not read the stream yet gets no `open`, only the
-//! role's `hello`; and the role takes no node's path.
+//! next leg; the role tells when its node left the stream (T-596); a node
+//! that has not read the stream gets no `open`, only the role's `hello`; and
+//! the role takes no node's path.
 #![cfg(feature = "serve")]
 
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -195,6 +196,25 @@ async fn a_stream_that_the_client_was_given_has_one_life() {
     // Final, as a new leg would meet it again.
     assert!(matches!(&refused, ConnectError::Refused { status: 410, .. }), "{refused:?}");
     assert!(refused.to_string().contains("a pipe of the test"), "{refused}");
+}
+
+/// The role says whether its node is joined, so that a client of a stream
+/// with one life ends with it (T-596): at once after the attach, and no more
+/// once the stream ended.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_role_says_when_its_node_left_the_stream() {
+    let said = Arc::new(Mutex::new(Vec::new()));
+    let (node, link) = new_node();
+    let door = door_over(link, None, &said);
+    assert!(door.role().joined(), "the node's socket, joined at the attach");
+    node.abort();
+    let left = tokio::time::timeout(Duration::from_secs(5), async {
+        while door.role().joined() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    assert!(left.is_ok(), "the role tells the end of the stream: {:?}", said.lock().unwrap());
 }
 
 /// A node that goes while a session of it is open takes the stream with

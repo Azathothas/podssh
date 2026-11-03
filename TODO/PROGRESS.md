@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 568 entries: 97 open, 3 partial, 16 blocked, 452 done.
+`TODO/INDEX.md` holds 568 entries: 96 open, 4 partial, 16 blocked, 452 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -363,6 +363,10 @@ unattended (Q87).
   (partial) adds: the node's first frame is a Ping, and no session opens before it; a stream of
   `exec:` is started again once for each wait of a leg; `--exit` with `--carrier` is refused until
   T-596.
+- T-596 (partial, a draft): `exit --listen --carrier` takes `stdio`, the one client of a carrier
+  that does; the proxy starts its stream with its listener; a stream of `stdio` or `fd:N` ends the
+  proxy (0) when its node leaves; Ctrl-C at the proxy ends the node (0); `ssh`, `proxy` and `pipe`
+  keep refusing `--exit` beside `--carrier` (64).
 
 **For the operator to confirm (Q86):** T-503 checks each host after the first hop too (a later hop
 of `-J`, and the destination behind it), on each road, by the direct road's rule, so that

@@ -11,6 +11,13 @@
 //! it before anything binds, as for `podssh pipe tcp-listen:`. An address
 //! of another host is refused: SOCKS here takes no credentials, and each
 //! host that found the port would spend the exit's egress.
+//!
+//! With `--carrier ADDR` (T-596), the exit is the node at the other end of a
+//! stream that exists already (T-595's road): a host whose one channel is
+//! the exec channel of a platform's own SSH gets egress through that
+//! channel's other end. `stdio` is this end's to give, as its stdin and
+//! stdout carry nothing else; the net's rule of the exit holds as on each
+//! road, at the node.
 
 pub mod listen;
 pub mod open;
@@ -41,6 +48,8 @@ pub struct ExitArgs {
     pub node_key: Option<String>,
     pub relay_addr: Option<String>,
     pub ca_file: Option<String>,
+    /// `--carrier ADDR`: the exit at the other end of a stream (T-596).
+    pub carrier: Option<String>,
     /// `-q`: no line for each connection.
     pub quiet: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
@@ -58,6 +67,7 @@ impl ExitArgs {
             node_key: get("node-key"),
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
+            carrier: get("carrier"),
             quiet: matches.get_count("quiet") > 0,
             refused,
         }
@@ -84,7 +94,8 @@ pub fn run_exit(args: &ExitArgs, err: &mut dyn Write) -> i32 {
 }
 
 /// Each check that needs no network, in order: the exit's name, the
-/// listener's address, the pins; then that listening is allowed here.
+/// listener's address, the carrier or the pins; then that listening is
+/// allowed here.
 fn prepare(args: &ExitArgs) -> Result<(open::To, Address), Refusal> {
     let name = args.name.clone().ok_or("missing NAME: the exit node of your net (podssh node NAME --exit)")?;
     crate::pairs::check_label(&name)?;
@@ -100,7 +111,10 @@ fn prepare(args: &ExitArgs) -> Result<(open::To, Address), Refusal> {
              each host that found the port would spend the exit's egress"
         )));
     }
-    crate::pins::apply(args.relay_addr.as_deref())?;
+    match args.carrier.as_deref() {
+        Some(text) => carrier(args, text)?,
+        None => crate::pins::apply(args.relay_addr.as_deref())?,
+    }
     crate::pipe::listen::allowed()?;
     let to = open::To {
         name,
@@ -108,9 +122,27 @@ fn prepare(args: &ExitArgs) -> Result<(open::To, Address), Refusal> {
         client_key: args.client_key.clone(),
         node_key: args.node_key.clone(),
         ca_file: args.ca_file.clone(),
+        carrier: args.carrier.clone(),
         quiet: args.quiet,
     };
     Ok((to, at))
+}
+
+/// `--carrier ADDR` (T-596): a stream that exists already, in `pipe`'s words,
+/// `stdio` among them, as nothing else of this command reads stdin or writes
+/// stdout; a terminal on stdin is a person's keys, not frames. The flags of a
+/// relay and of a pair have nothing to apply to (64).
+fn carrier(args: &ExitArgs, text: &str) -> Result<(), Refusal> {
+    let flags = [
+        (args.pair_file.is_some(), "--pair-file"),
+        (args.relay_addr.is_some(), "--relay-addr"),
+        (args.ca_file.is_some(), "--ca-file"),
+    ];
+    if let Some((_, flag)) = flags.into_iter().find(|(given, _)| *given) {
+        return Err(Refusal::usage(format!("{flag} is for a relay and its pair, and --carrier has neither")));
+    }
+    let found = crate::carrier::parse(text)?;
+    crate::carrier::no_terminal(&found, crate::carrier::stdin_is_terminal())
 }
 
 #[cfg(test)]
@@ -119,6 +151,25 @@ mod tests {
 
     fn args(name: Option<&str>, listen: Option<&str>) -> ExitArgs {
         ExitArgs { name: name.map(String::from), listen: listen.map(String::from), ..ExitArgs::default() }
+    }
+
+    #[test]
+    fn a_carrier_takes_no_flag_of_a_relay_or_a_pair() {
+        let on = |carrier: &str| ExitArgs { carrier: Some(carrier.into()), ..args(Some("gw"), Some("1080")) };
+        let (to, _) = prepare(&on("exec:cat")).unwrap();
+        assert_eq!(to.carrier.as_deref(), Some("exec:cat"), "the exit's sessions take the carrier");
+        for (given, flag) in [
+            (ExitArgs { pair_file: Some("x".into()), ..on("exec:cat") }, "--pair-file"),
+            (ExitArgs { relay_addr: Some("a=127.0.0.1".into()), ..on("exec:cat") }, "--relay-addr"),
+            (ExitArgs { ca_file: Some("ca.pem".into()), ..on("exec:cat") }, "--ca-file"),
+        ] {
+            let refusal = prepare(&given).unwrap_err();
+            assert!(refusal.code == 64 && refusal.message.starts_with(flag), "{flag}: {}", refusal.message);
+        }
+        for bad in ["tcp:127.0.0.1:22", "node:gw", "exec:"] {
+            let refusal = prepare(&on(bad)).unwrap_err();
+            assert!(refusal.code == 64 && refusal.message.starts_with("--carrier"), "{bad}: {}", refusal.message);
+        }
     }
 
     #[test]

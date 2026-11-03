@@ -217,7 +217,9 @@ carries sessions between two other members that no other road joins
   ssh --exit NAME` races the node's roads as `node://NAME` does, with the
   host's own key; `proxy`, `pipe`'s `relay:` and `podssh exit --listen`
   take the pair's road, and answer a client once the node's verdict came.
-  T-432 adds the net's list of each node's routes and `--exit auto`.
+  T-432 adds the net's list of each node's routes and `--exit auto`. Over
+  a carrier (T-596), `podssh exit --listen --carrier` is the client of
+  `podssh node --exit --carrier`, each connection a leg of the one stream.
 - **Routes** (T-432). `--routes CIDR,...` lets the net's members reach the
   private networks that the node reaches, within the policy.
 - **Share** (T-433). `podssh share` adds, removes and lists the services of
@@ -276,8 +278,12 @@ operator --carrier ADDR`, `podssh proxy --carrier ADDR node://NAME`,
 `pipe`'s `node:` side with it, each connection of a command a leg of the one
 stream; [cli.md](cli.md)). The stream is the door, the
 end-to-end channel pins the node's key under its label, and no protocol is
-new. The exit over such a stream, for egress through the channel's other
-end, is T-596.
+new. The exit goes over such a stream too (T-596): `podssh node NAME --exit
+--carrier ADDR` lends its egress to `podssh exit NAME --listen ADDR:PORT
+--carrier ADDR` at the stream's other end, so the host whose one channel is
+a platform's exec channel gets egress through that channel's other end, the
+issue's case; the stream is the door to the node's TARGET, never to its
+egress, which the net's rule of the exit holds as on each road.
 
 The standard protocols of Q66, so that a server that the user runs is a
 road with no relay: HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and

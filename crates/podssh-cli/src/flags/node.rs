@@ -61,6 +61,9 @@ pub const EXIT_FLAGS: &[FlagRow] = &[
         "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE for the relay (default: env SSL_CERT_FILE, else system and built-in roots)", None),
+    // The exit at the other end of a stream that exists already (T-596).
+    row(None, "carrier", Some("ADDR"), FlagKind::Supported,
+        "the exit is the node at the other end of ADDR, a stream that exists already, with no relay and no pair (podssh node NAME --exit --carrier): stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; each connection is a session of the one stream; a stream of stdio or fd:N ends the proxy when its node leaves; stdin may not be a terminal", None),
     row(Some('q'), "quiet", None, FlagKind::Supported,
         "no line for each connection; errors still go to stderr", None),
 ];
@@ -96,7 +99,7 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "with --exit: the private ranges that the exit dials too, ADDR/BITS or one address, separated by commas, each for the members that the net's policy lets reach the address", None),
     // A stream that exists already as the node's one road (T-595).
     row(None, "carrier", Some("ADDR"), FlagKind::Supported,
-        "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or proxy, ssh, cp, scp or sftp --carrier to node://NAME; stdin may not be a terminal", None),
+        "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or proxy, ssh, cp, scp or sftp --carrier to node://NAME, or for --exit, podssh exit NAME --listen ADDR:PORT --carrier; stdin may not be a terminal", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
     super::derp::NODE_DERP,
