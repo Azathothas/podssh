@@ -48,7 +48,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:186-256`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:186-258`) and
    `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
@@ -126,7 +126,7 @@ Read: the data is in tables already. Commands and flags: `VERBS`
 and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:204-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:25-143`, with the stated defaults (lines 99-104 at `22c3b88`).
-Variables: `crates/podssh-cli/src/man/facts.rs:46-295`. The files and the exit codes were text
+Variables: `crates/podssh-cli/src/man/facts.rs:46-296`. The files and the exit codes were text
 blocks only (`crates/podssh-cli/src/man/facts.rs` lines 100-145 and 231-271 at `332ee58`), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
 
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:107-139` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:73-94`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:186-256`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:186-258`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4036-4064`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4061-4089`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.
@@ -847,7 +847,7 @@ replaces a whole file (lines 178-197 at `22c3b88`), and no function appends to o
    two processes do not mix their lines.
 5. A size limit: at 1 MiB, rename the file to `sessions.1.jsonl`, and start a new one.
 6. `podssh status` (T-051) shows the last line in short form.
-7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-295`; the tests require
+7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-296`; the tests require
    it) and the file to FILES, in the same commit.
 
 ## Decision
@@ -1205,7 +1205,7 @@ never named among them.
 
 - Read: the sections run one after another, each awaited before the next: the network, the quick
   tunnel's UDP and its road over TCP, the relay, the forwarders, the roads of the build (iroh,
-  Tor), DERP and the pairs (`crates/podssh-cli/src/doctor/mod.rs:216-257`); the checks of the relay
+  Tor), DERP and the pairs (`crates/podssh-cli/src/doctor/mod.rs:218-259`); the checks of the relay
   and of the pairs have limits of 10 s (`crates/podssh-cli/src/doctor/relay_checks.rs:25`,
   `crates/podssh-cli/src/doctor/pairs.rs:14`).
 - Read: the report prints the sections in a fixed order, which `--json` keeps (T-049).

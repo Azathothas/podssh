@@ -2200,6 +2200,15 @@ and no `--timeout`: a person decides how long an edit takes.
   control socket of `-M`, `podssh agent` and `podssh session`). A refusal is
   `ok`: no road needs a listener. With `PODSSH_LISTEN=no` no listen is
   tried, and the line says so. Proxy credentials and tokens are never shown.
+- `sshd` (T-590, GitHub #116), in the section `this host`: where this host
+  has the sshd of a roost, looked for as the roost looks (above), and one
+  dial of `127.0.0.1:22`, the roost's default TARGET, with its first line
+  within 2 s, judged by the roost's own rule: `present at /usr/sbin/sshd;
+  127.0.0.1:22 answers SSH-2.0-...`; `nothing listens at 127.0.0.1:22`,
+  with what a roost needs; another first line; or `absent (...)`, with the
+  command that installs one. Each form is `ok`: a host with no roost needs
+  no sshd, so the line is a note, never a failure. The dial is of the
+  loopback, so no proxy carries it and `PODSSH_OFFLINE` does not stop it.
 - **Names and addresses** (T-366). Each road of the release binaries asks
   the proxy for a name, so a proxy of an allowlist of names and one that
   takes any public address answer those probes alike. Through a proxy, the
@@ -2769,6 +2778,22 @@ commands. The rules behind them:
   keeps sshd's host key under `node://NAME`, the name that the user gives,
   as OpenSSH keeps a host's behind a `ProxyCommand`; not under the address
   of sshd behind the roost, which each roost shares (`127.0.0.1`).
+- **A roost's sshd runs already** (T-590, GitHub #116): podssh brings
+  none. When each address of a TARGET on the loopback refuses the dial, the
+  roost exits 69 and, after the dial's words, says whether this host has an
+  sshd: `sshd` on `PATH`, then in `/usr/sbin`, `/usr/local/sbin` and
+  `/sbin` (on Windows, `System32\OpenSSH`). One found: "an sshd is
+  installed at /usr/sbin/sshd, and nothing listens at 127.0.0.1:2222: start
+  it, or give the port that it listens on". None: "no sshd is installed on
+  this host (...); install one, as apt-get install -y openssh-server, and
+  start it", from the first package manager on `PATH` (`apk`, `apt-get`,
+  `dnf`, `yum`, `zypper`, `pacman`, `brew`, `pkg`), with `sudo` first where
+  the user is not root, does not own the manager's file, and has `sudo` on
+  `PATH`, else `(as root)`; Homebrew never takes `sudo`. The table is
+  `crates/podssh-cli/src/install_hint.rs`, for T-481's tmux too. podssh
+  names the command and runs none. A TARGET off the loopback, and a dial
+  that timed out, keep the dial's words alone. `doctor`'s line `sshd` says
+  the same before a roost starts.
 - **`node --temporary KEY` is the far end of `ssh --upgrade`** (T-167),
   which starts it in its own SSH session on the server: a roost in front of
   the sshd of `SSH_CONNECTION` (on the loopback first, then at the server's

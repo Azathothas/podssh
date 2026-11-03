@@ -69,7 +69,7 @@ pub const NODE_FLAGS: &[FlagRow] = &[
     row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
         "keep a session whose link is lost for TIME, on each road, and tell its operator so: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default 10m)", None),
     row(None, "sshd", None, FlagKind::Supported,
-        "a roost: each TARGET (default 127.0.0.1:22) is a standard sshd, which must send its SSH version line first, at the start and on each session's connection", None),
+        "a roost: each TARGET (default 127.0.0.1:22) is a standard sshd that runs already, which must send its SSH version line first, at the start and on each session's connection; podssh brings no sshd (podssh doctor's line sshd says whether this host has one)", None),
     row(None, "temporary", Some("KEY"), FlagKind::Supported,
         "the far end that podssh ssh --upgrade starts on its server: a roost in front of the session's sshd, with a pair and a key that no file keeps, for the client key KEY alone; one line on stdout gives the offer; it ends with its last session, or after 10 minutes with none", None),
     row(None, "key", Some("FILE"), FlagKind::Supported,

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_target.rs
++++ b/crates/podssh-cli/src/node_target.rs
+@@ -45,7 +45,7 @@
+ fn failed(shown: &str, t: &Route, roost: bool, e: &DialError) -> String {
+     let words = format!("TARGET {shown}: {e}");
+     // Each address refused, or none answered: on the loopback, no listener.
+-    let nothing = matches!(e, DialError::Connect { .. }) && podssh_ws::dial::is_loopback(&t.host);
++    let nothing = false;
+     if !roost || !nothing {
+         return words;
+     }

@@ -160,9 +160,11 @@ jobs:
           test "$got" = "podssh ${TAG#v} ($COMMIT)" || { echo "after the update, the binary says: $got"; exit 1; }
           echo "ok   $TAG's binary replaced itself with its download, which runs: $got"
           tags=$(timeout 60 gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 20 --json tagName --jq '.[].tagName')
-          newest="" before="" seen=no
+          # The newest release as podssh update finds it: a build of a release
+          # follows releases alone, so a beta is reached by --version (T-446).
+          newest=$(timeout 60 gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[].tagName')
+          before="" seen=no
           for t in $tags; do
-            if [ -z "$newest" ]; then newest=$t; fi
             if [ "$seen" = yes ]; then before=$t; break; fi
             if [ "$t" = "$TAG" ]; then seen=yes; fi
           done

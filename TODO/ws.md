@@ -2569,7 +2569,7 @@ met.
 - Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:41-53`),
   and DNS over HTTPS one line with each resolver's error
   (`crates/podssh-cli/src/doctor/names.rs:133`); the end of the report gives the counts alone
-  (`crates/podssh-cli/src/doctor/mod.rs:348-364`).
+  (`crates/podssh-cli/src/doctor/mod.rs:350-366`).
 - Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
   (`crates/podssh-ws/src/client.rs:115`), and `HealthError::Connect` the error's text
   (`crates/podssh-relay/src/health.rs:69`). The kind of the I/O error, a reset or a timeout, is
@@ -2614,7 +2614,7 @@ met.
 ## Decision
 
 - After the counts, not above the failures: each line goes out as its check ends
-  (`crates/podssh-cli/src/doctor/mod.rs:319-323`), so a line about them all comes once they are
+  (`crates/podssh-cli/src/doctor/mod.rs:321-325`), so a line about them all comes once they are
   known. Holding each line back until the end lost: a check of a minute would look like a hang.
 - One reference name, `github.com`, which `doctor` uses already
   (`crates/podssh-cli/src/doctor/net.rs:18-20`). A list of names that an allowlist often holds

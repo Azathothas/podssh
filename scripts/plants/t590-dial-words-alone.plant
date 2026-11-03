@@ -1,0 +1,8 @@
+# T-590: the look for this host's sshd skipped, so a roost whose TARGET on
+# the loopback refused its dial gives the dial's words alone, as before; the
+# roost test of a host with no sshd must fail, in either of its forms.
+ENTRY=T-590
+GROUP=resume-cli
+EXPECT='test a_roost_with_no_sshd_installed_says_so_and_names_the_package \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test roost -- a_roost_with_no_sshd_installed_says_so_and_names_the_package'
+LIMIT=2700

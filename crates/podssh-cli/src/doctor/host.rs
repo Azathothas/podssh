@@ -1,6 +1,7 @@
 //! Checks of the host itself, with no network: where podssh can record host
-//! keys and cache tokens, where programs can run, `/proc`, and the terminal.
-//! The probes that need libc (user database, pty, bind) are in `unix.rs`.
+//! keys and cache tokens, where programs can run, `/proc`, the terminal, and
+//! the sshd of a roost (`sshd.rs`). The probes that need libc (user
+//! database, pty, bind) are in `unix.rs`.
 
 use std::io::IsTerminal;
 use std::path::Path;
@@ -22,6 +23,8 @@ pub(super) fn check(report: &mut Report<'_>) {
         exec::check(report);
     }
     terminal(report);
+    // A dial of the loopback, which no proxy and no offline setting touch.
+    super::sshd::check(report);
 }
 
 /// Where `podssh ssh` records host keys by default, and whether it can. A key

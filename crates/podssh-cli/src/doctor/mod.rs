@@ -44,6 +44,8 @@ mod relay_checks;
 mod samples;
 // The first server of --shadowsocks (T-373).
 mod shadowsocks;
+// The sshd of a roost, on this host (T-590).
+mod sshd;
 #[cfg(feature = "tor")]
 mod tor;
 #[cfg(unix)]

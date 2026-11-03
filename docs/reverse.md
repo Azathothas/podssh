@@ -147,7 +147,11 @@ the layer. Before it registers, it reads each TARGET's first line, and
 requires SSH's version line within 10 s; each session's own connection to
 sshd, made after the layer's handshake, is checked again, and a session
 whose TARGET does not answer as sshd ends with the reason. The check peeks,
-so the line still reaches the client ([cli.md](cli.md)).
+so the line still reaches the client ([cli.md](cli.md)). The sshd runs
+already: podssh brings none. A TARGET on the loopback that refuses the dial
+makes the roost say whether this host has an sshd, and the command that
+installs one, which it never runs (T-590); `podssh doctor`'s line `sshd`
+says the same before a roost starts.
 
 Synchronous code (podbox) runs the node and the operator through
 `podssh_relay::blocking` (feature `blocking`, T-081): a handler opens each

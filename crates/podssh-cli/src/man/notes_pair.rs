@@ -35,6 +35,16 @@ pub(super) const NODE: &[&str] = &[
      reason. The check takes no byte of the session: the client still reads sshd's line. podssh ssh \
      node://NAME keeps sshd's host key under node://NAME, the name that the user gives, as OpenSSH does \
      for a host behind a ProxyCommand.",
+    "A roost's sshd must run already: podssh brings none. When nothing listens at a TARGET on the \
+     loopback, the roost exits 69, and after the dial's words says whether this host has an sshd, looked \
+     for on PATH, then in /usr/sbin, /usr/local/sbin and /sbin (on Windows, the OpenSSH folder of \
+     System32): where it is, and that nothing listens at TARGET (start it, or give the port that it \
+     listens on); or that none is installed, with the command that installs one, from the first package \
+     manager on PATH (apk, apt-get, dnf, yum, zypper, pacman, brew, pkg), with sudo first where the user \
+     is not root and does not own the package manager's file, and sudo is on PATH (else the command says \
+     as root; Homebrew never takes sudo). podssh names the command and runs none. A TARGET off the \
+     loopback keeps the dial's words alone. podssh doctor's line sshd says the same before a roost \
+     starts.",
     "--temporary KEY is the node that podssh ssh --upgrade starts on its server (see podssh ssh): a roost \
      in front of the sshd that its SSH session came through (SSH_CONNECTION: on the loopback first, then \
      at the server's address), or of TARGET, with a pair that it makes on the relay of PODSSH_RELAY (else \
@@ -275,3 +285,11 @@ pub(super) const OPERATOR: &[&str] = &[
      channel, encrypted, and the node refuses one that it does not have, or that this operator's key \
      may not use, before it dials anything.",
 ];
+
+/// The note of doctor's line sshd (T-590), beside the roost that it serves.
+pub(super) const DOCTOR_SSHD: &str = "The line sshd is for a roost (podssh node --sshd): where this host has an \
+     sshd, looked for as the roost looks (on PATH, then in /usr/sbin, /usr/local/sbin and /sbin), and what one \
+     dial of 127.0.0.1:22 reads first within 2 s, judged as the roost judges it: its version line (present at \
+     /usr/sbin/sshd; 127.0.0.1:22 answers SSH-2.0-...), nothing listening, or another first line. With no \
+     sshd found, it names the command that installs one, as the roost does; podssh runs none. The dial is of \
+     the loopback, so it is made with PODSSH_OFFLINE too. Each form is ok: a host with no roost needs no sshd.";

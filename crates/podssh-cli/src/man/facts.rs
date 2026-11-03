@@ -228,6 +228,7 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (&["COMPUTERNAME"], "On Windows, the host name in the default comment of podssh keygen."),
     (&["ProgramData"], "On Windows, the directory of the system known_hosts file."),
+    (&["SystemRoot"], "On Windows, where an sshd of OpenSSH is looked for (System32\\OpenSSH): a roost that the loopback refuses, and doctor's line sshd."),
     (
         &["SystemDrive"],
         "On Windows, the drive whose root a detached run takes as its working directory (see podssh ssh -f).",

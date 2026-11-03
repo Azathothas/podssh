@@ -190,13 +190,15 @@ const DOCTOR: &[&str] = &[
     "The checks: this host (the user database entry, where host keys and tokens can be written, \
      whether PODSSH_CACHE_DIR chose the place or is none, and each usual place of the cache passed over \
      as another user's (see FILES), /proc, \
-     a pty, a socket bind that is closed at once, the directories that can run programs, the terminal); \
+     a pty, a socket bind that is closed at once, the directories that can run programs, the terminal, \
+     the sshd of a roost); \
      the egress (the proxy setting, TLS and the trust store, what the proxy allows, the system resolver, \
      the addresses of the cache, and DNS over HTTPS with the form that answered; on github.com port 22 only \
      the server's banner shows that plain ssh can leave, as a proxy can take the CONNECT and carry nothing); \
      and the relay (each relay host, with where its address came from: a pin, the system resolver, the \
      cache or DNS over HTTPS; a token, a session to github.com port 22 that must show the published host key \
      of GitHub, and the clock).",
+    super::notes_pair::DOCTOR_SSHD,
     "Each CONNECT, and the direct TCP check, is tried nine times over a second or more: its line gives \
      the best time (the path's floor), the median, the 95th percentile and the jitter (the median change \
      from one try to the next), and the loss, the tries that timed out and those that broke counted \
@@ -374,6 +376,14 @@ mod tests {
             || rows(verb).iter().chain(rows("ssh")).any(|r| names(r).iter().any(|n| n == flag))
     }
 
+    /// Flags of another program, which a note that names the program may
+    /// name too: the client that a note of `pipe` shows (T-483).
+    const OTHERS: &[(&str, &[&str])] = &[("curl", &["--unix-socket", "--proxy"])];
+
+    fn another_program_s(note: &str, flag: &str) -> bool {
+        OTHERS.iter().any(|(program, flags)| note.contains(program) && flags.contains(&flag))
+    }
+
     fn keyword_exists(name: &str) -> bool {
         let noted = keywords::NOTED.iter().map(|(k, _)| *k);
         let mut known = keywords::known_names().chain(keywords::IGNORED.iter().copied()).chain(noted);
@@ -405,7 +415,7 @@ mod tests {
             };
             // The first word of a detached child (T-380) follows podssh, before any verb.
             let child = w == crate::detach::CHILD_FLAG && i.checked_sub(1).map(|j| words[j]) == Some("podssh");
-            if flag_shaped && !w.contains('=') && !child && !flag_exists(named, w) {
+            if flag_shaped && !w.contains('=') && !child && !flag_exists(named, w) && !another_program_s(note, w) {
                 out.push(format!("{verb}: the flag {w} does not exist"));
             }
             // A variable given a value (NAME=yes) is a variable, not a keyword.
@@ -481,5 +491,8 @@ mod tests {
         // A detached child's first word, after podssh alone (T-380).
         assert!(problems_in("ssh", "as podssh --detach-child ssh", &variables).is_empty());
         assert_eq!(problems_in("ssh", "as --detach-child", &variables).len(), 1);
+        // Another program's flag only in a note that names the program.
+        assert!(problems_in("pipe", "curl's --unix-socket goes past its --proxy", &variables).is_empty());
+        assert_eq!(problems_in("pipe", "a client's --unix-socket", &variables).len(), 1);
     }
 }

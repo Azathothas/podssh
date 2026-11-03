@@ -62,6 +62,8 @@ pub mod help;
 pub mod health;
 // The hosts of a word: braces and groups (T-184).
 pub mod hosts;
+// The command that installs a missing program, named and never run (T-590).
+pub mod install_hint;
 // `podssh job`: jobs on a far host, each in its tmux (T-193).
 pub mod job;
 pub mod keygen;
@@ -72,6 +74,8 @@ pub mod keygen_hosts;
 pub mod keygen_sign;
 pub mod keygen_sk;
 pub mod layered;
+// Whether this host has an sshd, for a roost and for doctor (T-590).
+pub mod local_sshd;
 // The manual (`man/`) and the pager that shows it on a terminal.
 pub mod man;
 // `podssh mcp`: the commands as tools for an agent (T-055).

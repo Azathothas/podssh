@@ -54,7 +54,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    records of the resumable layer (T-151), so it can resume on the other road
    (T-153).
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
-   through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
+   through the proxy (`crates/podssh-cli/src/doctor/host.rs:11-28`).
 6. `availability()` knows `ts` as the only build feature
    (`crates/podssh-cli/src/flags.rs:457-465`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
@@ -187,7 +187,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:358-359`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1011`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:154-430`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-295`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-296`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-295`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-296`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:314-479`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:315-480`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -3815,7 +3815,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1082`, `:1092`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:247-251`).
+  (`docs/reverse.md:251-255`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -4837,7 +4837,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:151-152`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:153-154`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -7500,7 +7500,7 @@ puts the fallback in its `ok` column without a probe.
   (`crates/podssh-relay/src/open.rs:62-84`, `crates/podssh-relay/src/open.rs:137-145`).
 - Read: `doctor`'s line of the fallback is `ok`, with "not asked here"
   (`crates/podssh-cli/src/doctor/forwarder.rs:28-45`); `doctor` has a mark for what it did not
-  measure (`crates/podssh-cli/src/doctor/mod.rs:344-346`).
+  measure (`crates/podssh-cli/src/doctor/mod.rs:346-348`).
 - Read: the operator's rulings Q56 and Q65 (`docs/decisions.md`) let the binary try the forwarders,
   and the Wisp demo server last, "when each relay host fails", unasked (T-370, T-438); since T-438
   there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:236-247`).
@@ -8087,7 +8087,7 @@ worked. It asks for the missing sshd named, a line of `doctor` for it, and a wor
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8137,20 +8137,109 @@ failures. Lost: the file alone, with no dial, which cannot tell a stopped sshd; 
 the count, which would mark each host with no roost. The words name the package and never install
 it, as T-481's do for tmux.
 
+The draft's calls (2026-11-03):
+
+- The roost's line keeps the dial's words first and adds the look's after them: both are true,
+  and the dial's name what the system said. Lost: the look's words in their place, which hide
+  the error of the system.
+- The look comes for a dial that each address failed (`DialError::Connect`), of a TARGET on the
+  loopback: there that means no listener. The error of `podssh-ws` carries the system's words,
+  not the kind of the error, so a refusal is told by its variant. A dial that timed out (a
+  firewall that drops) keeps the dial's words alone. Lost: a match of "Connection refused" in the
+  text, which Windows and the system's language change; a new field of the kind in `DialError`,
+  a change of a library crate for one caller.
+- `sudo` comes first where the user is not root and does not own the package manager's file, and
+  `sudo` is on PATH; else the command ends "(as root)". Owning the file is the probe of a manager
+  that runs as its user (Homebrew's, Termux's `pkg`), and Homebrew never takes `sudo`. Lost:
+  `sudo` by the manager's name alone, which a probe can do better.
+- The table is a module of its own (`install_hint`), so that T-481 takes it for tmux as it is.
+- On Windows the look reads `sshd.exe` on PATH, then `%SystemRoot%\System32\OpenSSH`, and names
+  `Add-WindowsCapability` for the system's OpenSSH server; no test of this host covers it.
+- doctor's tests go in a file of their own, `tests/doctor_sshd.rs`: `tests/doctor.rs` is at 481
+  lines. doctor dials 127.0.0.1:22, the roost's default, which no test can take (a privileged
+  port, which the host's own sshd may hold): the test dials it too and holds the line to what it
+  found; the unit tests hold each form's words, and the first line with a reader in memory, as a
+  listener in `src/` is outside the listener scan's allowance. Lost: a variable or a flag that
+  moves doctor's dial to a port of the test's, a knob for tests alone.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test roost
 cargo test -p podssh-cli --test doctor
+cargo test -p podssh-cli --test doctor_sshd
+cargo test -p podssh-cli --lib local_sshd
+cargo test -p podssh-cli --lib install_hint
+cargo test -p podssh-cli --lib doctor::sshd
+cargo test -p podssh-cli --lib node_target
 ```
 
 New tests: in `roost`, `a_roost_with_no_sshd_installed_says_so_and_names_the_package` (PATH with
 a stand-in `apt-get` and no `sshd`, a closed loopback port: 69, and the line names no sshd
 installed and `apt-get install -y openssh-server`), and
 `a_roost_whose_sshd_is_stopped_says_that_nothing_listens` (a stand-in `sshd` on PATH, a closed
-port); in `doctor`, the line's three forms, "answers" with the test's OpenSSH sshd where this host
-has one. Planted: `t590-dial-words-alone` (the look of item 1 skipped): the first test fails.
+port); in `doctor_sshd`, the line's forms, held to what this host's 127.0.0.1:22 gives the
+test's own dial ("answers" where this host runs OpenSSH's sshd there), and in the unit tests of
+`doctor::sshd` each form's words. `doctor`'s own tests still pass with the line. Planted:
+`t590-dial-words-alone` (the look of item 1 skipped): the first test fails.
+
+## Done
+
+2026-11-03, drafted by an agent that does not build; merged and run by the main session the same
+day. The Premise holds at the cited lines (read at `477b47c`).
+
+- `crates/podssh-cli/src/install_hint.rs` (new): the table of the package managers, in the order
+  of the probe (`apk`, `apt-get`, `dnf`, `yum`, `zypper`, `pacman`, `brew`, `pkg`), each with its
+  words of an install with no question; `Package` and `OPENSSH_SERVER` (`openssh-server`, and
+  `openssh` for `zypper`, `pacman`, `brew` and Termux's `pkg`; `openssh-portable` on FreeBSD);
+  `command`, the first manager on PATH, with `sudo` first or "(as root)" as the Decision says.
+  Unit tests: the words of each manager, `sudo` and "(as root)", the first manager on a PATH of
+  stand-ins, and none.
+- `crates/podssh-cli/src/local_sshd.rs` (new): `places` (`/usr/sbin`, `/usr/local/sbin`, `/sbin`;
+  on Windows the OpenSSH folder of System32), `look` (PATH first, then the places; with none, the
+  command), `searched`, and `nothing_listens`, the roost's two forms and a third with no package
+  manager found. Unit tests: PATH before the places, the places, the command; the words.
+- `crates/podssh-cli/src/node_target.rs`: `failed`, the words of a failed dial; for a roost whose
+  TARGET on the loopback failed each address, the look's words after the dial's. The exit stays
+  69. A unit test: only a roost, only the loopback (`127.0.0.1`, `localhost`, `::1`), only a dial
+  that each address failed.
+- `crates/podssh-cli/src/doctor/sshd.rs` (new), called last by `host::check`
+  (`crates/podssh-cli/src/doctor/host.rs`, module of `crates/podssh-cli/src/doctor/mod.rs`): the
+  line `sshd`, `ok` in each form; one dial of `crate::node::SSHD` within 2 s, its first line
+  judged by `podssh_relay::reverse::sshd::judge`, the roost's own rule. Unit tests: the first line
+  from a reader in memory (whole, in two parts, another service, nothing, part of a line, a
+  close), and the words of each form.
+- `crates/podssh-cli/src/lib.rs`: the two modules.
+- The row of `--sshd` (`crates/podssh-cli/src/flags/node.rs`): an sshd that runs already, which
+  podssh does not bring, and doctor's line. The manual: a note of the node after the roost's
+  (`crates/podssh-cli/src/man/notes_pair.rs`), and doctor's note `DOCTOR_SSHD` there, which the
+  notes of doctor take (`crates/podssh-cli/src/man/notes.rs`), whose list of the host's checks
+  names the sshd of a roost.
+- `docs/cli.md` (the roost, and doctor's rules), `docs/reverse.md` (the roost), and a row of
+  `docs/STATUS.md`.
+- `crates/podssh-cli/tests/roost.rs`: `spawn_roost_with` and `roost_ends_with` take variables;
+  the two tests of the Prove (Unix's), each in either form of this host: where a place after PATH
+  holds an sshd, the test of none asserts that the line names it, and says that the form of none
+  did not run. `crates/podssh-cli/tests/doctor_sshd.rs` (new, Unix's): doctor's line with a
+  stand-in `sshd` on PATH, and with a stand-in `apt-get` alone, held to the test's own dial of
+  127.0.0.1:22.
+- Planted defect: `scripts/plants/t590-dial-words-alone.plant` (group `resume-cli`, beside
+  T-166's): the look skipped in `failed`; the roost test of no sshd fails in either form.
+- The citations of the changed files are moved by `podssh-todo remap --base HEAD` before the
+  commit.
+
+Measured, 2026-11-03: `cargo test -p podssh-cli --test roost`, 11 passed (on this host an sshd
+is in `/usr/sbin`, so the roost test of no sshd checked the form "an sshd is installed at"); `--test
+doctor`, 13 passed and 2 ignored; `--test doctor_sshd`, 2 passed; `--lib local_sshd` 2, `--lib
+install_hint` 3, `--lib doctor::sshd` 2 and `--lib node_target` 1 passed; the whole lib, 691
+passed. The merge added the row of `SystemRoot` to ENVIRONMENT, which the look reads on Windows
+(the manual's test of the variables read), and wrote three slices with `std::slice::from_ref`
+(clippy's `cloned_ref_to_slice_refs`). `cargo fmt --check` and `cargo clippy --all-targets -D
+warnings` on Linux: clean; Windows' cfg of the look: the gate's job `windows`. Planted (`sh
+scripts/plant-each.sh --here t590-dial-words-alone`): caught. Waits (Q88): the words of a roost in
+the box like the target sandbox, whose image installs no OpenSSH (`scripts/test_in_box.sh`), and
+`doctor`'s line there.
 
 # T-599: The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random
 
@@ -8225,5 +8314,9 @@ the repair removed, not the stall itself, as the new test makes it come every ti
 - Planted (`sh scripts/plant-each.sh --here t599-unread-left`, the repair turned off): caught, the
   new test failed. `cargo test -p podssh-warp --features stand-in`: 69 passed in the lib, 5 in
   `road`, 3 in the rest; clippy `--all-targets -D warnings`: clean.
-- Waits: the Prove's loop, the echo test 480 times under the load that reproduced the stall (8
-  loops of 60 at once), runs at this commit.
+- Not done: the stall has a second cause. With the repair, the echo test under the same load
+  (8 loops of 60 at once) failed 1 of 480, after 60.9 s; 12 loops of 100 with each driver
+  printing its sockets once they held bytes unchanged for 15 s failed 2 of 1,200, and neither
+  printed a line: no socket of either stack held bytes that long, so the bytes waited outside
+  both stacks (the tunnel's tasks, h2, the stand-in's copy to the echo service), or crept on.
+  Next: a line of each part's counts at the test's timeout, to name where they waited.

@@ -2,20 +2,23 @@
 //! standard sshd. Before it registers, the roost reads TARGET's first line,
 //! which must be SSH's version line: a port with nothing on it, a server that
 //! answers `HTTP/1.1`, and one that says nothing make it exit, naming TARGET,
-//! with no connection to the relay. The relay of these pairs is a port here
-//! that counts its connections, so a registration is seen; a roost with no
-//! preflight would register, and fail them. Through the stand-in relay of
-//! the reverse road (Python and openssl), a roost carries `podssh ssh
-//! node://` to the tests' SSH server, and a TARGET that stops answering as
-//! sshd refuses the next session with the reason; each of those says that it
-//! did not run when this host has neither. OpenSSH's client, with `podssh
-//! operator` as its ProxyCommand, logs in through a roost more times than
-//! its budget holds sessions, as OpenSSH hangs up each ProxyCommand (T-586).
+//! with no connection to the relay; with nothing on the port, the roost also
+//! says whether this host has an sshd (T-590). The relay of these pairs is
+//! a port here that counts its connections, so a registration is seen; a
+//! roost with no preflight would register, and fail them. Through the
+//! stand-in relay of the reverse road (Python and openssl), a roost carries
+//! `podssh ssh node://` to the tests' SSH server, and a TARGET that stops
+//! answering as sshd refuses the next session with the reason; each of those
+//! says that it did not run when this host has neither. OpenSSH's client,
+//! with `podssh operator` as its ProxyCommand, logs in through a roost more
+//! times than its budget holds sessions, as OpenSSH hangs up each
+//! ProxyCommand (T-586).
 
 mod pair_harness;
 mod ssh_harness;
 mod throughput_harness;
 
+use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::process::{Child, Stdio};
@@ -96,18 +99,28 @@ fn store_pair(s: &Session, relay: &Counted) {
 /// `podssh node lab WORDS --sshd`, its relay pinned to the counting port, and
 /// no proxy, so that a registration reaches that port.
 fn spawn_roost(s: &Session, words: &[String]) -> Child {
+    spawn_roost_with(s, words, &[])
+}
+
+/// [`spawn_roost`], with the variables of `env`.
+fn spawn_roost_with(s: &Session, words: &[String], env: &[(&str, &OsStr)]) -> Child {
     let mut args = vec!["node".to_string(), "lab".into()];
     args.extend(words.iter().cloned());
     args.extend(["--sshd".to_string(), "--relay-addr".into(), format!("{RELAY}=127.0.0.1")]);
     let mut cmd = without_proxy(s.command(&args));
-    cmd.env_remove("PODSSH_RELAY_ADDR");
+    cmd.env_remove("PODSSH_RELAY_ADDR").envs(env.iter().copied());
     cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("podssh runs")
 }
 
 /// A roost that should end before it registers: its code, stdout and
 /// stderr; -1 when it was still running after [`END_LIMIT`], and was ended.
 fn roost_ends(s: &Session, words: &[String]) -> (i32, String, String) {
-    let mut child = spawn_roost(s, words);
+    roost_ends_with(s, words, &[])
+}
+
+/// [`roost_ends`], with the variables of `env`.
+fn roost_ends_with(s: &Session, words: &[String], env: &[(&str, &OsStr)]) -> (i32, String, String) {
+    let mut child = spawn_roost_with(s, words, env);
     let deadline = Instant::now() + END_LIMIT;
     let mut late = false;
     while child.try_wait().expect("wait").is_none() {
@@ -136,6 +149,80 @@ fn a_roost_with_nothing_at_target_exits_before_it_registers() {
     assert!(out.is_empty(), "stdout: {out:?}");
     assert_eq!(relay.seen.load(Ordering::SeqCst), 0, "the roost reached the relay: {err}");
     no_token(&format!("{out}{err}"));
+}
+
+/// A directory of the test's own with an empty runnable file for each of
+/// `names`, as a roost's PATH: the look finds them, and runs none.
+#[cfg(unix)]
+fn stand_ins(s: &Session, names: &[&str]) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = s.home.join("stand-ins");
+    std::fs::create_dir_all(&dir).unwrap();
+    for name in names {
+        let file = dir.join(name);
+        std::fs::write(&file, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    dir
+}
+
+/// A roost in front of a closed port of the loopback, its PATH `path`,
+/// which must exit 69 before it reaches the relay: the port, and stderr.
+#[cfg(unix)]
+fn roost_on_path(s: &Session, path: &std::path::Path) -> (u16, String) {
+    let relay = counted();
+    store_pair(s, &relay);
+    let port = closed_port();
+    let (rc, out, err) = roost_ends_with(s, &[format!("127.0.0.1:{port}")], &[("PATH", path.as_os_str())]);
+    assert_eq!(rc, 69, "{err}");
+    assert!(err.contains(&format!("TARGET 127.0.0.1:{port}: could not connect")), "the dial's words stay: {err}");
+    assert!(out.is_empty(), "stdout: {out:?}");
+    assert_eq!(relay.seen.load(Ordering::SeqCst), 0, "the roost reached the relay: {err}");
+    no_token(&format!("{out}{err}"));
+    (port, err)
+}
+
+/// GitHub #116 (T-590): a roost on a host with no sshd, its PATH a stand-in
+/// `apt-get` alone, says that no sshd is installed, and the package. Where
+/// this host has an sshd in a place that the look reads after PATH, the
+/// line names it instead, and the form with none is said not to have run.
+/// Unix's: the look of Windows has its own names, in `local_sshd`.
+#[cfg(unix)]
+#[test]
+fn a_roost_with_no_sshd_installed_says_so_and_names_the_package() {
+    let s = Session::start("roost-no-sshd");
+    let path = stand_ins(&s, &["apt-get"]);
+    let (port, err) = roost_on_path(&s, &path);
+    let placed = podssh_cli::local_sshd::places().into_iter().map(|d| d.join("sshd")).find(|p| p.is_file());
+    match placed {
+        None => {
+            assert!(err.contains("no sshd is installed on this host (none on PATH or in /usr/sbin"), "{err}");
+            assert!(err.contains("install one, as apt-get install -y openssh-server, and start it"), "{err}");
+        }
+        Some(at) => {
+            eprintln!("the form with no sshd did not run: this host has {}", at.display());
+            let said = format!("an sshd is installed at {}, and nothing listens at 127.0.0.1:{port}", at.display());
+            assert!(err.contains(&said), "{err}");
+        }
+    }
+}
+
+/// An sshd on PATH, a stand-in, and nothing at TARGET: the line names that
+/// sshd, which the look finds first, and that nothing listens.
+#[cfg(unix)]
+#[test]
+fn a_roost_whose_sshd_is_stopped_says_that_nothing_listens() {
+    let s = Session::start("roost-stopped");
+    let path = stand_ins(&s, &["sshd", "apt-get"]);
+    let (port, err) = roost_on_path(&s, &path);
+    let sshd = path.join("sshd");
+    let said = format!(
+        "an sshd is installed at {}, and nothing listens at 127.0.0.1:{port}: start it, or give the port that it \
+         listens on",
+        sshd.display()
+    );
+    assert!(err.contains(&said), "{err}");
+    assert!(!err.contains("install one"), "an sshd is there: {err}");
 }
 
 #[test]

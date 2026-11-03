@@ -37,8 +37,8 @@ pub const MCP: &[&str] = &[
      first DIR. A DIR that holds ~/.ssh or podssh's cache, or lies inside one, and the root, are refused \
      (64), and a DIR that is not there is 78. cp_put takes content in place of local_path, the bytes of \
      one file in base64, 1 MiB at most; cp_get puts a tree (recursive) only into a path that is not there, \
-     and a tree goes as cp -r copies it, a link as a link. The result has cp's exit and the events of its \
-     --jsonl.",
+     and a tree goes as podssh cp -r copies it, a link as a link. The result has the exit and the events of \
+     podssh cp --jsonl.",
     "--allow-session offers session_start, session_send, session_wait, session_capture and session_stop: a \
      shell with a pty on an allowed host, held by podssh session between the calls. The server drives only \
      the sessions that it started, never one of yours, and stops each as it ends; the text of session_send \
