@@ -185,7 +185,8 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
     };
     let subsystem = args.subsystem.as_deref().unwrap_or("sftp");
     let ran = session(&resolved, &server, subsystem, shape, args.recursive, script, tty.stdin, &log, out);
-    let code = runtime.block_on(ran);
+    // A carrier that the session's connection took ends after it (T-595).
+    let code = runtime.block_on(crate::ssh::transport::settled(ran));
     runtime.shutdown_background();
     code
 }

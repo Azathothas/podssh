@@ -73,8 +73,9 @@ pub const SCP_FLAGS: &[FlagRow] = &[
         "node://NAME: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None),
     row(None, "no-e2e", None, FlagKind::Supported,
         "node://NAME: no end-to-end channel, to a node that runs none either; the relay then sees each byte", None),
-    // The exit of the net (T-431), as for podssh ssh.
-    super::node::EXIT,
+    // The exit of the net (T-431), as for podssh ssh; a node on a carrier
+    // (T-595).
+    super::node::EXIT, super::operator::SSH_CARRIER,
 ];
 
 /// **`sftp`.** `-46AaCfNpqrv`, and the values
@@ -146,6 +147,7 @@ pub const SFTP_FLAGS: &[FlagRow] = &[
         "node://NAME: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None),
     row(None, "no-e2e", None, FlagKind::Supported,
         "node://NAME: no end-to-end channel, to a node that runs none either; the relay then sees each byte", None),
-    // The exit of the net (T-431), as for podssh ssh.
-    super::node::EXIT,
+    // The exit of the net (T-431), as for podssh ssh; a node on a carrier
+    // (T-595).
+    super::node::EXIT, super::operator::SSH_CARRIER,
 ];

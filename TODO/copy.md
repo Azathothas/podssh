@@ -183,12 +183,12 @@ leave a short or wrong file under the destination's name.
 ## Approach
 
 1. `CpArgs` in a new module crates/podssh-cli/src/cp/, read as `SshArgs` is
-   (`crates/podssh-cli/src/ssh/args.rs:226-360`). An operand is remote when a
+   (`crates/podssh-cli/src/ssh/args.rs:230-365`). An operand is remote when a
    `:` comes before any `/`; on Windows, `C:\x` is local. Fewer than two
    operands, or none remote, exit 64.
 2. Build an `SshArgs` (host, `-P` as the port, `-i`, `-o`) for
    `crate::ssh::resolve::resolve`
-   (`crates/podssh-cli/src/ssh/resolve.rs:126-497`), so `-F` follows the rule
+   (`crates/podssh-cli/src/ssh/resolve.rs:128-499`), so `-F` follows the rule
    of `ssh`. Add `-o`, `-J`, `-v`, `-q` and the relay rows of `ssh`
    (`--relay-host`, `--relay-addr`, `--ca-file`, `--direct`) to `CP_FLAGS`.
 3. Split `crates/podssh-cli/src/ssh/mod.rs` lines 73-151 at `6483366` so that the relay (with
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:304-322` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:4160-4163`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:4169-4172`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -3234,7 +3234,7 @@ destination too.
 
 - Measured in the issue: `cp -n`, `--no-clobber`, `-u` and `--backup` are each an unknown flag,
   and a second copy of a changed file replaces the far one with exit 0 and nothing on stderr.
-  Read: `CP_FLAGS` has no such row (`crates/podssh-cli/src/flags/copy.rs:10-82`), and each copy
+  Read: `CP_FLAGS` has no such row (`crates/podssh-cli/src/flags/copy.rs:10-83`), and each copy
   ends with a rename over its destination (`crates/podssh-cli/src/cp/transfer.rs:200-219`), by
   `posix-rename@openssh.com` where the server has it
   (`crates/podssh-ssh/src/sftp/mod.rs:414-423`).

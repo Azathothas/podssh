@@ -9,7 +9,11 @@
 //! terminal on the node's stdin is refused with 64 (Linux, in a pty); and
 //! OpenSSH's client, with that operator as its ProxyCommand, logs in to
 //! OpenSSH's sshd behind the node, or says that it did not run where this
-//! host has no OpenSSH.
+//! host has no OpenSSH. podssh's own clients take the carrier too: `podssh
+//! ssh --carrier ... node://USER@box` runs a command on that sshd; `cp` up
+//! and down, `scp` up and `sftp`'s put and get agree with the disk, through
+//! the sshd's own SFTP; and a client's carrier beside a flag of another
+//! road, stdio, or a destination that is no node is refused with 64.
 
 mod live_harness;
 #[cfg(target_os = "linux")]
@@ -221,4 +225,148 @@ fn openssh_logs_in_to_its_sshd_through_a_node_on_a_carrier() {
     let (code, out, err) = run_with(ssh, Vec::new(), LIMIT);
     assert_eq!(code, Some(0), "{err}");
     assert_eq!(String::from_utf8_lossy(&out), "carried\n", "{err}");
+}
+
+/// A TARGET that takes each connection and closes it at once.
+fn closing_server() -> u16 {
+    let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = server.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for stream in server.incoming().map_while(Result::ok) {
+            drop(stream);
+        }
+    });
+    port
+}
+
+/// `podssh ssh --carrier` starts the node of its carrier, on each host, and
+/// ends it: a TARGET that speaks no SSH fails the login (255), and the node,
+/// online, hears the client's Close at the end, as it does after a login.
+#[test]
+fn podssh_ssh_starts_the_node_of_its_carrier_and_closes_it_at_the_end() {
+    let home = scratch("carrier-ssh-start");
+    let _scratch = Scratch(home.clone());
+    let carrier = node_exec(&format!("127.0.0.1:{}", closing_server()), "");
+    let args = ["ssh", "-o", "BatchMode=yes", "--carrier", carrier.as_str(), "node://box", "true"];
+    let (code, out, err) = run_with(podssh(&home, &args), Vec::new(), LIMIT);
+    assert_eq!(code, Some(255), "{err}");
+    assert!(out.is_empty(), "{out:?}");
+    assert!(err.contains("podssh node: box: online"), "the node of the carrier: {err}");
+    assert!(err.contains("podssh node: box: the carrier's client ended the stream"), "the node's end, 0: {err}");
+}
+
+/// A key of the test, and OpenSSH's sshd that takes it, with the server's
+/// own SFTP when `sftp`; `None`, said, where this host has no sshd.
+#[cfg(unix)]
+fn openssh_server(home: &Path, sftp: bool) -> Option<(PathBuf, live_harness::sshd::Sshd)> {
+    let key = home.join("id");
+    let made = podssh(home, &["keygen", "-q", "-t", "ed25519", "-N", "", "-f", &key.display().to_string()]).output();
+    assert!(made.is_ok_and(|o| o.status.success()), "podssh keygen");
+    let more = if sftp { "Subsystem sftp internal-sftp\n" } else { "" };
+    match live_harness::sshd::start_with(home, &key.with_extension("pub"), more) {
+        Ok(sshd) => Some((key, sshd)),
+        Err(why) => {
+            eprintln!("did not run: {why}");
+            None
+        }
+    }
+}
+
+/// `verb`'s words of a login of podssh's client with `key`, the host key
+/// recorded in the scratch HOME, and the node at the other end of
+/// `carrier`, then `rest`.
+#[cfg(unix)]
+fn carried(verb: &str, home: &Path, key: &Path, carrier: &str, rest: &[&str]) -> Command {
+    let known = format!("UserKnownHostsFile={}", home.join("known_hosts").display());
+    let key = key.display().to_string();
+    let mut words: Vec<&str> = vec![verb, "-i", key.as_str(), "-o", "IdentitiesOnly=yes"];
+    words.extend(["-o", "StrictHostKeyChecking=accept-new", "-o", known.as_str(), "-o", "BatchMode=yes"]);
+    words.extend(["--carrier", carrier]);
+    words.extend(rest.iter().copied());
+    podssh(home, &words)
+}
+
+/// podssh's own client on the carrier, to OpenSSH's sshd behind the node:
+/// the command runs, and at the end the node hears the client's Close.
+#[cfg(unix)]
+#[test]
+fn podssh_ssh_runs_a_command_on_openssh_s_sshd_through_a_node_on_a_carrier() {
+    let home = scratch("carrier-ssh");
+    let _scratch = Scratch(home.clone());
+    let Some((key, sshd)) = openssh_server(&home, false) else { return };
+    let carrier = node_exec(&format!("127.0.0.1:{}", sshd.port), "");
+    let destination = format!("node://{}@box", live_harness::this_user());
+    let ssh = carried("ssh", &home, &key, &carrier, &["-T", destination.as_str(), "echo carried"]);
+    let (code, out, err) = run_with(ssh, Vec::new(), LIMIT);
+    assert_eq!(code, Some(0), "{err}");
+    assert_eq!(String::from_utf8_lossy(&out), "carried\n", "{err}");
+    assert!(err.contains("podssh node: box: online"), "{err}");
+    assert!(err.contains("podssh node: box: the carrier's client ended the stream"), "the node's end, 0: {err}");
+}
+
+/// cp up and down, scp up, and sftp's put and get, each on a node that the
+/// run's own stream starts, through the sshd's own SFTP: each file as it was.
+#[cfg(unix)]
+#[test]
+fn the_copies_reach_openssh_s_sshd_through_a_node_on_a_carrier() {
+    let home = scratch("carrier-copy");
+    let _scratch = Scratch(home.clone());
+    let Some((key, sshd)) = openssh_server(&home, true) else { return };
+    let carrier = node_exec(&format!("127.0.0.1:{}", sshd.port), "");
+    let path = |name: &str| home.join(name).display().to_string();
+    assert!(!path("x").contains(' '), "a path that the batch of sftp cannot carry");
+    let user = live_harness::this_user();
+    let far = |name: &str| format!("node://{user}@box:{}", path(name));
+    let want = pattern(300_000);
+    std::fs::write(path("here.bin"), &want).unwrap();
+    let copy = |verb: &str, rest: &[&str]| run_with(carried(verb, &home, &key, &carrier, rest), Vec::new(), LIMIT);
+    let (here, there) = (path("here.bin"), far("there.bin"));
+    let (code, _, err) = copy("cp", &[here.as_str(), there.as_str()]);
+    assert_eq!(code, Some(0), "cp up: {err}");
+    assert!(std::fs::read(path("there.bin")).unwrap() == want, "cp up: {err}");
+    assert!(err.contains("podssh node: box: the carrier's client ended the stream"), "the node's end: {err}");
+    let back = path("back.bin");
+    let (code, _, err) = copy("cp", &[there.as_str(), back.as_str()]);
+    assert_eq!(code, Some(0), "cp down: {err}");
+    assert!(std::fs::read(&back).unwrap() == want, "cp down: {err}");
+    let scp = far("scp.bin");
+    let (code, _, err) = copy("scp", &[here.as_str(), scp.as_str()]);
+    assert_eq!(code, Some(0), "scp up: {err}");
+    assert!(std::fs::read(path("scp.bin")).unwrap() == want, "scp up: {err}");
+    let (put, got, batch) = (path("put.bin"), path("got.bin"), path("batch"));
+    std::fs::write(&batch, format!("put {here} {put}\nget {put} {got}\n")).unwrap();
+    let node = format!("node://{user}@box");
+    let (code, out, err) = copy("sftp", &["-b", batch.as_str(), node.as_str()]);
+    assert_eq!(code, Some(0), "sftp: {err}");
+    assert!(String::from_utf8_lossy(&out).contains("sftp> put "), "{err}");
+    assert!(std::fs::read(&put).unwrap() == want, "sftp's put: {err}");
+    assert!(std::fs::read(&got).unwrap() == want, "sftp's get: {err}");
+}
+
+/// A client's carrier is its node's one road: a flag of another road, stdio
+/// (the client's own), a kind that is no stream, and a destination that is
+/// no node are refused before anything starts.
+#[test]
+fn a_client_s_carrier_takes_no_other_road_and_reaches_a_node_alone() {
+    let home = scratch("carrier-client-flags");
+    let _scratch = Scratch(home.clone());
+    let a = home.join("a");
+    std::fs::write(&a, b"a").unwrap();
+    let a = a.display().to_string();
+    let refused: [&[&str]; 8] = [
+        &["ssh", "--carrier", "stdio", "node://box", "true"],
+        &["ssh", "--carrier", "exec:cat", "--pair-file", "x", "node://box", "true"],
+        &["ssh", "--carrier", "exec:cat", "--direct", "node://box", "true"],
+        &["ssh", "--carrier", "exec:cat", "--derp-ticket", "x", "node://box", "true"],
+        &["ssh", "--carrier", "exec:cat", "example.org", "true"],
+        &["ssh", "--carrier", "exec:cat", "--exit", "gw", "example.org", "true"],
+        &["cp", "--carrier", "exec:cat", "--relay-host", "relay.example", a.as_str(), "node://box:x"],
+        &["scp", "--carrier", "tcp:127.0.0.1:1", a.as_str(), "node://box:x"],
+    ];
+    for args in refused {
+        let (code, out, err) = run_with(podssh(&home, args), Vec::new(), LIMIT);
+        assert_eq!(code, Some(64), "{args:?}: {err}");
+        assert!(out.is_empty(), "{args:?}: {out:?}");
+        assert!(err.contains("--carrier"), "{args:?}: {err}");
+    }
 }

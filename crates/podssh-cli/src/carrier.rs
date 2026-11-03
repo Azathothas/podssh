@@ -8,7 +8,9 @@
 //! its own process (`podssh_relay::serve::reverse::carrier`), and each
 //! operator's leg is a pipe to that role. No relay, no pair and no token: the
 //! stream is the door. NAME is a label alone, under which the client pins the
-//! node's key.
+//! node's key. The clients of a node (`ssh`, `cp`, `scp` and `sftp`) share
+//! one client for the command ([`shared`]): one program, one node, each
+//! session a leg of its own, until the command ends ([`end_shared`]).
 
 use std::io::{IsTerminal as _, Write};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -39,6 +41,9 @@ const CHILD_LIMIT: Duration = Duration::from_secs(5);
 /// Each direction of the pipe between the layer and the leg.
 const PIPE: usize = 256 * 1024;
 
+/// The client that each leg of a command shares, once one asked for it.
+static SHARED: Mutex<Option<Arc<Client>>> = Mutex::new(None);
+
 /// `--carrier ADDR`: a local end of `pipe`, and only those.
 pub(crate) fn parse(text: &str) -> Result<Address, Refusal> {
     match address::parse(text) {
@@ -48,6 +53,16 @@ pub(crate) fn parse(text: &str) -> Result<Address, Refusal> {
         }
         _ => Err(Refusal::usage(format!("--carrier {text}: a carrier is a stream that exists already: {KINDS}"))),
     }
+}
+
+/// `--carrier ADDR` of a client of a node: [`parse`]'s, but stdio, as this
+/// end's stdin and stdout are its own (`why`): stdio is the node's end.
+pub(crate) fn for_a_client(text: &str, why: &str) -> Result<Address, Refusal> {
+    let found = parse(text)?;
+    if found == Address::Stdio {
+        return Err(Refusal::usage(format!("--carrier {text}: {why}; name fd:N or exec:CMD")));
+    }
+    Ok(found)
 }
 
 /// A terminal on stdin is a person's keys, which a node would read as
@@ -116,7 +131,8 @@ impl Client {
     }
 
     /// The operator's legs of this carrier: no relay, no token, the role in
-    /// this process.
+    /// this process. The node's ready is a step of `--ConnectTimeout`, which
+    /// does nothing with no watch.
     pub(crate) fn config(&self) -> OperatorConfig<'_> {
         OperatorConfig {
             relay: &self.relay,
@@ -125,7 +141,7 @@ impl Client {
             trust: &self.trust,
             proxy: &self.proxy,
             timeout: READY_LIMIT,
-            limits: OperatorLimits::default(),
+            limits: OperatorLimits { on_ready: Some(crate::connect_bound::ready), ..OperatorLimits::default() },
             wire: Wire::Carrier(self.door),
         }
     }
@@ -133,6 +149,11 @@ impl Client {
     /// The end: the node hears a Close 1000, so that it exits 0, and the
     /// program that carries the stream is waited for, then ended.
     pub(crate) async fn finish(self) {
+        self.end().await;
+    }
+
+    /// [`Client::finish`], for a client that the legs of a command share.
+    pub(crate) async fn end(&self) {
         self.door.role().close(CLOSE_LIMIT).await;
         let child = lock(&self.child).take();
         if let Some(mut child) = child {
@@ -140,6 +161,30 @@ impl Client {
                 let _ = child.kill().await;
             }
         }
+    }
+}
+
+/// The client of the carrier `text` that each leg of this command shares,
+/// started at the first ask, in a tokio runtime: one program, one node, and
+/// each session a leg of its own, until [`end_shared`]. A command names one
+/// carrier, so a later ask takes the first client.
+pub(crate) fn shared(text: &str) -> Result<Arc<Client>, Refusal> {
+    let mut held = lock(&SHARED);
+    if let Some(client) = held.as_ref() {
+        return Ok(client.clone());
+    }
+    let found = parse(text)?;
+    let client = Arc::new(Client::start(text, &found)?);
+    *held = Some(client.clone());
+    Ok(client)
+}
+
+/// The end of the shared client, when one started: the node hears its
+/// Close, and the program of the stream ends. A second call does nothing.
+pub(crate) async fn end_shared() {
+    let client = lock(&SHARED).take();
+    if let Some(client) = client {
+        client.end().await;
     }
 }
 
@@ -213,12 +258,7 @@ async fn carry(
 /// channel's flags; a relay's or a pair's flag has nothing to apply to.
 fn prepare(args: &OperatorArgs) -> Result<(String, String, Address, crate::channel::Ask), Refusal> {
     let text = args.carrier.clone().unwrap_or_default();
-    let found = parse(&text)?;
-    if found == Address::Stdio {
-        return Err(Refusal::usage(format!(
-            "--carrier {text}: stdin and stdout carry the session's bytes here; name fd:N or exec:CMD"
-        )));
-    }
+    let found = for_a_client(&text, "stdin and stdout carry the session's bytes here")?;
     let flags = [
         (args.pair_file.is_some(), "--pair-file"),
         (args.relay_addr.is_some(), "--relay-addr"),
@@ -243,7 +283,7 @@ fn prepare(args: &OperatorArgs) -> Result<(String, String, Address, crate::chann
 
 /// A first leg that did not open: a stream that ended or a node that never
 /// read it (69); a role that this end could not make (78).
-fn refusal_of(e: &ConnectError) -> Refusal {
+pub(crate) fn refusal_of(e: &ConnectError) -> Refusal {
     let code = match e {
         ConnectError::Config(_) => Fault::Config.code(),
         _ => Fault::RelayUnreachable.code(),
@@ -266,6 +306,12 @@ pub(crate) fn judged(carried: &Carried) -> Option<(i32, String)> {
             Some((Fault::RelayUnreachable.code(), "the carrier's node did not end the session in time".into()))
         }
     }
+}
+
+/// What a leg's end on a carrier says of a session that failed, for `podssh
+/// ssh`, whose exit is the session's: nothing for a clean end.
+pub(crate) fn said(outcome: &Outcome) -> Option<String> {
+    ended(outcome).map(|(_, why)| why)
 }
 
 /// The words of a leg's end on a carrier, where the role's closes name the
@@ -310,6 +356,16 @@ mod tests {
         }
         assert!(parse("tcp:127.0.0.1:22").unwrap_err().message.contains(KINDS));
         assert!(parse("exec:").unwrap_err().message.contains("names no program"));
+    }
+
+    #[test]
+    fn a_client_of_a_node_takes_no_stdio_which_is_its_own() {
+        let refusal = for_a_client("stdio", "its own").unwrap_err();
+        assert_eq!(refusal.code, 64);
+        assert!(refusal.message.starts_with("--carrier stdio: its own; name fd:N or exec:CMD"), "{}", refusal.message);
+        assert_eq!(for_a_client("-", "its own").unwrap_err().code, 64);
+        assert_eq!(for_a_client("exec:cat", "its own").unwrap(), Address::Exec(vec!["cat".into()]));
+        assert_eq!(for_a_client("tcp:127.0.0.1:22", "its own").unwrap_err().code, 64);
     }
 
     #[test]

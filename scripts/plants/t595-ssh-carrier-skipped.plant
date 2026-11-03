@@ -1,0 +1,7 @@
+# T-595: podssh ssh --carrier sent to the pair's road, so that no node of
+# the carrier starts and the run asks for a pair; the test of the node that
+# ssh starts and closes must fail. It needs no sshd.
+ENTRY=T-595
+GROUP=cli-tests
+EXPECT='test podssh_ssh_starts_the_node_of_its_carrier_and_closes_it_at_the_end \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test node_carrier -- podssh_ssh_starts_the_node_of_its_carrier_and_closes_it_at_the_end'

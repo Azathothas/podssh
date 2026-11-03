@@ -4,7 +4,8 @@
 //! name the node so: a name that no DNS name can be. `node://NAME/ROUTE`
 //! names a route of the node (T-089), and its own name in the known hosts.
 //! `cp`, `scp` and `sftp` reach a node too (T-296), on the stream of
-//! [`reach`].
+//! [`reach`]. With `--carrier ADDR`, the node's one road is a stream that
+//! exists already (T-595, `super::carried`), whose session [`run_on`] runs.
 
 use std::sync::Arc;
 
@@ -12,7 +13,9 @@ use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as
 use podssh_ssh::handshake::{Flow, Road};
 use podssh_ssh::{Log, Options, EXIT_FAILURE};
 use podssh_ws::{ProxyChoice, Trust};
+use tokio::io::DuplexStream;
 use tokio::sync::oneshot;
+use tokio::task::JoinHandle;
 
 use crate::exitmap::sysexits;
 use crate::layered::{carry_keeping, carry_through, Line, Shell};
@@ -83,6 +86,9 @@ pub(super) fn transport(
     race: Option<super::iroh::Race>,
     derp: super::derp::Race,
 ) -> Result<Transport, String> {
+    // A carrier is the node's one road (T-595): a flag of another road is
+    // refused in its words first.
+    super::carried::flags(r.args).map_err(|why| format!("{SCHEME}{}: {why}", r.label))?;
     let why = if r.args.direct {
         Some("--direct cannot reach a node: only the relay can")
     } else if r.jumps > 0 {
@@ -116,8 +122,8 @@ pub(super) fn transport(
             r.label
         ));
     }
-    let (label, pair_file) = (r.label.to_string(), r.args.pair_file.clone());
-    Ok(Transport::Node { label, pair_file, trust, race, derp, channel })
+    let (label, pair_file, carrier) = (r.label.to_string(), r.args.pair_file.clone(), r.args.carrier.clone());
+    Ok(Transport::Node { label, pair_file, trust, race, derp, channel, carrier })
 }
 
 /// SSH over the operator's leg to the node of the pair under `label`; over
@@ -167,7 +173,6 @@ pub(super) async fn connect(
     log.verbose(&format!("connecting to {shown} through the relay {}", part.relay.host));
     // SSH <-> the resumable layer <-> the operator's leg, a new leg after
     // each lost one when the node offers the layer (T-153).
-    let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
     let (link_end, leg_end) = tokio::io::duplex(PIPE);
     let leg = match operator::start(&config, leg_end).await {
         Ok(leg) => leg,
@@ -184,6 +189,31 @@ pub(super) async fn connect(
             return EXIT_FAILURE;
         }
     };
+    let leg = Leg { config: &config, link_end, leg, expires_ms: Some(part.expires_ms) };
+    run_on(leg, channel, opts, log, &shown, explain).await
+}
+
+/// The first leg of a session to a node, open: its legs' config, the pipe to
+/// it, its task, and the pair's expiry when a pair carries it.
+pub(super) struct Leg<'c> {
+    pub config: &'c OperatorConfig<'c>,
+    pub link_end: DuplexStream,
+    pub leg: JoinHandle<LegOutcome>,
+    pub expires_ms: Option<i64>,
+}
+
+/// SSH over the first leg, in the layer when the node offers it, a new leg
+/// after each lost one; `explain` says what a leg's end failed. The pair's
+/// road and a carrier's (T-595) run it, so that the two cannot drift.
+pub(super) async fn run_on(
+    first: Leg<'_>,
+    channel: Option<crate::channel::Operator>,
+    opts: &Options,
+    log: Arc<Log>,
+    shown: &str,
+    explain: fn(&LegOutcome) -> Option<String>,
+) -> i32 {
+    let Leg { config, link_end, leg, expires_ms } = first;
     let say = |line: Line| match line {
         Line::Always(text) => log.info(&format!("{shown}: {text}")),
         Line::Verbose(text) => log.verbose(&format!("{shown}: {text}")),
@@ -191,7 +221,7 @@ pub(super) async fn connect(
     // The SSH client and the layer in one task: when the client closes its
     // end, the layer sends `CLOSE`, and the last leg its Close.
     let pin_say = {
-        let (log, shown) = (log.clone(), shown.clone());
+        let (log, shown) = (log.clone(), shown.to_string());
         move |line: String| log.info(&format!("{shown}: {line}"))
     };
     // The layer learns whether the far end keeps shells, before the SSH
@@ -204,9 +234,10 @@ pub(super) async fn connect(
     // SIGHUP and SIGTERM end the session with its `CLOSE`, which the node
     // keeps nothing of; Ctrl-C stays the remote command's (T-586).
     crate::hangup::take(crate::hangup::Which::Ends);
+    let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
     let (code, carried) = tokio::join!(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
-        carry_keeping(&config, link_end, leg, layer_end, Some(part.expires_ms), &say, channel, pin_say, shell)
+        carry_keeping(config, link_end, leg, layer_end, expires_ms, &say, channel, pin_say, shell)
     );
     // A refused key, or a changed node key, is the session's end whatever
     // the SSH client saw after it.

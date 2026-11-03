@@ -246,6 +246,12 @@ fn examples() -> Vec<(&'static str, String)> {
              127.0.0.1:22' box\" user@box"
                 .into(),
         ),
+        (
+            "or podssh itself on that channel: a copy to the node's sshd, each connection a session of the one stream",
+            "podssh cp --carrier 'exec:ssh -T sandbox podssh node --carrier stdio box 127.0.0.1:22' notes.txt \
+             node://user@box:notes.txt"
+                .into(),
+        ),
         ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
         (
             "the node in the background under a name, started again whenever it ends; a second start of the name refuses",

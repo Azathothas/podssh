@@ -33,6 +33,13 @@ fn program() -> Option<PathBuf> {
 /// Start the server in `dir` for this user, who logs in with the public key
 /// in `authorized`; else why none can run here.
 pub fn start(dir: &Path, authorized: &Path) -> Result<Sshd, String> {
+    start_with(dir, authorized, "")
+}
+
+/// [`start`], with the lines `more` at the end of its configuration, as
+/// `Subsystem sftp internal-sftp` for a copy (T-595): the server's own SFTP,
+/// which needs no `sftp-server` of this host.
+pub fn start_with(dir: &Path, authorized: &Path, more: &str) -> Result<Sshd, String> {
     let sshd = program().ok_or("no sshd here")?;
     let port = std::net::TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?.local_addr().unwrap().port();
     let host_key = dir.join("sshd_host_key");
@@ -52,6 +59,7 @@ pub fn start(dir: &Path, authorized: &Path) -> Result<Sshd, String> {
         host_key.display(),
         authorized.display()
     );
+    text.push_str(more);
     std::fs::write(&config, &text).map_err(|e| e.to_string())?;
     // OpenSSH 9.8 and later penalise a source of many sessions; older ones
     // do not know the keyword.

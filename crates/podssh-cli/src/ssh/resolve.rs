@@ -32,7 +32,8 @@ pub enum Transport {
     /// The node of a pair, through the operator's leg of the reverse road
     /// (`node://NAME`, T-084); raced with its iroh road when `race` names
     /// one (T-164), and with its DERP road when `derp` gives a ticket or
-    /// one is kept under NAME (T-379).
+    /// one is kept under NAME (T-379). With `carrier`, the stream of
+    /// `--carrier`, unparsed, is its one road (T-595).
     Node {
         label: String,
         pair_file: Option<String>,
@@ -40,6 +41,7 @@ pub enum Transport {
         race: Option<super::iroh::Race>,
         derp: super::derp::Race,
         channel: crate::channel::Ask,
+        carrier: Option<String>,
     },
     /// A node over the iroh road (`iroh:TICKET`, T-163), with this client's
     /// key file when `--iroh-key` names one, and the relays to try after the

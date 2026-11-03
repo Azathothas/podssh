@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ssh/mod.rs
++++ b/crates/podssh-cli/src/ssh/mod.rs
+@@ -348,7 +348,7 @@
+     let opts = &resolved.options;
+     if let Transport::Node { label, pair_file, trust, race, derp, channel, carrier } = &resolved.transport {
+         // A carrier is the node's one road: no other races it (T-595).
+-        if let Some(text) = carrier {
++        if let Some(text) = carrier.as_ref().filter(|_| false) {
+             return Box::pin(carried::connect(label, text, channel, opts, log)).await;
+         }
+         // The member's record of pkarr, for each road that no ticket gave

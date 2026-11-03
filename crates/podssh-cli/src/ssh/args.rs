@@ -84,6 +84,9 @@ pub struct SshArgs {
     /// For `derp:TICKET` and `node://NAME`: the DERP servers after the
     /// ticket's, unparsed.
     pub derp_server: Option<String>,
+    /// For `node://NAME`: `--carrier ADDR`, the node at the other end of a
+    /// stream that exists already, its one road (T-595), unparsed.
+    pub carrier: Option<String>,
     /// `-f`, `--detach`: into the background once the request went (T-380).
     pub detach: bool,
     /// `--restart`: the detached run started again whenever it ends (T-390).
@@ -192,6 +195,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-ticket", "give one ticket"),
     ("derp-ticket", "give one ticket"),
     ("derp-server", "give the servers as one comma list"),
+    ("carrier", "give one stream"),
     ("persist-name", "give one name"),
     ("attach", "give one name"),
     ("resume-deadline", "give one time"),
@@ -320,6 +324,7 @@ impl SshArgs {
             iroh_ticket: one("iroh-ticket"),
             derp_ticket: one("derp-ticket"),
             derp_server: one("derp-server"),
+            carrier: one("carrier"),
             detach: flag("detach"),
             restart: flag("restart"),
             detach_name: one("detach-name"),

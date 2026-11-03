@@ -14,6 +14,8 @@ pub mod args;
 mod attach;
 // The server's version line, for doctor and the direct road (T-363).
 pub(crate) mod banner;
+// node://NAME on a stream that exists already, `--carrier` (T-595).
+pub(crate) mod carried;
 // iap:// and eice://, a cloud's own tunnel to a VM (T-351).
 pub mod cloud;
 pub mod cloudflare;
@@ -344,7 +346,11 @@ pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i3
         return Box::pin(upgrade::run(&resolved, &upgrade, log)).await;
     }
     let opts = &resolved.options;
-    if let Transport::Node { label, pair_file, trust, race, derp, channel } = &resolved.transport {
+    if let Transport::Node { label, pair_file, trust, race, derp, channel, carrier } = &resolved.transport {
+        // A carrier is the node's one road: no other races it (T-595).
+        if let Some(text) = carrier {
+            return Box::pin(carried::connect(label, text, channel, opts, log)).await;
+        }
         // The member's record of pkarr, for each road that no ticket gave
         // (T-445): a bad variable of it is said before anything connects.
         let record = match iroh::record_ask(label, race.is_some(), derp, channel) {
