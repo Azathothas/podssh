@@ -83,6 +83,11 @@ fn ended(mut child: Child) -> (i32, String) {
     (out.status.code().unwrap_or(-1), String::from_utf8_lossy(&out.stderr).into_owned())
 }
 
+/// A local name under `dir`, as podssh shows it on this system.
+fn local(dir: &str, name: &str) -> String {
+    std::path::Path::new(dir).join(name).display().to_string()
+}
+
 #[test]
 fn clobber_no_clobber_keeps_a_destination_up_and_down() {
     need_server!();
@@ -133,8 +138,9 @@ fn clobber_no_clobber_keeps_a_destination_up_and_down() {
     std::fs::write(home.join("far/t/a"), b"kept").unwrap();
     let (rc, out, err) = cp(&home, port, &["-r", "-n", "--dry-run", "t", "u@127.0.0.1:far"]);
     assert_eq!(rc, 0, "{err}");
-    assert!(out.lines().any(|l| l == "skip t/a: exists"), "{out}");
-    assert!(out.lines().any(|l| l == "copy t/b -> far/t/b"), "{out}");
+    // A local name is in this system's form (`t\a` on Windows).
+    assert!(out.lines().any(|l| l == format!("skip {}: exists", local("t", "a"))), "{out}");
+    assert!(out.lines().any(|l| l == format!("copy {} -> far/t/b", local("t", "b"))), "{out}");
     let (rc, _, err) = podssh_in(&home, port, &["mv", "-r", "-n", "t", "u@127.0.0.1:far"]);
     assert_eq!(rc, 0, "{err}");
     assert_eq!(std::fs::read(home.join("far/t/a")).unwrap(), b"kept");
@@ -223,7 +229,7 @@ fn clobber_update_copies_only_what_is_newer() {
     file_at(&home.join("far/t/a"), b"a", t + 100);
     let (rc, out, err) = cp(&home, port, &["-r", "-u", "--dry-run", "t", "u@127.0.0.1:far"]);
     assert_eq!(rc, 0, "{err}");
-    assert!(out.lines().any(|l| l == "skip t/a: not newer"), "{out}");
+    assert!(out.lines().any(|l| l == format!("skip {}: not newer", local("t", "a"))), "{out}");
 }
 
 #[test]
