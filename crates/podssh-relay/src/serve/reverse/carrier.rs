@@ -75,6 +75,7 @@ impl Role {
             mint: Mint::Nobody,
             tokens: Tokens::random()?,
             policy: Default::default(),
+            egress: Default::default(),
             limits: Limits::default(),
             pairs: Pairs::default(),
             answered: Default::default(),

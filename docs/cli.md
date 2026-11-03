@@ -3333,7 +3333,10 @@ commands. The rules behind them:
   unregisters. `--mint`, `--pairs` and `--allow-private` without `--relay`,
   and `--relay` without `--quick-tunnel`, are usage errors (64); a list of
   `--mint keys:FILE` that cannot be read stops the start (78). The role
-  dials each target from this host directly, as `relay serve` does.
+  dials each target from this host, as `relay serve` does: through the
+  host's `HTTPS_PROXY` when one is set, by each checked address, or by the
+  name with `--allow-private`; a proxy's refusal is its `502` with the
+  proxy's status (T-457, [relay.md](relay.md), "The relay role's way out").
 - **The exit codes follow the faults of E24**
   (`crates/podssh-cli/src/exitmap.rs`): 69 for a relay or TARGET out of
   reach, a stopped pair, or a pair that another node serves; 77 for a

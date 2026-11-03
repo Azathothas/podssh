@@ -31,6 +31,7 @@ fn cfg(mint: Mint) -> Arc<Config> {
         mint,
         tokens: role::tokens::Tokens::new([8; 32]),
         policy: role::policy::Policy { private: true, ..Default::default() },
+        egress: Default::default(),
         limits: Default::default(),
         pairs: Default::default(),
         answered: Default::default(),

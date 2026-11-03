@@ -2,9 +2,9 @@
 //! dial before the upgrade, then binary frames both ways with the contract's
 //! limits and close codes (`docs/relay.md`, "Errors and close codes"). Each
 //! write waits for the reader on the other side, so no queue grows without a
-//! bound: a slow client slows the target's reads, as TCP would (T-336).
+//! bound: a slow client slows the target's reads, as TCP would (T-336). The
+//! dial goes through the host's proxy when one is set (T-457, `egress`).
 
-use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,6 +17,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
+use super::egress::{self, Missed, Plan};
 use super::policy::{shown, Refused};
 use super::{answer, Config};
 
@@ -80,8 +81,8 @@ where
         return answer(&mut stream, request::refusal(400, &why, &[])).await;
     };
     let target = shown(&asked.host, asked.port);
-    let addresses = match cfg.policy.addresses(&asked.host, asked.port, asked.family).await {
-        Ok(found) => found,
+    let plan = match cfg.policy.plan(&asked.host, asked.port, asked.family, &cfg.egress).await {
+        Ok(plan) => plan,
         Err(Refused::Policy(why)) => {
             return answer(&mut stream, request::refusal(403, &format!("forward: {why}"), &[])).await
         }
@@ -93,7 +94,7 @@ where
     let dialed = if asked.lazy {
         None
     } else {
-        match dial(&addresses, cfg.limits.connect).await {
+        match dial(&asked.host, &plan, &cfg).await {
             Ok(mut tcp) => {
                 if !asked.precheck.is_zero() {
                     let mut buf = vec![0u8; 16 * 1024];
@@ -103,8 +104,9 @@ where
                 }
                 Some(tcp)
             }
-            Err(e) => {
-                let why = format!("relay: cannot reach {target}: {e}");
+            // A proxy's refusal too: the role's 502, with the proxy's status.
+            Err(why) => {
+                let why = format!("relay: cannot reach {target}: {why}");
                 return answer(&mut stream, request::refusal(502, &why, &[])).await;
             }
         }
@@ -117,7 +119,7 @@ where
     let tcp = match dialed {
         Some(tcp) => tcp,
         // `?dial=lazy`: the target is dialed once the client's first bytes come.
-        None => match first_then_dial(&session, &addresses, cfg.limits.connect).await {
+        None => match first_then_dial(&session, &asked.host, &plan, &cfg).await {
             Ok((tcp, first)) => {
                 let mut tcp = tcp;
                 if tcp.write_all(&first).await.is_err() {
@@ -136,27 +138,28 @@ where
     pump(session, tcp, early, cfg).await;
 }
 
-/// The first address of `addresses` that answers, within `limit` in all.
-async fn dial(addresses: &[SocketAddr], limit: Duration) -> Result<TcpStream, String> {
-    let attempt = async {
-        let mut last = String::from("no address");
-        for address in addresses {
-            match TcpStream::connect(address).await {
-                Ok(tcp) => return Ok(tcp),
-                Err(e) => last = format!("{address}: {e}"),
+/// The target `host` by `plan`, within the dial's limit in all; `Err` holds
+/// the client's words. The owner hears a proxy's fault, with where the
+/// proxy is, on the role's line.
+async fn dial(host: &str, plan: &Plan, cfg: &Config) -> Result<TcpStream, String> {
+    match egress::dial(host, plan, &cfg.egress, cfg.limits.connect).await {
+        Ok((tcp, _)) => Ok(tcp),
+        Err(Missed { said, line }) => {
+            if let Some(line) = line {
+                cfg.event(&format!("proxy: {line}"));
             }
+            Err(said)
         }
-        Err(last)
-    };
-    tokio::time::timeout(limit, attempt).await.unwrap_or_else(|_| Err(format!("no answer within {}s", limit.as_secs())))
+    }
 }
 
 /// `?dial=lazy`: wait for the client's first payload, then dial. `Err(None)`
 /// when the client went first.
 async fn first_then_dial<S>(
     session: &RelaySession<S>,
-    addresses: &[SocketAddr],
-    limit: Duration,
+    host: &str,
+    plan: &Plan,
+    cfg: &Config,
 ) -> Result<(TcpStream, Vec<u8>), Option<String>>
 where
     S: AsyncRead + AsyncWrite,
@@ -165,7 +168,7 @@ where
         let f = session.read_frame().await.map_err(|_| None)?;
         match f.opcode {
             frame::OPCODE_BINARY | frame::OPCODE_CONTINUATION if !f.payload.is_empty() => {
-                return dial(addresses, limit).await.map(|tcp| (tcp, f.payload)).map_err(Some);
+                return dial(host, plan, cfg).await.map(|tcp| (tcp, f.payload)).map_err(Some);
             }
             frame::OPCODE_CLOSE => {
                 let _ = session.send_close(1000, "client closed before the target was dialed").await;

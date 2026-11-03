@@ -68,6 +68,7 @@ impl Tunnel {
             tokens: role::tokens::Tokens::new([7; 32]),
             // The test's target is on the loopback.
             policy: role::policy::Policy { private: true, ..Default::default() },
+            egress: Default::default(),
             limits: Limits::default(),
             pairs: Default::default(),
             answered: Default::default(),

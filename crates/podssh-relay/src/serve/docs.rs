@@ -10,8 +10,8 @@ use std::time::{Duration, Instant};
 use podssh_ws::http::request::{self, Request};
 use serde_json::{json, Value};
 use tokio::io::AsyncReadExt;
-use tokio::net::TcpStream;
 
+use super::egress::{self, Plan};
 use super::policy::{shown, Refused};
 use super::Config;
 
@@ -94,24 +94,25 @@ pub async fn trace(cfg: &Config, head: &Request) -> Vec<u8> {
         return request::refusal(400, "trace: the target is HOST:PORT", &[]);
     };
     let host = host.trim_start_matches('[').trim_end_matches(']').to_string();
-    doc["target"] = match cfg.policy.addresses(&host, port, None).await {
+    doc["target"] = match cfg.policy.plan(&host, port, None, &cfg.egress).await {
         Err(Refused::Policy(why) | Refused::Unreachable(why)) => json!({ "error": format!("refused: {why}") }),
-        Ok(addresses) => dial_for_trace(&host, port, &addresses, cfg).await,
+        Ok(plan) => dial_for_trace(&host, port, &plan, cfg).await,
     };
     json(&doc)
 }
 
-async fn dial_for_trace(host: &str, port: u16, addresses: &[std::net::SocketAddr], cfg: &Config) -> Value {
+/// The trace's dial, as a session's goes: through the host's proxy when one
+/// is set (T-457), whose leg the answer names as it went.
+async fn dial_for_trace(host: &str, port: u16, plan: &Plan, cfg: &Config) -> Value {
     let started = Instant::now();
-    let mut tcp = None;
-    for address in addresses {
-        if let Ok(Ok(t)) = tokio::time::timeout(cfg.limits.connect, TcpStream::connect(address)).await {
-            tcp = Some((t, *address));
-            break;
+    let (mut tcp, leg) = match egress::dial(host, plan, &cfg.egress, cfg.limits.connect).await {
+        Ok(reached) => reached,
+        Err(missed) => {
+            if let Some(line) = missed.line {
+                cfg.event(&format!("proxy: {line}"));
+            }
+            return json!({ "error": format!("refused: cannot reach {}: {}", shown(host, port), missed.said) });
         }
-    }
-    let Some((mut tcp, address)) = tcp else {
-        return json!({ "error": format!("refused: cannot reach {}", shown(host, port)) });
     };
     let connect_ms = started.elapsed().as_millis() as u64;
     let mut buf = vec![0u8; 4096];
@@ -123,13 +124,20 @@ async fn dial_for_trace(host: &str, port: u16, addresses: &[std::net::SocketAddr
         }
         _ => (Value::Null, 0, Value::Null),
     };
-    json!({
-        "host": host, "port": port, "ok": true, "road": "direct", "dialed": address.ip().to_string(),
+    let mut found = json!({
+        "host": host, "port": port, "ok": true, "road": "direct", "dialed": leg.dialed,
         "dialed_literal": host.parse::<std::net::IpAddr>().is_ok(),
-        "address_family": if address.is_ipv4() { "4" } else { "6" },
+        // None for a name that the proxy resolved: its family is the proxy's.
+        "address_family": leg.family.map(|f| f.to_string()),
         "connect_ms": connect_ms, "first_byte_ms": first_ms, "bytes_seen": seen,
         "verdict": if seen > 0 { "live" } else { "silent-or-unreachable" }, "banner": banner,
-    })
+    });
+    // The proxy's leg by its kind, never where the proxy is.
+    if let Some(kind) = leg.proxy {
+        found["road"] = json!("proxy");
+        found["proxy"] = json!(kind.name());
+    }
+    found
 }
 
 /// A `200` with a JSON body.
@@ -192,6 +200,7 @@ mod tests {
             mint: super::super::Mint::Anyone,
             tokens: super::super::tokens::Tokens::new([3; 32]),
             policy: Default::default(),
+            egress: Default::default(),
             limits: Default::default(),
             pairs: Default::default(),
             answered: Default::default(),

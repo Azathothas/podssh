@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**578 entries: 110 open, 4 partial, 2 blocked, 462 done.**
+**578 entries: 109 open, 5 partial, 2 blocked, 462 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 40 | 3 | 0 | 221 | 264 |
+| P2 | 39 | 4 | 0 | 221 | 264 |
 | P3 | 70 | 0 | 2 | 177 | 249 |
-| **All** | 110 | 4 | 2 | 462 | 578 |
+| **All** | 109 | 5 | 2 | 462 | 578 |
 
 ## Entries
 
@@ -528,7 +528,7 @@ repository and CI).
 | [T-454](mesh.md) | P2 | S | M10 | feature | done | The relay role brakes `/v1/mint` and `/v1/pair` for each address |
 | [T-455](mesh.md) | P2 | S | M10 | feature | partial | The relay role mints for the members of the net |
 | [T-456](mesh.md) | P3 | M | M10 | feature | open | XHTTP over HTTP/1.1, on a second connection |
-| [T-457](mesh.md) | P2 | M | M10 | feature | open | The relay role dials its targets through the host's `HTTPS_PROXY` |
+| [T-457](mesh.md) | P2 | M | M10 | feature | partial | The relay role dials its targets through the host's `HTTPS_PROXY` |
 | [T-458](mesh.md) | P2 | S | M10 | feature | open | `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it |
 | [T-459](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`) |
 | [T-460](ssh.md) | P1 | M | none | defect | done | A reply to a global request that carries data ends the connection: a quiet minute with keepalives, and a refused `-R` |

@@ -193,7 +193,8 @@ step_libs() {
     tests "the blocking facade against a stand-in relay (features blocking, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features blocking,plain-ws --test blocking_plain
     # The relay role (T-169, T-427): its routes, and its reverse road against
-    # raw sockets and against podssh's node and operator on plain ws://.
+    # raw sockets and against podssh's node and operator on plain ws://; its
+    # forward road through a stand-in of the host's proxy (T-457).
     tests "the relay role's routes (feature serve, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve --lib serve::
     tests "the relay role's reverse road (features serve, plain-ws, no C compiler)" \

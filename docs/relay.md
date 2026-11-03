@@ -78,8 +78,9 @@ load, or whose key is not its leaf's, is said while the old one stays.
 `--acme-directory URL`) by TLS-ALPN-01 on the role's own listener, keeps it
 in the cache and renews it in the role 30 days before its end; the client
 of ACME is the binary's, on aws-lc-rs, and the role's TLS stays podssh-ws's.
-Its reverse road (T-427) is in "The relay role's reverse road", below, and
-the role behind a quick tunnel, with no listener, at the end.
+Its reverse road (T-427) is in "The relay role's reverse road", below, the
+role behind a quick tunnel, with no listener, after it, and its targets
+through the host's `HTTPS_PROXY` in "The relay role's way out" (T-457).
 
 ## How podssh selects relay hosts
 
@@ -558,7 +559,43 @@ relay serve`. The name is new at each run, and a pair names its relay
 host, so a pair of the role's serves its node's run; `--pairs FILE` keeps
 the pairs all the same, as `relay serve`'s does. A planned stop closes each
 socket of the reverse road with `1012` first. The role dials its targets
-from the node's host directly, as on a listener.
+from the node's host as on a listener: through the host's `HTTPS_PROXY`
+when one is set ("The relay role's way out", below), the proxy that the
+node's own dial of the edge takes too.
+
+## The relay role's way out (T-457)
+
+The role dials each target of its forward road, and of `/trace`, as
+podssh's client reaches its relay (rule 2 of `AGENTS.md`): through the
+proxy that the host's `https_proxy`, `HTTPS_PROXY`, `all_proxy` or
+`ALL_PROXY` names, the first that is set, by HTTP CONNECT or SOCKS5, read
+once as the role starts; the loopback, and what `no_proxy` or `NO_PROXY`
+names, go directly (`crates/podssh-relay/src/serve/egress.rs`). A proxy
+that cannot be read stops the start (78), and the first line names the
+proxy by its host and port, never by its credentials.
+
+- **What the proxy is asked for.** The role's policy checks each address of
+  a name as it resolves on the role's host, before any CONNECT, and the
+  proxy is then asked for each checked address in turn, never for the
+  name: a proxy whose resolver answers otherwise (its own DNS, a split
+  horizon, a name that rebinds) reaches nothing that the policy did not
+  check, as the exit of T-431 dials its addresses. With `--allow-private`,
+  which checks no address, and no `?family`, the name goes to the proxy as
+  it came, for the proxy to resolve, so a host with no DNS (the target
+  environment's, [target-environment.md](target-environment.md)) reaches
+  each target that its proxy reaches; a name that the role cannot resolve
+  is else its `502`.
+- **A refusal.** The proxy's refusal is the role's `502`, `relay: cannot
+  reach HOST:PORT: the proxy of the relay's host refused CONNECT ADDR:PORT:
+  403 Forbidden`, which a client reads as an answer about the target (Q69).
+  The client's words never say where the host's proxy is; the role's line
+  (`proxy: the proxy HOST:PORT refused ...`, on stdout for `relay serve`,
+  on stderr for a node) does, never its credentials. The proxy's own answer
+  is the last word: a CONNECT that it allows is the role's session.
+- **`/trace`** gives `"road": "proxy"` and `"proxy": "http"` (or `socks5`)
+  for a target reached through the proxy, the address asked of it in
+  `dialed` (or the name, with no `address_family`), and the proxy's
+  refusal in `error`.
 
 ## The relay role's brake (T-454)
 

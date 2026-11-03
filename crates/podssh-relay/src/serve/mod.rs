@@ -6,12 +6,14 @@
 //! (`podssh relay serve`); this serves one connection's request, and brakes
 //! the mints and pairs of each address ([`brake`], T-454). Behind a quick
 //! tunnel, the node's origin is the role, with no listener (T-428,
-//! `behind`).
+//! `behind`). Its targets are dialed through the host's proxy when one is
+//! set ([`egress`], T-457).
 
 #[cfg(feature = "quick")]
 pub mod behind;
 pub mod brake;
 pub mod docs;
+pub mod egress;
 pub mod forward;
 pub mod keys;
 pub mod policy;
@@ -108,6 +110,9 @@ pub struct Config {
     pub mint: Mint,
     pub tokens: tokens::Tokens,
     pub policy: policy::Policy,
+    /// How its targets are dialed: directly, or through the host's proxy
+    /// (T-457).
+    pub egress: egress::Egress,
     pub limits: Limits,
     /// The pairs of the reverse road, and their sockets.
     pub pairs: reverse::Pairs,

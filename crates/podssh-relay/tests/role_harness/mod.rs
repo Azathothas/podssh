@@ -2,16 +2,21 @@
 //! of its reverse road run it: `serve_from` for each connection, which
 //! `podssh relay serve` runs behind TLS, and a pair of the role's as podssh's
 //! client reads one. The clients reach it with the plain `ws://` of the
-//! feature `plain-ws`; each event of the role is kept for a test to read.
+//! feature `plain-ws`; each event of the role is kept for a test to read. A
+//! stand-in proxy of the test's is the host's proxy of T-457 (`proxy`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
+
+pub mod proxy;
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use podssh_relay::pair::{self, Pair};
 use podssh_relay::relay::Relay;
+use podssh_relay::serve::egress::Egress;
+use podssh_relay::serve::policy::Policy;
 use podssh_relay::serve::{self, Config, Limits, Mint};
 use podssh_ws::session::RelaySession;
 use podssh_ws::ConnectError;
@@ -34,6 +39,12 @@ impl Role {
     }
 
     pub async fn with(mint: Mint) -> Role {
+        Role::configured(mint, Default::default(), Default::default()).await
+    }
+
+    /// The role with its policy of targets and its egress: through a proxy
+    /// of the test's, for the role's dial through its host's (T-457).
+    pub async fn configured(mint: Mint, policy: Policy, egress: Egress) -> Role {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
         let port = listener.local_addr().unwrap().port();
         let events = Arc::new(Mutex::new(Vec::new()));
@@ -43,7 +54,8 @@ impl Role {
             version: "podssh test".into(),
             mint,
             tokens: serve::tokens::Tokens::new([5; 32]),
-            policy: Default::default(),
+            policy,
+            egress,
             limits: Limits::default(),
             pairs: Default::default(),
             answered: Default::default(),

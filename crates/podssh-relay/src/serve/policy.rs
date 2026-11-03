@@ -3,9 +3,12 @@
 //! network is refused as its address would be (`docs/relay.md`, "Limits that
 //! users see"). Port 25 is refused, as on the default relay. A relay that
 //! its owner runs in a private network, or a test on the loopback, allows
-//! private addresses by asking for it.
+//! private addresses by asking for it. Through the host's proxy (T-457,
+//! `super::egress`), the checked addresses are what the proxy is asked for.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+
+use super::egress::{Egress, Plan};
 
 /// What the relay dials.
 #[derive(Debug, Clone)]
@@ -33,13 +36,29 @@ pub enum Refused {
 }
 
 impl Policy {
+    /// What to dial for `host:port` through `egress` (T-457): the addresses
+    /// of [`Policy::addresses`], each checked; or the name as it came, for
+    /// the proxy to resolve, where nothing is checked (`--allow-private`),
+    /// no family is asked, and the name goes through a proxy.
+    pub async fn plan(&self, host: &str, port: u16, family: Option<u8>, egress: &Egress) -> Result<Plan, Refused> {
+        if self.by_name(host, family, egress) {
+            self.port_allowed(host, port)?;
+            return Ok(Plan::Name(host.to_string(), port));
+        }
+        self.addresses(host, port, family).await.map(Plan::Addresses)
+    }
+
+    /// Whether the name goes to the proxy as it came: nothing of it is to
+    /// check, and a proxy can give no family.
+    pub fn by_name(&self, host: &str, family: Option<u8>, egress: &Egress) -> bool {
+        self.private && family.is_none() && host.parse::<IpAddr>().is_err() && egress.proxy_for(host).is_some()
+    }
+
     /// The addresses to dial for `host:port`, of `family` (4 or 6) when one
     /// is asked, each one that the policy allows.
     pub async fn addresses(&self, host: &str, port: u16, family: Option<u8>) -> Result<Vec<SocketAddr>, Refused> {
         let target = shown(host, port);
-        if self.denied_ports.contains(&port) {
-            return Err(Refused::Policy(format!("{target} not in the ALLOW list: port {port} is refused")));
-        }
+        self.port_allowed(host, port)?;
         let found: Vec<SocketAddr> = match host.parse::<IpAddr>() {
             Ok(ip) => vec![SocketAddr::new(ip, port)],
             Err(_) => tokio::net::lookup_host((host, port))
@@ -70,6 +89,16 @@ impl Policy {
             )));
         }
         Ok(wanted)
+    }
+
+    /// `Err` for a port that is never dialed, before any name resolves.
+    fn port_allowed(&self, host: &str, port: u16) -> Result<(), Refused> {
+        match self.denied_ports.contains(&port) {
+            true => {
+                Err(Refused::Policy(format!("{} not in the ALLOW list: port {port} is refused", shown(host, port))))
+            }
+            false => Ok(()),
+        }
     }
 }
 

@@ -67,6 +67,16 @@ pub const RELAY: &[&str] = &[
      another way. A token lives until the relay stops. Each mint, upgrade and client's Close is a line \
      on stdout. It listens because you ask it to, and PODSSH_LISTEN=no refuses it; Ctrl-C or SIGTERM \
      stops it.",
+    "Where HTTPS_PROXY (or https_proxy, all_proxy, ALL_PROXY) is set, the relay dials each target \
+     through that proxy, as each client of podssh reaches its relay, by HTTP CONNECT or SOCKS5; the \
+     loopback, and what NO_PROXY names, go directly. Its policy checks each address of a name as it \
+     resolves on this host, and the proxy is asked for each checked address, never for the name, so a \
+     proxy that resolves the name otherwise reaches nothing unchecked; with --allow-private, which \
+     checks nothing, the name goes to the proxy as it came, so a host with no DNS reaches each target \
+     that its proxy reaches. A proxy's refusal is the relay's 502, with the proxy's status, in words \
+     that never say where the proxy is; the relay's own line on stdout names it, and never its \
+     credentials. /trace names the road proxy and its kind. The first line on stderr names the proxy \
+     by its host and port, and a proxy that cannot be read stops the start (78).",
     "It serves the reverse road too: /v1/pair, for whom it mints, /v1/node/NAME, /v1/connect/NAME, \
      /v1/status/NAME and /v1/stop/NAME, so that podssh relay pair --relay-host, podssh node and podssh \
      ssh node:// work through it with no other relay. A pair lives 72 hours, and /v1/renew/NAME, with \

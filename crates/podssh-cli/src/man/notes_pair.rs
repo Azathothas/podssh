@@ -238,7 +238,8 @@ pub(super) const NODE: &[&str] = &[
      relay:*, --mint anyone mints for each client, and --mint nobody for none. --pairs FILE keeps its \
      pairs across a restart, though the \
      tunnel's name is new each run; --allow-private dials non-public targets too. The relay dials each \
-     target from this host, as podssh relay serve does. Each mint, upgrade and step of the reverse road \
+     target from this host, as podssh relay serve does: through HTTPS_PROXY when it is set, the proxy \
+     that the node's dial of the edge takes too. Each mint, upgrade and step of the reverse road \
      is a line on stderr, and Ctrl-C or SIGTERM first closes each socket of the reverse road with 1012.",
     "The name is asked of api.trycloudflare.com, which limits a host that made a few tunnels: when it \
      refuses for now (429, or a 5xx), the node asks again for up to 5 minutes, after its Retry-After \
