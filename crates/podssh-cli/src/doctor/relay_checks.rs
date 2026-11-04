@@ -79,6 +79,8 @@ pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &T
     // first, as the cleartext road would meet it (T-326).
     let probed = answered.as_ref().map_or(relays.primary(), |(relay, _)| *relay);
     super::cleartext::check(report, probed, answered.is_some(), TIMEOUT).await;
+    // And what it offers the WebSocket over HTTP/2 (T-321).
+    super::http2::check(report, probed, relays.explicit, trust, TIMEOUT).await;
     let Some((relay, date)) = answered else {
         for name in ["token", "forward", "login", "clock"] {
             if name != "login" || full {
@@ -192,8 +194,9 @@ async fn open_github(
         .map_err(|failure| format!("{target}: {}", failure.lines(&target).join("; ")))?;
     let skipped: Vec<&str> =
         relays.hosts.iter().map(|r| r.host.as_str()).take_while(|h| *h != opened.relay.host).collect();
-    // The road that carried it, the cleartext one named (T-326).
-    let road = if opened.cleartext { " in cleartext" } else { "" };
+    // The road that carried it, the cleartext one (T-326) and HTTP/2's
+    // (T-321) named.
+    let road = opened.road();
     let host = format!("{}{road}", opened.relay.host);
     let via = if skipped.is_empty() { host } else { format!("{host} (after {} failed)", skipped.join(", ")) };
     let (stream, status) = podssh_ssh::relay_stream::spawn(opened.session);

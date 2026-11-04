@@ -471,6 +471,35 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   says why, and they follow. A relay with no such road (the default relay's
   deployment) is named as one. `PODSSH_HTTP_ROAD=no` turns it off, `split` or
   `serial` names one form, and another word is refused (78).
+- **The WebSocket over HTTP/2, to a relay of the user's** (T-321, GitHub
+  #51; RFC 8441; [relay.md](relay.md), "The relay role's HTTP/2"). To a
+  relay host that the user named (`--relay-host`, `PODSSH_RELAY`,
+  `RelayHost`), the sessions of one process are streams of one HTTP/2
+  connection where the host offers extended CONNECT, as `podssh relay
+  serve` does, so the hosts of `podssh each`, and each other session of the
+  run to that host, pay no TCP and TLS past the first. podssh offers `h2`,
+  then `http/1.1`, by ALPN, on a TLS configuration of this road alone (each
+  other road offers none), sends a PING after HTTP/2's handshake and reads
+  the server's SETTINGS before it, and only where they offer
+  `SETTINGS_ENABLE_CONNECT_PROTOCOL` sends a `CONNECT` with `:protocol
+  websocket`, the path, the name and the token of the upgrade, the token in a
+  field that HPACK never indexes; a `200` opens the session, another status
+  is the relay's refusal, as for the upgrade. A connection carries 16
+  sessions at most, each with a window of 1 MiB in one of 16 MiB for the
+  connection; another session opens another connection, and one with no
+  session closes after 30 s. A lost connection is a lost link for each of
+  its sessions at once. Where TLS chose `http/1.1`, the upgrade goes on that
+  connection; where HTTP/2's SETTINGS offer no extended CONNECT, or HTTP/2
+  did not carry the `CONNECT`, that connection closes first, the upgrade
+  goes on a new one, and the run takes HTTP/1.1 to that host for 10
+  minutes. `-v` names the road of each session ("the relay host H opened
+  the session, over HTTP/2 (RFC 8441), on a connection that it shares").
+  The default relay's edge chooses `h2` with no extended CONNECT (measured
+  2026-10-30), so no session to it takes the road unless
+  `PODSSH_H2=yes`; `PODSSH_H2=no` keeps each session on its own connection,
+  and another word offers the road to none, which `doctor`'s line `http2`
+  fails with. A caller's own TLS configuration (`Trust::caller`) is used as
+  it is, with no ALPN, so it takes the upgrade alone.
 - **`--forwarder TEMPLATES` reaches the first hop through other products'
   WebSocket forwarders, in place of the relay** (T-369, GitHub #60). A
   forwarder dials the host and the port that a client names and carries the
@@ -2682,6 +2711,17 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   With `--forwarder`, the section of the forwarders has the same line for
   each one's host, at 443 and 80, and says whether a `ws://` form of it can
   pass.
+- **The line `http2`** (T-321), in the section `relay`, after `cleartext`:
+  what the same host offers the WebSocket over HTTP/2, with nothing sent but
+  HTTP/2's preface, its SETTINGS and a PING: the protocol that its TLS chose
+  when podssh offered `h2` then `http/1.1`, and on `h2` whether its SETTINGS
+  offer extended CONNECT, with its streams at once; then whether the
+  sessions of a run share one connection to it, by `PODSSH_H2`. It is `ok`,
+  a fact; `????` when the host was not reached; `FAIL` for a word of
+  `PODSSH_H2` that is not `auto`, `yes` or `no`. With `--forwarder`, the
+  section of the forwarders has the line for each `wss://` one, whose road
+  keeps the upgrade of HTTP/1.1. The line `forward` names the road that
+  carried its session.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,
@@ -3306,6 +3346,18 @@ commands. The rules behind them:
   (`relay-list.key` in the cache, made when it is missing), whose
   fingerprint its first line names; `--list-key` with no `--deployment`,
   two deployments of one name and a bad host are usage errors (64).
+- **`relay serve` offers HTTP/2 with extended CONNECT (T-321).** Its TLS
+  offers `h2` before `http/1.1`; a client that chooses it gets SETTINGS that
+  offer extended CONNECT (RFC 8441), 16 streams at once and windows of 1
+  MiB for each and 16 MiB for the connection. A `CONNECT` with `:protocol
+  websocket` is the upgrade of its path, with its token, its checks and its
+  brake, answered `200`; `/health`, `/relays.json`, `/trace`,
+  `/llms-full.txt` and the mint answer there too, and each other request is
+  reset with `HTTP_1_1_REQUIRED`, which a client of HTTP/2 follows over
+  HTTP/1.1. Its stdout says `h2` for each such connection. `--http2 no`
+  offers `http/1.1` alone, as before; another word is a usage error (64).
+  The first line says which ([relay.md](relay.md), "The relay role's
+  HTTP/2").
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
   systemd when `systemctl --user` answers, else a LaunchAgent when

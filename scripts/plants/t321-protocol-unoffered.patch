@@ -1,0 +1,17 @@
+--- a/crates/podssh-ws/src/h2_road/dial.rs
++++ b/crates/podssh-ws/src/h2_road/dial.rs
+@@ -41,13 +41,7 @@ pub(super) async fn dial(config: &WsClientConfig) -> Result<Dialed, ConnectError
+         Ok(settled) => settled,
+         Err(why) => return Ok(Dialed::Lacks(Fallback::Carried(why))),
+     };
+-    // No `:protocol` where the server did not offer it: a server that does
+-    // not know it reads the request as malformed.
+-    if !sender.is_extended_connect_protocol_enabled() {
+-        // Closed before the upgrade's connection opens.
+-        driven.close().await;
+-        return Ok(Dialed::Lacks(Fallback::NotOffered));
+-    }
++    // Planted: `:protocol` whether or not the server's SETTINGS offered it.
+     let most = sender.current_max_send_streams().clamp(1, STREAMS);
+     Ok(Dialed::H2(Conn::of(sender, peer, most, driven)))
+ }

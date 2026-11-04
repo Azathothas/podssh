@@ -3,7 +3,8 @@
 //! (T-447); or, when its first byte begins no TLS handshake, the cleartext
 //! road ([`super::cleartext`], T-326), unless the owner turned it off. The
 //! byte is peeked, so TLS reads its ClientHello whole. One listener, the one
-//! that the user asked for: the cleartext road adds none.
+//! that the user asked for: the cleartext road adds none. A client whose TLS
+//! chose `h2` gets HTTP/2 with extended CONNECT ([`super::http2`], T-321).
 
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -48,6 +49,11 @@ pub async fn connection(tcp: TcpStream, peer: IpAddr, door: Door, cfg: Arc<Confi
     // The name that the client asked for, which a key's signed mint must
     // name (T-448).
     let sni = tls.get_ref().1.server_name().map(str::to_string);
+    // HTTP/2, where the client chose it by ALPN (T-321): each stream is a
+    // request of its own to the routes below.
+    if tls.get_ref().1.alpn_protocol() == Some(super::http2::H2) {
+        return super::http2::serve(tls, cfg, sni, Some(peer)).await;
+    }
     // The TCP peer, by whom the brake of mints and pairs counts (T-454): no
     // header of a client's.
     super::serve_from(tls, cfg, sni, Some(peer)).await;

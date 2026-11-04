@@ -230,6 +230,9 @@ which `--pairs FILE` keeps across a restart:
   the forward road over plain requests, in a split form on two connections
   (Q44) and a serial form on one, behind a listener and behind a quick
   tunnel ([relay.md](relay.md), "The relay role's HTTP road", T-319);
+- with HTTP/2 and RFC 8441's extended CONNECT on its listener, so that the
+  sessions of a client's process are streams of one TLS connection
+  ([relay.md](relay.md), "The relay role's HTTP/2", T-321);
 - with pairs that their owner renews by the stop token, 72 h from then with
   the same tokens, as often as asked: `podssh relay pair --renew NAME`, and
   each node in its pair's last day, so that a node of the role outlives

@@ -1,0 +1,7 @@
+# T-321: a connection of the HTTP/2 road that is kept takes no other
+# session, so each session opens a TLS connection of its own; the test of
+# eight sessions on one connection must fail.
+ENTRY=T-321
+GROUP=resume
+EXPECT='one TLS connection for the eight sessions'
+RUN='cargo test --locked -p podssh-ws --test h2_road -- eight_sessions_share_one_tls_connection'

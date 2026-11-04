@@ -37,7 +37,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   (`crates/podssh-ssh/src/known_hosts.rs:335-410`).
 - Read: with no cached token, each session mints one
   (`crates/podssh-relay/src/token.rs:135-180`); the relay allows 120 attempts
-  with no token for each minute and address (`docs/relay.md:426`).
+  with no token for each minute and address (`docs/relay.md:429`).
 
 ## Approach
 
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:5011-5014`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:5063-5066`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:5193-5302`); they cannot define a group.
+  (`docs/cli.md:5245-5354`); they cannot define a group.
 
 ## Approach
 
@@ -525,7 +525,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:216-243` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:226-253` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 
@@ -1370,7 +1370,7 @@ expect rule.
    reads `\r`, `\n`, `\t` and `\xNN`. Each rule waits `--expect-timeout`
    (default 30 s); a miss ends the session with 255 and names the rule.
 3. No secrets: `--send` is on the command line, which each process can read
-   (`docs/architecture.md:264-266`). The manual says so; passwords come
+   (`docs/architecture.md:287-289`). The manual says so; passwords come
    through `SSH_ASKPASS`.
 4. Tasks before and after the connection: the shell does them
    (`cmd && podssh ssh host; cmd`). Only `LocalCommand` needs podssh,
@@ -1545,9 +1545,9 @@ of the command.
    changed.
 3. Then one exec on the same SSH connection: `cd DIR && COMMAND`, with DIR
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
-   (`docs/relay.md:420`), run the exec on a new session (T-137).
+   (`docs/relay.md:423`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:5011-5014`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:5063-5066`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1805,7 +1805,7 @@ a ticket, or a tool that asks an AI.
   (`AGENTS.md:291-297`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:105-122`).
 - Read: credentials never go to output, logs, URLs or argv
-  (`docs/architecture.md:264-266`). The token type never shows itself
+  (`docs/architecture.md:287-289`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:28-57`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md` lines 1345-1347 at `48a8744`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:90-110`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:395-436`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:5011-5014`), which is not a failure of podssh.
+  status (`docs/cli.md:5063-5066`), which is not a failure of podssh.
 
 ## Approach
 
@@ -1997,7 +1997,7 @@ queue, no wait for a result, and no way to get the output back.
   queue on the client dies with it, and a client that waits must not need a
   listener (`docs/target-environment.md:89-93`).
 - Read: the output comes back with `cp` (T-134), within 64 MiB for each
-  relay session (`docs/relay.md:420`); T-137 opens a new session.
+  relay session (`docs/relay.md:423`); T-137 opens a new session.
 - Read in the report: GPU-Share places jobs by idle time and free VRAM. No
   such logic here: a count of slots is the only limit.
 
@@ -2841,8 +2841,8 @@ relay reaches; nothing reports the far side.
 - Read: `doctor --hop` reaches the hop as `--direct` does, through `HTTPS_PROXY`
   (`crates/podssh-cli/src/doctor/hop.rs:1-8`), and logs in with a key made for the check, which
   the server refuses (`crates/podssh-cli/src/doctor/hop.rs:131-152`): no command runs there.
-- Read: `doctor` takes no option of `ssh` (`crates/podssh-cli/src/doctor/mod.rs:85-119`), and its
-  `--via` is the second proxy of T-439 (`crates/podssh-cli/src/doctor/mod.rs:105-106`), so the
+- Read: `doctor` takes no option of `ssh` (`crates/podssh-cli/src/doctor/mod.rs:87-121`), and its
+  `--via` is the second proxy of T-439 (`crates/podssh-cli/src/doctor/mod.rs:107-108`), so the
   issue's `doctor --via HOST` names a flag that exists.
 - Read: `podssh health` resolves the host as `ssh` does, logs in on the same road, and runs one
   exec (`crates/podssh-cli/src/health/mod.rs:170-208`, the login and the exec as this entry's

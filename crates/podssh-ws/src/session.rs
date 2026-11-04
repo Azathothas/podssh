@@ -72,6 +72,10 @@ pub struct RelaySession<S = crate::url::Stream> {
     zero_mask: bool,
     /// The other end, in the words of an error: `the relay`, unless named.
     peer_name: &'static str,
+    /// How the session is carried, in the words of a line, where its road
+    /// has more to say than the upgrade: over HTTP/2, or HTTP/1.1 after it
+    /// (T-321).
+    road: Option<String>,
 }
 
 /// The Pongs that [`RelaySession::take_pongs`] keeps for the one who reads.
@@ -120,7 +124,20 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             role: frame::Role::Client,
             zero_mask: false,
             peer_name: "the relay",
+            road: None,
         }
+    }
+
+    /// Keep `words`, how the session is carried, for [`RelaySession::road`].
+    pub fn with_road(mut self, words: String) -> Self {
+        self.road = Some(words);
+        self
+    }
+
+    /// How the session is carried, where its road said more than the
+    /// upgrade (T-321).
+    pub fn road(&self) -> Option<&str> {
+        self.road.as_deref()
     }
 
     /// The address of the TCP connection that carries the session: the
@@ -410,6 +427,15 @@ impl RelaySession<crate::url::Stream> {
     pub fn over_cleartext(tcp: TcpStream, pending: Vec<u8>, idle: Option<Duration>) -> Self {
         let peer = tcp.peer_addr().ok();
         let mut session = Self::new(crate::url::Stream::Plain(tcp), pending, idle, crate::client::WRITE_TIMEOUT);
+        session.peer = peer;
+        session
+    }
+
+    /// A session on a stream of HTTP/2 ([`crate::h2_road`], T-321), with the
+    /// address of the connection that it may share with others.
+    pub fn over_h2(stream: crate::h2_road::Stream, peer: Option<std::net::SocketAddr>, idle: Option<Duration>) -> Self {
+        let stream = crate::url::Stream::H2(Box::new(stream));
+        let mut session = Self::new(stream, Vec::new(), idle, crate::client::WRITE_TIMEOUT);
         session.peer = peer;
         session
     }

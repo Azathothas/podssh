@@ -198,6 +198,29 @@ fallback, sends one POST after another on one, each answered with the bytes
 down. Each request goes again until an answer comes: a batch's number and an
 offset make it one that may come twice.
 
+**The WebSocket over HTTP/2** (T-321, RFC 8441). To a relay host that the
+user named, as podssh's relay role is, `podssh-ws`
+(`crates/podssh-ws/src/h2_road/`) carries each session of a process as one
+stream of a kept HTTP/2 connection, where the host's SETTINGS offer
+extended CONNECT:
+
+```
+relay session <-> stream of HTTP/2: CONNECT :protocol websocket, x-relay-token <-> relay role <-> HOST:PORT
+relay session <-> stream of HTTP/2 (the same TLS connection)                   <-'
+```
+
+Its TLS offers `h2`, then `http/1.1`, on a copy of the trust's own
+configuration, so it shares the cache of sessions; each other road offers
+no ALPN. A PING after HTTP/2's handshake comes back after the server's
+SETTINGS, which are read before any request. The session's stream is
+`podssh_ws::url::Stream`'s third kind, so each caller of the opener takes
+it unchanged. A connection carries 16 sessions at most; a host whose TLS
+chose `http/1.1` takes the upgrade on that connection, and one whose
+HTTP/2 offers no extended CONNECT takes it on a new one, after the first
+closed, so that a session holds one connection at a time. podssh's relay
+role serves each stream as one request of HTTP/1.1 to its own routes, on a
+pipe in memory (`crates/podssh-relay/src/serve/http2/`).
+
 **Reverse mode** (`podssh node`, `podssh operator`; milestone M4) uses the
 same relay session with the framing of the reverse legs: the node
 multiplexes sessions by a 32-character id, and the operator leg carries bare
@@ -309,6 +332,8 @@ session whose output nobody reads.
 | What the relay holds for a slow podssh, on the forward path | 2 MiB by the relay's document; measured, no bound short of the session byte cap: 47 MiB held for a client that read 16 KiB/s, and no Close (T-062, 2026-10-31) | The relay's: [relay.md](relay.md) | By the document, a Close 1013 "client receive backlog", which none was measured to send; the window of 512 KiB is the bound for an SSH session |
 | The relay stream of `podssh ssh` | 256 KiB each way, frames of 64 KiB | `PIPE`, `CHUNK`, `crates/podssh-ssh/src/relay_stream.rs` | The writer waits |
 | The relay end of `podssh proxy` | 256 KiB each way, frames of 32 KiB | `PIPE`, `CHUNK`, `crates/podssh-cli/src/pipe/relay.rs` | The writer waits |
+| A session on the HTTP/2 road; its connection (T-321) | A window of 1 MiB each way; 16 sessions in a window of 16 MiB | `STREAM_WINDOW`, `STREAMS`, `CONNECTION_WINDOW`, `crates/podssh-ws/src/h2_road/mod.rs` | The peer waits for its window; a session past the 16 opens another connection, so no stream held full takes the window of another |
+| A connection of HTTP/2 at the relay role (T-321) | 16 streams, a window of 1 MiB each and 16 MiB for the connection; a request's body of 64 KiB, an answer of 1 MiB | `STREAMS`, `STREAM_WINDOW`, `CONNECTION_WINDOW`, `crates/podssh-relay/src/serve/http2/mod.rs`; `BODY`, `ANSWER`, `crates/podssh-relay/src/serve/http2/stream.rs` | The client waits for its window; a 17th stream is refused by HTTP/2; a body past 64 KiB gets `413` |
 | A read of `podssh pipe` | 32 KiB | `CHUNK`, `crates/podssh-cli/src/pipe/pump.rs` | One read at a time |
 | What is typed while `--persist` connects again | 64 KiB | `QUEUE`, `crates/podssh-ssh/src/io.rs` | The rest is dropped, and podssh says how many bytes |
 | The replay buffer of a resumable session | 4 MiB each way; `PODSSH_REPLAY_BUFFER` gives 4 to 16 MiB, and another value is ignored | `crates/podssh-relay/src/session/replay.rs` | The writer waits for the peer's `ACK`; no byte is dropped |
@@ -330,6 +355,8 @@ session whose output nobody reads.
 | Nothing from the relay | 90 s | `DEFAULT_IDLE_TIMEOUT`, `crates/podssh-ws/src/client.rs` | "no data from the relay for 90s": the session ends |
 | The relay's answer to a ping | A ping each 10 s; 3 intervals with nothing | `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `crates/podssh-ws/src/client.rs` | The link is dead ("pings unanswered"): a session of the forward road ends (255), and the resumable layer moves its session to a new link |
 | One write to the relay | 60 s | `WRITE_TIMEOUT`, `crates/podssh-ws/src/client.rs` | "sending to the relay stalled for 60s": the session ends |
+| The server's SETTINGS on the HTTP/2 road (T-321) | The step's 20 s, for the answer to a PING | `crates/podssh-ws/src/h2_road/dial.rs` | "no answer to HTTP/2's PING within 20 s": that connection closes, the upgrade of HTTP/1.1 goes on a new one, and the run takes HTTP/1.1 to that host for 10 minutes (`REMEMBERED`) |
+| A connection of the HTTP/2 road with no session; one at the relay role | 30 s; 120 s | `IDLE`, `crates/podssh-ws/src/h2_road/mod.rs`; `IDLE`, `crates/podssh-relay/src/serve/http2/mod.rs` | The client closes it; the role sends a `GOAWAY` |
 | A server's answer to a pty or a session request | 30 s | `REPLY_WAIT`, `crates/podssh-ssh/src/session.rs` | Taken as a refusal: "the server refused to start a shell" (or the command, or the subsystem) |
 | The exit status once stdout's reader has gone | 5 s | `STATUS_WAIT`, `crates/podssh-ssh/src/io.rs` | The session ends with no status, exit 255 |
 | New connections of `--persist` after a loss | 10, within 300 s | `ATTEMPTS`, `WITHIN`, `crates/podssh-cli/src/ssh/persist.rs` | "...; gave up after N new connections in S s", exit 255 |

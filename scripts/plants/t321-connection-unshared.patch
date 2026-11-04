@@ -1,0 +1,12 @@
+--- a/crates/podssh-ws/src/h2_road/pool.rs
++++ b/crates/podssh-ws/src/h2_road/pool.rs
+@@ -222,7 +222,8 @@ pub(super) async fn place(config: &WsClientConfig) -> Result<Got, ConnectError>
+     }
+     state.lacks = None;
+     state.conns.retain(|c| !c.retired());
+-    if let Some(conn) = state.conns.iter().find(|c| c.room()) {
++    // Planted: a connection that is kept takes no other session.
++    if let Some(conn) = state.conns.iter().find(|c| c.room() && c.unused() && !c.room()) {
+         let (place, shared) = conn.take();
+         return Ok(Got::Place { conn: conn.clone(), place, shared });
+     }

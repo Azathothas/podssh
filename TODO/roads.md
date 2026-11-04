@@ -60,7 +60,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:216-243`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:226-253`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -1156,13 +1156,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:482-503`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:485-506`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:427`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:430`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1211,7 +1211,7 @@ What the role serves: the contract `2026-10-03-r2`, so that each client of podss
 with `?dial=lazy`, `?precheck` and `?family`; `/relays.json` with the five limits of
 `crates/podssh-probe/facts/relay-limits.toml`; `/trace`; and `/llms-full.txt`, podssh's own copy
 of the contract. A target is dialed only after its name resolved to a public address (the ranges
-of `docs/relay.md:427`), and port 25 is refused; the limits are the contract's (an empty frame
+of `docs/relay.md:430`), and port 25 is refused; the limits are the contract's (an empty frame
 each 25 s, 180 s idle, 12 h, 64 MiB, frames of 262144 bytes), and so are the forward close
 codes; each queue has a bound (`1013` at 2 MiB, T-336), which a write that waits gives.
 
@@ -2575,7 +2575,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:411-413`).
+   URL or in output (`docs/relay.md:414-416`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:143-152`).
@@ -2758,7 +2758,7 @@ the far end closes the target at a cut; the test fails. Live, on a GitHub runner
 `scripts/fake-proxy.py`.
 
 2026-11-04 (the drafting agent). Read at `6a62cdc`: the Premise holds at each line that it cites
-(`docs/design.md` lines 659-662, 702-706 and 1410-1413 at that commit; `docs/relay.md:400-402`;
+(`docs/design.md` lines 659-662, 702-706 and 1410-1413 at that commit; `docs/relay.md:403-405`;
 `crates/podssh-relay/src/pool.rs:143-152`), and so does the Correction above: the far end of the
 layer is `crates/podssh-relay/src/session/far.rs`, and the role's `/connect/` ends the target with
 its WebSocket (`crates/podssh-relay/src/serve/forward.rs`). Three parts of the Approach above
@@ -3346,7 +3346,7 @@ What remains of the entry, for its next part:
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3367,7 +3367,7 @@ Read and verified at the cited lines (2026-10-30):
   it, and `crates/podssh-ws/src/handshake.rs:185` says "status != 101".
 - A relay session is generic over its stream
   (`crates/podssh-ws/src/session.rs:38`, whose default since T-326 is TLS
-  or TCP alone, and `:100`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
+  or TCP alone, and `:104`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
   stream "as if it were the TCP connection", and drops `Sec-WebSocket-Key`
   and `Sec-WebSocket-Accept`.
 - `docs/design.md:337` says "0.4.19 is in": `h2` comes through hyper. Its
@@ -3403,6 +3403,92 @@ this road.
 4. `podssh doctor` names the ALPN that the relay chose, and whether it
    offers extended CONNECT.
 5. The self-hosted relay (T-169) offers it (`enable_connect_protocol`).
+
+## Decision
+
+2026-11-04 (the drafting agent), each call with what lost:
+
+- **When the road is taken: `PODSSH_H2`.** Unset, empty or `auto`: a session to a relay host
+  that the user named (`RelayList::explicit`: `--relay-host`, `PODSSH_RELAY`, `RelayHost`), as
+  podssh's relay role is named, and none to a host of the default relay, whose edge chose `h2`
+  with no extended CONNECT (the Premise's measurement), so that a run there pays no second
+  connection; `yes`, each session; `no`, none, the upgrade alone as before; another word, none,
+  and `doctor`'s line `http2` fails with it (`crates/podssh-relay/src/h2_road.rs:60` says
+  "choice.offers(explicit)"). Its cost is one round trip before the first session of a
+  connection (the PING below); each later session of the run saves TCP, TLS and the proxy's
+  CONNECT. Lost: the road offered to each host, which would cost each session to the default
+  relay a second TLS connection; a hint of the role's in its `101` or in `/relays.json`, with the
+  first session over HTTP/1.1, as the sessions of a fan-out start together, before any first
+  answer, and `/relays.json` is read for the default list alone (T-346 reworks it); a record of
+  each host in the cache across runs, a file for one connection a run that goes stale when an
+  owner turns the setting on; a field of `open::Request`, which each of its callers in the CLI
+  would set.
+- **The SETTINGS are read before any request, by a PING** after HTTP/2's handshake: the
+  server's SETTINGS are its first frame (RFC 9113, section 3.4), so they were applied once the
+  PING's answer came (`crates/podssh-ws/src/h2_road/dial.rs:46` says
+  "is_extended_connect_protocol_enabled() {"). Lost: h2's `ready()`, which returns before them,
+  as h2 takes 100 streams until it reads them; a CONNECT sent at once, which RFC 8441, section 3,
+  forbids and which a server with no setting resets (`hyperium/h2:src/proto/streams/recv.rs`).
+- **Where TLS chose `http/1.1`, or no protocol, the upgrade goes on that connection**, so a
+  relay whose TLS offers no `h2` (a role with `--http2 no`, a stand-in, an older deployment)
+  pays nothing. Where it chose `h2` with no extended CONNECT, that connection closes, and only
+  then does the upgrade's open, so a session holds one connection at a time (`AGENTS.md`,
+  section 5, rule 2). Lost: a second dial after each `http/1.1`, a connection for nothing.
+- **How sessions share a connection: a pool of the process** (`crates/podssh-ws/src/h2_road/pool.rs`),
+  by the host, its port, the certificate's name, the trust and the proxy; one connection of a
+  host made at a time, under a lock of that host alone, so that sessions that start together
+  share it and the race between relay hosts waits for none; 16 sessions at most on one, or the
+  fewer of the server's MAX_CONCURRENT_STREAMS, and a session past them opens another; a
+  connection with no session closes after 30 s, for the next host of a fan-out. Lost: h2's own
+  wait for a free stream, which would hold a session behind long-lived ones; one lock for each
+  host together, which would hold one host's race behind another's dial; a connection shared
+  across processes, which takes a helper or a socket (rules 2 and 3).
+- **The windows: 1 MiB for each stream, 16 MiB for the connection, its 16 streams' together**,
+  at the client and at the role. A stream that a slow reader holds full holds its own window of
+  the connection's, so with the connection's window the sum of its streams' no session starves
+  another; 1 MiB is 160 Mbit/s at 50 ms, four times the relay's largest frame, under its 64 MiB
+  of a session. Lost: `via`'s 4 MiB and 8 MiB (T-439), where two stalled tunnels hold the whole
+  connection; h2's default 64 KiB, a window for each round trip; 4 MiB a stream, 64 MiB that the
+  role would hold for each client.
+- **A lost connection is a lost link for each of its sessions at once**: each stream ends with
+  the connection's error, as each session over TCP ends at its loss (`podssh ssh`, 255), the
+  connection leaves the pool, and the next session dials a new one; a CONNECT whose connection
+  ended under it (a GOAWAY, its I/O, `REFUSED_STREAM`) goes once more on a new one. Lost: a
+  stream opened again in place, as the bytes in flight are lost and resuming them is the
+  resumable layer's; a connection for each session, which is the road of before.
+- **A refusal is the relay's answer, a reset is HTTP/2's.** A status other than 2xx ends the
+  session with `ConnectError::Refused` and the body's words, as the upgrade's refusal does, so
+  `open`'s mint once more after a `403` of a cached token holds; a reset of the CONNECT by a
+  server that offered the setting takes the upgrade on a new connection. A host that cost a
+  connection (no setting, or a reset) is taken over HTTP/1.1 for 10 minutes. Lost: the upgrade
+  after a refusal, which sends the token twice and hides the relay's words; a host remembered
+  for the run's life, which a long-lived process would never ask again.
+- **The client's TLS is a copy of the trust's kept configuration with ALPN `h2`, `http/1.1`**,
+  which shares its cache of sessions (T-444), so the upgrade's connection after it resumes TLS.
+  A caller's own configuration (`Trust::caller`) is never changed (`tls.rs`), so it takes the
+  upgrade alone. Lost: ALPN on the kept configuration, which each other road would then offer,
+  and Cloudflare's edge chooses `h2` for each.
+- **The role's side is h2's server at the listener, by ALPN**, each stream one request of
+  HTTP/1.1 to `serve_from` on `tokio::io::duplex` (`crates/podssh-relay/src/serve/http2/`): an
+  extended CONNECT with `:protocol websocket` is the upgrade of its path with a key of the role's,
+  its `101` answered `200`, so `/connect/`, the layer's path and the reverse road keep their own
+  code, tokens, policy, brake and limits, and no file of theirs changes; `GET` of `/health`,
+  `/relays.json`, `/trace`, `/llms-full.txt` and `POST /v1/mint` answer whole; each other request
+  is reset with `HTTP_1_1_REQUIRED` (`crates/podssh-relay/src/serve/http2/stream.rs:63`), which a
+  client of HTTP/2 follows over HTTP/1.1, as the HTTP road keeps its connection between requests
+  and the probes stream. Lost: `/connect/` served on the stream itself, which would change
+  `forward::connect` that T-173's layer builds on; a socket to the role's own listener on the
+  loopback, a helper that rule 2 forbids; each request translated with its answer streamed,
+  which the HTTP road's kept connection and the probes would read otherwise.
+- **The role offers it by default: `podssh relay serve --http2 yes|no`**, `h2` before `http/1.1`
+  by ALPN (and `acme-tls/1` with ACME), as `--cleartext` offers its road; a client that offers no
+  ALPN, as each other road of podssh, gets HTTP/1.1 as before. Lost: off by default, which no
+  user's session would take; no switch, which leaves an owner whose clients misread HTTP/2 no way
+  back; a field of `/relays.json` (T-346's document).
+- **The words of `-v`: the session keeps its road** (`RelaySession::with_road`, `road`), and
+  `Opened::road` names cleartext (T-326) and HTTP/2 for `ssh -v` and `doctor`'s `forward`, with
+  none for the upgrade on the one connection. Lost: a field of `open::Opened` (`open.rs` is at
+  498 lines); a note, which is said at the default level where Approach item 2 asks for `-v`.
 
 ## Prove
 
@@ -3476,6 +3562,105 @@ podssh's relay role, OpenSSH's sshd as the target, with equal digests. Planted: 
 with the setting absent; the fallback test fails. Live, on a GitHub runner where
 `podssh relay serve` runs: `podssh doctor` names `h2` and the setting, and `podssh ssh` runs on
 the road.
+
+2026-11-04 (the drafting agent). The Premise holds at its lines; `crates/podssh-ws/src/session.rs:104`
+holds the session's methods once the draft adds its field. Since T-444 (done) each trust's
+configuration is kept (`crates/podssh-ws/src/tls.rs:124` says "pub fn config_for(trust: &Trust)"),
+so a second connection of a run resumes TLS: the motive's "each dial builds a new rustls
+configuration" is past, and HTTP/2 saves each later session TCP, a resumed TLS and the proxy's
+CONNECT. `h2` is a dependency of podssh-ws already (`crates/podssh-ws/Cargo.toml`, 0.4.20 in the
+lock, for T-344's DNS over HTTPS and T-439's `via`). Read in h2 0.4.20: its client sends
+`:protocol` whatever the server's SETTINGS (`hyperium/h2:src/proto/streams/streams.rs`), and its
+server resets such a stream with PROTOCOL_ERROR where it did not offer the setting
+(`hyperium/h2:src/proto/streams/recv.rs`), so the check is podssh's own, and its plant is that
+check removed. The new Prove's "8 sessions of `podssh proxy` on one TLS connection" cannot be: each
+`podssh proxy` is a process, and two processes share no connection with no helper (`AGENTS.md`,
+section 5, rule 3); the sessions of one process share it, so the relay crate's test opens 8 at once
+through the road, and `podssh each` over 8 hosts through one role is the CLI's (Done, what remains).
+The resumable layer's links (`forward_layer`, T-173) and the reverse road keep their own upgrade.
+The relay crate's test takes the features `serve,plain-ws`: its role is `role_harness`'s, behind TLS
+of the test's CA.
+
+## Done
+
+Drafted 2026-11-04 (`4d7c7d0`), merged and measured by the main session the same day: the
+client's road, the role's side, `doctor`'s line, the manual and the documents, with tests. At the
+merge: the reason of a connection that ended under the CONNECT goes into the fallback's words
+(it was kept and never read); `--http2` is named among the flags of `relay serve` alone; the
+manual's check reads a variable given a value with a digit in its name (`PODSSH_H2=no`), and a
+bare word with one, as `HTTP_1_1_REQUIRED`, as no variable; three `.err().expect()` of the tests
+are `let Err(..) = .. else`. What the draft holds:
+
+- The client's road in podssh-ws (`crates/podssh-ws/src/h2_road/`): TLS of its own with ALPN
+  `h2`, `http/1.1`; HTTP/2's handshake with the road's windows and a PING for the SETTINGS; the
+  CONNECT of RFC 8441 with the token sensitive to HPACK; the pool of the process; the upgrade on
+  the connection that chose `http/1.1`, else on a new one, the host remembered for 10 minutes; and
+  `probe` for `doctor`. The session's stream is `podssh_ws::url::Stream::H2`, and
+  `RelaySession::over_h2`, `with_road` and `road` (`crates/podssh-ws/src/session.rs`).
+- The choice in podssh-relay (`crates/podssh-relay/src/h2_road.rs`): `PODSSH_H2`, the call of
+  `open::try_host` (`crates/podssh-relay/src/open.rs`), and `Opened::road`.
+- The role's side (`crates/podssh-relay/src/serve/http2/`), dispatched by ALPN at the listener
+  (`crates/podssh-relay/src/serve/listener.rs`); the feature `serve` takes `h2`, `http` and
+  `bytes` (`crates/podssh-relay/Cargo.toml`).
+- The CLI: `relay serve --http2` (`crates/podssh-cli/src/relay_serve.rs`,
+  `crates/podssh-cli/src/relay_serve/certs.rs`, `crates/podssh-cli/src/flags/relay.rs`);
+  `doctor`'s line `http2` (`crates/podssh-cli/src/doctor/http2.rs`), in the section relay and for
+  each `wss://` forwarder; the road in `ssh -v` (`crates/podssh-cli/src/ssh/transport.rs`) and in
+  `doctor`'s `forward`.
+- The manual: `PODSSH_H2` (`crates/podssh-cli/src/man/facts/roads.rs`), THE RELAY's item "The
+  WebSocket over HTTP/2" (`crates/podssh-cli/src/man/facts/http_road.rs`), and the notes of `ssh`,
+  `relay serve` and `doctor`; `docs/relay.md` ("The relay role's HTTP/2"), `docs/cli.md`,
+  `docs/architecture.md`, `SECURITY.md`, `docs/STATUS.md`.
+- The tests: `crates/podssh-ws/tests/h2_road.rs` (stand-ins whose HTTP/2 is h2's server, with
+  and without the setting, and one whose TLS chooses `http/1.1`; each HEADERS frame counted off
+  the wire), `crates/podssh-relay/tests/relay_serve_h2.rs` (the role behind TLS of the test's CA,
+  as `serve::listener::connection` takes a connection), and the unit tests of each new file; the
+  plants `t321-protocol-unoffered` (`:protocol` sent with the setting absent),
+  `t321-connection-unshared` (no connection shared), `t321-refusal-fallen-back` (a `403` taken for
+  a reset), `t321-role-setting-unsent` (the role's SETTINGS without it) and
+  `t321-doctor-setting-unread` (`doctor`'s road named whatever the setting).
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test h2_road
+cargo test -p podssh-ws --lib h2_road
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_h2
+cargo test -p podssh-relay --features serve --lib -- h2_road serve::http2
+cargo test -p podssh-cli --lib -- doctor::http2 man::
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_cleartext
+cargo test -p podssh-cli --test relay_serve --test doctor_cleartext --test doctor_upgrade
+sh scripts/plant-each.sh --here t321-protocol-unoffered t321-connection-unshared t321-refusal-fallen-back
+sh scripts/plant-each.sh --here t321-role-setting-unsent t321-doctor-setting-unread
+```
+
+- `--test h2_road`: 6 passed (6 tests: eight sessions on one TLS connection, 4 MiB each way;
+  no extended CONNECT, the upgrade on a new connection and remembered; `http/1.1` chosen, the
+  upgrade on the one connection; a `403`; a lost connection; the probe).
+- `--lib` of podssh-ws: 172 passed, `h2_road`'s 3 among them.
+- `--test relay_serve_h2`: 6 passed (6 tests: eight sessions on one connection to the role;
+  sshd's version line, where this host has sshd; a wrong token; the documents, the mint, `501`
+  and `HTTP_1_1_REQUIRED`; `--http2 no`; `podssh_relay::open` on the road).
+- `--lib -- h2_road serve::http2 serve::` of podssh-relay: 72 passed.
+- The CLI's whole `--lib`: 848 passed (`doctor::http2`'s 2 tests of the line, and the manual's,
+  `PODSSH_H2` among the variables).
+- The suites that the default road changes for a named relay (`relay_serve_cleartext`, the
+  CLI's `relay_serve`, `doctor_cleartext`, `doctor_upgrade`): 3, 18, 4 and 2 passed; and the
+  CLI's other suites against the role: `relay` 14, `relay_code_role` 2, `net_invite` 6,
+  `relay_serve_node` 5, `doctor_ipv6` 3, `doctor_stream` 9, `ipv6_fallback` 4, `m6_exit` 1 (7
+  ignored), `node_cut` 3, `node_quick_relay` 3: passed.
+- Planted, each of the five: 5 caught.
+- `cargo clippy` of the three crates with `--all-targets -D warnings` (the relay with no feature,
+  with `serve,plain-ws,quick`, and with `pair,grant,piping,code` too; the CLI with `iroh` too):
+  clean; rustfmt: clean; the library crates' check on Rust 1.89 with `serve`: clean.
+
+What remains of the entry, for its next part:
+
+1. In the build image: Apache httpd 2.4.58 or later with `H2WebSockets on` in front of a
+   WebSocket echo, software that podssh did not write, as a server of this road.
+2. The CLI's test: `podssh each` over 8 hosts through one `podssh relay serve`, OpenSSH's sshd
+   behind it, on one TLS connection, with equal digests.
+3. Live, on a GitHub runner where `podssh relay serve` runs: `podssh doctor` names `h2` and the
+   setting, and `podssh ssh` runs on the road (Q88: it waits until podssh is stable).
 
 # T-329: Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53)
 
@@ -4434,13 +4619,13 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:266-271`; `docs/design.md:66`), and
+- Read: credentials never go in URLs (`docs/architecture.md:289-294`; `docs/design.md:66`), and
   `docs/decisions.md:78` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:238`); an RSA key signs through aws-lc-rs in the
   binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
-  the relay's caps (`docs/relay.md:438-444`), as an hour of EICE would need.
+  the relay's caps (`docs/relay.md:441-447`), as an hour of EICE would need.
 - Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
 
 ## Approach
@@ -5270,7 +5455,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:202-207`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:204-209`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -5329,7 +5514,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:242-246`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:265-269`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
    `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
@@ -5460,7 +5645,7 @@ does not depend on them.
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:290`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:298-342`) and a check of `--upgrade`
+  (`crates/podssh-cli/src/ssh/transport.rs:299-343`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:343-346`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
@@ -5471,7 +5656,7 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:276-286`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:358-372`, `crates/podssh-relay/src/open.rs:31`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:359-373`, `crates/podssh-relay/src/open.rs:31`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:192-199`, `:201-293`).
@@ -5959,7 +6144,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:153`).
+  port 443 answers (`docs/STATUS.md:154`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -6184,7 +6369,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:266-271`); an `ss://` URI holds the password.
+  (`docs/architecture.md:289-294`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
@@ -7921,7 +8106,7 @@ puts the fallback in its `ok` column without a probe.
 - Read: the fallback follows each failure of the relay whose exit is 69 or 77
   (`crates/podssh-cli/src/forwarder/fallback.rs:91-111`), on by default
   (`crates/podssh-cli/src/forwarder/fallback.rs:55-67`), after the direct road
-  (`crates/podssh-cli/src/ssh/transport.rs:226-257`); the module's own words are that "a target
+  (`crates/podssh-cli/src/ssh/transport.rs:227-258`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
   (`crates/podssh-cli/src/proxy.rs:399-400`), and each other answer, the 502 of a target that the
@@ -7932,7 +8117,7 @@ puts the fallback in its `ok` column without a probe.
   policy or of a token, or after a 502 whose target's name fails
   (`crates/podssh-relay/src/open.rs:63-85`, `crates/podssh-relay/src/open.rs:138-146`).
 - Read: `doctor`'s line of the fallback is `ok`, with "not asked here"
-  (`crates/podssh-cli/src/doctor/forwarder.rs:29-46`); `doctor` has a mark for what it did not
+  (`crates/podssh-cli/src/doctor/forwarder.rs:30-47`); `doctor` has a mark for what it did not
   measure (`crates/podssh-cli/src/doctor/report.rs:99-101`).
 - Read: the operator's rulings Q56 and Q65 (`docs/decisions.md`) let the binary try the forwarders,
   and the Wisp demo server last, "when each relay host fails", unasked (T-370, T-438); since T-438

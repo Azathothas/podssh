@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/serve/http2/mod.rs
++++ b/crates/podssh-relay/src/serve/http2/mod.rs
+@@ -74,8 +74,8 @@ where
+     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+ {
+     let mut builder = h2::server::Builder::new();
++    // Planted: the SETTINGS offer no extended CONNECT.
+     builder
+-        .enable_connect_protocol()
+         .max_concurrent_streams(STREAMS)
+         .initial_window_size(STREAM_WINDOW)
+         .initial_connection_window_size(CONNECTION_WINDOW);

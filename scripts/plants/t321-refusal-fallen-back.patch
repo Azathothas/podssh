@@ -1,0 +1,12 @@
+--- a/crates/podssh-ws/src/h2_road/mod.rs
++++ b/crates/podssh-ws/src/h2_road/mod.rs
+@@ -263,7 +263,8 @@ async fn open_on(
+         let reason = status.canonical_reason().unwrap_or_default().to_string();
+         let body = refusal_text(response.into_body()).await;
+         let body = if body.is_empty() { reason } else { body };
+-        return Err(Carry::Answer(ConnectError::Refused { status: status.as_u16(), body }));
++        // Planted: the relay's refusal taken for a reset of HTTP/2.
++        return Err(Carry::Reset(format!("{} {body}", status.as_u16())));
+     }
+     let stream = Stream { inner: crate::via::Stream::from_parts(send, response.into_body()), _place: Some(place) };
+     Ok(RelaySession::over_h2(stream, conn.peer(), config.idle_timeout))

@@ -13,6 +13,8 @@
 //!   one bounded attempt per host;
 //! - [`cleartext`]: the road with no TLS on the relay's port, last, with a
 //!   token of one session, for a proxy that cuts TLS (T-326);
+//! - [`h2_road`]: which forward sessions are streams of one HTTP/2
+//!   connection, by RFC 8441's extended CONNECT (T-321), `PODSSH_H2`;
 //! - [`http_road`]: the HTTP road (T-319), a forward session over plain
 //!   requests of HTTP/1.1 where a proxy refuses the WebSocket upgrade, in its
 //!   split form and its serial form, whose server is the relay role's;
@@ -74,6 +76,7 @@ pub mod failures;
 pub mod forward_layer;
 #[cfg(feature = "grant")]
 pub mod grant;
+pub mod h2_road;
 pub mod health;
 pub mod http_road;
 pub mod identity;

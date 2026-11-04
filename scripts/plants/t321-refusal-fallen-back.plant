@@ -1,0 +1,7 @@
+# T-321: the relay's refusal of a CONNECT on HTTP/2 (a 403) is taken for a
+# reset of HTTP/2, so the session goes again on HTTP/1.1, its token sent
+# twice; the test of a 403 on the CONNECT must fail.
+ENTRY=T-321
+GROUP=resume
+EXPECT='no connection of HTTP/1.1 after it'
+RUN='cargo test --locked -p podssh-ws --test h2_road -- a_403_on_the_connect'

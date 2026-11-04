@@ -152,7 +152,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   closed); T-346 (`worktree-agent-a6730d81d38c2e802`, `363fcc1`, merged and closed); T-173's next part
   (`worktree-agent-ac6a1db72f01e3003`, `71dbd72`, merged, the entry partial for its live run and the road by
   default); T-321 (`worktree-agent-afc21daca5ecea253`,
-  `4d7c7d0`); T-615 (`worktree-agent-a3c0e12c59fd9dc1e`, `fe2bbaf`, after a stop at a limit of
+  `4d7c7d0`, merged, the entry partial for Apache httpd's server, `each` over 8 hosts and the live run); T-615 (`worktree-agent-a3c0e12c59fd9dc1e`, `fe2bbaf`, after a stop at a limit of
   use, resumed). Each waits for its merge, in that order.
 
   CI: the gate passed at
@@ -198,7 +198,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 581 entries: 89 open, 4 partial, 2 blocked, 486 done.
+`TODO/INDEX.md` holds 581 entries: 88 open, 5 partial, 2 blocked, 486 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

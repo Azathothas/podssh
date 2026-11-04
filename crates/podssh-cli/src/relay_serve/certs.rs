@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime};
 
+use podssh_relay::serve::http2::H2;
 use podssh_ws::tls_server::{Served, ACME_TLS_1, HTTP1};
 
 use crate::acme::{self, certs::Leaf, Acme};
@@ -154,11 +155,14 @@ impl Certs {
         }
     }
 
-    /// The protocols that the listener offers: TLS-ALPN-01's too with ACME.
-    pub fn alpn(&self) -> &'static [&'static [u8]] {
-        match self.acme {
-            Some(_) => &[HTTP1, ACME_TLS_1],
-            None => &[HTTP1],
+    /// The protocols that the listener offers: `h2` first with `http2`
+    /// (T-321), and TLS-ALPN-01's too with ACME.
+    pub fn alpn(&self, http2: bool) -> &'static [&'static [u8]] {
+        match (http2, self.acme.is_some()) {
+            (true, true) => &[H2, HTTP1, ACME_TLS_1],
+            (true, false) => &[H2, HTTP1],
+            (false, true) => &[HTTP1, ACME_TLS_1],
+            (false, false) => &[HTTP1],
         }
     }
 

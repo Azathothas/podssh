@@ -81,6 +81,9 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "serve: the replay buffers of the sessions of /v1/layer/ in all, in MiB, 4 for each session: from 4 to 16384 (default 256, 64 sessions), or 0 for none, which offers no such road; a new session past it is refused in its handshake, and podssh's client takes /connect/ instead", None),
     row(None, "resume-host", Some("HOST[:PORT]"), FlagKind::Supported,
         "serve: the name of this process alone, which its certificate holds, where several processes serve one name: /relays.json names it as forward.host, and podssh's client sends each link of a session of /v1/layer/ to it, so that each resume reaches the process that holds the session (a host of the name's deployment)", None),
+    // HTTP/2 with extended CONNECT on the listener (T-321).
+    row(None, "http2", Some("WORD"), FlagKind::Supported,
+        "serve: yes (the default) or no: offer h2 by ALPN before http/1.1, with extended CONNECT (RFC 8441), so that the sessions of a client's process are streams of one connection, each upgrade a CONNECT answered 200; /health, /relays.json, /trace, /llms-full.txt and the mint answer there too, and each other request is asked for again over HTTP/1.1; no offers http/1.1 alone, as before", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,

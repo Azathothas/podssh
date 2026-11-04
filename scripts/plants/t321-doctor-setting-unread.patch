@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/doctor/http2.rs
++++ b/crates/podssh-cli/src/doctor/http2.rs
+@@ -58,7 +58,8 @@ pub(super) fn verdict(
+         Err(e) if unmeasured(&e) => return Verdict::Unknown { why: format!("not measured: {host}: {e}") },
+         Err(e) => return Verdict::Unknown { why: format!("not measured, as {host} was not reached: {e}") },
+     };
+-    let road = match (offered.extended, choice.offers(explicit)) {
++    // Planted: the road named as if each host offered extended CONNECT.
++    let road = match (Some(true), choice.offers(explicit)) {
+         (Some(true), true) => "the sessions of a run share one connection to it".to_string(),
+         (Some(true), false) if choice == Choice::No => {
+             "PODSSH_H2=no keeps each session on a connection of its own".to_string()

@@ -90,7 +90,10 @@ upgrade, which says so ("IPv6 targets", below; T-253). Its listener takes
 the cleartext road beside TLS, by the first byte of each connection, with
 tokens of one session alone ("The cleartext road", below; T-326). For a
 proxy that refuses the upgrade, its HTTP road carries the same sessions over
-plain requests ("The relay role's HTTP road", below; T-319).
+plain requests ("The relay role's HTTP road", below; T-319). A client whose
+TLS chooses `h2` gets HTTP/2 with extended CONNECT, so that the sessions of
+one process are streams of one connection ("The relay role's HTTP/2",
+below; T-321).
 Beside the contract, `/v1/layer/<host>/<port>` carries a forward session in
 the resumable layer, so that the role keeps a standard sshd's connection
 across a drop of the client's link ("The relay role's resumable layer",
@@ -1033,6 +1036,54 @@ The role's lines say `http open` and `http close CODE` for each session.
 Measured on 2026-11-04 (`crates/podssh-relay/tests/http_road.rs`, 8 passed, and
 `crates/podssh-relay/tests/http_road_quick.rs`, 2 passed): 20 MiB each way in each form, each
 byte once through lost and cut answers.
+
+## The relay role's HTTP/2 (T-321)
+
+The contract's upgrade is HTTP/1.1, one TLS connection for each session.
+RFC 8441 carries a WebSocket as one stream of an HTTP/2 connection
+(GitHub #51), so that a process's sessions to one host (`podssh each`, a
+fan-out of `job`) share one TLS connection. The default relay's edge
+chooses `h2` and offers no extended CONNECT (measured 2026-10-30,
+[relay-operator.md](relay-operator.md), item 8); `podssh relay serve`
+offers it (`crates/podssh-relay/src/serve/http2/`):
+
+- **ALPN.** The listener offers `h2`, then `http/1.1` (and `acme-tls/1`
+  with `--acme`); `--http2 no` offers `http/1.1` alone, as before. A client
+  that offers no ALPN, as each road of podssh but this one, gets HTTP/1.1.
+- **SETTINGS.** `SETTINGS_ENABLE_CONNECT_PROTOCOL` 1, 16 streams at once
+  (`MAX_CONCURRENT_STREAMS`), a window of 1 MiB for each stream
+  (`INITIAL_WINDOW_SIZE`) and 16 MiB for the connection, so that a stream
+  that a slow target holds full takes no other stream's window, and a
+  connection holds 16 MiB of a client's bytes at most.
+- **A session.** `CONNECT` with `:protocol websocket`, `:scheme https`,
+  `:authority` and the `:path` of the upgrade (`/connect/<host>/<port>`
+  with its knobs, the layer's or the reverse road's), `sec-websocket-version:
+  13` and the token in `x-relay-token`, with no `Sec-WebSocket-Key` (RFC
+  8441, section 5). The role makes it the upgrade of HTTP/1.1 of that path,
+  with a key of its own, on a pipe in memory to its routes, so that each
+  road keeps its token, its checks, its brake and its limits; the `101`
+  is answered `200`, and the frames of RFC 6455 then cross the stream as
+  they cross TCP, the client's masked. A refusal is the upgrade's, with its
+  status and its body (`403 forward: missing or wrong token`, `502 relay:
+  cannot reach ...`). A `CONNECT` with another `:protocol` gets `501`, one
+  with none `405`.
+- **Other requests.** `GET /health`, `/relays.json`, `/trace` and
+  `/llms-full.txt`, and `POST /v1/mint`, answer as over HTTP/1.1, whole.
+  Each other request (the HTTP road's, the probes', a pair's call) is reset
+  with `HTTP_1_1_REQUIRED` (RFC 9113, section 7), which a client of HTTP/2
+  follows by asking again over HTTP/1.1, as each keeps a connection or a
+  stream as HTTP/1.1 gives it. A WebSocket of the reverse road or of the
+  mailbox is the upgrade of its path, as a session is.
+- **An end.** A connection with no stream for 120 s ends with a `GOAWAY`.
+  The end of a session's stream is the WebSocket's; a stream reset by the
+  client ends its session alone; a lost connection ends each session on it.
+
+The role's lines say `h2` for each connection of HTTP/2, beside `upgrade`
+for each session. podssh's client takes the road to a relay host that the
+user named, and to the default relay with `PODSSH_H2=yes` alone
+([cli.md](cli.md), "The WebSocket over HTTP/2"; `crates/podssh-ws/src/h2_road/`).
+Measured on 2026-11-04: `cargo test -p podssh-relay --features serve,plain-ws --test
+relay_serve_h2`, 6 passed (`crates/podssh-relay/tests/relay_serve_h2.rs`).
 
 ## The relay role's resumable layer (T-173)
 

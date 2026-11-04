@@ -3325,10 +3325,10 @@ The draft's calls, 2026-11-02:
    each socket of both roads, which needs a token or a pair that the brake let through and is
    checked with a MAC or a digest and no state. Lost: a brake of the upgrades with no token, as
    the default relay counts them: the role's refusal of one costs less than the count.
-4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:236`), never a
+4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:247`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:177`),
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:179`),
    with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:53`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
@@ -3383,7 +3383,7 @@ name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:190`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:192`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -6676,7 +6676,7 @@ the roads over TCP.
   with a request of ID 0x401 and the address; `docs/carriers.md:1136` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
-  packet of a reserved", and `crates/podssh-relay/Cargo.toml:38` says "The quick tunnel over
+  packet of a reserved", and `crates/podssh-relay/Cargo.toml:39` says "The quick tunnel over
   QUIC (src/quick/quic.rs, T-301): noq, the QUIC of the": a probe of UDP and a QUIC with no C
   exist.
 
@@ -6733,7 +6733,7 @@ road with no relay. podssh does not speak it (Q82).
 - `docs/carriers.md:1147-1148` says "a token of 32 bytes that the TLS keying material exporter
   derives", and `docs/carriers.md:1150-1151` says "as the server never answers a command";
   `docs/carriers.md:1153` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
-- `crates/podssh-relay/Cargo.toml:38` says "The quick tunnel over QUIC (src/quick/quic.rs,
+- `crates/podssh-relay/Cargo.toml:39` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 
 ## Approach
@@ -7034,7 +7034,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 
 - Read: the node's side of the reverse road runs over any `RelaySession<S>`
   (`crates/podssh-relay/src/reverse/serve.rs:134`), and a `RelaySession` is made over any stream,
-  with no HTTP in it (`crates/podssh-ws/src/session.rs:100-104`).
+  with no HTTP in it (`crates/podssh-ws/src/session.rs:104-108`).
 - Read: podssh's relay role serves the relay's side of a node's socket and of an operator's
   (`crates/podssh-relay/src/serve/reverse/mod.rs:1-3`, T-427).
 - Read: `pipe`'s local addresses are `stdio` (or `-`), `fd:N` and `exec:CMD`, a program with no
@@ -7399,7 +7399,7 @@ roads, and a carrier must be one of them.
   (`crates/podssh-cli/src/man/notes_pair.rs:272-273`), and needs the net's role exit, signed by
   its owner (`:270-271`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
-  (`docs/STATUS.md:94`).
+  (`docs/STATUS.md:95`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node
   of the exit runs there with `--carrier exec:...`, and the closed host runs the client,
   `podssh exit NAME --listen 127.0.0.1:1080 --carrier stdio`.

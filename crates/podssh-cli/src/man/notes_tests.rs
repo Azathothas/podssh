@@ -72,8 +72,16 @@ fn problems_in(verb: &str, note: &str, variables: &[&str]) -> Vec<String> {
         }
         // A variable given a value (NAME=yes) is a variable, not a keyword.
         let variable_shaped = |s: &str| s.contains('_') && s.chars().all(|c| c.is_ascii_uppercase() || c == '_');
+        // Given a value, its name may hold a digit after its first letter, as
+        // PODSSH_H2 does (T-321); a bare word with one, such as an error code
+        // of HTTP/2 (HTTP_1_1_REQUIRED), is no variable.
+        let valued_variable = |s: &str| {
+            s.contains('_')
+                && s.starts_with(|c: char| c.is_ascii_uppercase())
+                && s.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+        };
         if let Some((name, _)) = w.split_once('=') {
-            if variable_shaped(name) {
+            if valued_variable(name) {
                 if !variables.contains(&name) {
                     out.push(format!("{verb}: the variable {name} is not in ENVIRONMENT"));
                 }

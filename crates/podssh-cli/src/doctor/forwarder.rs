@@ -2,9 +2,10 @@
 //! the settings file (T-369): for each, the upgrade, then GitHub's SSH port
 //! through it, whose host key must be one that GitHub publishes, as the
 //! relay's forward check identifies the server, never by its banner; and
-//! before it, the line `cleartext` of its host (T-326). With none named, a
-//! line says whether the fallback to the forwarders that the binary names is
-//! on (T-370), as a line that measured nothing (T-509).
+//! before it, the lines `cleartext` (T-326) and, over TLS, `http2` (T-321)
+//! of its host. With none named, a line says whether the fallback to the
+//! forwarders that the binary names is on (T-370), as a line that measured
+//! nothing (T-509).
 
 use std::sync::Arc;
 
@@ -52,6 +53,10 @@ pub(super) async fn check(report: &mut Report<'_>, forwarders: &[Forwarder], tru
     for forwarder in forwarders {
         if let Ok(url) = forwarder.template.fill(FORWARD_HOST, 22) {
             super::cleartext::forwarder(report, &url.host, url.port, TIMEOUT).await;
+            // What its TLS offers HTTP/2 (T-321).
+            if url.tls {
+                super::http2::forwarder(report, &url.host, url.port, trust, TIMEOUT).await;
+            }
         }
         let name = &forwarder.name;
         let road = Dial {

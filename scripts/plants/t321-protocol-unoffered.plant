@@ -1,0 +1,8 @@
+# T-321: the client sends a CONNECT with `:protocol` on an HTTP/2 connection
+# whose SETTINGS offered no extended CONNECT, as RFC 8441 section 3 forbids;
+# the stand-in's h2 server sees its HEADERS and resets it, and the test of a
+# server with no extended CONNECT must fail.
+ENTRY=T-321
+GROUP=resume
+EXPECT='whose SETTINGS offered no extended CONNECT'
+RUN='cargo test --locked -p podssh-ws --test h2_road -- a_server_that_offers_no_extended_connect'

@@ -1,0 +1,7 @@
+# T-321: `doctor`'s line http2 names the road as if each host offered
+# extended CONNECT, so a host that offers none is said to share one
+# connection; the test of the line's words must fail.
+ENTRY=T-321
+GROUP=cli-tests
+EXPECT='the_line_names_the_setting_and_the_road_of_the_run \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- doctor::http2::tests::the_line_names_the_setting_and_the_road_of_the_run'

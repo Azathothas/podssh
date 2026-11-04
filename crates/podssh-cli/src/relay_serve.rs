@@ -59,6 +59,8 @@ pub struct ServeArgs {
     pub resume_deadline: Option<String>,
     pub resume_budget: Option<String>,
     pub resume_host: Option<String>,
+    /// yes or no: HTTP/2 with extended CONNECT on the listener (T-321).
+    pub http2: Option<String>,
 }
 
 impl ServeArgs {
@@ -86,6 +88,7 @@ impl ServeArgs {
             resume_deadline: get("resume-deadline"),
             resume_budget: get("resume-budget"),
             resume_host: get("resume-host"),
+            http2: get("http2"),
         }
     }
 
@@ -133,6 +136,12 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         Some(word) => crate::forwarder::fallback::word(word)
             .ok_or_else(|| Refusal::usage(format!("--cleartext {word:?}: yes or no")))?,
     };
+    // HTTP/2 with extended CONNECT, by ALPN (T-321).
+    let http2 = match s.http2.as_deref() {
+        None => true,
+        Some(word) => crate::forwarder::fallback::word(word)
+            .ok_or_else(|| Refusal::usage(format!("--http2 {word:?}: yes or no")))?,
+    };
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
         Some(text) => match text.parse::<u64>() {
@@ -153,7 +162,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let certs = certs::Certs::open(source)?;
     // The list of deployments that its /relays.json signs (T-346).
     let listed = list::install(s)?;
-    let acceptor = podssh_ws::tls_server::acceptor_for(certs.served.clone(), certs.alpn()).map_err(Refusal::config)?;
+    let acceptor =
+        podssh_ws::tls_server::acceptor_for(certs.served.clone(), certs.alpn(http2)).map_err(Refusal::config)?;
     let tokens = serve::tokens::Tokens::random().map_err(Refusal::config)?;
     let pairs = serve::reverse::Pairs::open(s.pairs.as_deref().map(Into::into)).map_err(Refusal::config)?;
     let kept = match (s.pairs.as_deref(), pairs.len()) {
@@ -184,9 +194,10 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     };
     let inside = if s.allow_private { ", private targets too" } else { "" };
     let clear = if cleartext { ", the cleartext road beside TLS" } else { ", TLS alone" };
+    let h2 = if http2 { ", HTTP/2 with extended CONNECT" } else { ", no HTTP/2" };
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}{listed}{resumable}; {}",
+         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}; {}",
         serve::CONTRACT,
         certs.shown
     );

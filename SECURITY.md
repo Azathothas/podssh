@@ -157,6 +157,16 @@ Each rule is implemented.
   serves only `/health`, that mint and that upgrade in cleartext, and
   `--cleartext no` turns it off there; `PODSSH_CLEARTEXT=no` turns it off in
   the client.
+- **On the HTTP/2 road, the token is a field that HPACK never indexes, and
+  a connection is one process's** (T-321, RFC 8441). Several sessions of one
+  run share one TLS connection to a relay host that offers extended
+  CONNECT: each `CONNECT` carries its token in `x-relay-token`, marked
+  never to be indexed (RFC 7541, section 7.1.3), so that no table of the
+  connection's compression holds it and no other stream's bytes can be
+  measured against it. The TLS is the relay's, verified as on each road,
+  and no process shares a connection with another: no helper or socket
+  joins them (AGENTS.md, section 5). The relay role takes such a session
+  to its own routes with the same token, checks and brake as the upgrade.
 - **The cache stays in its user's own tree** (T-593, GitHub #118). On Unix
   `XDG_CACHE_HOME`, `HOME/.cache` and `XDG_RUNTIME_DIR` count only when each
   of their directories that exists, up to the home, belongs to the

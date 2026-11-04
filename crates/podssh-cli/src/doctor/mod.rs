@@ -42,6 +42,8 @@ mod diagnosis;
 // The forwarders of --forwarder (T-369).
 mod forwarder;
 mod host;
+// What a host offers the WebSocket over HTTP/2 (T-321).
+mod http2;
 mod ipv6;
 #[cfg(feature = "iroh")]
 mod iroh;
