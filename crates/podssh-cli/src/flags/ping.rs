@@ -1,6 +1,7 @@
 //! The flag rows of `ping` (T-053): the relay's flags, the flags that a
 //! login needs, with the ids of `ssh` so that its arguments are read the
-//! same way, and the size, the count and the JSON of the measures.
+//! same way, the size, the count and the JSON of the measures, and the
+//! measures of what a user feels (T-660).
 
 use super::{row, FlagKind, FlagRow};
 
@@ -42,6 +43,10 @@ pub const PING_FLAGS: &[FlagRow] = &[
         "bytes each way for the throughput, with K, M or G (default 8M, at most 30M: both ways stay under the relay's 64 MiB)", None),
     row(None, "count", Some("N"), FlagKind::Supported,
         "pings of each relay host, and echoes through the destination (default 10, at most 100)", None),
+    row(None, "under-load", None, FlagKind::Supported,
+        "with a host, in place of the echo and throughput: 40 keys 150 ms apart through cat, idle, then after 3 s of a download (head -c) beside them on the same connection", None),
+    row(None, "connect-runs", Some("N"), FlagKind::Supported,
+        "with a host, first: N cold connects, each timed from its own connection to the exit of true (at most 20)", None),
     row(None, "json", None, FlagKind::Supported,
         "the measures as one JSON object on stdout", None),
 ];

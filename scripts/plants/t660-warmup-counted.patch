@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ping/load.rs
++++ b/crates/podssh-cli/src/ping/load.rs
+@@ -53,7 +53,7 @@ pub async fn measure(handle: &Handle<Client>) -> Result<UnderLoad, Failed> {
+     let (load_reader, load_writer) = far::open(handle, &command).await?.split();
+     let started = Instant::now();
+     let mut download = Download::start(load_reader);
+-    tokio::time::sleep_until((started + WARMUP).into()).await;
++    tokio::time::sleep_until(started.into()).await;
+     let mut under = UnderLoad { idle, command, ..UnderLoad::default() };
+     if download.ended().is_none() {
+         let (before, from) = (download.bytes(), Instant::now());

@@ -12,7 +12,7 @@ use podssh_ssh::russh::client::{Handle, Msg};
 use podssh_ssh::russh::{Channel, ChannelMsg};
 
 /// The limit on each wait of a measure.
-const STEP: Duration = Duration::from_secs(60);
+pub(super) const STEP: Duration = Duration::from_secs(60);
 /// The size of each write up.
 const CHUNK: usize = 32 * 1024;
 
@@ -46,7 +46,7 @@ impl std::fmt::Display for Failed {
 }
 
 /// A session channel running `command`, once the server took it.
-async fn open(handle: &Handle<Client>, command: &str) -> Result<Channel<Msg>, Failed> {
+pub(super) async fn open(handle: &Handle<Client>, command: &str) -> Result<Channel<Msg>, Failed> {
     let broke = |what: &str, e: &dyn std::fmt::Display| Failed::Broke(format!("{command}: {what}: {e}"));
     let mut channel = match handle.channel_open_session().await {
         Ok(channel) => channel,
@@ -81,7 +81,7 @@ async fn open(handle: &Handle<Client>, command: &str) -> Result<Channel<Msg>, Fa
 }
 
 /// The rest of a channel's messages: its exit status, if one came.
-async fn status_of(reader: &mut podssh_ssh::russh::ChannelReadHalf) -> Option<i32> {
+pub(super) async fn status_of(reader: &mut podssh_ssh::russh::ChannelReadHalf) -> Option<i32> {
     let mut status = None;
     while let Ok(Some(msg)) = tokio::time::timeout(STEP, reader.wait()).await {
         match msg {

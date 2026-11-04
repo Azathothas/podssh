@@ -5,8 +5,11 @@
 //! named, in lines and in one JSON document; a host with no `cat` ends with
 //! its 127. Through the stand-in relay (`scripts/fake-relay.py`), a pong for
 //! each ping, alone and with a destination; those checks say that they did
-//! not run when this host has no Python or no openssl for the stand-in.
+//! not run when this host has no Python or no openssl for the stand-in. What
+//! a user feels, `--under-load` and `--connect-runs` (T-660), is `ping_feel`.
 
+// What a user feels (T-660).
+mod ping_feel;
 mod ssh_harness;
 mod throughput_harness;
 
@@ -80,7 +83,12 @@ fn direct(s: &Session, extra: &[&str], user: &str) -> Vec<String> {
 
 /// The stand-in relay's flags, or `None` when it cannot run here.
 fn relay_flags(s: &Session) -> Option<Vec<String>> {
-    let cell = match Cell::fake_relay_mode(s, "normal", "the stand-in relay") {
+    relay_flags_in(s, "normal")
+}
+
+/// [`relay_flags`] of the stand-in in `mode`, a fault or a shape of it.
+fn relay_flags_in(s: &Session, mode: &str) -> Option<Vec<String>> {
+    let cell = match Cell::fake_relay_mode(s, mode, "the stand-in relay") {
         Ok(cell) => cell,
         Err((_, why)) => {
             eprintln!("did not run: {why}");

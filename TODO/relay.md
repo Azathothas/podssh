@@ -3155,7 +3155,7 @@ URL written into each result, and a download target that is no test target of `A
 
 - Read: `podssh ping` times the token, the dial, TLS and the upgrade of one host, then its
   WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-150`), one host after another
-  (`crates/podssh-cli/src/ping/mod.rs:156-161`), with `--json`.
+  (`crates/podssh-cli/src/ping/mod.rs:167-172`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
   (`crates/podssh-cli/src/doctor/relay_checks.rs:197-228`); `--quick` keeps the relay's sections and
   `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:140-144`).
@@ -3310,7 +3310,7 @@ working hosts, which a measurement can make.
   latency.
 - Read: `podssh ping`'s leg times the token, the dial, TLS and the upgrade of one host, and its
   WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-150`), and `ping` runs the legs one after
-  another (`crates/podssh-cli/src/ping/mod.rs:156-161`); the module is private to `ping`
+  another (`crates/podssh-cli/src/ping/mod.rs:167-172`); the module is private to `ping`
   (`crates/podssh-cli/src/ping/mod.rs:9`).
 - Read: the record of failures is a file of the cache, `crates/podssh-relay/src/failures.rs:27`
   says "pub const FILE: &str", and `order` keeps the list's order within each of its groups
@@ -3830,7 +3830,7 @@ changes with the edge", which is not true of the role: it has no edge and gives 
   `docs/cli.md:3241-3247`.
 - Read: `relay status` and `ping` time the hosts of the run's list, the default host and three
   others at most (`crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize =
-  3;"; `crates/podssh-cli/src/relay_diag.rs:88-97`, `crates/podssh-cli/src/ping/mod.rs:156-161`),
+  3;"; `crates/podssh-cli/src/relay_diag.rs:88-97`, `crates/podssh-cli/src/ping/mod.rs:167-172`),
   not the 37 hosts of the pool, which only `relay rank` measures.
 - Read: the order that a run of the default list takes, in a word, is `order_now`
   (`crates/podssh-relay/src/rank_list.rs:195-212`), and the list in that order `placed_now`

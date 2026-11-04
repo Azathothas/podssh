@@ -840,7 +840,7 @@ Read:
 
 - The modes of the stand-in relay: `normal`, `refuse`, `blackhole`, `silent`,
   `stall` and `close` (`scripts/fake-relay.py:18-34`). The stand-in proxy maps
-  names and answers a status (`scripts/fake-proxy.py:1-29`). Neither shapes
+  names and answers a status (`scripts/fake-proxy.py:1-32`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
   checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:691-711`, 14 of 14 since T-236).

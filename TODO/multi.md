@@ -3522,7 +3522,7 @@ session on 2026-11-03.
   podssh-cli --test flag_table`: 9; `--lib session::`, 17; `--lib man`, 66; `--lib help`, 9.
 - Planted: `scripts/plants/t506-empty-silent.plant` (the line of an empty list never written):
   `sh scripts/plant-each.sh --here t506-empty-silent`: caught, the test of the empty list failed.
-- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:449-453`
+- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:451-455`
   (`TODO/cli.md`) and the citations of `docs/cli.md` were moved by hand; `cargo todo remap` from the
   tree before the draft confirmed them. rustfmt of `podssh-cli` (`exchange` of `session/client.rs`)
   and clippy of `podssh-cli` with `-D warnings`, all targets: clean.
