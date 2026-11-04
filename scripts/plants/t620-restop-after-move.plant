@@ -1,0 +1,9 @@
+# T-620: a rotation of the first pair that ends after the move writes its new
+# stop token into the next pair, whose own token the relay would then refuse;
+# the test of the pair that a node holds, which a rotation of the pair before
+# a move must leave as it is, must fail.
+ENTRY=T-620
+GROUP=cli-tests
+EXPECT='test node_rotate::tests::a_rotation_or_a_renewal_of_the_pair_before_a_move_changes_nothing_after_it \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- node_rotate::tests::a_rotation_or_a_renewal_of_the_pair_before_a_move_changes_nothing_after_it'
+LIMIT=2400

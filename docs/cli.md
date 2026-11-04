@@ -3478,7 +3478,7 @@ commands. The rules behind them:
   with the digest of the next one, the store's copy rewritten, then the
   new one's first use; its lines say each rotation, and its renewal takes
   the token now. A pair of `--pair-file` keeps its stop token, and the node
-  says so once.
+  says so once. The next pair that the node goes on with at an expiry is rotated and renewed so too (T-620).
 - **A renewal, on podssh's relay role** (T-592, GitHub #117). `relay pair
   --renew NAME` renews the pair stored under NAME at the relay that made
   it (`crates/podssh-cli/src/relay_renew.rs`): `POST /v1/renew/<name>` with

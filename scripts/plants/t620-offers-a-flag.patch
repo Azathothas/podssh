@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/reverse/legs.rs
++++ b/crates/podssh-relay/src/reverse/legs.rs
+@@ -41,7 +41,7 @@ static ROTATES: AtomicU64 = AtomicU64::new(0);
+ /// What a node's socket heard in its role's `hello`.
+ pub fn heard(hello: &Hello) {
+     if says_rotation(hello) {
+-        ROTATES.fetch_add(1, Ordering::SeqCst);
++        ROTATES.store(1, Ordering::SeqCst);
+     }
+ }
+ 

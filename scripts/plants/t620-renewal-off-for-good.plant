@@ -1,0 +1,10 @@
+# T-620: a relay that renewed none of the first pair turns the node's renewal
+# off for good, so the next pair, on a relay that renews, is not renewed in
+# its last day; the test through the stand-in's first pair and the role's
+# next one (Python and openssl for the harness's relays) must fail.
+ENTRY=T-620
+GROUP=resume-cli
+EXPECT='test a_node_that_goes_on_with_its_next_pair_renews_and_rotates_that_one \.\.\. FAILED'
+SETUP='{ command -v python3 && command -v openssl; } >/dev/null || apk add --no-cache python3 openssl'
+RUN='cargo test --locked -p podssh-cli --test relay_serve_node -- a_node_that_goes_on_with_its_next_pair_renews_and_rotates_that_one'
+LIMIT=1800

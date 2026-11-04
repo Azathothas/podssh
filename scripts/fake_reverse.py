@@ -191,7 +191,7 @@ async def handle(method, path, headers, reader, writer):
         return True
     parts = path.split("?")[0].split("/")
     if len(parts) != 4 or parts[1] != "v1" or parts[2] not in ("node", "connect", "status", "stop"):
-        return False
+        return unserved(method, parts)
     kind, pair = parts[2], PAIRS.get(parts[3])
     wanted = {"node": "node_token", "connect": "connect_token", "status": "connect_token", "stop": "stop_token"}
     if pair is None or headers.get("x-relay-token") != getattr(pair, wanted[kind]):
@@ -366,3 +366,13 @@ async def close_late(pair, sid, seconds):
     await asyncio.sleep(seconds)
     if pair.node is not None and not pair.node.closed:
         await pair.node.text({"type": "close", "id": sid})
+
+
+def unserved(method, parts):
+    """False, for a path that the contract does not have, after a line on
+    stderr for each request of podssh's relay role (T-620): /v1/renew and
+    /v1/rotate, so that a test knows which pair's stop token a node still
+    sends here. The path holds the pair's name, never a token."""
+    if len(parts) == 4 and parts[1] == "v1" and parts[2] in ("renew", "rotate"):
+        print(f"reverse: not served: {method} /v1/{parts[2]}/{parts[3]}", file=sys.stderr, flush=True)
+    return False

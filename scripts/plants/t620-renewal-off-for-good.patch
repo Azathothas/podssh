@@ -1,0 +1,20 @@
+--- a/crates/podssh-cli/src/node_expiry.rs
++++ b/crates/podssh-cli/src/node_expiry.rs
+@@ -107,7 +107,7 @@ pub(crate) async fn warn(label: String, held: Held, stored: bool, say: Say, rene
+         let left = Duration::from_millis(u64::try_from(expires - now).unwrap_or(0));
+         let due = tried.is_none_or(|at| at.elapsed() >= RETRY);
+         let ask = !left.is_zero() && left <= RENEW_WINDOW && due;
+-        let renewing = renewer.as_ref().filter(|_| off.as_deref() != Some(held.name().as_str()));
++        let renewing = renewer.as_ref().filter(|_| off.is_none());
+         if let Some(by) = renewing.filter(|_| ask) {
+             // One request by the stop token at a time, with its write of the
+             // store: the rotation's waits.
+@@ -132,7 +132,7 @@ pub(crate) async fn warn(label: String, held: Held, stored: bool, say: Say, rene
+                 Tried::NotServed => off = Some(name),
+             }
+         }
+-        let renews = renewer.is_some() && off.as_deref() != Some(held.name().as_str());
++        let renews = renewer.is_some() && off.is_none();
+         if !left.is_zero() && !renews {
+             if let Some(part) = band(left) {
+                 let fresh = said.is_none_or(|(at, before)| at != expires || part > before);

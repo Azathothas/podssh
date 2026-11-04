@@ -1,0 +1,9 @@
+# T-620: the sockets that heard the role's offer of the rotation are a flag
+# again, not a count, so a node that moved to its next pair cannot tell that
+# pair's first socket from the first pair's; the test of the next pair's
+# wait for a socket that heard the offer after the move must fail.
+ENTRY=T-620
+GROUP=cli-tests
+EXPECT='test node_rotate::tests::the_next_pair_s_rotation_waits_for_a_socket_that_heard_the_offer_after_the_move \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- node_rotate::tests::the_next_pair_s_rotation_waits_for_a_socket_that_heard_the_offer_after_the_move'
+LIMIT=2400
