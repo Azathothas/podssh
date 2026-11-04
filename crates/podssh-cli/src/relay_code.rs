@@ -7,7 +7,9 @@
 //! key comes back, and goes into the node's allowlist when `--allow FILE`
 //! names it. The code shows on the giver's terminal alone, never on stdout,
 //! in a log or in argv; the taker reads it at a prompt, or one line of a
-//! pipe. The two ends meet at a mailbox (`podssh_relay::code`).
+//! pipe. The two ends meet at a mailbox (`podssh_relay::code`). The net's
+//! invitation (T-616, `crate::net`) shows, reads and refuses its code by the
+//! same calls.
 
 use std::io::{BufRead, IsTerminal, Read, Write};
 use std::path::Path;
@@ -23,6 +25,7 @@ use podssh_relay::identity::pins::{self, Seen};
 use podssh_relay::identity::{file, PublicKey};
 use podssh_relay::pair::{self, OperatorPart, Pair};
 use podssh_ws::dial::ProxyChoice;
+use podssh_ws::url::WsUrl;
 use zeroize::Zeroizing;
 
 use crate::exitmap::Fault;
@@ -172,7 +175,7 @@ pub(crate) fn join(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut
         )));
     }
     let ends = ends(args)?;
-    let code = read_code(err)?;
+    let code = read_code(err, "podssh relay: the code that the node's host shows: ")?;
     crate::pins::apply(args.relay_addr.as_deref())?;
     pairs::online()?;
     let say = |line: String| podssh_ssh::err_line!("podssh relay: {line}");
@@ -228,20 +231,28 @@ pub(crate) fn join(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut
 fn ends(args: &RelayArgs) -> Result<Ends, Refusal> {
     let value = std::env::var(code::ENV).ok();
     let mailboxes = code::mailboxes(args.pair_mailbox.as_deref(), value.as_deref());
-    let mailboxes = mailboxes.map_err(|why| match args.pair_mailbox {
-        Some(_) => Refusal::usage(why),
-        None => Refusal::config(why),
-    })?;
-    let say: code::Say = Arc::new(|line: String| podssh_ssh::err_line!("podssh relay: {line}"));
-    Ok(Ends { mailboxes, trust: pairs::trust(args.ca_file.as_deref()), proxy: ProxyChoice::FromEnvironment, say })
+    ends_of(mailboxes, args.pair_mailbox.is_some(), args.ca_file.as_deref(), "podssh relay")
+}
+
+/// The ends of `mailboxes`, which `--pair-mailbox` gave when `named`, else
+/// the variable, reached with the trust of `ca_file`; each line under `who`.
+pub(crate) fn ends_of(
+    mailboxes: Result<Vec<WsUrl>, String>,
+    named: bool,
+    ca_file: Option<&str>,
+    who: &'static str,
+) -> Result<Ends, Refusal> {
+    let mailboxes = mailboxes.map_err(|why| if named { Refusal::usage(why) } else { Refusal::config(why) })?;
+    let say: code::Say = Arc::new(move |line: String| podssh_ssh::err_line!("{who}: {line}"));
+    Ok(Ends { mailboxes, trust: pairs::trust(ca_file), proxy: ProxyChoice::FromEnvironment, say })
 }
 
 /// The code, from a prompt on the terminal, or from one line of a pipe;
 /// never from argv. A wrong one is refused with no word of it.
-fn read_code(err: &mut dyn Write) -> Result<Code, Refusal> {
+pub(crate) fn read_code(err: &mut dyn Write, prompt: &str) -> Result<Code, Refusal> {
     let stdin = std::io::stdin();
     if stdin.is_terminal() {
-        let _ = write!(err, "podssh relay: the code that the node's host shows: ");
+        let _ = write!(err, "{prompt}");
         let _ = err.flush();
     }
     let mut line = Zeroizing::new(String::new());
@@ -251,7 +262,7 @@ fn read_code(err: &mut dyn Write) -> Result<Code, Refusal> {
 }
 
 /// A failure of the pairing, with its code and the way that is left.
-fn refusal(failed: Failed, way: &str) -> Refusal {
+pub(crate) fn refusal(failed: Failed, way: &str) -> Refusal {
     let code = match failed {
         Failed::WrongCode | Failed::Nobody | Failed::Mine(_) => Fault::Auth.code(),
         Failed::Peer(_) => Fault::SessionFault.code(),
@@ -268,7 +279,7 @@ fn refusal(failed: Failed, way: &str) -> Refusal {
 }
 
 /// Where the code goes: this run's terminal, and nowhere else.
-enum Terminal {
+pub(crate) enum Terminal {
     Stderr,
     Device(std::fs::File),
 }
@@ -276,7 +287,7 @@ enum Terminal {
 impl Terminal {
     /// stderr when it is a terminal, else the process's terminal device
     /// when it has one; `None` with neither.
-    fn open() -> Option<Terminal> {
+    pub(crate) fn open() -> Option<Terminal> {
         if std::io::stderr().is_terminal() {
             return Some(Terminal::Stderr);
         }
@@ -284,7 +295,7 @@ impl Terminal {
         std::fs::OpenOptions::new().write(true).open(device).ok().map(Terminal::Device)
     }
 
-    fn line(&mut self, text: &str) {
+    pub(crate) fn line(&mut self, text: &str) {
         let _ = match self {
             Terminal::Stderr => writeln!(std::io::stderr(), "{text}"),
             Terminal::Device(device) => writeln!(device, "{text}"),

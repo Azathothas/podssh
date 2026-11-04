@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**580 entries: 90 open, 4 partial, 2 blocked, 484 done.**
+**580 entries: 89 open, 4 partial, 2 blocked, 485 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 27 | 2 | 0 | 235 | 264 |
-| P3 | 63 | 1 | 2 | 185 | 251 |
-| **All** | 90 | 4 | 2 | 484 | 580 |
+| P3 | 62 | 1 | 2 | 186 | 251 |
+| **All** | 89 | 4 | 2 | 485 | 580 |
 
 ## Entries
 
@@ -655,4 +655,4 @@ repository and CI).
 | [T-613](reverse.md) | P3 | S | M10 | feature | done | `operator`, `proxy` and `pipe`'s remote sides take `--timeout` and `PODSSH_TIMEOUT` as other names of `--ConnectTimeout` |
 | [T-614](mesh.md) | P2 | M | M10 | feature | done | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |
 | [T-615](reverse.md) | P3 | M | M10 | feature | open | A connect token for each session, and a stop token that the node rotates, in podssh's relay role |
-| [T-616](mesh.md) | P3 | M | M10 | feature | open | `podssh net invite`: a new device joins the net by a short code |
+| [T-616](mesh.md) | P3 | M | M10 | feature | done | `podssh net invite`: a new device joins the net by a short code |

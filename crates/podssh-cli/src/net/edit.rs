@@ -3,7 +3,8 @@
 //! (T-430, `super::policy_cmd`). Each signs a new document with the owner's
 //! key, its serial one higher than the one held, and keeps it in place of
 //! that one; the owner then gives the file to the other ends, or lets the
-//! ends of the net pass it on.
+//! ends of the net pass it on. The invitation by a code (T-616,
+//! `super::invite`) adds its member by the change of `add`.
 
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -56,7 +57,7 @@ pub(super) fn run(word: &str, args: &NetArgs, err: &mut dyn Write) -> Result<i32
 }
 
 /// `--days N`: 1 to [`MAX_DAYS`], else [`DAYS`].
-fn days(text: Option<&str>) -> Result<i64, Refusal> {
+pub(super) fn days(text: Option<&str>) -> Result<i64, Refusal> {
     let Some(text) = text else { return Ok(DAYS) };
     match text.parse::<i64>() {
         Ok(n) if (1..=MAX_DAYS).contains(&n) => Ok(n),
@@ -96,7 +97,7 @@ fn init(name: &str, key: Option<&Path>, issued: i64, expires: i64, err: &mut dyn
     let _ = writeln!(
         err,
         "podssh net: the net {name}, serial 1, of the owner {}, until {}, in {}; add its members with podssh net add \
-         NAME KEY",
+         NAME KEY, or a device by a code with podssh net invite NAME",
         sign::owner_fingerprint(&owner),
         crate::pairs::utc(expires * 1000),
         path.display()
@@ -120,12 +121,7 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
              key as it starts"
         ))
     })?;
-    if name == crate::exit::auto::AUTO {
-        return Err(Refusal::usage(format!(
-            "the member's name {name:?} is the word of --exit auto, which finds the exit by the net's routes: name the \
-             member otherwise"
-        )));
-    }
+    not_auto(name)?;
     let roles = doc::parse_roles(args.roles.as_deref().unwrap_or("node")).map_err(Refusal::usage)?;
     let routes = routes(args.routes.as_deref(), &roles)?;
     let mut tickets = BTreeMap::new();
@@ -141,17 +137,35 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
         iroh_names(text, &key)?;
         tickets.insert("iroh".to_string(), text.clone());
     }
-    let member = Member { name: name.clone(), key, roles, tickets, routes };
+    with_member(before, &Member { name: name.clone(), key, roles, tickets, routes }, issued, expires)
+}
+
+/// The next document, with `member` added or in the place of the member of
+/// its name, and what to say of it.
+pub(super) fn with_member(before: &Doc, member: &Member, issued: i64, expires: i64) -> Result<(Doc, String), Refusal> {
+    let name = member.name.as_str();
     let said = match before.member(name) {
         Some(_) => format!("replaced the member {name}"),
         None => format!("added the member {name}"),
     };
-    let value = doc::member_value(&member);
+    let value = doc::member_value(member);
     let next = before.next(issued, expires, |list: &mut Vec<Value>| {
-        list.retain(|m| m.get("name").and_then(Value::as_str) != Some(name.as_str()));
+        list.retain(|m| m.get("name").and_then(Value::as_str) != Some(name));
         list.push(value);
     });
     Ok((next.map_err(data)?, said))
+}
+
+/// A member's name that is not `auto`, the word of `--exit auto` (T-432):
+/// `net add` and `net invite`.
+pub(super) fn not_auto(name: &str) -> Result<(), Refusal> {
+    match name == crate::exit::auto::AUTO {
+        true => Err(Refusal::usage(format!(
+            "the member's name {name:?} is the word of --exit auto, which finds the exit by the net's routes: name the \
+             member otherwise"
+        ))),
+        false => Ok(()),
+    }
 }
 
 /// `--routes RANGES` of `add` (T-432): each a range, as the exit's own

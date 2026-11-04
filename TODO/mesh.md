@@ -7805,7 +7805,7 @@ of its own, which `docs/mesh.md` (section 4, "Joining") names.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7835,6 +7835,85 @@ the owner's side signs the new key into the net; no command does it.
 3. A code lives 10 minutes and is spent by its first exchange, as T-086's; a wrong code adds no
    member.
 
+## Decision
+
+Decided in the draft (2026-11-04), each call weighed against `SECURITY.md` ("A code of the
+pairing"):
+
+- The exchange of T-086, reused: its runs are one for each kind of exchange
+  (`crates/podssh-relay/src/code/run.rs`, `give_with` and `take_with`), which move an offer, an
+  answer and the giver's last words as bytes, with the kind named in the sealed version phase
+  (`podssh-net-invite`, beside `podssh-pair`); the pairing's `give` and `take` are two of them,
+  their words and wire as before. A code given to the other kind's command is refused at the
+  version phase, before either end says a word, with the command that takes it. Lost: the binary
+  driving the wormhole itself (the giver's single use and the check of the version would be
+  written twice); the net's words in the library (the document and its SSHSIG are the binary's,
+  as `docs/mesh.md` keeps SSH code out of the library); an AppID of the net's own (the role's
+  mailbox serves podssh's one AppID, and SPAKE2 takes the AppID as its identity, so a code given
+  to the wrong command would fail as a code typed wrong, with no word of the command that takes
+  it).
+- What moves (`crates/podssh-cli/src/net/invitation.rs`): the offer is the net's name, the
+  owner's OpenSSH public key, NAME, its roles and the serial held; the answer is the device's
+  Ed25519 key, or the words of its refusal; the last words are a head (whether the key is in, the
+  owner's words, the parts and the bytes) and then the signed document in parts of 6 KiB. Lost:
+  the owner's fingerprint alone in the offer (the device would take the giver's word for it; with
+  the key, the device makes the fingerprint itself, and checks the document's owner against the
+  same key); the device's tickets in the answer (a device that joins runs no node yet, and its
+  record of pkarr names its roads by its key, T-445; the owner adds a ticket with `net add`); the
+  document in one message (a body of the role's mailbox is 16 KiB of hex digits, and a document
+  may have 60 KiB); a refusal that says nothing to the owner's host (it would wait a step, 60 s,
+  for an answer that never comes, and say nothing of why).
+- The device checks the owner before it keeps anything, its key not made, not even read: the
+  owner that `--owner KEY` names (as `net take --owner`), else the owner of the net that it holds
+  (a host keeps one owner's net), else the person at the terminal of stdin, who sees the
+  fingerprint that the device made from the offer's key and answers `yes`. With the code on a
+  pipe and neither, the run is refused (64) before the code is read. Lost: the code as the only
+  check (a code from a stranger, given as the owner's, would make the device a member of the
+  stranger's net, and a node of the device would let the stranger's members in, by the net's
+  door of T-429); `--owner` always (a fingerprint of 50 characters beside a short code undoes the
+  code); a question on a pipe (a script would pipe its `yes` beside the code); a second question
+  on the owner's host (the code is the owner's word already; the owner's lines name the key, and
+  `net rm NAME` removes it).
+- The roles: `--roles` of `invite`, `node` by default as `net add`, the owner's alone, shown to the
+  device in the offer and its line. Lost: roles that the device asks for (the document is the
+  owner's, and an exit is the owner's trust in a host); a name that the device chooses (the owner
+  names the members, as `podssh ssh NAME` reaches them).
+- The device's key: `--key FILE`, else `node-NAME.key` of the cache, the key of `podssh node
+  NAME`, made when missing; its line names the file for `--client-key`. Lost: `client.key` by
+  default (a member's key is the one that a node says as it starts, `docs/cli.md`, "`podssh net`",
+  and `podssh ssh NAME` reaches a member of the role `node`, the default); a key of each kind (a
+  member has one key in the document).
+- The owner's host keeps the new serial before it sends it. A last word lost leaves the member in
+  the owner's document and nothing on the device; `invite NAME` again, by a new code, gives the
+  member's own key the document held, with no new serial. Lost: keeping it only once the device
+  acknowledges (a fourth message, and a lost acknowledgement would leave the device with a serial
+  that its owner never kept, and the owner's next change would sign another document of that
+  serial, two documents of one serial that the ends' rule of a higher serial never reconciles);
+  a new serial for each give again (a serial with no change).
+- A NAME that is a member already goes to its own key alone; another key is refused (77) and
+  nothing is signed, and `--roles` with it is 64. Lost: the replacement that `net add` makes (a
+  guess of a code would then be the node that the members reach by its name, which the net's
+  check of the key in the channel would vouch for); a key that is another member's already,
+  which is refused too, as a document holds each key once.
+- A code's life and its use, as T-086's: 10 minutes at the giver, spent by its first exchange,
+  whatever its end, so a wrong code, or a guess, gets one try and the owner's host signs at most
+  once for each code. Lost: a code that waits for the right device after a wrong one (each wrong
+  code would be one more guess).
+- The mailboxes, as T-086's: the public ones by default (magic-wormhole's, then Least
+  Authority's, Q65), or `--pair-mailbox` and `PODSSH_PAIR_MAILBOX`, such as the role's at
+  `/v1/mailbox`; `no` turns the code off (78), with `net add` and `net take` as the way left.
+  Lost: the role's mailbox by default (a net has no relay of its own by default, its document
+  names no URL of one, and a device that joins holds no document to read one from).
+- The owner's key is found, and its passphrase asked, before the code is made; its signature runs
+  on a thread of its own, as the agent's starts a runtime, which cannot start inside the
+  exchange's. Lost: the key found at the answer (the device waits a step, 60 s, and a passphrase
+  typed late fails the exchange).
+- The code's terminal is the pairing's (`crates/podssh-cli/src/relay_code.rs`, `Terminal`), the
+  owner's fingerprint beside the code, so that the person who reads the code aloud reads the
+  fingerprint too. Each end writes one line on stdout; 77 for a wrong code, a code that nobody
+  holds and a refusal at either end, 69 for no mailbox and for nobody within 10 minutes, 65 for a
+  document that the device refuses.
+
 ## Prove
 
 ```sh
@@ -7846,3 +7925,87 @@ Against podssh's relay role's mailbox on the loopback: `net invite lab` and `net
 homes; the new member is in the owner's document, with its key, and the device holds that
 document; a wrong code adds none, and the owner's document keeps its serial. Planted: the owner's
 fingerprint not checked at the join; the test fails.
+
+## Correction
+
+2026-11-04 (the drafting agent). The Premise's first item names the wrong section:
+`docs/mesh.md:84` says "**Joining.**" in section 3, "The net"; section 4 is the relay role. The
+other items hold, with three facts that the Approach did not know:
+
+- At `1ca77a1` the runs of the exchange, `give` and `take` of
+  `crates/podssh-relay/src/code/run.rs`, read the pairing's offer, answer and last word themselves,
+  so the net's words could not ride them. The runs are now one for each kind of exchange (the
+  Decision), and the pairing's two of them.
+- A body of the role's mailbox is bounded, in hex digits, and a mailbox holds 32 messages (its
+  `crates/podssh-relay/src/serve/mailbox/table.rs:29`):
+  `crates/podssh-relay/src/serve/mailbox/table.rs:31` says "pub const BODY_MOST: usize = 16 * 1024;"
+  while a document may have more bytes than that:
+  `crates/podssh-cli/src/net/doc.rs:34` says "pub const MAX_DOC: usize = 60 * 1024;"
+  The last words carry the document in parts of 6 KiB.
+- The agent's signature, `crates/podssh-cli/src/keygen_sign.rs:286`, starts a runtime of its own
+  (`:290`), which cannot start inside the exchange's: the owner's host signs on a thread of its
+  own.
+
+The new Approach, in place of items 1 and 2 above (item 3 holds):
+
+1. `podssh net invite NAME [--roles ROLES]` on the owner's host: the owner's key found first; a
+   code over the runs of T-086, of the kind `podssh-net-invite`; its offer the net's name, the
+   owner's public key, NAME and its roles; the device's answer its key, or its refusal; the
+   owner's side reads its document again, adds the member NAME with that key and its roles, signs
+   and keeps the new serial, and sends the signed document back in the last words, in parts, all
+   in one exchange. A NAME that is a member goes to its own key alone, with the document held.
+2. `podssh net join` on the new device: the code at a prompt or on one line of a pipe (never
+   argv); the owner checked before anything is kept, by `--owner`, the net held, or a `yes` at
+   the terminal with the fingerprint made from the owner's key; then the device's key made or
+   read (`--key`, else `node-NAME.key`); the document checked against the offer and the key, and
+   taken as `net take` takes it.
+
+The Prove gains the library's test of the kinds, the words' unit tests, and three plants; the
+Prove that runs is in `## Done`.
+
+## Done
+
+Drafted 2026-11-04 (`81bc6f2`), merged and measured by the main session the same day. At the
+merge: the invited member's object carries T-432's `routes` (none), `net invite auto` is refused
+as `net add auto` is (`edit::not_auto`), and the two callbacks of the runs have names
+(`code::run::AnswerRead` and `LastRead`), as clippy's `type_complexity` asked.
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test net_invite
+cargo test -p podssh-cli --lib net::
+cargo test -p podssh-cli --lib relay_code
+cargo test -p podssh-cli --lib man::
+cargo test -p podssh-cli --test net --test relay_code --test relay_code_role
+cargo test -p podssh-cli --test man_flag_parity --test flag_table
+cargo test -p podssh-relay --features code --lib code::
+cargo test -p podssh-relay --features pair,code,serve --test pair_code
+sh scripts/plant-each.sh --here t616-owner-unchecked t616-member-replaced t616-kind-unchecked t086-code-said
+```
+
+- `--test net_invite` (Unix; the role's certificate needs Python and openssl), against podssh's
+  relay role's mailbox on the loopback, two homes: 6 passed (its five tests and the harness's). Its five tests: a device joins by
+  a code from a pipe with `--owner`, both ends hold serial 2 with its key, byte for byte, and no
+  word of the code is in its output; a wrong code, and another owner than `--owner` names, each
+  77 at both ends, the owner's serial 1, the device with no net and no key made; at the device's
+  terminal, the question shows the owner's fingerprint, a `no` is 77 with no member, a `yes`
+  joins; a member's name for another key is 77 with the member's key kept, and the member's own
+  key gets the document held with no new serial; the refusals before the network (each flag where
+  it means nothing, no terminal at the owner's, `--roles` for a member, a pipe with no `--owner`,
+  `PODSSH_PAIR_MAILBOX=no`, a bad word of a code, `PODSSH_OFFLINE`), none with a word of a code.
+- `--lib net::`, with `relay_code` and `man::`: 70 passed; the CLI's whole `--lib`: 842 passed (the invitation's words: an offer checked, an answer or a refusal on
+  one short line, a document in parts and back whole, a head or a part out of its bounds refused,
+  nobody at a code 77).
+- `--lib relay_code`, `--lib man::`, `--test net`, `--test relay_code`, `--test relay_code_role`,
+  `--test man_flag_parity`, `--test flag_table`: 9, 5, 2, 6 and 9 passed (the pairing's commands and the
+  manual unchanged in behaviour, the new notes' flags and variables known).
+- `podssh-relay`: `--lib code::` 23 passed (the kinds' version phases); `--test pair_code`
+  10 passed (its nine tests, and a code of the invitation taken by the pairing's command, told
+  apart at both mailboxes, the role's and magic-wormhole-mailbox-server's where Python has it).
+- The plants: `t616-owner-unchecked` (the owner of `--owner` not checked), `t616-member-replaced`
+  (a member's name given to another key), `t616-kind-unchecked` (a version of another kind
+  taken), and `t086-code-said` moved to `give_with`: 4 caught, each by its test.
+- Clippy with `-D warnings` of `podssh-cli --all-targets` and of `podssh-relay --features
+  serve,plain-ws,quick,pair,grant,piping,code --all-targets`: clean once the callbacks were named;
+  rustfmt: clean once it reflowed `net/invitation.rs`.
+- Waits (Q88): a join from end to end through the public mailboxes, on two hosts.

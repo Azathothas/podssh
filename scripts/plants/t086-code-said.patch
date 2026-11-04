@@ -1,8 +1,8 @@
 --- a/crates/podssh-relay/src/code/run.rs
 +++ b/crates/podssh-relay/src/code/run.rs
-@@ -78,6 +78,7 @@
- ) -> Result<Given, Failed> {
-     let (mut hole, code) = opened(ends, exchange::versions()).await?;
+@@ -148,6 +148,7 @@
+ ) -> Result<String, Failed> {
+     let (mut hole, code) = opened(ends, kind.versions()).await?;
      show(&code, hole.shown());
 +    (ends.say)(format!("the code {}", code.for_terminal()));
      drop(code);

@@ -15,6 +15,31 @@ pub const NET: &[&str] = &[
      Each end's: ls, one line for each member on stdout (its name, roles, fingerprint and tickets, apart by tabs); \
      show, the document's bytes as signed, or with --signature its signature; take FILE, a document from its owner, \
      as FILE alone or as FILE and FILE.sig, as ssh-keygen -Y sign writes them.",
+    "podssh net invite NAME, on the owner's host, adds a new device by a short code (T-616), as podssh relay pair \
+     gives a pair by one: the code, such as 7-crossover-clockwork-adroitness, shows on this run's terminal alone, \
+     beside the owner's fingerprint, never on stdout, in a log or in argv, and a run with no terminal is refused \
+     (64). The owner's key is found, and its passphrase asked, before the code is made. On the device, podssh net \
+     join takes the code; the two ends meet at a mailbox and run the exchange of the pairing, SPAKE2 keyed by the \
+     whole code, so the mailbox learns nothing and changes nothing; the code lives 10 minutes and its first \
+     exchange spends it, so a wrong code, or a guess, gets one try and adds no member (77 at both ends). The \
+     owner's host offers the net's name, its owner's key, NAME and its roles (--roles, node by default); the device \
+     answers with its key; the owner's host adds the member NAME with that key, signs and keeps the next serial as \
+     add does, and gives the signed document back. A NAME that is a member already goes to its own key alone, with \
+     the document held, as after a last word that was lost: another key is refused (77), so no code hands a \
+     member's name to a new key, and --roles is refused with it (64). stdout has one line at each end.",
+    "podssh net join takes the code at a prompt on the terminal, or as one line of stdin from a pipe, never from \
+     argv, and checks the net's owner before it keeps anything: the owner that --owner KEY names (its fingerprint \
+     SHA256:... or its public key), else the owner of the net that this host holds, else the person at the \
+     terminal, who sees the owner key's fingerprint, made here from the key, and answers yes; the owner's host \
+     shows it beside the code and in each line of its podssh net ls. With the code on a pipe and neither, the run \
+     is refused (64) before the code is read, as a stranger's code would make this host a member of the \
+     stranger's net. A refusal is said to the owner's host, which signs nothing (77 at each end). The device's key \
+     is --key FILE, else node-NAME.key in the cache, the key of podssh node NAME, made when missing; with \
+     --client-key and that file, a client of this host reaches the other members as NAME. The document that comes \
+     is checked (the owner's signature, the owner and the net of the offer, this key as NAME), then taken by the \
+     rule of take. The mailboxes are the pairing's: magic-wormhole's public one, then Least Authority's, or \
+     --pair-mailbox URLS and PODSSH_PAIR_MAILBOX, such as podssh relay serve's wss://HOST/v1/mailbox; no turns the \
+     code off (78), and add and take are the way left.",
     "Each end keeps the newest document that it was given, in net.doc of the cache (or the file of PODSSH_NET), \
      and takes another only with the owner's signature, a serial higher than the one held, and an end still to \
      come; its first is the one that the user takes, whose owner --owner can name. Two ends of the net give each \

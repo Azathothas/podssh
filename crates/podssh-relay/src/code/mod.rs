@@ -96,16 +96,19 @@ impl std::error::Error for Failed {}
 /// by code off, which is an error with the way that is left. A refusal does
 /// not echo the text, as a URL's query may hold a secret.
 pub fn mailboxes(named: Option<&str>, value: Option<&str>) -> Result<Vec<WsUrl>, String> {
+    mailboxes_for(named, value, "give the operator's part as a file (podssh relay pair NAME --operator-file FILE)")
+}
+
+/// [`mailboxes`], with `way`, the way left when `no` turns the code off,
+/// for each command that gives or takes one (T-616).
+pub fn mailboxes_for(named: Option<&str>, value: Option<&str>, way: &str) -> Result<Vec<WsUrl>, String> {
     let (text, whose) = match named.map(str::trim).filter(|t| !t.is_empty()) {
         Some(text) => (text, "--pair-mailbox"),
         None => (value.map(str::trim).unwrap_or_default(), ENV),
     };
     match text.to_ascii_lowercase().as_str() {
         "" | "yes" | "on" | "true" | "1" => MAILBOXES.iter().map(|url| WsUrl::parse(url)).collect(),
-        "no" | "off" | "false" | "0" => Err(format!(
-            "{whose} no turns pairing by code off: give the operator's part as a file (podssh relay pair NAME \
-             --operator-file FILE)"
-        )),
+        "no" | "off" | "false" | "0" => Err(format!("{whose} no turns pairing by code off: {way}")),
         _ => text
             .split(',')
             .map(str::trim)
@@ -156,6 +159,9 @@ mod tests {
         assert!(mailboxes(Some("off"), None).unwrap_err().starts_with("--pair-mailbox no"));
         let bad = mailboxes(None, Some("https://x.example/?key=SECRET")).unwrap_err();
         assert!(bad.starts_with("PODSSH_PAIR_MAILBOX: ") && !bad.contains("SECRET"), "{bad}");
+        let net = mailboxes_for(None, Some("off"), "the net's own way").unwrap_err();
+        assert_eq!(net, "PODSSH_PAIR_MAILBOX no turns pairing by code off: the net's own way");
+        assert_eq!(mailboxes_for(None, None, "x").unwrap(), public);
     }
 
     #[test]

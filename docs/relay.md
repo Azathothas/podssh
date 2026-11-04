@@ -771,7 +771,11 @@ WebSocket of magic-wormhole's mailbox protocol, version 1
 user's own relay serves the two ends of `podssh relay pair --code` and
 `podssh relay join` (`--pair-mailbox wss://HOST/v1/mailbox`) with no third
 party, and a client of magic-wormhole's Python library with podssh's AppID
-meets them there (`crates/podssh-relay/src/serve/mailbox/`).
+meets them there (`crates/podssh-relay/src/serve/mailbox/`). So do the two
+ends of the net's invitation, `podssh net invite NAME` and `podssh net
+join` (T-616), whose exchange has the same AppID and another name in its
+sealed version phase; its document goes in parts within the bound of a
+body below.
 
 - It serves podssh's AppID alone (`github.com/Azathothas/podssh/pair`):
   a `bind` of another is an `error`, so the role is no public mailbox of

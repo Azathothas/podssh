@@ -158,13 +158,13 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("subcommand")
                     .value_name("SUBCOMMAND")
-                    .help("init, add, rm, renew and policy set or clear, the owner's, each signing a new document; ls, show, take and policy check or show, each end's"),
+                    .help("init, add, rm, renew, invite and policy set or clear, the owner's, each signing a new document; join, ls, show, take and policy check or show, each end's"),
             )
             .arg(
                 Arg::new("args")
                     .value_name("NAME|KEY|FILE")
                     .num_args(0..)
-                    .help("init NAME, the net's; add NAME KEY, a member and its key or fingerprint; rm NAME; take FILE, a document that its owner signed; policy check FROM TO, policy show, policy set FILE, policy clear"),
+                    .help("init NAME, the net's; add NAME KEY, a member and its key or fingerprint; rm NAME; invite NAME, a code for a new device, which join takes; take FILE, a document that its owner signed; policy check FROM TO, policy show, policy set FILE, policy clear"),
             ),
         "relay" => cmd
             .arg(

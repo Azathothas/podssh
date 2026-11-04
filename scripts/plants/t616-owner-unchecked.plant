@@ -1,0 +1,11 @@
+# T-616: the join takes an owner that --owner does not name, as if it skipped
+# the check of the owner's fingerprint, so a device joins another owner's net;
+# the test of another owner, which must add no member and keep the owner's
+# serial, must fail.
+ENTRY=T-616
+GROUP=cli-tests
+EXPECT='test a_wrong_code_or_another_owner_adds_no_member \.\.\. FAILED'
+# The role's harness asks for Python and openssl, which the build image lacks:
+# with no SETUP the test said it did not run, and passed.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
+RUN='cargo test --locked -p podssh-cli --test net_invite -- a_wrong_code_or_another_owner_adds_no_member'

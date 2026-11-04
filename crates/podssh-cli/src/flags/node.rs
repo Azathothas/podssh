@@ -186,13 +186,14 @@ pub const NODE_FLAGS: &[FlagRow] = &[
 
 /// **`net`** (T-429): the net of a user's own nodes, a list of their names
 /// and keys that the owner's key signs. Its subcommands and their words are
-/// its arguments; beside the node's table, as the net names the nodes.
+/// its arguments; beside the node's table, as the net names the nodes. A
+/// device joins by a short code (T-616): `invite NAME` and `join`.
 #[rustfmt::skip]
 pub const NET_FLAGS: &[FlagRow] = &[
     row(None, "owner-key", Some("FILE"), FlagKind::Supported,
-        "init, add, rm, renew, policy set and policy clear: the owner's key that signs, a private key or a public one that the agent holds (default: the agent's key or the key of ~/.ssh that owns the net; for init, ~/.ssh/id_ed25519)", None),
+        "init, add, rm, renew, invite, policy set and policy clear: the owner's key that signs, a private key or a public one that the agent holds (default: the agent's key or the key of ~/.ssh that owns the net; for init, ~/.ssh/id_ed25519)", None),
     row(None, "roles", Some("LIST"), FlagKind::Supported,
-        "add: what the member offers the net, of node, exit, relay and share, separated by commas (default node)", None),
+        "add and invite: what the member offers the net, of node, exit, relay and share, separated by commas (default node)", None),
     row(None, "iroh-ticket", Some("TICKET"), FlagKind::Supported,
         "add: the member's iroh ticket, which a client races for node://NAME when it names none", None),
     row(None, "derp-ticket", Some("TICKET"), FlagKind::Supported,
@@ -200,9 +201,14 @@ pub const NET_FLAGS: &[FlagRow] = &[
     row(None, "routes", Some("RANGES"), FlagKind::Supported,
         "add: the private ranges that the member routes for the net, ADDR/BITS or one address, separated by commas, as its podssh node --exit --routes dials them; with the role exit; podssh ssh, proxy, pipe and exit find the node of an address by them with --exit auto", None),
     row(None, "days", Some("N"), FlagKind::Supported,
-        "init, add, rm, renew, policy set and policy clear: the days that the signed document lasts, 1 to 3650 (default 365); no end takes it after", None),
+        "init, add, rm, renew, invite, policy set and policy clear: the days that the signed document lasts, 1 to 3650 (default 365); no end takes it after", None),
     row(None, "owner", Some("KEY"), FlagKind::Supported,
-        "take: the owner that a first document must have, its fingerprint SHA256:... or its public key; later ones must have the owner held", None),
+        "take and join: the owner that a first document must have, its fingerprint SHA256:... or its public key; later ones must have the owner held; join with its code on a pipe needs it, as no question can show the owner", None),
     row(None, "signature", None, FlagKind::Supported,
         "show: the owner's signature, as ssh-keygen -Y sign writes it, in place of the document", None),
+    // The join by a short code (T-616), over the mailboxes of T-086.
+    row(None, "pair-mailbox", Some("URLS"), FlagKind::Supported,
+        "invite and join: where the two ends meet, wss://HOST[:PORT]/PATH or ws://, by commas, in order, such as podssh relay serve's wss://HOST/v1/mailbox (default: env PODSSH_PAIR_MAILBOX, else magic-wormhole's public mailbox, then Least Authority's); no turns the code off", None),
+    row(None, "key", Some("FILE"), FlagKind::Supported,
+        "join: this device's key in FILE, made when missing, the member's key that the owner signs in (default: node-NAME.key in the cache, the key of podssh node NAME)", None),
 ];

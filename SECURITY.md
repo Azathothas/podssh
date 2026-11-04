@@ -291,6 +291,25 @@ Each rule is implemented.
   The taker pins the node's key that came with the part, and the giver adds
   the taker's key to `--allow` only where the user named the file; each
   shows the other's fingerprint, for a person to compare.
+- **A code of the net's invitation adds one device, and the device checks
+  the owner first** (T-616). `podssh net invite NAME` and `podssh net join`
+  run the pairing's exchange with its bounds: one guess for each code, 10
+  minutes, the code on the owner's terminal alone. The sealed version phase
+  names the kind of exchange, so a code given to the other command is told
+  apart before either end says a word. The device keeps nothing, and makes
+  no key, before it checked the owner: the key that `--owner` names, the
+  owner of the net that it holds, or the person's `yes` at the terminal,
+  with the fingerprint that the device made from the owner's key; a run
+  that can ask nobody and names no owner is refused before the code is
+  read, as a stranger's code would make the device a member of the
+  stranger's net, and a node of the device would let the stranger's members
+  in. The owner's host signs only the key that came by the code, never gives
+  a member's name to another key, and keeps the new serial before it sends
+  it, so a guess that wins adds one new member, which the owner's lines name
+  and `podssh net rm` removes, and no device holds a serial that its owner
+  lacks. The document crosses inside the sealed messages, and the device
+  checks its signature, its owner, its net and its own key in it, then
+  takes it by the rule of `podssh net take`.
 - **`podssh ssh --upgrade` copies nothing to the server, and its token
   crosses the relay only inside SSH** (T-167). It runs a podssh that is on
   the server already, after `podssh --version` found one. The temporary
