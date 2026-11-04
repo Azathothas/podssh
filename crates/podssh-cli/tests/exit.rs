@@ -163,7 +163,6 @@ fn the_commands_of_an_exit_are_refused_as_the_manual_says_with_no_connection() {
     for (args, code, says) in [
         (words(&["node", "lab", "--routes", "10.0.0.0/8"]), 64, "give --exit too"),
         (words(&["node", "lab", "--exit", "--no-e2e"]), 64, "--no-e2e turns off"),
-        (words(&["node", "lab", "--exit", "--quick-tunnel", "--allow", "x"]), 64, "quick tunnel"),
         (words(&["node", "lab", "--exit", "--routes", "10.0.0.0/33"]), 64, "is not a range"),
         (words(&["exit", "lab"]), 64, "--listen ADDR:PORT"),
         (words(&["exit", "lab", "--listen", "0.0.0.0:1080"]), 64, "a loopback address alone"),

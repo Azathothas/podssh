@@ -18,7 +18,9 @@
 //! connection to the edge is made again, with the same name, until Ctrl-C.
 //! With `--relay`, the node is its owner's relay too, behind the tunnel and
 //! with no listener (T-428, `crate::node_quick_relay`), and TARGET may be
-//! left out.
+//! left out. With `--exit` (T-459), its sessions go through the routes of an
+//! exit as on each other road (`crate::node_exit`): a member names a target
+//! of its own, and TARGET may be left out too.
 //! In a build with the iroh road, the node's record of pkarr names the
 //! tunnel, at n0's server unless `PODSSH_IROH_PKARR` names another or `off`
 //! (Q81), for a client with the node's key alone (T-445, `node_record`).
@@ -35,7 +37,7 @@ use podssh_relay::quick::register::Connector;
 use podssh_relay::quick::roads::{self, Link, Road};
 use podssh_relay::quick::{api, edge};
 use podssh_relay::reverse::framing::SessionId;
-use podssh_relay::reverse::routes::Route;
+use podssh_relay::reverse::routes::{Route, Routed};
 use podssh_relay::reverse::{self, E2e, Handler, Layered, TcpHandler};
 use podssh_ws::ProxyChoice;
 use tokio::io::DuplexStream;
@@ -138,6 +140,8 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     crate::pairs::online()?;
     let record = crate::node_record::named()?;
     let key = crate::channel::load_node_key(&place)?;
+    // An exit says its net, or why it cannot be one, before it connects (T-431).
+    crate::node_exit::ready(&label, &key.identity.public())?;
     // After the key: the net's `relay:NAME` names the node by it (T-455).
     let relay = crate::node_quick_relay::role(args, &label, &door, key.identity.public())?;
     Ok(Ready { label, targets, key, door, sshd: args.sshd, warp: args.warp, relay, record })
@@ -178,8 +182,10 @@ fn arch() -> String {
 
 async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     let Ready { label, targets, key, door, sshd: roost, warp, relay, record } = ready;
-    // TARGET first, when there is one; with none, the node is the relay alone.
-    let target = match targets.is_empty() {
+    // TARGET first, when there is one; with none, the node is the relay
+    // alone, or an exit (T-459).
+    let exit = crate::node_exit::asked();
+    let target = match targets.is_empty() && !exit {
         true => None,
         false => match crate::node::probe(&targets, roost).await {
             Ok(versions) => Some(crate::node::serving(&targets, &versions)),
@@ -242,15 +248,26 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     };
     let (_record, tell) = crate::node_record::alone(record, &key.identity, &trust, say.clone(), line);
     tell.quick(&tunnel.hostname);
-    // As the pair's road does: the layer, the channel above it, then TARGET; the edge keeps no bound of the relay's.
-    let handler = match targets.first() {
-        Some(first) => {
+    // As the pair's road does: the layer, the channel above it, then TARGET,
+    // or an exit's routes (T-459); the edge keeps no bound of the relay's.
+    let handler: Option<Arc<dyn Handler<Stream = DuplexStream>>> = match targets.is_empty() && !exit {
+        true => None,
+        false => {
+            let me = key.identity.public();
+            let allow = match &door {
+                Door::Allow(path) => Some(path.clone()),
+                Door::Net(_) => None,
+            };
             let channel = channel_of(&label, key, door, err);
+            let first = crate::node_exit::first(&targets);
             let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
             let (settings, budget) = (crate::layered::settings().off_the_pair(), reverse::layered::NODE_BUDGET);
-            Some(Arc::new(Layered::new(E2e::new(tcp, channel), settings, budget)))
+            let grant = crate::net::admit::grant(allow, Some(me));
+            match crate::node::routes_of(&targets, grant, roost, Some(me)) {
+                Some(routes) => Some(Arc::new(Layered::new(Routed::new(routes, channel), settings, budget))),
+                None => Some(Arc::new(Layered::new(E2e::new(tcp, channel), settings, budget))),
+            }
         }
-        None => None,
     };
     // The name is the node's answer: the one line on stdout.
     podssh_ssh::out_line!("{url}");
@@ -268,7 +285,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     // The relay's paths go to the role, in place of the 404 (T-428).
-    let origin = relay.as_ref().map(|relay| relay.origin(&tunnel.hostname, targets.is_empty()));
+    let origin = relay.as_ref().map(|relay| relay.origin(&tunnel.hostname, targets.is_empty() && !exit));
     let visit = Visitors { visit, origin };
     // The tunnel's credentials, and this run's id, version and system, as
     // each connection registers them.

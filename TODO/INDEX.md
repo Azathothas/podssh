@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**580 entries: 90 open, 4 partial, 2 blocked, 484 done.**
+**580 entries: 89 open, 5 partial, 2 blocked, 484 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 27 | 2 | 0 | 235 | 264 |
-| P3 | 63 | 1 | 2 | 185 | 251 |
-| **All** | 90 | 4 | 2 | 484 | 580 |
+| P3 | 62 | 2 | 2 | 185 | 251 |
+| **All** | 89 | 5 | 2 | 484 | 580 |
 
 ## Entries
 
@@ -530,7 +530,7 @@ repository and CI).
 | [T-456](mesh.md) | P3 | M | M10 | feature | open | XHTTP over HTTP/1.1, on a second connection |
 | [T-457](mesh.md) | P2 | M | M10 | feature | done | The relay role dials its targets through the host's `HTTPS_PROXY` |
 | [T-458](mesh.md) | P2 | S | M10 | feature | done | `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it |
-| [T-459](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`) |
+| [T-459](mesh.md) | P3 | S | M10 | feature | partial | The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`) |
 | [T-460](ssh.md) | P1 | M | none | defect | done | A reply to a global request that carries data ends the connection: a quiet minute with keepalives, and a refused `-R` |
 | [T-461](ssh.md) | P1 | S | none | defect | done | A link that ends after the exit status and before the output's end gives that status: output cut at the relay's 64 MiB exits 0 |
 | [T-462](ssh.md) | P2 | S | none | defect | done | A `-J` hop whose channel opens and then carries nothing ends in a bare handshake timeout, and the open has no limit |

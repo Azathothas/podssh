@@ -68,8 +68,6 @@ pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     let udp = args.targets.iter().any(|t| t.starts_with("udp:") || t.contains("=udp:"));
     let why = if args.no_e2e {
         Some("--exit names each target in the end-to-end channel, which --no-e2e turns off")
-    } else if args.quick_tunnel {
-        Some("--exit lends its egress on the roads of a pair, iroh and DERP, not yet behind a quick tunnel")
     } else if args.temporary.is_some() {
         Some("--exit does not go with --temporary, the far end of podssh ssh --upgrade")
     } else if udp {

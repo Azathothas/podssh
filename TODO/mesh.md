@@ -3868,7 +3868,7 @@ Waits: a run against the live relay and an exit with a public egress, from a run
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
