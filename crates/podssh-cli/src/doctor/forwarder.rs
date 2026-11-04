@@ -1,9 +1,10 @@
 //! The forwarders of `--forwarder`, `PODSSH_FORWARDER` or `Forwarder` of
 //! the settings file (T-369): for each, the upgrade, then GitHub's SSH port
 //! through it, whose host key must be one that GitHub publishes, as the
-//! relay's forward check identifies the server, never by its banner. With
-//! none named, a line says whether the fallback to the forwarders that the
-//! binary names is on (T-370), as a line that measured nothing (T-509).
+//! relay's forward check identifies the server, never by its banner; and
+//! before it, the line `cleartext` of its host (T-326). With none named, a
+//! line says whether the fallback to the forwarders that the binary names is
+//! on (T-370), as a line that measured nothing (T-509).
 
 use std::sync::Arc;
 
@@ -44,10 +45,14 @@ pub(super) fn fallback_verdict(on: Result<bool, Refusal>, explicit: bool) -> Ver
     Verdict::Unknown { why: format!("not asked here: {why}") }
 }
 
-/// One line for each forwarder, in order.
+/// One line for each forwarder, in order, and what a request with no TLS
+/// meets on the way to its host (T-326).
 pub(super) async fn check(report: &mut Report<'_>, forwarders: &[Forwarder], trust: &Trust) {
     let target = dial::authority(FORWARD_HOST, 22);
     for forwarder in forwarders {
+        if let Ok(url) = forwarder.template.fill(FORWARD_HOST, 22) {
+            super::cleartext::forwarder(report, &url.host, url.port, TIMEOUT).await;
+        }
         let name = &forwarder.name;
         let road = Dial {
             trust,

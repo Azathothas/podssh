@@ -1,7 +1,8 @@
 //! The notes of `podssh ssh` on the roads of Q66 to a server of the user's
 //! own (T-441), apart from `notes_ssh`, which is full: [`SSH`] is its notes,
 //! then these, joined when the binary is built; and the note of `proxy` on
-//! the same road, as `notes` is full too.
+//! the same road, as `notes` is full too. The cleartext road on the relay's
+//! port (T-326) is here for the same reason.
 
 use super::notes_ssh::SSH as OWN;
 
@@ -21,6 +22,7 @@ const ROADS: &[&str] = &[
      or -6, no --no-e2e and no road of another server (64). With --carrier ADDR, the exit is the node at the \
      other end of that stream, its one road, with no relay and no pair (see --carrier). podssh cp, scp and \
      sftp take it too.",
+    CLEARTEXT,
     "--wstunnel wss://HOST[:PORT] reaches the first hop through a server of erebe/wstunnel that you run \
      (wstunnel server wss://[::]:443), in place of the relay: podssh opens the WebSocket to it, through \
      HTTPS_PROXY when one is set, checked for HOST with podssh's trust (--ca-file), and its token names the \
@@ -41,6 +43,29 @@ const ROADS: &[&str] = &[
      --forwarder, --shadowsocks, --via, --vless, -4, -6, and a destination with a road of its own cannot go \
      with it (64). The host key of SSH protects the session, as on each road.",
 ];
+
+/// The cleartext road on the relay's port (T-326, the operator's ruling Q45).
+const CLEARTEXT: &str =
+    "When each relay host failed, and the TLS of one failed on the way (a certificate that is not the relay's, \
+     as a proxy that intercepts TLS presents its own; a reset or a close in the handshake; or its bound), \
+     podssh tries the cleartext road, the relay's last, before the direct road and the forwarders: a host of \
+     each deployment once, on its own port, through HTTPS_PROXY as each road dials, asked with no TLS for a \
+     token of one session (POST /v1/mint?once=1, signed by this client's key where the relay asks), then the \
+     upgrade with it, with no TLS either. Each hop reads the target and that token, which lives minutes and which one \
+     upgrade spends; SSH inside stays end to end, its host key checked as on each road. No other token goes \
+     there, a token of PODSSH_RELAY_TOKEN or of the cache among them; the token is never cached, and a relay \
+     whose answer does not say \"once\": true, with an end within 10 minutes, gets no upgrade. A line says \
+     what goes, and another which host carries the session; -v says that the session runs in cleartext. \
+     podssh relay serve serves the road (see podssh relay); the default relay's edge serves TLS alone on its \
+     port, and refuses it. After the forwarders that podssh names, their ws:// form, where a probe with no TLS \
+     of their host's port 80 passed, one probe at a time, 5 s each: no relay token goes to a forwarder. \
+     PODSSH_CLEARTEXT=no turns both off. podssh proxy, podssh pipe and each command that reaches its server \
+     as podssh ssh does take the road too.";
+
+/// The note of `podssh proxy` on the cleartext road.
+pub const PROXY_CLEARTEXT: &str =
+    "podssh proxy tries the cleartext road last too, as podssh ssh does (see its notes), when each relay host \
+     failed and the TLS of one failed on the way; PODSSH_CLEARTEXT=no turns it off.";
 
 /// The note of `podssh proxy --wstunnel`.
 pub const PROXY_WSTUNNEL: &str =

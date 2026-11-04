@@ -1,0 +1,11 @@
+--- a/crates/podssh-ws/src/cleartext/mod.rs
++++ b/crates/podssh-ws/src/cleartext/mod.rs
+@@ -25,7 +25,7 @@ const UPGRADE_STEP: &str = "the WebSocket upgrade in cleartext";
+ /// pass where TLS failed so; not where the dial failed, as its CONNECT is
+ /// the same, nor where the relay answered, as TLS passed there.
+ pub fn tls_failed(e: &ConnectError) -> bool {
+-    matches!(e, ConnectError::Tls(_) | ConnectError::Timeout { step: "the TLS handshake", .. })
++    matches!(e, ConnectError::Timeout { step: "the TLS handshake", .. })
+ }
+ 
+ /// Dial `config`'s endpoint through its proxy, and upgrade at its path with

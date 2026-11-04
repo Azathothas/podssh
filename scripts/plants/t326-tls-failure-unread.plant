@@ -1,0 +1,8 @@
+# T-326: a failure of TLS itself (a reset at the ClientHello, a certificate
+# that is not the relay's) is not read as one that the cleartext road may
+# pass, so the road never follows the proxy that it is for; the test of the
+# road through a proxy that resets TLS then fails at that word.
+ENTRY=T-326
+GROUP=resume
+EXPECT='a failure that the cleartext road may pass'
+RUN='cargo test --locked -p podssh-ws --test cleartext_road -- the_tls_road_fails_at_the_proxy'

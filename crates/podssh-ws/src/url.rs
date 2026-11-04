@@ -153,7 +153,8 @@ pub fn offering(url: &WsUrl, key: &str, protocol: Option<&str>) -> Result<Vec<u8
     Ok(request.into_bytes())
 }
 
-/// The stream under a session of this road: TLS, or plain TCP.
+/// The stream under a session of this road: TLS, or plain TCP; and under a
+/// session of the relay, which is TLS but on the cleartext road (T-326).
 pub enum Stream {
     Plain(TcpStream),
     Tls(Box<RelayStream>),

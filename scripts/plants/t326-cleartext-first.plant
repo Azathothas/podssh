@@ -1,0 +1,8 @@
+# T-326: the opener tries the cleartext road before the TLS road, to each
+# host, where the operator's ruling Q45 has it last, after the TLS road
+# failed; the stand-in proxy then sees a request in cleartext first, and
+# the test of the order fails.
+ENTRY=T-326
+GROUP=resume
+EXPECT='the TLS road first'
+RUN='cargo test --locked -p podssh-relay --features serve --test relay_serve_cleartext -- after_the_tls_road_failed'

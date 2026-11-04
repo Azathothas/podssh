@@ -238,7 +238,8 @@ pub async fn connect(
     let tls = client::open_tls(&endpoint.dns, PORT, &endpoint.dns, trust, proxy, timeout).await?;
     let path = presigned_path(endpoint, target, credentials, now());
     let (tls, pending) = upgrade(tls, &endpoint.dns, &path, credentials, timeout).await?;
-    Ok(session(tls, pending))
+    // The stream of each session to a relay, TLS here (T-326).
+    Ok(session(crate::url::Stream::Tls(Box::new(tls)), pending))
 }
 
 /// The upgrade over `stream`; a refusal's body shows no credential and no

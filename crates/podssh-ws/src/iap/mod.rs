@@ -212,7 +212,8 @@ pub async fn connect(
     check_token(token).map_err(ConnectError::Config)?;
     let tls = client::open_tls(HOST, PORT, HOST, trust, proxy, timeout).await?;
     let (tls, pending) = upgrade(tls, HOST, target, resume, token, timeout).await?;
-    Ok(session(tls, pending))
+    // The stream of each session to a relay, TLS here (T-326).
+    Ok(session(crate::url::Stream::Tls(Box::new(tls)), pending))
 }
 
 /// The upgrade over `stream`; a refusal's body, which may quote what it was

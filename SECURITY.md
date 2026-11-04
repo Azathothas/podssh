@@ -123,6 +123,19 @@ Each rule is implemented.
   (T-195) holds podssh's own messages only, each through a mask that hides
   the value of each credential and proxy variable and the user and password
   of each URL; the program gets no credential variable in its environment.
+- **A relay token crosses with no TLS on one road alone, and it is a token
+  of one session** (T-326, the operator's ruling Q45). The cleartext road
+  on the relay's port comes last, once each relay host failed and the TLS
+  of one failed on the way, for a proxy that cuts TLS. It sends no token of
+  `PODSSH_RELAY_TOKEN` or of the cache: it asks the relay for a token of one
+  session, which lives minutes, is never cached, and is spent at its one
+  upgrade, so a hop that read it has no second use; an answer that does not
+  say so gets no upgrade. Each hop sees the target, the time and the volume,
+  as the relay does, and could take that one upgrade in the client's place;
+  SSH inside stays end to end, its host key checked. podssh's relay role
+  serves only `/health`, that mint and that upgrade in cleartext, and
+  `--cleartext no` turns it off there; `PODSSH_CLEARTEXT=no` turns it off in
+  the client.
 - **The cache stays in its user's own tree** (T-593, GitHub #118). On Unix
   `XDG_CACHE_HOME`, `HOME/.cache` and `XDG_RUNTIME_DIR` count only when each
   of their directories that exists, up to the home, belongs to the

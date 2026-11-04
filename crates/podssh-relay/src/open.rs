@@ -10,8 +10,9 @@
 //! on to the next host; one that every host would repeat (a policy refusal, a
 //! target name that does not resolve, a bad token in the environment) stops at
 //! once. Whole rounds repeat `rounds` times with jittered exponential backoff.
-//! Shared by `podssh proxy` and `podssh ssh`, which differ only in how they
-//! report a failure.
+//! After them, last, the cleartext road (T-326, [`crate::cleartext`]) to a
+//! host whose TLS failed on the way. Shared by `podssh proxy` and `podssh
+//! ssh`, which differ only in how they report a failure.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -163,6 +164,8 @@ pub struct Request<'a> {
 pub struct Opened {
     pub session: RelaySession,
     pub relay: Relay,
+    /// Whether the cleartext road carries it, as each hop reads (T-326).
+    pub cleartext: bool,
 }
 
 /// Every attempt that failed, in order, as (host, error).
@@ -267,19 +270,28 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         if let Some((i, session)) = raced.kept {
             // The address that carried it, for a run whose resolver fails.
             crate::addresses::carried(&hosts[i].host, session.peer());
-            // The relay's own limits, as its pool's cache keeps them: the
-            // run's budgets go under them, and the session takes in frames
-            // up to its cap (T-342).
-            let limits = crate::pool::cached_limits(&shared.primary);
-            crate::pool::set_in_use(limits);
-            session.set_receive_cap(podssh_ws::frame::receive_cap(limits.max_frame_bytes));
-            return Ok(Opened { session, relay: hosts[i].clone() });
+            return Ok(opened(session, hosts[i].clone(), &shared.primary, false));
         }
         if raced.stopped {
             break;
         }
     }
+    // Last, the cleartext road to a host whose TLS failed on the way (T-326,
+    // Q45); its lines are notes, and the failure stays the TLS road's.
+    if let Some((relay, session)) = crate::cleartext::last(hosts, &attempts, &shared.path, notes).await {
+        return Ok(opened(session, relay, &shared.primary, true));
+    }
     Err(Failure { attempts })
+}
+
+/// A session that opened, under the relay's own limits, as its pool's cache
+/// keeps them: the run's budgets go under them, and the session takes in
+/// frames up to its cap (T-342).
+fn opened(session: RelaySession, relay: Relay, primary: &str, cleartext: bool) -> Opened {
+    let limits = crate::pool::cached_limits(primary);
+    crate::pool::set_in_use(limits);
+    session.set_receive_cap(podssh_ws::frame::receive_cap(limits.max_frame_bytes));
+    Opened { session, relay, cleartext }
 }
 
 /// What the attempts of one run share.

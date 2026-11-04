@@ -1,0 +1,54 @@
+//! One connection of the role's own listener, which `podssh relay serve`
+//! owns (T-169): TLS, with the handshake alone for a CA's TLS-ALPN-01
+//! (T-447); or, when its first byte begins no TLS handshake, the cleartext
+//! road ([`super::cleartext`], T-326), unless the owner turned it off. The
+//! byte is peeked, so TLS reads its ClientHello whole. One listener, the one
+//! that the user asked for: the cleartext road adds none.
+
+use std::net::IpAddr;
+use std::sync::Arc;
+use std::time::Duration;
+
+use podssh_ws::tls_server::{TlsAcceptor, ACME_TLS_1};
+use tokio::io::AsyncWriteExt as _;
+use tokio::net::TcpStream;
+
+use super::Config;
+
+/// How long a client has to begin, and to finish, TLS.
+pub const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
+
+/// How the listener takes a connection: TLS with `acceptor`, and the
+/// cleartext road beside it when `cleartext`.
+#[derive(Clone)]
+pub struct Door {
+    pub acceptor: TlsAcceptor,
+    pub cleartext: bool,
+}
+
+/// Serve `tcp`, of a client at `peer`, as `door` says.
+pub async fn connection(tcp: TcpStream, peer: IpAddr, door: Door, cfg: Arc<Config>) {
+    if door.cleartext {
+        match super::cleartext::first_byte(&tcp, HANDSHAKE_WAIT).await {
+            Some(first) if !super::cleartext::is_tls(first) => {
+                return super::cleartext::serve(tcp, cfg, Some(peer)).await;
+            }
+            Some(_) => {}
+            // Nothing came, or the client went: no TLS to wait for either.
+            None => return,
+        }
+    }
+    let Ok(Ok(mut tls)) = tokio::time::timeout(HANDSHAKE_WAIT, door.acceptor.accept(tcp)).await else { return };
+    // A CA's validation of TLS-ALPN-01 wants the handshake alone (RFC 8737,
+    // section 3).
+    if tls.get_ref().1.alpn_protocol() == Some(ACME_TLS_1) {
+        let _ = tls.shutdown().await;
+        return;
+    }
+    // The name that the client asked for, which a key's signed mint must
+    // name (T-448).
+    let sni = tls.get_ref().1.server_name().map(str::to_string);
+    // The TCP peer, by whom the brake of mints and pairs counts (T-454): no
+    // header of a client's.
+    super::serve_from(tls, cfg, sni, Some(peer)).await;
+}

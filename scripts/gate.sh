@@ -203,6 +203,11 @@ step_libs() {
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve,plain-ws \
             --test relay_serve_contract --test relay_serve_reverse --test relay_serve_backpressure \
             --test relay_serve_ipv6 --test reverse_restart
+    # The cleartext road at the role's listener and from the client (T-326),
+    # through a stand-in proxy that intercepts TLS.
+    tests "the relay role's cleartext road (feature serve, no C compiler)" \
+        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve \
+            --test relay_serve_cleartext
     # The relay role behind a quick tunnel (T-428): through the stand-in edge
     # and its front over HTTP/2, and as the origin of a QUIC stream on pipes.
     tests "the relay role behind a quick tunnel (features quick, serve, plain-ws, no C compiler)" \

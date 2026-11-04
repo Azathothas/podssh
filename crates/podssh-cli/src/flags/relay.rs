@@ -57,6 +57,9 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "serve: send each client an empty frame every SECONDS (default 25)", None),
     row(None, "pairs", Some("FILE"), FlagKind::Supported,
         "serve: keep the pairs of the reverse road in FILE, of mode 0600, so that they outlive a restart (the digests of their tokens, never a token)", None),
+    // The cleartext road beside TLS on the listener (T-326).
+    row(None, "cleartext", Some("WORD"), FlagKind::Supported,
+        "serve: yes (the default) or no: on the listener, a request whose first byte begins no TLS handshake gets the cleartext road, for a client whose proxy cuts TLS: /health, a token of one session (POST /v1/mint?once=1, as --mint says) and /connect/ with it, which its upgrade spends; each other request there is refused (403)", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,

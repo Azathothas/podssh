@@ -1,0 +1,9 @@
+# T-326: doctor's line cleartext names each probe that is no relay's answer
+# as an answer, so a path that resets cleartext reads as one that carries
+# it; the test through a stand-in proxy that resets cleartext then finds no
+# reset in the line.
+ENTRY=T-326
+GROUP=cli-tests
+EXPECT='the line names the reset'
+RUN='cargo test --locked -p podssh-cli --test doctor_cleartext -- a_path_that_resets_cleartext'
+LIMIT=2400

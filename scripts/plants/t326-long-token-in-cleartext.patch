@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/cleartext.rs
++++ b/crates/podssh-relay/src/serve/cleartext.rs
+@@ -82,7 +82,7 @@ where
+             answer(&mut stream, request::refusal(403, why, &[])).await
+         }
+         ("GET", p) if p.starts_with("/connect/") => {
+-            let once = head.header("x-relay-token").is_some_and(|t| cfg.tokens.is_once(t, tokens::now_ms()));
++            let once = head.header("x-relay-token").is_some_and(|t| cfg.tokens.is_once(t, tokens::now_ms()) || cfg.tokens.check(t, tokens::now_ms()));
+             if !once {
+                 cfg.event("cleartext refused GET /connect/");
+                 return answer(&mut stream, request::refusal(403, NOT_ONCE, &[])).await;

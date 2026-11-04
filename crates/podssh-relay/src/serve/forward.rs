@@ -68,7 +68,9 @@ pub async fn connect<S>(mut stream: S, head: Request, pending: Vec<u8>, cfg: Arc
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let token_ok = head.header("x-relay-token").is_some_and(|t| cfg.tokens.check(t, super::tokens::now_ms()));
+    // A token of one session is spent here, whatever the upgrade's end, so
+    // that a hop that read it in cleartext has no second use (T-326).
+    let token_ok = head.header("x-relay-token").is_some_and(|t| cfg.tokens.take(t, super::tokens::now_ms()));
     if !token_ok {
         return answer(&mut stream, request::refusal(403, "forward: missing or wrong token", &[])).await;
     }

@@ -205,7 +205,8 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
             let started = tokio::time::Instant::now();
             match podssh_relay::open(&request, &mut |note: &str| note_log.info(note)).await {
                 Ok(opened) => {
-                    log.verbose(&format!("the relay host {} opened the session", opened.relay.host));
+                    let road = if opened.cleartext { " in cleartext" } else { "" };
+                    log.verbose(&format!("the relay host {} opened the session{road}", opened.relay.host));
                     podssh_ssh::outcome::relay_host(&opened.relay.host);
                     let (stream, status) = crate::relay_ends::spawn(opened.session, &opened.relay.host);
                     // The relay's silence, for the notice (T-307).

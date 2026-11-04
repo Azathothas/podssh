@@ -11,6 +11,8 @@
 //! ([`fallback`]). A template `wisp+wss://HOST/PATH/` names a Wisp server,
 //! which takes the target in a packet of its protocol (T-438).
 
+// The ws:// form of the forwarders that the binary names, last (T-326).
+pub mod cleartext;
 pub mod fallback;
 pub mod pipe;
 pub mod reach;

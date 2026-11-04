@@ -1,8 +1,9 @@
 //! The notes of `podssh doctor` for the time of a run (T-511): its sections
 //! at once, `--jobs` and `--quick`; its diagnosis of the TLS handshakes
-//! (T-487); its line of IPv6 targets (T-253); and its probes of what a path
-//! does to a stream (T-325), with the relay role's side of them. Apart from
-//! the others so that each file stays short.
+//! (T-487); its line of IPv6 targets (T-253); its line of a request with no
+//! TLS (T-326); and its probes of what a path does to a stream (T-325), with
+//! the relay role's side of them. Apart from the others so that each file
+//! stays short.
 
 pub(super) const DOCTOR_AT_ONCE: &str = "The sections that connect run at once by default, each into its own part \
      of the report, and the report keeps its order: a section's lines go out once each section before it has ended, \
@@ -39,6 +40,17 @@ pub(super) const DOCTOR_IPV6: &str = "The line ipv6, in the section relay, says 
      which send nothing: through a proxy, the proxy's way out decides; else an IPv6 socket made and closed, then \
      this host's table of IPv6 routes where Linux gives one. The line is ok, a fact; ???? when no relay host \
      answered or its /relays.json cannot be read.";
+
+pub(super) const DOCTOR_CLEARTEXT: &str = "The line cleartext, in the section relay, says what a request with no \
+     TLS meets on the way to the first relay host that answered (else the first host), at its port and at port 80 \
+     beside 443, as the cleartext road would meet it (T-326, GitHub #56): the CONNECT that the proxy takes, then GET \
+     /health with no token and no target, and what came back, named: a reset or a close with no answer (a hop that \
+     expects TLS cuts cleartext), a record of TLS (the far end speaks TLS alone there), the edge's refusal (a 400 \
+     that says that a request of plain HTTP was sent to its HTTPS port), a refusal by policy (403), a redirect, \
+     or an answer, the relay's own /health named; then whether the road reaches the relay. One probe after \
+     another. The line is ok, a fact, as a reset is no fault where TLS answers; ???? when the proxy setting \
+     cannot be read. With --forwarder, the section of the forwarders has the same line for each one's host, at \
+     443 and 80, and says whether a ws:// form of it can pass.";
 
 pub(super) const DOCTOR_STREAM: &str = "--stream URL checks this host, then what the path to URL does to a \
      stream, and nothing else, one connection at a time: URL is https://HOST[:PORT][/PATH] (TLS checked with \

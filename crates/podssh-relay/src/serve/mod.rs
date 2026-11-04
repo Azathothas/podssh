@@ -9,16 +9,20 @@
 //! `behind`). Its targets are dialed through the host's proxy when one is
 //! set ([`egress`], T-457), and an IPv6 target that its host cannot route
 //! out is refused before the upgrade ([`ipv6`], T-253). Its probes tell a
-//! client what the path does to a stream ([`probe`], T-325).
+//! client what the path does to a stream ([`probe`], T-325). The role's own
+//! listener takes TLS, or the cleartext road beside it by the first byte
+//! ([`listener`], [`cleartext`], T-326), with tokens of one session alone.
 
 #[cfg(feature = "quick")]
 pub mod behind;
 pub mod brake;
+pub mod cleartext;
 pub mod docs;
 pub mod egress;
 pub mod forward;
 pub mod ipv6;
 pub mod keys;
+pub mod listener;
 pub mod policy;
 pub mod probe;
 pub mod reverse;
@@ -175,15 +179,7 @@ pub async fn serve_from<S>(mut stream: S, cfg: Arc<Config>, sni: Option<String>,
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let (head, pending) = match tokio::time::timeout(HEAD_WAIT, read_request(&mut stream, Vec::new())).await {
-        Ok(Ok(read)) => read,
-        Ok(Err(e)) => match e.status() {
-            Some(status) => return answer(&mut stream, request::refusal(status, &e.to_string(), &[])).await,
-            None => return,
-        },
-        Err(_) => return,
-    };
-    let path = head.target.split('?').next().unwrap_or_default().to_string();
+    let Some((head, pending, path)) = head_of(&mut stream).await else { return };
     if brake::braked(&head.method, &path) {
         if let Err(braked) = cfg.brake.take(brake::Who::of(from)) {
             return slow_down(&mut stream, &head, pending, &path, braked, &cfg).await;
@@ -206,7 +202,29 @@ where
     }
 }
 
-/// `POST /v1/mint`: `{token, expires, scope}`.
+/// The head of a connection's one request, the bytes after it, and its path
+/// with no query; `None` once a refusal went, or when the client went away
+/// or was too slow.
+async fn head_of<S>(stream: &mut S) -> Option<(request::Request, Vec<u8>, String)>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let (head, pending) = match tokio::time::timeout(HEAD_WAIT, read_request(stream, Vec::new())).await {
+        Ok(Ok(read)) => read,
+        Ok(Err(e)) => {
+            if let Some(status) = e.status() {
+                answer(stream, request::refusal(status, &e.to_string(), &[])).await;
+            }
+            return None;
+        }
+        Err(_) => return None,
+    };
+    let path = head.target.split('?').next().unwrap_or_default().to_string();
+    Some((head, pending, path))
+}
+
+/// `POST /v1/mint`: `{token, expires, scope}`; with `?once=1`, a token of
+/// one session, `"once": true` (T-326).
 async fn mint<S>(stream: &mut S, head: &request::Request, pending: Vec<u8>, cfg: &Config, sni: Option<&str>)
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -223,6 +241,18 @@ where
     }
     if let Err(refusal) = proven(cfg, head, sni, "/v1/mint", &sent) {
         return answer(stream, refusal).await;
+    }
+    // A token of one session, which an upgrade spends: the one that the
+    // cleartext road asks for, and the only one minted in cleartext.
+    if cleartext::once_asked(&head.target) {
+        cfg.event("mint once");
+        let body = match cfg.tokens.mint_once(tokens::now_ms()) {
+            Ok((token, expires)) => {
+                serde_json::json!({ "token": token, "expires": expires, "scope": "forward", "once": true })
+            }
+            Err(why) => return answer(stream, request::refusal(503, &format!("/v1/mint: {why}"), &[])).await,
+        };
+        return answer(stream, docs::json(&body)).await;
     }
     cfg.event("mint");
     let (token, expires) = cfg.tokens.mint(tokens::now_ms(), tokens::LIFETIME_MS);

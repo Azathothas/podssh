@@ -1,0 +1,10 @@
+--- a/crates/podssh-relay/src/serve/tokens.rs
++++ b/crates/podssh-relay/src/serve/tokens.rs
+@@ -181,7 +181,6 @@ impl Tokens {
+         if spent.len() >= SPENT_MAX || spent.contains_key(nonce) {
+             return false;
+         }
+-        spent.insert(nonce.to_string(), expiry);
+         true
+     }
+ }

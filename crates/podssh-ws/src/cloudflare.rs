@@ -141,7 +141,8 @@ pub async fn connect(
 ) -> Result<RelaySession, ConnectError> {
     let tls = client::open_tls(host, PORT, host, trust, proxy, timeout).await?;
     let (tls, pending) = upgrade(tls, host, access, timeout).await?;
-    Ok(session(tls, pending, idle))
+    // The stream of each session to a relay, TLS here (T-326).
+    Ok(session(crate::url::Stream::Tls(Box::new(tls)), pending, idle))
 }
 
 /// The same over plain TCP to the loopback, for the tests of the road

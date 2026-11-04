@@ -86,7 +86,9 @@ Its reverse road (T-427) is in "The relay role's reverse road", below, the
 role behind a quick tunnel, with no listener, after it, and its targets
 through the host's `HTTPS_PROXY` in "The relay role's way out" (T-457).
 An IPv6 target that its host cannot route out gets a `502` before the
-upgrade, which says so ("IPv6 targets", below; T-253).
+upgrade, which says so ("IPv6 targets", below; T-253). Its listener takes
+the cleartext road beside TLS, by the first byte of each connection, with
+tokens of one session alone ("The cleartext road", below; T-326).
 
 ## How podssh selects relay hosts
 
@@ -325,7 +327,10 @@ What podssh does about it (T-253):
   with the body `{}` gives `{token, expires, scope}`. `expires` is in
   milliseconds since the epoch.
 - The form is `ephm1.<expiry-ms>.forward.<mac>`. A token is valid for 72 h or
-  less. The relay checks it once for each WebSocket upgrade.
+  less. The relay checks it once for each WebSocket upgrade. podssh's relay
+  role also mints a token of one session for `POST /v1/mint?once=1`, which
+  one upgrade spends: the token of the cleartext road ("The cleartext road",
+  below; T-326).
 - podssh sends the token in the `X-Relay-Token` header. The `?token=` and
   `/t/<token>/...` forms are for clients that cannot set headers. podssh
   does not use them, because URLs go into logs.
@@ -791,3 +796,55 @@ A relay of the contract alone serves neither, and the default relay
 answers no probe; there `doctor --full` measures the quiet limit alone, on
 a socket of the reverse road, which that relay ends for no idleness
 ([relay-operator.md](relay-operator.md), item 6).
+
+## The cleartext road (T-326)
+
+For a proxy that tunnels `CONNECT` but cuts TLS that it does not know, by
+its SNI or its certificate (GitHub #56), podssh has a road with no TLS on
+the relay's own port, by the operator's ruling Q45: tried last, after the
+TLS road failed, with a token minted for that one session and never cached,
+as each hop can read the header. SSH inside stays end to end, its host key
+checked as on each road; each hop sees the target, the time and the volume,
+and that token.
+
+- **The client** (`crates/podssh-relay/src/cleartext.rs`). Once each relay
+  host failed, `podssh_relay::open` takes the hosts whose TLS failed in TLS
+  itself (a certificate that is not the relay's, a reset or a close in the
+  handshake, or its bound: `podssh_ws::cleartext::tls_failed`), the first
+  of each deployment alone, one at a time, each within 45 s. For each: the
+  same `CONNECT`, through `HTTPS_PROXY`, then `POST /v1/mint?once=1` with
+  `{}` and no TLS, signed by the client's key when the relay answers `401`
+  with a challenge (T-448); an answer that does not say `"once": true`, or
+  whose `expires` is more than 10 minutes away, gets no upgrade, as podssh
+  sends no other token in cleartext; then the upgrade of the forward path
+  with that token in `X-Relay-Token`. No token of `PODSSH_RELAY_TOKEN` or
+  of the cache goes there. Its lines are notes; when the road fails, the
+  run's failure, its exit code and the forwarders' fallback stay the TLS
+  road's. `PODSSH_CLEARTEXT=no` turns it off.
+- **The role** (`crates/podssh-relay/src/serve/listener.rs` and
+  `cleartext.rs`). `podssh relay serve` peeks at the first byte of each
+  connection: `0x16`, a record of TLS's handshake, goes to TLS as before;
+  another goes to the cleartext road, unless `--cleartext no`. There it
+  serves `GET /health`; `POST /v1/mint?once=1`, for whom `--mint` names and
+  under the brake, which answers `{token, expires, scope, "once": true}`
+  with a token of the form `once1.<expiry-ms>.<nonce>.<mac>` under the
+  role's secret, which ends 5 minutes later; and `GET /connect/<host>/<port>`
+  with such a token, which the upgrade spends, whatever its end, so that a
+  second use gets `403`. The role keeps the spent tokens until their end,
+  65536 at most, and refuses one more past them. A token of 72 h, the mint
+  of one, the reverse road, `/relays.json`, `/trace` and the probes get
+  `403` in cleartext, and go over TLS. Over TLS, `POST /v1/mint?once=1`
+  mints the same token of one session, and the role's forward road takes it
+  once.
+- **The probe of #56** (`podssh_ws::cleartext::probe`, `podssh doctor`'s
+  line `cleartext`, [cli.md](cli.md)): a `CONNECT` to a host's port, then
+  `GET /health` with no TLS, no token and no target, and what came back,
+  named: a reset or a close with no answer, a record of TLS, the edge's
+  refusal (`400`, in nginx's words "The plain HTTP request was sent to
+  HTTPS port"), a refusal by policy (`403`), a redirect, or an answer.
+- **The default relay** serves TLS alone on 443 (Cloudflare's edge), so its
+  mint in cleartext is refused there. Measured on 2026-10-30 through a
+  cloud container's proxy: the cleartext `GET /` was reset with no answer.
+  What its edge answers to cleartext from a path with no such proxy is
+  measured by the live run of T-326 (UNVERIFIED), and its want is item 7 of
+  [relay-operator.md](relay-operator.md).

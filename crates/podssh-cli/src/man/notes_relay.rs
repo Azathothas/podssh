@@ -184,6 +184,14 @@ pub const RELAY: &[&str] = &[
      4096 addresses at most, and forgets the one heard from least lately first. /health, the documents \
      and the sockets of both roads are not braked, and the first refusal of an address is a line on \
      stdout.",
+    "The relay's listener takes the cleartext road beside TLS (T-326), for a client whose proxy tunnels CONNECT \
+     but cuts TLS that it does not know: a connection whose first byte begins no TLS handshake is served with no \
+     TLS, and only with what a session needs with a token of one session, as each hop reads it: GET /health; \
+     POST /v1/mint?once=1, for whom --mint names and under the same brake, which answers a token that lives 5 \
+     minutes, with \"once\": true; and /connect/HOST/PORT with that token in X-Relay-Token, which its upgrade \
+     spends, whatever its end, so that a second use is refused. A token of 72 h, the mint of one, the reverse \
+     road, the documents and the probes are refused there (403), and go over TLS. --cleartext no serves TLS \
+     alone. Over TLS, POST /v1/mint?once=1 mints the same token of one session.",
     super::notes_grant::RELAY,
     super::notes_doctor::RELAY_PROBES,
 ];
