@@ -3821,7 +3821,7 @@ changes with the edge", which is not true of the role: it has no edge and gives 
   `by`, `edge` and `measured_here` alone (`crates/podssh-cli/src/relay_diag_text.rs:39-44`); the
   pool's line says "the edge that answered" when the document names no edge, whatever its scores
   (`crates/podssh-cli/src/relay_diag_text.rs:70-76`).
-- Read: T-610's Done, `TODO/relay.md:3120-3121` says "once they are done, the line names the rank
+- Read: T-610's Done, `TODO/relay.md:3124-3125` says "once they are done, the line names the rank
   too"; T-606 (`e892246`) and T-607 (`11295ef`) were done after T-610 (`2516f32`), and the line
   did not change.
 - Read: the manual's note of `relay info` names `relay status` and `ping` alone
