@@ -5,34 +5,30 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## State
 
-- **Checkpoint, 2026-11-04, about 10:00 UTC: where the cloud session stopped.** A new session
-  starts here, after `AGENTS.md`'s steps at the start.
-  1. **`v1.1.0-beta.2` is not published.** Its version and notes are on `main` (`22da36c`,
-     `docs/releases/v1.1.0-beta.2.md`, which names T-618, T-617, T-435 and T-173's repairs too). The
-     first candidate, `501999f` (the branch `beta/v1.1.0-beta.2`, its release dry run 41800163773
-     passed), failed its gate (run 41800030980) on two defects of T-173's new default, repaired in
-     `3988c8c` (T-173's Done). When the session stopped, the gates of `3988c8c` (run 41807740017)
-     and `b750af3` (run 41808982013) ran, and the merge of T-620 was pushed after them. Next: take
-     the newest commit of `main` whose gate is green, with Windows' and macOS's jobs; move
+- **Checkpoint, 2026-11-04, about 14:00 UTC: a new cloud session, after the operator's rulings.**
+  1. **The gate at `909e4f5`** failed on two causes of the place, none of podssh: macOS could not
+     resolve `static.crates.io` (its job is run again), and TruffleHog could not verify five test
+     keys of russh on the branch `draft/worktree-agent-t460-ssh` and read them "unknown"
+     (`.github/secrets-allow.txt` now lists each test key of that copy and of ssh-key's).
+  2. **`v1.1.0-beta.2`** goes out now (Q98) from the newest green commit of `main`: move
      `beta/v1.1.0-beta.2` to it by a fast-forward (no force); run `release.yml` by hand on that
      branch; run `scripts/release-short.sh BINARY --net` on its x86_64 binary; publish with
-     `release.yml` and `publish=v1.1.0-beta.2`; then `release-proofs.yml` and `update-live.yml`;
-     then mark each `unreleased` row of `docs/STATUS.md` up to that commit with the release, and add
-     the commit to the list of releases in `scripts/check-repo.py`, as beta.1's record did
-     (`15819f9`). Beta.1 went out on 2026-11-03 at 08:31 UTC, so the day's beta is allowed. A red
-     job is repaired first, as `3988c8c` repaired `501999f`'s.
-  2. **The drafts of the eighth round are merged and closed** (the paragraph "Drafts" below): no
-     draft waits. Their `draft/` branches on GitHub can go.
-  3. **Partial and watched:** T-465 (`pipe`'s end of input lost 2 runs in 50 on Windows and
+     `release.yml` and `publish=v1.1.0-beta.2`; then `release-proofs.yml` and `update-live.yml`; then
+     mark each `unreleased` row of `docs/STATUS.md` up to that commit, and add the commit to the
+     list of releases in `scripts/check-repo.py`, as beta.1's record did (`15819f9`).
+     `v1.1.0-beta.3` follows at the end of the night with the night's work (Q98).
+  3. **GitHub #126 to #148** (Nemo-010, 2026-11-04) are new: each becomes an entry (Q100), #126
+     first, a P1 defect; `TODO/github.txt` and `TODO/issues.md` map them with the triage.
+  4. **osewa** (Q99): two agents study `rjyo/osewa`'s code and its paper; the gaps become entries
+     ahead of the rest of M10, and the report goes to `docs/research/`.
+  5. **Partial and watched:** T-465 (`pipe`'s end of input lost 2 runs in 50 on Windows and
      macOS; the probe of Windows' AF_UNIX lost none of 600, so the next step is a client in another
      process than its server, or a failure that says the time of each step); T-627 (a test of
      T-615 timed out once in the relay crate's suite; it says the role's events at its limit); T-319,
      T-321 and T-253 (their parts that wait for a runner, Q88).
-  4. **Questions Q93 to Q97** wait for the operator ("Questions for the operator"); each has a
-     recommendation, and the work goes on with it.
-  5. **The work order** (below): item 2, T-106; item 3, T-433, T-180, T-434 and T-459 (a WIP
-     branch, `draft/wip-459` (`b5f9a50`), untested); T-618's and
-     T-619's GitHub source (#125) is deleted, so no comment is due.
+  6. **The work order** (below): the testers' defects (#126 first), then osewa's entries, then
+     item 2, T-106; item 3, T-433, T-180, T-434 and T-459 (a WIP branch, `draft/wip-459`
+     (`b5f9a50`), untested).
 
 - **The record.** The work is in `TODO/` since 2026-10-08 (T-204). Each open
   item of `docs/ROADMAP.md`, each row of the former defects page, each
@@ -271,6 +267,10 @@ the live relay are repaired, and the entries of the audit, the study and the iss
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76), each done. Each other `backlog` entry is done, but for those on hold, those of the relay's
 operator and the parked ones.
 
+**First tonight (2026-11-04, Q98 to Q100):** `v1.1.0-beta.2`; then GitHub #126, the testers' P1
+defect; then the entries that the studies of osewa file (Q99); then GitHub #127 to #148 by their
+priority, beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
+
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
 this order:
 
@@ -380,30 +380,12 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
 
-**For the operator to confirm (Q86), Q93 to Q97, from the draft of 2026-11-04 on the archive of
-forward carriers** (`docs/research/forward-carriers.md`, section 8; each call is in its entry's
-`## Decision`):
-
-- Q93, T-621: the TURN road opens a second connection, the data connection that RFC 6062 needs, to the
-  same server, and only when the user names one with `--turn`: a sixth exception of rule 2 of
-  `AGENTS.md`, as Q44 and Q67 are. Recommendation: allow it.
-- Q94, T-623 and T-624: short live tests against smee.io, hostc, Tunnelmole and Sandhole's public
-  server, which were not among the services that T-548 named when Q91 ruled. Recommendation:
-  allow them as Q91 allows those, with throwaway channels and tunnels given up at the end, once
-  each research entry has read the service's terms.
-- Q95, T-621 and T-622: the archive's two forwarders are not taken as forms of `--forwarder`; TURN is
-  a road of the user's own server with a file of credentials, and the HTTP form is a form of the
-  relay role's HTTP road, behind which T-319's forms stay. Recommendation: confirm.
-- Q96, T-173: with `PODSSH_RELAY_LAYER` unset, `podssh proxy` and `podssh ssh` read the offer of a
-  relay host that the user named once a day, 1 s at most, before the session's connection, and keep
-  it, so that the resumable layer is the default where the host offers it. Recommendation: allow it;
-  it is a connection before the session's, never beside it, and the default relay's offer comes with
-  its pool's refresh.
-- Q97, T-617: before the race of a session on the default list, podssh asks the `/relays.json` of
-  each relay member that the net names, once a day for each member whatever it answered, 5 s each
-  and 8 s in all, and takes a list there only by the member's own key. Recommendation: allow it;
-  it is one request a day to a host that the user's own net names, before the session's, never
-  beside it.
+The operator settled Q93 to Q100 on 2026-11-04 (`docs/decisions.md`), each as recommended: the TURN
+road's second connection (Q93), short live tests against smee.io, hostc, Tunnelmole and Sandhole
+(Q94), TURN and the one-POST HTTP form outside `--forwarder` (Q95), and the two reads before a
+session (Q96, Q97) are confirmed; `v1.1.0-beta.2` goes out at once and `v1.1.0-beta.3` at the end
+of the night (Q98); the gaps that the studies of osewa find become entries ahead of the rest of
+M10 (Q99); and GitHub #126 to #148 become entries, #126 first as a P1 defect (Q100).
 
 The operator settled Q67 to Q84 on 2026-11-02 (`docs/decisions.md`), after the triage of the
 testers' reports (GitHub #83 to #106, the bundle, the relay sweep) and of the drafts of M10:

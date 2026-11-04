@@ -262,7 +262,10 @@ use (Q75); and OpenTunnel, `opentunnel.xyz` (Q76). Since 2026-11-03 (Q91), with
 short runs: the operator's SSH host of `PODSSH_THROUGHPUT_SSH` for three minutes
 with nothing sent (T-463); the services of Q77 and Q78 (T-548); one onion service
 on the public Tor network (T-578); and OpenTunnel each week from GitHub Actions
-(T-531). Use throwaway keys, and
+(T-531). Since 2026-11-04, with short runs: smee.io, hostc, Tunnelmole and
+Sandhole's public server, once each research entry has read the service's terms
+(Q94; T-623, T-624); and the public servers of osewa, where their terms allow
+(Q99). Use throwaway keys, and
 delete them after the test. Keep keys and scratch files in `.work/`, which
 git ignores, or outside the repository. Never print the claim URL of
 railway.new.
@@ -276,7 +279,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 2. Make one outbound connection, through `HTTPS_PROXY` when it is set. Do
    not bind, listen, or use loopback helpers. (`podssh doctor` binds a
    socket to test the host, listens once with a backlog of 1, accepts
-   nothing, and closes it at once; never with `PODSSH_LISTEN=no`, Q53.) Five
+   nothing, and closes it at once; never with `PODSSH_LISTEN=no`, Q53.) Eight
    exceptions: by the decisions of 2026-10-08, a listener that the user asks
    for, when a probe at run time allows the bind, and a race between relay
    hosts, which can open a second connection for a short time; by the
@@ -287,7 +290,13 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    decision of 2026-11-03 (Q89), with `RelayRank auto`, a session's rank of
    the relay hosts in its background, at most once a day for each egress,
    8 hosts, one probe each 10 s at most, each probe with `?dial=lazy` so
-   that no target is dialed.
+   that no target is dialed; by the decision of 2026-11-02 (Q67), XHTTP over
+   HTTP/1.1, which opens its second connection to the same server only after
+   HTTP/2 was refused; by the decisions of 2026-11-04, the TURN road's data
+   connection to the user's own TURN server, only with `--turn` (Q93), and a
+   read before a session's connection, never beside it, at most once a day for
+   each host: the offer of the resumable layer of a relay host that the user
+   named (Q96), and the list of each relay member of the user's net (Q97).
 3. Do not use `LD_PRELOAD` or shims in other processes. Start another
    program only when the user names it (`SSH_ASKPASS`, `PAGER`) or a probe
    found it (`less` for `podssh man` on a terminal). A tty in user space for

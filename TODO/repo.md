@@ -2969,7 +2969,7 @@ text after a citation, and reads each bare :N".
 - Prove: `cargo test -p podssh-todo`: 71 passed (15 unit tests, 37 plant
   tests). `cargo todo check`: the record agrees; before the rewrite, 119
   problems, the same 119 as the script's own scan, less one that a quote
-  over two lines holds. Plants: "line 5" after a citation is found; `:38`
+  over two lines holds. Plants: "line 5" after a citation is found; `:34`
   after a citation of a file of 5 lines is found; "line 9 at `0123abc`" and
   `:4` pass. A character of more than one byte before a number made the
   first version panic; a test holds it now. `cargo clippy --all-targets -p
@@ -4460,7 +4460,7 @@ Each can stop a release, or the gate, for a reason outside podssh.
   download must be checked; the pinned SHA-256 checks the exact bytes.
 - Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:187-195`),
   in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
-  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:56`).
+  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:59`).
   Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
 - Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml` lines 175 and
   177 at `1a46970`).
