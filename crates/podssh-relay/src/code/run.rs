@@ -7,6 +7,12 @@
 //! makes the key, checks the other's version, and moves its part. The giver
 //! leaves after one exchange, whatever its end, so that a wrong code, a
 //! guess or a success spends the code.
+//!
+//! The runs are one for each [`Kind`] of exchange: [`give_with`] and
+//! [`take_with`] move an offer, an answer and the giver's last words, as
+//! bytes, and the kind's own words are its caller's. The pairing's
+//! ([`give`], [`take`]) is one; the net's invitation (T-616), whose words
+//! the binary reads, another.
 
 use std::time::Duration;
 
@@ -14,7 +20,7 @@ use podssh_ws::url::WsUrl;
 use podssh_ws::{ProxyChoice, Trust};
 use serde_json::Value;
 
-use super::exchange::{self, Answer, Done, Offer};
+use super::exchange::{self, Answer, Done, Kind, Offer};
 use super::mailbox::{crowded, Mailbox, Mood};
 use super::wormhole::Wormhole;
 use super::{hex, Code, Failed, Say, LIFETIME};
@@ -65,6 +71,19 @@ pub struct Taken {
     pub mailbox: String,
 }
 
+/// The most last words that a taker reads after its answer: a mailbox holds
+/// 32 messages of one code, and the net's document goes in a dozen parts.
+pub const LAST_MOST: usize = 24;
+
+/// What a taker says to the giver's offer.
+pub enum Reply {
+    /// Its answer; the giver's last words follow.
+    Answer(Vec<u8>),
+    /// Its refusal, said to the giver so that it ends at once rather than
+    /// wait out a step; the run then ends with this failure.
+    Refused(Vec<u8>, Failed),
+}
+
 /// The giver's run: a new code at the first mailbox that answers, given to
 /// `show` with that mailbox, for a terminal alone; then one taker within
 /// `waits.life`, which gets `offer` and answers with its key, which `admit`
@@ -76,30 +95,18 @@ pub async fn give(
     show: &mut (dyn FnMut(&Code, &str) + Send),
     admit: &mut (dyn FnMut(&PublicKey) -> Done + Send),
 ) -> Result<Given, Failed> {
-    let (mut hole, code) = opened(ends, exchange::versions()).await?;
-    show(&code, hole.shown());
-    drop(code);
-    let mailbox = hole.shown().to_string();
-    if !hole.agree(waits.life).await? {
-        hole.close(Mood::Lonely).await;
-        return Err(Failed::Expired(waits.life));
-    }
-    let theirs = hole.confirm(waits.step).await?;
-    if let Err(why) = exchange::ours(&theirs) {
-        return Err(hole.fail(Mood::Errory, Failed::Peer(why)).await);
-    }
-    let sent = hole.send(&offer.to_bytes()).await;
-    or_close(&mut hole, sent).await?;
-    let answer = hole.receive(waits.step).await?;
-    let answer = match Answer::from_bytes(&answer) {
-        Ok(answer) => answer,
-        Err(why) => return Err(hole.fail(Mood::Errory, Failed::Peer(why)).await),
+    let offered = offer.to_bytes();
+    let mut taken = None;
+    let mut answer = |bytes: &[u8]| -> Result<Vec<Vec<u8>>, Failed> {
+        let theirs = Answer::from_bytes(bytes).map_err(Failed::Peer)?;
+        let done = admit(&theirs.operator);
+        let last = done.to_bytes();
+        taken = Some((theirs.operator, done));
+        Ok(vec![last])
     };
-    let done = admit(&answer.operator);
-    let sent = hole.send(&done.to_bytes()).await;
-    or_close(&mut hole, sent).await?;
-    hole.close(Mood::Happy).await;
-    Ok(Given { operator: answer.operator, done, mailbox })
+    let mailbox = give_with(ends, waits, exchange::PAIR, &offered, show, &mut answer).await?;
+    let Some((operator, done)) = taken else { return Err(Failed::Broken("the exchange ended with no answer".into())) };
+    Ok(Given { operator, done, mailbox })
 }
 
 /// The taker's run: the giver of `code`, its offer, which `check` takes or
@@ -112,29 +119,104 @@ pub async fn take(
     me: &PublicKey,
     check: &mut (dyn FnMut(&Offer) -> Result<(), String> + Send),
 ) -> Result<Taken, Failed> {
-    let mut hole = joined(ends, code, exchange::versions(), waits).await?;
+    let mut offered = None;
+    let mut reply = |bytes: &[u8]| -> Result<Reply, Failed> {
+        let offer = Offer::from_bytes(bytes, now_ms()).map_err(Failed::Peer)?;
+        check(&offer).map_err(Failed::Mine)?;
+        offered = Some(offer);
+        Ok(Reply::Answer(Answer { operator: *me }.to_bytes()))
+    };
+    let mut last = |bytes: &[u8]| -> Result<Option<Done>, String> { Done::from_bytes(bytes).map(Some) };
+    let (done, mailbox) = take_with(ends, waits, exchange::PAIR, code, &mut reply, &mut last).await?;
+    let Some(offer) = offered else { return Err(Failed::Broken("the exchange ended with no offer".into())) };
+    Ok(Taken { offer, done, mailbox })
+}
+
+/// The giver's run of an exchange of `kind`: a new code, given to `show`
+/// with its mailbox, for a terminal alone; then one taker within
+/// `waits.life`, whose version must be of `kind`, which gets `offer`. Its
+/// answer goes to `answer`, which gives the last words, sent in order, or
+/// the failure that ends the run. The code is spent at the first exchange,
+/// whatever its end. The mailbox where they met, as lines show it.
+pub async fn give_with(
+    ends: &Ends,
+    waits: &Waits,
+    kind: Kind,
+    offer: &[u8],
+    show: &mut (dyn FnMut(&Code, &str) + Send),
+    answer: &mut (dyn FnMut(&[u8]) -> Result<Vec<Vec<u8>>, Failed> + Send),
+) -> Result<String, Failed> {
+    let (mut hole, code) = opened(ends, kind.versions()).await?;
+    show(&code, hole.shown());
+    drop(code);
+    let mailbox = hole.shown().to_string();
+    if !hole.agree(waits.life).await? {
+        hole.close(Mood::Lonely).await;
+        return Err(Failed::Expired(waits.life));
+    }
+    let theirs = hole.confirm(waits.step).await?;
+    if let Err(why) = kind.ours(&theirs) {
+        return Err(hole.fail(Mood::Errory, Failed::Peer(why)).await);
+    }
+    let sent = hole.send(offer).await;
+    or_close(&mut hole, sent).await?;
+    let theirs = hole.receive(waits.step).await?;
+    let words = match answer(&theirs) {
+        Ok(words) => words,
+        Err(failed) => return Err(hole.fail(Mood::Errory, failed).await),
+    };
+    for word in &words {
+        let sent = hole.send(word).await;
+        or_close(&mut hole, sent).await?;
+    }
+    hole.close(Mood::Happy).await;
+    Ok(mailbox)
+}
+
+/// The taker's run of an exchange of `kind`: the giver of `code`, whose
+/// version must be of `kind`; its offer, which `reply` answers or refuses
+/// before this end says a word of its own; then the giver's last words, each
+/// to `last`, until one gives what the run gave, at most [`LAST_MOST`]. That,
+/// and the mailbox where they met.
+pub async fn take_with<T>(
+    ends: &Ends,
+    waits: &Waits,
+    kind: Kind,
+    code: &Code,
+    reply: &mut (dyn FnMut(&[u8]) -> Result<Reply, Failed> + Send),
+    last: &mut (dyn FnMut(&[u8]) -> Result<Option<T>, String> + Send),
+) -> Result<(T, String), Failed> {
+    let mut hole = joined(ends, code, kind.versions(), waits).await?;
     let mailbox = hole.shown().to_string();
     let theirs = hole.confirm(waits.step).await?;
-    if let Err(why) = exchange::ours(&theirs) {
+    if let Err(why) = kind.ours(&theirs) {
         return Err(hole.fail(Mood::Errory, Failed::Peer(why)).await);
     }
     let offer = hole.receive(waits.step).await?;
-    let offer = match Offer::from_bytes(&offer, now_ms()) {
-        Ok(offer) => offer,
-        Err(why) => return Err(hole.fail(Mood::Errory, Failed::Peer(why)).await),
+    let said = match reply(&offer) {
+        Ok(Reply::Answer(said)) => said,
+        Ok(Reply::Refused(said, failed)) => {
+            // The refusal is a courtesy to the giver: unsent, it waits a step.
+            let _ = hole.send(&said).await;
+            return Err(hole.fail(Mood::Errory, failed).await);
+        }
+        Err(failed) => return Err(hole.fail(Mood::Errory, failed).await),
     };
-    if let Err(why) = check(&offer) {
-        return Err(hole.fail(Mood::Errory, Failed::Mine(why)).await);
-    }
-    let sent = hole.send(&Answer { operator: *me }.to_bytes()).await;
+    let sent = hole.send(&said).await;
     or_close(&mut hole, sent).await?;
-    let done = hole.receive(waits.step).await?;
-    let done = match Done::from_bytes(&done) {
-        Ok(done) => done,
-        Err(why) => return Err(hole.fail(Mood::Errory, Failed::Peer(why)).await),
-    };
-    hole.close(Mood::Happy).await;
-    Ok(Taken { offer, done, mailbox })
+    for _ in 0..LAST_MOST {
+        let word = hole.receive(waits.step).await?;
+        match last(&word) {
+            Ok(Some(done)) => {
+                hole.close(Mood::Happy).await;
+                return Ok((done, mailbox));
+            }
+            Ok(None) => {}
+            Err(why) => return Err(hole.fail(Mood::Errory, Failed::Peer(why)).await),
+        }
+    }
+    let why = format!("the other end said more than {LAST_MOST} last words");
+    Err(hole.fail(Mood::Errory, Failed::Peer(why)).await)
 }
 
 /// A new code at the first mailbox of `ends` that answers, and its

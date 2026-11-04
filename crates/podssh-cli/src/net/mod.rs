@@ -13,12 +13,18 @@
 //! `renew`, `policy set FILE` and `policy clear`; each signs a document with
 //! a higher serial. Each end's: `ls`, `show`, `take FILE`, `policy show` and
 //! `policy check FROM TO` (T-430, `policy`), which says what the policy lets
-//! with no connection. stdout carries the answer (a list, a document, a
-//! verdict); podssh's words go to stderr.
+//! with no connection. A new device joins by a short code (T-616): the
+//! owner's `invite NAME` signs its key in as `add` would, and the device's
+//! `join` takes the document as `take` does (`invite`, `join`,
+//! `invitation`). stdout carries the answer (a list, a document, a verdict);
+//! podssh's words go to stderr.
 
 pub mod admit;
 pub mod doc;
 mod edit;
+mod invitation;
+mod invite;
+mod join;
 pub mod lookup;
 pub mod mint;
 pub mod policy;
@@ -50,10 +56,15 @@ pub struct NetArgs {
     pub derp_ticket: Option<String>,
     /// `--days N`: how long a document that the owner signs lasts.
     pub days: Option<String>,
-    /// `--owner KEY` of `take`: the owner that a first document must have.
+    /// `--owner KEY` of `take` and `join`: the owner that a first document
+    /// must have.
     pub owner: Option<String>,
     /// `--signature` of `show`: the signature in place of the document.
     pub signature: bool,
+    /// `--pair-mailbox URLS` of `invite` and `join`: where the two ends meet.
+    pub pair_mailbox: Option<String>,
+    /// `--key FILE` of `join`: the device's key, the member's.
+    pub key: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -71,6 +82,8 @@ impl NetArgs {
             days: get("days"),
             owner: get("owner"),
             signature: matches.get_flag("signature"),
+            pair_mailbox: get("pair-mailbox"),
+            key: get("key"),
             refused,
         }
     }
@@ -82,7 +95,7 @@ pub fn now() -> i64 {
 }
 
 /// The subcommands, as a refusal names them.
-const SUBCOMMANDS: &str = "init, add, rm, renew, ls, show, take or policy";
+const SUBCOMMANDS: &str = "init, add, rm, renew, invite, join, ls, show, take or policy";
 
 /// Run the verb; returns the process exit code.
 pub fn run(args: &NetArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
@@ -101,6 +114,8 @@ fn dispatch(word: &str, args: &NetArgs, out: &mut dyn Write, err: &mut dyn Write
         "init" | "add" | "rm" | "renew" => edit::run(word, args, err),
         "policy" if policy_cmd::signs(&args.args) => edit::run(word, args, err),
         "policy" => policy_cmd::run(args, out, err),
+        "invite" => invite::run(args, out, err),
+        "join" => join::run(args, out, err),
         "ls" => ls(out, err),
         "show" => show(args.signature, out, err),
         "take" => take(&args.args[0], args.owner.as_deref(), err),
@@ -118,7 +133,8 @@ fn checked(args: &NetArgs) -> Result<&str, Refusal> {
         "add" => (2, "add NAME KEY"),
         "rm" => (1, "rm NAME"),
         "take" => (1, "take FILE"),
-        "renew" | "ls" | "show" => (0, word),
+        "invite" => (1, "invite NAME"),
+        "renew" | "join" | "ls" | "show" => (0, word),
         "policy" => policy_cmd::shape(&args.args)?,
         other => return Err(Refusal::usage(format!("{other:?} is not a subcommand: {SUBCOMMANDS}"))),
     };
@@ -130,15 +146,17 @@ fn checked(args: &NetArgs) -> Result<&str, Refusal> {
         ("policy", Some(verb)) => format!("policy {verb}"),
         _ => word.to_string(),
     };
-    let signing: &[&str] = &["init", "add", "rm", "renew", "policy set", "policy clear"];
-    let flags: [(&str, bool, &[&str]); 7] = [
+    let signing: &[&str] = &["init", "add", "rm", "renew", "invite", "policy set", "policy clear"];
+    let flags: [(&str, bool, &[&str]); 9] = [
         ("--owner-key", args.owner_key.is_some(), signing),
         ("--days", args.days.is_some(), signing),
-        ("--roles", args.roles.is_some(), &["add"]),
+        ("--roles", args.roles.is_some(), &["add", "invite"]),
         ("--iroh-ticket", args.iroh_ticket.is_some(), &["add"]),
         ("--derp-ticket", args.derp_ticket.is_some(), &["add"]),
-        ("--owner", args.owner.is_some(), &["take"]),
+        ("--owner", args.owner.is_some(), &["take", "join"]),
         ("--signature", args.signature, &["show"]),
+        ("--pair-mailbox", args.pair_mailbox.is_some(), &["invite", "join"]),
+        ("--key", args.key.is_some(), &["join"]),
     ];
     if let Some((flag, _, with)) = flags.iter().find(|(_, given, with)| *given && !with.contains(&form.as_str())) {
         return Err(Refusal::usage(format!("{flag} is for podssh net {}", with.join(", "))));
@@ -156,7 +174,7 @@ pub(crate) fn held() -> Result<store::Held, Refusal> {
         Ok(Some(held)) => Ok(held),
         Ok(None) => Err(Refusal::config(
             "this host holds no net: its owner makes one with podssh net init NAME, and each other end takes it \
-             with podssh net take FILE",
+             with podssh net take FILE, or joins it by a code with podssh net join",
         )),
         Err(why) => Err(Refusal { message: why, code: sysexits::EX_DATAERR }),
     }
@@ -204,12 +222,7 @@ fn show(signature: bool, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32
 /// `take FILE`: a document that the owner signed, kept when the rule of
 /// `store::take` allows it.
 fn take(file: &str, owner: Option<&str>, err: &mut dyn Write) -> Result<i32, Refusal> {
-    let owner = match owner {
-        Some(text) => Some(KeyName::parse(text).or_else(|| owner_key_name(text)).ok_or_else(|| {
-            Refusal::usage(format!("--owner {text:?}: not a key's fingerprint (SHA256:...) nor an OpenSSH public key"))
-        })?),
-        None => None,
-    };
+    let owner = owner.map(owner_named).transpose()?;
     let path = Path::new(file);
     if !path.exists() {
         return Err(Refusal { message: format!("{file}: no such file"), code: sysexits::EX_NOINPUT });
@@ -238,6 +251,13 @@ fn take(file: &str, owner: Option<&str>, err: &mut dyn Write) -> Result<i32, Ref
         }
         Err(why) => Err(Refusal { message: format!("{file}: not taken: {why}"), code: sysexits::EX_DATAERR }),
     }
+}
+
+/// The owner of `--owner KEY`: its fingerprint, or its OpenSSH public key.
+pub(super) fn owner_named(text: &str) -> Result<KeyName, Refusal> {
+    KeyName::parse(text).or_else(|| owner_key_name(text)).ok_or_else(|| {
+        Refusal::usage(format!("--owner {text:?}: not a key's fingerprint (SHA256:...) nor an OpenSSH public key"))
+    })
 }
 
 /// An OpenSSH public key line, as the name of its fingerprint.

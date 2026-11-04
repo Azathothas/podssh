@@ -1,0 +1,16 @@
+--- a/crates/podssh-cli/src/net/invite.rs
++++ b/crates/podssh-cli/src/net/invite.rs
+@@ -164,12 +164,7 @@
+     // member that the others reach by its name.
+     match doc.member(name) {
+         Some(member) if member.key.matches(key) => return Admitted::Held(Box::new(held.signed.clone())),
+-        Some(member) => {
+-            let here = format!("{name} is a member of the net {} with the key {}, not {key}", doc.name, member.key);
+-            let said = format!("{name} is a member of the net already, with another key");
+-            return not(&said, here, sysexits::EX_NOPERM);
+-        }
+-        None => {}
++        _ => {}
+     }
+     if let Some(other) = doc.member_of_key(key) {
+         let said = format!("this key is the member {} of the net already", other.name);

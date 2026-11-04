@@ -4,7 +4,9 @@
 //! pair, the operator's part; the taker answers with its own key; the giver
 //! says what it did with that key. The version phase names podssh's
 //! pairing, so that a peer of another application with the same code is
-//! told apart before either says a word of its own.
+//! told apart before either says a word of its own; so is an end of the
+//! net's invitation (T-616), another [`Kind`] of exchange over the same
+//! code, whose words are the binary's.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -24,18 +26,79 @@ const SAID_MOST: usize = 300;
 
 /// What this podssh says in its version phase.
 pub fn versions() -> Value {
-    let mut versions = serde_json::Map::new();
-    versions.insert(PAIRING.to_string(), Value::from(VERSION));
-    Value::Object(versions)
+    PAIR.versions()
 }
 
 /// Whether the other end's `app_versions` name podssh's pairing of this
 /// version; the words to say when they do not.
 pub fn ours(theirs: &Value) -> Result<(), String> {
-    match theirs.get(PAIRING).and_then(Value::as_u64) {
-        Some(VERSION) => Ok(()),
-        Some(other) => Err(format!("the other end speaks podssh's pairing of version {other}, this podssh {VERSION}")),
-        None => Err("the other end is no pairing of podssh's: another program had the same code".into()),
+    PAIR.ours(theirs)
+}
+
+/// One kind of exchange by a code, as its version phase names it. Both
+/// kinds share podssh's AppID, so that a code given to the other kind's
+/// command is told apart with the words of the command that takes it, not
+/// as a code typed wrong.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Kind {
+    /// Its name in `app_versions`.
+    pub name: &'static str,
+    /// The version of its words.
+    pub version: u64,
+    /// What it is, in a line.
+    pub what: &'static str,
+    /// The commands that give and take its code, for a line.
+    pub giver: &'static str,
+    pub taker: &'static str,
+}
+
+/// The pairing of a node's host and an operator (T-086).
+pub const PAIR: Kind = Kind {
+    name: PAIRING,
+    version: VERSION,
+    what: "pairing",
+    giver: "podssh relay pair NAME --code",
+    taker: "podssh relay join NAME",
+};
+/// A new device's join of its owner's net (T-616).
+pub const NET_INVITE: Kind = Kind {
+    name: "podssh-net-invite",
+    version: 1,
+    what: "invitation to a net",
+    giver: "podssh net invite NAME",
+    taker: "podssh net join",
+};
+/// Each kind that this podssh runs.
+pub const KINDS: [Kind; 2] = [PAIR, NET_INVITE];
+
+impl Kind {
+    /// What this end of the kind says in its version phase.
+    pub fn versions(self) -> Value {
+        let mut versions = serde_json::Map::new();
+        versions.insert(self.name.to_string(), Value::from(self.version));
+        Value::Object(versions)
+    }
+
+    /// Whether the other end's `app_versions` name this kind of this
+    /// version; the words to say when they do not, which name the command
+    /// of the other kind when the other end runs one.
+    pub fn ours(self, theirs: &Value) -> Result<(), String> {
+        match theirs.get(self.name).and_then(Value::as_u64) {
+            Some(version) if version == self.version => Ok(()),
+            Some(other) => Err(format!(
+                "the other end speaks podssh's {} of version {other}, this podssh {}",
+                self.what, self.version
+            )),
+            None => match KINDS.iter().find(|kind| kind.name != self.name && theirs.get(kind.name).is_some()) {
+                Some(kind) => Err(format!(
+                    "the other end runs podssh's {}, not its {}: a code of {} is taken by {}, and one of {} by {}",
+                    kind.what, self.what, self.giver, self.taker, kind.giver, kind.taker
+                )),
+                None => {
+                    Err(format!("the other end is no {} of podssh's: another program had the same code", self.what))
+                }
+            },
+        }
     }
 }
 
@@ -175,5 +238,19 @@ mod tests {
         assert!(ours(&json!({ "podssh-pair": 2 })).unwrap_err().contains("of version 2"));
         assert!(ours(&json!({ "podssh-test": 1 })).unwrap_err().contains("no pairing of podssh's"));
         assert!(ours(&Value::Null).is_err());
+    }
+
+    #[test]
+    fn each_kind_takes_its_own_and_names_the_command_of_the_other() {
+        assert_eq!(NET_INVITE.versions(), json!({ "podssh-net-invite": 1 }));
+        assert!(NET_INVITE.ours(&NET_INVITE.versions()).is_ok());
+        let pair_at_invite = PAIR.ours(&NET_INVITE.versions()).unwrap_err();
+        assert!(pair_at_invite.contains("runs podssh's invitation to a net, not its pairing"), "{pair_at_invite}");
+        assert!(pair_at_invite.ends_with("one of podssh net invite NAME by podssh net join"), "{pair_at_invite}");
+        let invite_at_pair = NET_INVITE.ours(&PAIR.versions()).unwrap_err();
+        assert!(invite_at_pair.contains("one of podssh relay pair NAME --code by podssh relay join NAME"));
+        assert!(NET_INVITE.ours(&json!({ "podssh-test": 1 })).unwrap_err().contains("no invitation to a net"));
+        assert!(NET_INVITE.ours(&json!({ "podssh-net-invite": 2 })).unwrap_err().contains("of version 2"));
+        assert_ne!(PAIR.name, NET_INVITE.name);
     }
 }

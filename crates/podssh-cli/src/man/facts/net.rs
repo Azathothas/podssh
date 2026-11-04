@@ -12,10 +12,10 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["PODSSH_PAIR_MAILBOX"],
-        "The mailboxes of podssh relay pair --code and podssh relay join (T-086), as --pair-mailbox, which wins: \
-          ws:// or wss:// URLs by commas, in order, such as podssh relay serve's wss://HOST/v1/mailbox. Unset, \
-          empty or yes: magic-wormhole's public mailbox, then Least Authority's; no: no pairing by code, which \
-          then refuses (78) with the way of the operator's file; a URL that cannot be read is a configuration \
-          error (78), which does not echo it.",
+        "The mailboxes of podssh relay pair --code and podssh relay join (T-086), and of podssh net invite and \
+          podssh net join (T-616), as --pair-mailbox, which wins: ws:// or wss:// URLs by commas, in order, such as \
+          podssh relay serve's wss://HOST/v1/mailbox. Unset, empty or yes: magic-wormhole's public mailbox, then \
+          Least Authority's; no: no code, which then refuses (78) with the way left, the operator's file or podssh \
+          net add and take; a URL that cannot be read is a configuration error (78), which does not echo it.",
     ),
 ];

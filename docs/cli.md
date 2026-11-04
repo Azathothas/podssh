@@ -3876,6 +3876,35 @@ that the owner's key signs, and that each end keeps.
   name, roles, fingerprint, kinds of tickets, apart by tabs; the net in one
   line on stderr), `show` (the document's bytes as signed; `--signature`,
   the armour), `take FILE` (a signed file, or `FILE` with `FILE.sig`).
+- **A new device by a short code** (T-616): `invite NAME` on the owner's
+  host, with `--roles` (`node` by default), `--owner-key`, `--days` and
+  `--pair-mailbox`; `join` on the device, with `--owner KEY`, `--key FILE`
+  and `--pair-mailbox`. They run the exchange of `podssh relay pair
+  --code` ("Pairing by a short code" in [reverse.md](reverse.md), T-086)
+  with words of their own, which its version phase tells apart: a code of
+  the other command is refused with the name of the command that takes it.
+  The code shows on the owner's run's terminal alone, beside the owner's
+  fingerprint (64 with no terminal, before the owner's key is asked or
+  anything signed); the owner's key is found, and a passphrase asked,
+  before the code is made.
+  The offer is the net's name, the owner's public key, NAME and its roles;
+  the device's answer is its key, or why it refuses; the owner's host reads
+  its document again, adds NAME with the key, signs and keeps the next
+  serial as `add` does, then gives the signed document in parts of 6 KiB at
+  most, as a mailbox bounds each message. The device takes the code at a
+  prompt, or one line of a pipe, never argv, and checks the owner before it
+  keeps anything: the owner of `--owner`, else of the net that it holds,
+  else the person's `yes` at the terminal of stdin, with the fingerprint
+  that the device made from the owner's key; with a pipe and neither, 64
+  before the code is read. A refusal of the device is said to the owner's
+  host, which signs nothing. Then its key (`--key FILE`, else
+  `node-NAME.key` of the cache, made when missing), and the document,
+  checked against the offer and the key, taken by the rule of `take`. A
+  NAME that is a member already goes to its own key alone, with the
+  document held (the way back after a lost last word), another key is
+  refused, and `--roles` with it is 64. Each end writes one line on stdout.
+  A wrong code, a code that nobody holds, and a refusal at either end are
+  77; no mailbox reached, or nobody within 10 minutes, 69.
 - **The rule of a new document**: the owner's signature, an end still to
   come, and, when a document is held, the same owner and a higher serial;
   the same document again is no change (0). The first document is the one
@@ -3941,9 +3970,10 @@ that the owner's key signs, and that each end keeps.
 - `PODSSH_NET=no` turns the net off: no name, no door, no document of the
   channel. Exit codes: 64 for the command line, 65 for a document or a
   policy refused, 66 for a file of `take` or `policy set` that is not there,
-  73 for a document that could not be kept, 77 for `policy check` refused,
-  78 for a host with no net, an owner's key that is not found, or a bad
-  `PODSSH_NET`.
+  69 for a mailbox of `invite` or `join` out of reach, 73 for a document
+  that could not be kept, 77 for `policy check` refused and for a code or a
+  join refused, 78 for a host with no net, an owner's key that is not
+  found, `PODSSH_PAIR_MAILBOX=no`, or a bad `PODSSH_NET`.
 
 ## The exit of the net
 

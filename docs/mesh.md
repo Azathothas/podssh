@@ -27,7 +27,7 @@ This page is the design. Each part names its entry, and
 | A tailnet: a coordination server, node keys, Tailnet Lock | A net: a list of the user's nodes, signed by the user's own key, held by each node; no server to trust | T-429 |
 | MagicDNS | A member's name: `podssh ssh NAME`, `node://NAME` | T-429 |
 | ACLs and grants | The net's policy, signed by the owner, checked at each node; a grant used once, checked at the node | T-430, T-226 |
-| Auth keys, a device's approval | Pairing by a short code over a public mailbox, with a PAKE | T-086 |
+| Auth keys, a device's approval | Pairing by a short code over a public mailbox, with a PAKE; a new device's join of the net by one, its owner checked at the device | T-086, T-616 |
 | DERP and peer relays | The roads race (iroh, DERP, pairs, quick tunnel, the carriers of Q65); the relay as a role of a node; a member that relays for two others | T-169, T-427, T-428, T-434 |
 | Exit nodes | `podssh node --exit`: the node's egress for its owner's forward road, and a local SOCKS5 or HTTP proxy when the user asks | T-431 |
 | Subnet routers | `--routes CIDR,...`: the private networks that the node reaches, for the net | T-432 |
@@ -81,9 +81,11 @@ there is no server to trust and nothing to hold up (T-429).
   pkarr server (Q57) names its iroh home, and names its DERP home and its
   quick tunnel too (T-445). A client looks a member up by name in the net,
   then by key in the record.
-- **Joining.** `podssh net invite` gives a short code; the new device says
-  it on its side, and both ends run SPAKE2 over a public magic-wormhole
-  mailbox (Q65, T-086); the owner's side then signs the new key into the net.
+- **Joining.** `podssh net invite NAME` gives a short code; the new device
+  says it on its side (`podssh net join`), and both ends run SPAKE2 over a
+  public magic-wormhole mailbox (Q65, T-086); the owner's side then signs
+  the new key into the net, and gives the device the signed document
+  (T-616, below).
 - **Leaving.** A member removed from a newer document is refused by each
   member that has that document; a member that a lost key held is removed
   the same way.
@@ -163,6 +165,39 @@ What T-430 built ([cli.md](cli.md), "`podssh net`"):
   checked now; the node that uses them came with T-431, which asks
   `crates/podssh-cli/src/net/policy.rs` for `exit:NODE` and an address, and
   T-432 builds the net's routes on it.
+
+What T-616 built (drafted 2026-11-04; [cli.md](cli.md), "`podssh net`"):
+
+- The join runs the exchange of the pairing by a code
+  (`crates/podssh-relay/src/code/run.rs`), whose runs carry an offer, an
+  answer and the giver's last words as bytes for each kind of exchange; the
+  version phase names the kind, so that a code given to the other kind's
+  command is told apart before either end says a word, with the command
+  that takes it. Its words are the binary's
+  (`crates/podssh-cli/src/net/invitation.rs`), as the document and its
+  signature are: the library carries no SSH code.
+- `podssh net invite NAME` offers the net's name, its owner's public key,
+  NAME and its roles; the device answers with its key, or with why it
+  refuses; the owner's host reads its document again, adds the member as
+  `add` does, signs and keeps the next serial, then gives the signed
+  document in parts, each below the role's bound on a mailbox's message.
+  The owner's key is found, and a passphrase asked, before the code is
+  made; the agent's signature runs on a thread of its own. A NAME that is
+  a member already goes to its own key alone, with the document held, so
+  that a code never hands a member's name to a new key
+  (`crates/podssh-cli/src/net/invite.rs`).
+- `podssh net join` checks the owner before it keeps anything: the owner
+  of `--owner`, else of the net that it holds, else the person's `yes` at
+  the terminal, with the fingerprint made from the offer's key; a run with
+  its code on a pipe and neither is refused before the code is read. Then
+  its key, the node's of NAME by default, and the document, checked
+  against the offer and the key, taken by the rule of `podssh net take`
+  (`crates/podssh-cli/src/net/join.rs`).
+- The owner's side keeps the new serial before it sends it. A last word
+  lost leaves the member in the owner's document and nothing on the
+  device: `podssh net invite NAME` again gives the device the document
+  held, by a new code, as the key is the member's already; never a serial
+  that the device holds and the owner does not.
 
 ## 4. The relay as a role of podssh
 

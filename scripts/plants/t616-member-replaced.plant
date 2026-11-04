@@ -1,0 +1,11 @@
+# T-616: the owner's host gives a member's name to another key that came by a
+# code, as if it skipped the check of the member's key, so a guess of a code
+# would be the node that the members reach by its name; the test of a
+# member's name, which must go to its own key alone, must fail.
+ENTRY=T-616
+GROUP=cli-tests
+EXPECT='test a_member_s_name_goes_to_its_own_key_alone \.\.\. FAILED'
+# The role's harness asks for Python and openssl, which the build image lacks:
+# with no SETUP the test said it did not run, and passed.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
+RUN='cargo test --locked -p podssh-cli --test net_invite -- a_member_s_name_goes_to_its_own_key_alone'

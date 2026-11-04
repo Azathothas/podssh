@@ -6,9 +6,12 @@
 //! nobody; a third end is refused while two hold the code; no line and no
 //! `Debug` holds the code. A peer of magic-wormhole's own Python library and
 //! podssh's finish the `pake` and `version` phases and a message each way,
-//! either one giving the code, and a wrong code fails both. Planted
+//! either one giving the code, and a wrong code fails both. A code of the
+//! net's invitation (T-616) taken by the pairing's command is told apart at
+//! the version phase, with the command that takes it. Planted
 //! (`scripts/plants/t086-*.patch`): a third side let in, the code said in a
-//! line, a version that does not open taken.
+//! line, a version that does not open taken; (`t616-kind-unchecked`) a
+//! version of another kind taken.
 #![cfg(all(feature = "pair", feature = "code"))]
 
 mod cleanup;
@@ -18,7 +21,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use mailbox_harness::{mailboxes, nobody_there, Peer, LIMIT};
-use podssh_relay::code::exchange::{Done, Offer};
+use podssh_relay::code::exchange::{self, Done, Offer};
 use podssh_relay::code::mailbox::Mood;
 use podssh_relay::code::run::{self, Ends, Given, Taken, Waits};
 use podssh_relay::code::{self, words, Code, Failed};
@@ -188,6 +191,38 @@ async fn a_third_end_is_refused_while_two_hold_the_code() {
         assert_eq!(first.confirm(LIMIT).await.unwrap(), versions, "{name}");
         giver.close(Mood::Happy).await;
         first.close(Mood::Happy).await;
+    }
+}
+
+#[tokio::test]
+async fn a_code_given_to_the_other_kind_s_command_is_told_apart_before_a_word() {
+    for (name, url, _server) in mailboxes("kind").await {
+        let said = Said::default();
+        let ends = ends(vec![url.clone()], &said);
+        let (shown_tx, shown_rx) = tokio::sync::oneshot::channel::<String>();
+        let mut shown_tx = Some(shown_tx);
+        let mut show = move |made: &Code, _: &str| {
+            if let Some(tx) = shown_tx.take() {
+                let _ = tx.send(made.for_terminal().to_string());
+            }
+        };
+        let mut answer = |_: &[u8]| -> Result<Vec<Vec<u8>>, Failed> { Ok(Vec::new()) };
+        let (invited, waits) = (br#"{"net": "home"}"#, waits());
+        let giving = run::give_with(&ends, &waits, exchange::NET_INVITE, invited, &mut show, &mut answer);
+        let taking = async {
+            let code = Code::parse(&shown_rx.await.expect("the giver showed a code")).expect("a code");
+            let mut check = |_: &Offer| Ok(());
+            run::take(&ends, &waits, &code, &OPERATOR, &mut check).await
+        };
+        let (given, taken) = tokio::join!(giving, taking);
+        let Err(Failed::Peer(why)) = taken else { panic!("{name}: the pairing's taker went on") };
+        assert!(why.contains("one of podssh net invite NAME by podssh net join"), "{name}: {why}");
+        match given {
+            Err(Failed::Peer(why)) => {
+                assert!(why.contains("runs podssh's pairing, not its invitation"), "{name}: {why}")
+            }
+            other => panic!("{name}: the invitation's giver went on: {other:?}"),
+        }
     }
 }
 
