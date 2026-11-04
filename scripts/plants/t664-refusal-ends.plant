@@ -1,0 +1,8 @@
+# T-664: a host that refuses the key that it took last ends the login, where
+# the usual way goes on with the other keys; the test of the key that moved
+# must fail.
+ENTRY=T-664
+GROUP=cli-tests
+EXPECT='test a_host_that_no_longer_takes_the_key_lets_the_other_keys_in \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --test cold_connect -- a_host_that_no_longer'
+LIMIT=1800

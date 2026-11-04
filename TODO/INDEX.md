@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**624 entries: 121 open, 6 partial, 2 blocked, 495 done.**
+**625 entries: 120 open, 7 partial, 3 blocked, 495 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
 | P2 | 32 | 3 | 0 | 239 | 274 |
-| P3 | 89 | 1 | 2 | 191 | 283 |
-| **All** | 121 | 6 | 2 | 495 | 624 |
+| P3 | 88 | 2 | 3 | 191 | 284 |
+| **All** | 120 | 7 | 3 | 495 | 625 |
 
 ## Entries
 
@@ -694,9 +694,10 @@ repository and CI).
 | [T-661](ssh.md) | P2 | M | M10 | feature | open | Typing-aware flow control in podssh's SSH client: a bulk channel's window held to a round trip and 40 ms while a key waits |
 | [T-662](ssh.md) | P2 | S | M10 | feature | open | SSH windows that grow to the path where nobody types, to a cap of each road |
 | [T-663](resume.md) | P2 | S | M10 | feature | done | Liveness in round trips: a spare link after the larger of three round trips and 1 s, and a check when the host wakes |
-| [T-664](ssh.md) | P3 | M | M10 | feature | open | A faster cold connect: TLS tickets kept across runs, a key's signature sent with no query first, and fewer waits before the first command |
+| [T-664](ssh.md) | P3 | M | M10 | feature | partial | A faster cold connect: TLS tickets kept across runs, a key's signature sent with no query first, and fewer waits before the first command |
 | [T-665](roads.md) | P3 | S | M10 | measurement | open | QUIC on the iroh road, tuned and measured on a wide-area path |
 | [T-666](roads.md) | P3 | M | M10 | feature | open | Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection |
 | [T-667](mesh.md) | P3 | L | M10 | feature | open | QUIC on UDP 443 to podssh's relay role, raced with its TCP roads where a probe found that UDP passes |
 | [T-668](reverse.md) | P3 | L | M10 | feature | open | A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state |
 | [T-669](ssh.md) | P3 | S | M10 | measurement | open | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |
+| [T-670](ssh.md) | P3 | M | backlog | feature | blocked | TLS tickets kept across runs, once a release of rustls lets a client write one |

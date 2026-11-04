@@ -1,0 +1,7 @@
+# T-664: the login asks with none first, whatever key the host took last; the
+# test of a second login, which wants no none, must fail.
+ENTRY=T-664
+GROUP=cli-tests
+EXPECT='test a_second_login_signs_the_key_that_the_host_took_at_once \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --test cold_connect -- a_second_login'
+LIMIT=1800

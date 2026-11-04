@@ -1,0 +1,11 @@
+--- a/crates/podssh-ws/src/tls/store.rs
++++ b/crates/podssh-ws/src/tls/store.rs
+@@ -37,7 +37,7 @@
+     /// This process's hint first, then a run's before; rustls offers a group
+     /// that it does not have as if there were no hint.
+     fn kx_hint(&self, server_name: &ServerName<'_>) -> Option<NamedGroup> {
+-        self.memory.kx_hint(server_name).or_else(|| self.kept.group(&server_name.to_str()).map(NamedGroup::from))
++        self.memory.kx_hint(server_name)
+     }
+ 
+     fn set_tls12_session(&self, server_name: ServerName<'static>, value: Tls12ClientSessionValue) {

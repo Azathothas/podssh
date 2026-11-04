@@ -28,6 +28,10 @@ use crate::sk::SkKey;
 
 type DynAgent = AgentClient<Box<dyn AgentStream + Send + Unpin + 'static>>;
 
+// The key that a host took last, signed in the first request (T-664).
+#[path = "keys_at_once.rs"]
+mod at_once;
+
 enum AgentState {
     NotTried,
     Ready(DynAgent, VecDeque<PublicKey>),

@@ -511,6 +511,27 @@ impl<H: Handler> Handle<H> {
         self.wait_recv_reply().await
     }
 
+    /// [`Handle::authenticate_publickey`], with the signature in the first
+    /// request and no query first (RFC 4252, section 7): a round trip fewer,
+    /// for a key that the server is known to take. A server that does not
+    /// take it answers with a failure, as to a query; the signature is bound
+    /// to this session alone. podssh's patch (vendor/patches/russh/).
+    pub async fn authenticate_publickey_signed<U: Into<String>>(
+        &mut self,
+        user: U,
+        key: PrivateKeyWithHashAlg,
+    ) -> Result<AuthResult, crate::Error> {
+        let user = user.into();
+        self.sender
+            .send(Msg::Authenticate {
+                user,
+                method: auth::Method::PublicKeySigned { key },
+            })
+            .await
+            .map_err(|_| crate::Error::SendError)?;
+        self.wait_recv_reply().await
+    }
+
     /// Perform public OpenSSH Certificate-based SSH authentication
     pub async fn authenticate_openssh_cert<U: Into<String>>(
         &mut self,

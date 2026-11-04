@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/session.rs
++++ b/crates/podssh-ssh/src/session.rs
+@@ -90,7 +90,7 @@
+     // The modes of the pty also give the keys that end su's read (T-501).
+     let modes = if want_pty { terminal::pty_modes() } else { Vec::new() };
+     // The pty's answer read after the session's request is sent (T-664).
+-    let together = want_pty && requests_together(opts);
++    let together = want_pty && requests_together(opts) && false;
+     if want_pty {
+         let size = terminal::size().unwrap_or_else(terminal::fallback_size);
+         channel

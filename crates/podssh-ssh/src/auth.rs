@@ -1,7 +1,9 @@
 //! The authentication chain.
 //!
 //! `none` first, which tells podssh what the server accepts (and is enough on
-//! a server that wants nothing). Then the methods of `PreferredAuthentications`
+//! a server that wants nothing); in its place, the signature of the key that
+//! this host took last, with no query before it, whose answer tells the same
+//! (T-664, [`crate::accepted`]). Then the methods of `PreferredAuthentications`
 //! in order, each only while the server still lists it: public keys (agent,
 //! then key files), keyboard-interactive, password. A partial success (a
 //! server that wants two methods) carries on with the methods the server names
@@ -95,16 +97,26 @@ pub async fn authenticate(
     // The key of a password that podssh agent keeps (T-228).
     let stored = Target::password(user, host, port);
     let limit = opts.connect_timeout;
-    let none = within(limit, host, "the first request to log in", handle.authenticate_none(user)).await?;
-    let mut allowed: Vec<MethodKind> = match none {
-        Ok(AuthResult::Success) => return Ok("none"),
-        Ok(AuthResult::Failure { remaining_methods, .. }) => remaining_methods.iter().copied().collect(),
-        Err(e) => return Err(AuthError::Broke(format!("authentication failed before it started: {e}"))),
+    let mut keys = PublicKeys::new(opts, host, log.clone());
+    // This host, by its host key, in the record of the keys that hosts took
+    // (T-664).
+    let id = handle.agent_session_binding().map(|binding| crate::accepted::host_id(user, binding.host_key()));
+    let mut allowed: Vec<MethodKind> = match at_once(handle, user, id.as_deref(), opts, &mut keys, log).await? {
+        Some(Step::Success) => return Ok(Method::PublicKey.name()),
+        // Its answer lists what the server takes, as `none`'s would.
+        Some(Step::Failure { remaining, .. }) => remaining,
+        Some(Step::Exhausted) | None => {
+            let none = within(limit, host, "the first request to log in", handle.authenticate_none(user)).await?;
+            match none {
+                Ok(AuthResult::Success) => return Ok("none"),
+                Ok(AuthResult::Failure { remaining_methods, .. }) => remaining_methods.iter().copied().collect(),
+                Err(e) => return Err(AuthError::Broke(format!("authentication failed before it started: {e}"))),
+            }
+        }
     };
     log.debug(&format!("the server accepts: {}", allowed.iter().map(kind_name).collect::<Vec<_>>().join(",")));
     // The first list, for the refusal: `allowed` changes in the loop.
     let first_allowed = allowed.clone();
-    let mut keys = PublicKeys::new(opts, host, log.clone());
     let mut exhausted: Vec<Method> = Vec::new();
     let mut kbd_rounds = 0u32;
     let mut password_tries = 0u32;
@@ -132,10 +144,14 @@ pub async fn authenticate(
             }
         };
         match step {
-            Step::Success => return Ok(method.name()),
+            Step::Success => {
+                remember(id.as_deref(), method, &keys);
+                return Ok(method.name());
+            }
             Step::Failure { remaining, partial } => {
                 if partial {
                     log.verbose(&format!("{} accepted; the server asks for another method", method.name()));
+                    remember(id.as_deref(), method, &keys);
                 }
                 allowed = remaining;
             }
@@ -150,6 +166,51 @@ pub async fn authenticate(
         message.push_str(&note);
     }
     Err(AuthError::Refused(message))
+}
+
+/// The key that this host took last, signed in the first request, with no
+/// `none` and no query before it (T-664). Only when publickey is the first
+/// method, and the key is a file here that signs with no question; `None`
+/// sent nothing. A refusal forgets the key, and the usual way follows.
+async fn at_once(
+    handle: &mut Handle<Client>,
+    user: &str,
+    id: Option<&str>,
+    opts: &Options,
+    keys: &mut PublicKeys,
+    log: &Log,
+) -> Result<Option<Step>, AuthError> {
+    let (Some(id), Some(Method::PublicKey)) = (id, opts.methods.first()) else { return Ok(None) };
+    let fingerprint = match crate::accepted::last(id) {
+        Ok(Some(fingerprint)) => fingerprint,
+        Ok(None) => return Ok(None),
+        Err(why) => {
+            log.verbose(&why);
+            return Ok(None);
+        }
+    };
+    let step = keys.try_at_once(handle, user, &fingerprint).await?;
+    match &step {
+        Some(Step::Success) => crate::accepted::took(id, &fingerprint),
+        Some(Step::Failure { partial: true, .. }) => {
+            log.verbose("publickey accepted; the server asks for another method");
+            crate::accepted::took(id, &fingerprint);
+        }
+        Some(Step::Failure { .. }) => {
+            log.verbose("the host refused the key that it took last; the usual way follows");
+            crate::accepted::refused(id);
+        }
+        Some(Step::Exhausted) | None => {}
+    }
+    Ok(step)
+}
+
+/// The key that a success of publickey used, kept for this host's next login
+/// (T-664).
+fn remember(id: Option<&str>, method: Method, keys: &PublicKeys) {
+    if let (Some(id), Method::PublicKey, Some(key)) = (id, method, keys.last_offered()) {
+        crate::accepted::took(id, &crate::known_hosts::fingerprint(key));
+    }
 }
 
 /// The notes about keys for a refusal. They name keys only when publickey was
