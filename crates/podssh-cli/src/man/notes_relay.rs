@@ -72,10 +72,16 @@ pub const RELAY: &[&str] = &[
     "podssh relay info reads /relays.json from the first relay host: the edge that this host reaches, \
      the pool in the relay's order with its rank and its estimate of each round trip, and the limits of \
      a session. The relay makes that order from the edge that served the request, so two calls can \
-     disagree, and neither measures this host's path: podssh relay status times the hosts that podssh \
-     tries, and podssh ping --relay-host HOST times one, from this host. With --json, the relay's fields \
-     are unchanged, and pool_order says whose order it is and from which edge. With HOST PORT, also the \
-     URL that the relay chooses for that target.",
+     disagree, and neither measures this host's path: podssh relay rank measures each host of the pool, \
+     podssh relay status times the hosts that podssh tries, and podssh ping --relay-host HOST times one, \
+     from this host. A relay that names no edge and scores no host above 0, as podssh relay serve, is \
+     said to give no estimate. The next line says which order a run from this host takes, in the words \
+     of podssh doctor's line rank (the rank kept for this egress, the times of earlier races, the \
+     relay's order, RelayRank no, or the order that you named), with the list in that order, read from \
+     the cache with no connection. With --json, the relay's fields are unchanged, pool_order says whose \
+     order the pool is in and from which edge, relay_order gives the order of a run in podssh status's \
+     word (rank, samples, pool or off), or named for a list that you named, and relay_list its hosts \
+     (host, port), in that order. With HOST PORT, also the URL that the relay chooses for that target.",
     "podssh relay rank measures each relay host from this host, one at a time, and keeps the rank: the \
      default host and each host of its pool (the pool read first when none is cached), or the hosts of \
      --relay-host. Each round probes each host in a new random order, 250 ms apart, with a session to \
@@ -96,8 +102,8 @@ pub const RELAY: &[&str] = &[
      its race, the last 8 of each, with no connection of its own; where no rank holds, those times order the \
      pool. A list that the user names (--relay-host, PODSSH_RELAY, RelayHost) keeps its order. \
      PODSSH_RELAY_RANK=no, or RelayRank no in the settings file, gives the relay's order of the pool, as \
-     before; podssh status says which order a run takes (relay_order), and podssh doctor's line rank names \
-     it with the list.",
+     before; podssh status says which order a run takes (relay_order), and podssh doctor's line rank and \
+     podssh relay info name it with the list.",
     "A rank in a session's background (T-608) comes only when the user asks for it, with RelayRank auto in \
      the settings file or PODSSH_RELAY_RANK=auto, never by default (Q89). Then, when no rank holds for this \
      egress, a session of podssh ssh that the default list carries probes the default host and the hosts \

@@ -232,19 +232,22 @@ fn info_gives_the_pool_the_limits_and_the_url_for_a_target() {
     let edge = w.edge.map(|e| format!("; this host reaches it at edge {e}")).unwrap_or_default();
     assert_eq!(lines[0], format!("relay relay-a.test: tcp-ssh-relay {}{edge}", w.version), "{stdout}");
     assert_eq!(lines[1], format!("for 127.0.0.1:2222: wss://{host}/connect/127.0.0.1/2222"), "{stdout}");
-    let from = w.edge.map(|e| format!("edge {e}")).unwrap_or_else(|| "the edge that answered".into());
-    assert_eq!(
-        lines[2],
-        format!(
-            "pool, in the relay's order: 1 hosts; the rank and the score are the relay's estimate from {from}, \
+    // The stand-in names its edge; podssh's own role names none and scores
+    // its host 0, so it gives no estimate (T-618).
+    let pool = match w.edge {
+        Some(e) => format!(
+            "pool, in the relay's order: 1 hosts; the rank and the score are the relay's estimate from edge {e}, \
              which changes with the edge, not a measure of this host's path"
         ),
-        "{stdout}"
-    );
+        None => "pool, in the relay's order: 1 hosts; the relay gives no estimate of a round trip".into(),
+    };
+    assert_eq!(lines[2], pool, "{stdout}");
     assert!(lines[3].contains(w.pool) && lines[3].contains("relay-a.test"), "{stdout}");
-    assert!(lines[4].starts_with("measured from this host: podssh relay status"), "{stdout}");
+    assert!(lines[4].starts_with("measured from this host: podssh relay rank (each host of the pool), "), "{stdout}");
+    // The list named with --relay-host is the order of a run (T-618).
+    assert_eq!(lines[5], format!("a run from this host takes the order that you named; its list: {host}"), "{stdout}");
     assert_eq!(
-        lines[5],
+        lines[6],
         "limits: connect 10 s, idle 3 min, a session 12 h, a session 64 MiB, a frame 256 KiB, UDP unsupported",
         "{stdout}"
     );
@@ -258,6 +261,11 @@ fn info_gives_the_pool_the_limits_and_the_url_for_a_target() {
     assert!(doc["info"]["target"].is_null(), "no target was given: {doc}");
     assert_eq!(doc["pool_order"]["by"], "relay", "{doc}");
     assert_eq!(doc["pool_order"]["measured_here"], false, "{doc}");
+    // Beside the relay's order, the one that a run from this host takes:
+    // the list named, as it was named (T-618).
+    let port: u16 = host.rsplit_once(':').and_then(|(_, p)| p.parse().ok()).expect("the stand-in's port");
+    assert_eq!(doc["relay_order"], "named", "{doc}");
+    assert_eq!(doc["relay_list"], serde_json::json!([{ "host": "relay-a.test", "port": port }]), "{doc}");
 }
 
 #[test]

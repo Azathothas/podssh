@@ -131,7 +131,7 @@ pub fn status(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32
 }
 
 /// `info [HOST PORT]`: the first relay host's `/relays.json`, for the target
-/// when one is given.
+/// when one is given, and the order that a run from this host takes.
 pub fn info(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let target = match args.args.is_empty() {
         true => None,
@@ -162,13 +162,17 @@ pub fn info(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     };
     // Its signed list of deployments, checked and kept when it holds (T-346).
     let (signed_lines, signed_list) = crate::relay_deployments::info(&doc);
+    // The order that a run from this host takes, beside the relay's: read
+    // from the cache, with no connection (T-618).
+    let runs = crate::relay_rank_auto::run_order(&relays);
     if args.json {
         let order = crate::relay_diag_text::pool_order(&doc);
+        let list: Vec<Value> = runs.hosts.iter().map(|r| json!({ "host": r.host, "port": r.port })).collect();
         let doc = json!({ "schema": 1, "podssh": crate::help::version(), "relay": relay.host, "info": doc,
-            "pool_order": order, "signed_list": signed_list });
+            "pool_order": order, "relay_order": runs.word, "relay_list": list, "signed_list": signed_list });
         let _ = writeln!(out, "{doc}");
     } else {
-        for line in crate::relay_diag_text::info_lines(&relay.host, &doc).into_iter().chain(signed_lines) {
+        for line in crate::relay_diag_text::info_lines(&relay.host, &doc, &runs).into_iter().chain(signed_lines) {
             let _ = writeln!(out, "{line}");
         }
     }

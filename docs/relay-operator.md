@@ -462,6 +462,48 @@ its client; this deployment serves them once its contract has them.
       is not a number is read as `0`, with no message.
     - In podssh: podssh's own relay role (T-169, T-427) serves its own copy
       of the contract, which answers each of these for that role.
+20. **A rank and a score that two calls can compare** (T-619, [TODO/relay.md](../TODO/relay.md); #125, which GitHub no longer has).
+    `/relays.json` ranks the pool "for your edge colo and the target", as
+    the contract says, and its `policy.note`, as #125 quotes it, calls
+    `score_ms` "a static estimate of client to relay to target round trip"
+    and asks a client to probe `/health` on each host and keep the fastest
+    for its path. Both come from the edge that answered the request, and
+    the edge changes between identical calls:
+    - Measured on 2026-10-01: the order changed with the edge, and
+      `score_ms` did not agree with the latency that podssh measured
+      ([relay.md](relay.md), "Relay facts for a client that selects a
+      relay").
+    - Measured on 2026-11-03 by a tester (#125), through one proxy: three
+      calls, answered by the edges NRT, SIN and ARN, and each of the 37
+      hosts of the pool had another rank and another score in the first
+      call and the third. A client that calls once and takes rank 0 gets
+      the best host for an edge that its next call may not reach.
+    - What would make two answers comparable: an estimate from one vantage
+      that the document names, in a field beside `pool`; or the estimate of
+      the edge that answered, with that edge named beside each score, so
+      that a client tells the ranks of two edges apart. Say in the contract
+      which one it is, and whether `rank` follows `score_ms`.
+    - Whether a parameter pins it now: the contract says that
+      `/relays.json` documents its own `?prefer=`, `?region=`, `?relay=`
+      and `?spread=`; podssh read only `?relay=` (an unknown name is
+      ignored). The live document, read once on 2026-11-04 with the
+      caller's own fields left out (version `2026-10-03-r2`, T-619), has
+      no words on the other three: its `policy` echoes them as `prefer`
+      (`auto`), `region_pin`, `relay_pin` and `spread`, each null for a
+      call that gave none, and its `policy.note` is the one that #125
+      quotes. No field names the vantage of `score_ms`, so no parameter
+      that the document names says that it pins the estimate to one.
+    - In podssh: a run takes this order only where podssh measured none.
+      `podssh relay rank` measures each host of the pool from the client's
+      own host (T-606); the default list takes that rank, else the times of
+      earlier races, and the relay's order only where neither holds for the
+      egress or `RelayRank no` asks for it (T-607); `RelayRank auto` makes a
+      rank in a session's background (T-608). `podssh relay info` says that
+      the pool's rank and score are the relay's estimate from the edge that
+      it names (T-610), and names `relay rank` and the order that a run
+      takes (T-618). podssh's own relay role serves its one host at rank 0
+      and score 0 with no edge, so each call gets the same answer there,
+      and `relay info` says that it gives no estimate.
 
 ## When an item is ready
 

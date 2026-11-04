@@ -321,7 +321,7 @@ and `crates/podssh-ssh/src/keys.rs:107-139` offers a key to the server.
 ## Approach
 
 1. `--full` adds the check `login` after `forward`: a new forward session (as
-   `crates/podssh-cli/src/doctor/relay_checks.rs:183-204`), an SSH handshake that accepts only a
+   `crates/podssh-cli/src/doctor/relay_checks.rs:170-191`), an SSH handshake that accepts only a
    key of `GITHUB_KEYS` (equality; the probe `crates/podssh-ssh/src/probe.rs:16-26` records a
    key the same way), then public-key authentication as `git` with a throwaway Ed25519 key from
    `keygen::generate`. The key stays in memory and is never written.
@@ -355,7 +355,7 @@ sh scripts/test_in_box.sh path/to/static/podssh            # the Podman box: log
 ```
 
 Offline, `--full` adds one `????` line and no `FAIL`. A unit test of the verdict, as
-`crates/podssh-cli/src/doctor/relay_checks.rs:383-399` tests the keys: a refused key gives `ok`,
+`crates/podssh-cli/src/doctor/relay_checks.rs:370-386` tests the keys: a refused key gives `ok`,
 another host key gives `FAIL`. Planted defect: a handshake that accepts any host key; the
 wrong-key test fails.
 
@@ -413,7 +413,7 @@ Read: the session pings the relay every 10 s and counts the pongs, but it measur
 trip (`crates/podssh-ws/src/session.rs:289-317`; the payload is a counter, `:314`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
-against 64 MiB for each session (`docs/relay.md:441`). The stand-in relay answers pings
+against 64 MiB for each session (`docs/relay.md:443`). The stand-in relay answers pings
 (`scripts/fake-relay.py:388-389`).
 
 ## Approach
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5199-5227`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5206-5234`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:257-272`), and stdio needs no listener.

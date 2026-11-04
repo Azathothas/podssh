@@ -177,7 +177,9 @@ list that the user named keeps its order. `PODSSH_RELAY_RANK=no`, or the
 settings file's `RelayRank no`, gives the pool's order of `/relays.json`, as
 before; a variable that is set, and not empty, wins over the file.
 `podssh status` gives `relay_order` (`rank`, `samples`, `pool` or `off`),
-and `podssh doctor` a line `rank` with the list in that order.
+and `podssh doctor` a line `rank` with the list in that order; so does
+`podssh relay info`, after the relay's pool, and its `--json` gives
+`relay_order` and `relay_list` beside `pool_order` (T-618).
 
 A rank in a session's background (T-608) comes only when the user asks for
 it, with the settings file's `RelayRank auto` or `PODSSH_RELAY_RANK=auto`;
@@ -547,6 +549,22 @@ Measured 2026-10-01:
 - `/connect/` ignores ranking parameters: the host name dialled decides. The
   `X-Relay-Name` header of the `101` names the relay that served the
   session.
+
+Measured again on 2026-11-03 by a tester (GitHub #125, which GitHub no
+longer has), through one proxy: three calls, answered by the edges NRT, SIN
+and ARN, and each of the 37 hosts of the pool had another rank and another
+score in the first call and the third. The document's `policy.note`, as #125
+quotes it, calls `score_ms` a static estimate of the round trip from the
+client through the relay to the target. Whether `?prefer=`, `?region=` or
+`?spread=` pins the rank to one vantage: the live document (read once on
+2026-11-04, version `2026-10-03-r2`, T-619) says nothing of it. Its `policy`
+echoes `prefer` (`auto`), `region_pin`, `relay_pin` and `spread`, null where
+the call gave none, its note is the one that #125 quotes, and no field names
+the vantage of `score_ms`. A run of podssh takes this rank only where it measured
+none for its egress (T-606, T-607, above), and `podssh relay info` says
+whose rank it shows (T-610, T-618). A rank that two calls can compare is
+item 20 of [relay-operator.md](relay-operator.md), the note to the relay's
+operator.
 
 ### Open questions
 

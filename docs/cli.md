@@ -3266,8 +3266,8 @@ commands. The rules behind them:
   three other hosts of the pool, the default host at its place in the rank;
   the times of each run's own race order the pool where none holds;
   `PODSSH_RELAY_RANK=no` or `RelayRank no` turns both off (a variable that
-  is set wins over the file), and `status`'s `relay_order` and `doctor`'s
-  line `rank` say which order a run takes. With `RelayRank auto` or
+  is set wins over the file), and `status`'s `relay_order`, `doctor`'s
+  line `rank` and `relay info` say which order a run takes. With `RelayRank auto` or
   `PODSSH_RELAY_RANK=auto` alone, never by default (Q89, T-608), a session
   of `ssh` on the default list ranks in its background when no rank holds
   for this egress: the default host and its pool, 8 hosts in a day, one at
@@ -3282,9 +3282,16 @@ commands. The rules behind them:
   that this host reaches, the pool in the relay's order, the limits, and
   with a target the URL that the relay chooses for it. The relay ranks the
   pool from the edge that served the request, so the line says so, names
-  the edge, and points to `relay status` and `ping --relay-host HOST`,
-  which measure from this host; `--json` keeps the relay's fields and adds
-  `pool_order` (`by`, `edge`, `measured_here`) (T-610, GitHub #125). `relay trace HOST PORT`
+  the edge, and points to `relay rank` (each host of the pool),
+  `relay status` and `ping --relay-host HOST`, which measure from this
+  host; a document that names no edge and scores no host above 0, as
+  `relay serve`'s, reads "the relay gives no estimate of a round trip".
+  The next line names the order that a run from this host takes, in the
+  words of `doctor`'s line `rank`, with the list in that order, read from
+  the cache with no connection. `--json` keeps the relay's fields and adds
+  `pool_order` (`by`, `edge`, `measured_here`) (T-610, GitHub #125),
+  `relay_order` (`status`'s word, or `named` for a list that the user
+  named) and `relay_list` (each `host` and `port`, in that order) (T-618). `relay trace HOST PORT`
   asks the first host to dial the target and read its first line: the
   verdict, the address dialed, the times and the banner, cleaned to one
   line. The token goes in `X-Relay-Token`, never in the URL, and a cached
