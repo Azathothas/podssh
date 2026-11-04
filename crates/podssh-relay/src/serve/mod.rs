@@ -9,9 +9,11 @@
 //! `behind`). Its targets are dialed through the host's proxy when one is
 //! set ([`egress`], T-457), and an IPv6 target that its host cannot route
 //! out is refused before the upgrade ([`ipv6`], T-253). Its probes tell a
-//! client what the path does to a stream ([`probe`], T-325). The role's own
-//! listener takes TLS, or the cleartext road beside it by the first byte
-//! ([`listener`], [`cleartext`], T-326), with tokens of one session alone.
+//! client what the path does to a stream ([`probe`], T-325), and its HTTP
+//! road carries a session where the upgrade is refused on the way
+//! ([`http_road`], T-319). The role's own listener takes TLS, or the
+//! cleartext road beside it by the first byte ([`listener`], [`cleartext`],
+//! T-326), with tokens of one session alone.
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -20,6 +22,7 @@ pub mod cleartext;
 pub mod docs;
 pub mod egress;
 pub mod forward;
+pub mod http_road;
 pub mod ipv6;
 pub mod keys;
 pub mod listener;
@@ -179,7 +182,18 @@ pub async fn serve_from<S>(mut stream: S, cfg: Arc<Config>, sni: Option<String>,
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let Some((head, pending, path)) = head_of(&mut stream).await else { return };
+    let Some((head, pending, _)) = head_of(&mut stream).await else { return };
+    // The HTTP road keeps its connection for its next request, and gives
+    // back a request of another path that came on it (T-319).
+    let (mut stream, head, pending) = if http_road::serves(&head.target) {
+        match http_road::serve(stream, head, pending, cfg.clone()).await {
+            Some(next) => next,
+            None => return,
+        }
+    } else {
+        (stream, head, pending)
+    };
+    let path = head.target.split('?').next().unwrap_or_default().to_string();
     if brake::braked(&head.method, &path) {
         if let Err(braked) = cfg.brake.take(brake::Who::of(from)) {
             return slow_down(&mut stream, &head, pending, &path, braked, &cfg).await;

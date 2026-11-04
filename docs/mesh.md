@@ -191,6 +191,10 @@ which `--pairs FILE` keeps across a restart:
   by the address that its policy checked, so that a role behind a quick
   tunnel on a host whose one way out is a proxy serves its forward road too
   ([relay.md](relay.md), "The relay role's way out", T-457);
+- with its HTTP road, for a proxy that refuses the upgrade: the sessions of
+  the forward road over plain requests, in a split form on two connections
+  (Q44) and a serial form on one, behind a listener and behind a quick
+  tunnel ([relay.md](relay.md), "The relay role's HTTP road", T-319);
 - with pairs that their owner renews by the stop token, 72 h from then with
   the same tokens, as often as asked: `podssh relay pair --renew NAME`, and
   each node in its pair's last day, so that a node of the role outlives

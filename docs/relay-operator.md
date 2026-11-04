@@ -193,8 +193,12 @@ its client; this deployment serves them once its contract has them.
    directions of a session. podssh's check: 20 MiB each way, with equal
    digests, on each form, through a stand-in proxy that refuses `Upgrade`
    and buffers request bodies; then the live relay. In podssh: T-319
-   serves these endpoints in podssh's own relay role (T-169) and in a
-   node's quick tunnel (T-428).
+   serves these endpoints in podssh's own relay role (T-169), behind a
+   listener and behind a node's quick tunnel (T-428), in the form that
+   [relay.md](relay.md) gives ("The relay role's HTTP road"): an open with
+   the forward token, the session's key in a header, numbered batches up,
+   and the bytes down acknowledged by their offset, which a cut answer
+   costs nothing.
 6. **Endpoints that `doctor` can measure** (T-325, [TODO/ws.md](../TODO/ws.md); [#54](https://github.com/Azathothas/podssh/issues/54)).
    On the relay's own host: one endpoint that sends a response in timed
    chunks, and one that takes a body in chunks and says when each chunk

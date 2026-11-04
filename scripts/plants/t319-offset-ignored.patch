@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/http_road/sessions.rs
++++ b/crates/podssh-relay/src/serve/http_road/sessions.rs
+@@ -219,7 +219,7 @@
+             if from < st.base || from >= end {
+                 return Vec::new();
+             }
+-            copy_out(&st.down, (from - st.base) as usize, most)
++            copy_out(&st.down, 0, most)
+         })
+     }
+

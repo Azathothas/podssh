@@ -88,7 +88,9 @@ through the host's `HTTPS_PROXY` in "The relay role's way out" (T-457).
 An IPv6 target that its host cannot route out gets a `502` before the
 upgrade, which says so ("IPv6 targets", below; T-253). Its listener takes
 the cleartext road beside TLS, by the first byte of each connection, with
-tokens of one session alone ("The cleartext road", below; T-326).
+tokens of one session alone ("The cleartext road", below; T-326). For a
+proxy that refuses the upgrade, its HTTP road carries the same sessions over
+plain requests ("The relay role's HTTP road", below; T-319).
 
 ## How podssh selects relay hosts
 
@@ -850,3 +852,67 @@ and that token.
   edge answers to cleartext from a path with no such proxy waits for the
   live run of T-326 on a runner, and its want is item 7 of
   [relay-operator.md](relay-operator.md).
+## The relay role's HTTP road (T-319)
+
+For a proxy that ends TLS for the relay's name, refuses the WebSocket
+upgrade and still carries plain requests and their answers (GitHub #55; the
+proxy of a Claude Code cloud container documents such a refusal, T-311),
+`podssh relay serve`, and the role behind a node's quick tunnel, carry a
+session of the forward road over requests of HTTP/1.1
+(`crates/podssh-relay/src/serve/http_road/`); podssh's client speaks it
+once each relay host failed and the way to one refused the upgrade
+([cli.md](cli.md), "The HTTP road after the relay hosts";
+`crates/podssh-relay/src/http_road/`). Its split form keeps two connections
+to the host, which the operator's ruling Q44 allows on this road alone; the
+serial form, one, is its fallback. The default relay serves none of it
+([relay-operator.md](relay-operator.md), item 5).
+
+- `POST /v1/http/open/HOST/PORT[?family=4|6]` with the forward token in
+  `X-Relay-Token`, as `/connect/` takes it: the role checks the target by
+  the same policy, dials it the same way (through its host's proxy when one
+  is set), and answers its refusals as `/connect/` does (`403 forward: ...
+  not in the ALLOW list`, `502 relay: cannot reach ...`); else `200` with
+  `{"session", "key", "batch_max", "wait_max_ms", "down_max", "forms"}`.
+  The id is 32 hex digits, the key 43 characters of base64url; 256
+  sessions of a process at once at most, then `503` with `Retry-After`.
+- Each later request names the session by its id in the path, and proves
+  it by its key in `X-Session-Key`, never in a URL. A wrong key and an
+  unknown id get the same `404 http: no such session`.
+- `POST /v1/http/s/ID/up?seq=N[&fin=1]`: one batch, `batch_max` bytes at
+  most (256 KiB; 32 KiB behind a quick tunnel's node, which takes a body
+  whole), numbered from 0. `204` once the role stored it; a number taken
+  before is the same batch, answered alike and stored once; another number
+  than the next is `409`. The role holds 8 batches that the target has not
+  taken, and a batch past them waits 10 s for room, then gets `503` with
+  `Retry-After: 1`. `X-Ack` in each answer is the batches that the target
+  took. After the batch of `fin=1` the target gets TCP's half-close.
+- `GET /v1/http/s/ID/down?at=OFFSET&wait=MS`: the target's bytes from
+  OFFSET, which says that each byte before it came, so the role forgets
+  them; it holds 2 MiB that no request acknowledged, and reads the target
+  no further until one does. With bytes there, `200` with `X-Offset:
+  OFFSET`, which streams them in chunks on a kept connection, or to the end
+  of the connection, and ends 20 ms after nothing more came, or at
+  `down_max` (1 MiB), so that a hop that holds an answer to its end holds a
+  short one; with none within the wait (25 s at most), a whole `204`. A
+  newer request down ends an older one. An offset before what came, or past
+  what the role sent, is `409`.
+- `POST /v1/http/s/ID/x?[seq=N&]at=OFFSET&wait=MS[&fin=1]`, the serial
+  form: the batch, as `up` takes it, when `seq` is given, then the bytes
+  down from OFFSET in a whole answer of their length; an exchange that
+  carried a batch waits for no byte down.
+- `POST /v1/http/s/ID/close` ends the session (`1000 client closed`).
+- Once the session ended, each request gets `410` with `X-Close: CODE
+  REASON`, the close codes and reasons of the forward road ("Errors and
+  close codes"), for 60 s, then `404`. The target's end is `1000 target
+  closed`, once a request down acknowledged each of its bytes. The limits are
+  the forward road's: 180 s with no payload, 12 h, 64 MiB both ways; and a
+  session with no request for 60 s ends with `1001 client gone`.
+- A connection carries one request after another while its client keeps
+  it, and a request of another path that comes on it goes to the role's
+  routes. Behind a quick tunnel's node, which passes an answer to the end of
+  its connection, each answer closes its connection.
+
+The role's lines say `http open` and `http close CODE` for each session.
+Measured on 2026-11-04 (`crates/podssh-relay/tests/http_road.rs`, 8 passed, and
+`crates/podssh-relay/tests/http_road_quick.rs`, 2 passed): 20 MiB each way in each form, each
+byte once through lost and cut answers.

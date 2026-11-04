@@ -141,7 +141,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   On 2026-11-04 a sixth round was drafted, unbuilt, one commit for each entry, each branch pushed as
   `draft/worktree-agent-*` (the agents stopped at a limit of use at 00:50 UTC and were resumed):
   T-326 (`worktree-agent-a8b2a4b9acf9c2a8f`, `27a97cf`, merged and closed); T-319
-  (`worktree-agent-a39b6bc24832c974f`, `3739bcf`, a first part); T-173
+  (`worktree-agent-a39b6bc24832c974f`, `3739bcf`, a first part, merged, the entry partial); T-173
   (`worktree-agent-a935f48070b310b7c`, `6165bbc`, a first part); T-551
   (`worktree-agent-a5583c3e8856c1e14`, `b4568a4`); T-086 (`worktree-agent-aae965649ba432a53`,
   `7a0c97f`, whose `Cargo.lock` the merge makes). They wait to be merged in that order.
@@ -189,7 +189,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 579 entries: 94 open, 2 partial, 2 blocked, 481 done.
+`TODO/INDEX.md` holds 579 entries: 93 open, 3 partial, 2 blocked, 481 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -463,8 +463,8 @@ session's host, and a node with no pair serves the DERP road unasked
 (T-352).
 
 The operator settled Q44 to Q47 on 2026-10-30 (`docs/decisions.md`): the
-split HTTP road may open its second connection (T-319, which waits for the
-relay's endpoints); the cleartext road on port 443 runs last, with a token
+split HTTP road may open its second connection (T-319, whose endpoints podssh's
+relay role serves since Q63); the cleartext road on port 443 runs last, with a token
 for one session (T-326, which podssh's relay role serves since Q63); mRemoteNG's
 GPL test files may live beside their notice (T-327; FinalShell and Termius
 moved to T-328, which waits for exports); and podssh builds its quick

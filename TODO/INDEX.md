@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**579 entries: 94 open, 2 partial, 2 blocked, 481 done.**
+**579 entries: 93 open, 3 partial, 2 blocked, 481 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 29 | 1 | 0 | 234 | 264 |
+| P2 | 28 | 2 | 0 | 234 | 264 |
 | P3 | 65 | 0 | 2 | 183 | 250 |
-| **All** | 94 | 2 | 2 | 481 | 579 |
+| **All** | 93 | 3 | 2 | 481 | 579 |
 
 ## Entries
 
@@ -391,7 +391,7 @@ repository and CI).
 | [T-316](ws.md) | P2 | S | backlog | defect | done | `no_proxy` with CIDR blocks: an address inside a listed block goes through the proxy |
 | [T-317](ws.md) | P2 | S | backlog | defect | done | A proxy that answers `200` to CONNECT and then carries no SSH: `doctor` says that plain ssh can leave, and `--direct` ends with a bare reset |
 | [T-318](ws.md) | P3 | S | backlog | defect | done | A relay's name pinned to a loopback address goes to the proxy |
-| [T-319](roads.md) | P2 | L | M10 | feature | open | An HTTP road for a proxy that refuses the WebSocket upgrade |
+| [T-319](roads.md) | P2 | L | M10 | feature | partial | An HTTP road for a proxy that refuses the WebSocket upgrade |
 | [T-320](ws.md) | P3 | S | backlog | defect | done | A `407` names the proxy's authentication scheme |
 | [T-321](roads.md) | P3 | L | M10 | feature | open | An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441) |
 | [T-322](multi.md) | P3 | S | backlog | feature | done | The emergency stop of the broadcast has a key that the user chooses |

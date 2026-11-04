@@ -513,7 +513,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:319-485`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:319-486`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1156,13 +1156,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:405-426`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:407-428`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:350`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:352`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1211,7 +1211,7 @@ What the role serves: the contract `2026-10-03-r2`, so that each client of podss
 with `?dial=lazy`, `?precheck` and `?family`; `/relays.json` with the five limits of
 `crates/podssh-probe/facts/relay-limits.toml`; `/trace`; and `/llms-full.txt`, podssh's own copy
 of the contract. A target is dialed only after its name resolved to a public address (the ranges
-of `docs/relay.md:350`), and port 25 is refused; the limits are the contract's (an empty frame
+of `docs/relay.md:352`), and port 25 is refused; the limits are the contract's (an empty frame
 each 25 s, 180 s idle, 12 h, 64 MiB, frames of 262144 bytes), and so are the forward close
 codes; each queue has a bound (`1013` at 2 MiB, T-336), which a write that waits gives.
 
@@ -2575,7 +2575,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:334-336`).
+   URL or in output (`docs/relay.md:336-338`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:139-148`).
@@ -2800,7 +2800,7 @@ documents that refusal for the names that it intercepts (T-311). GitHub #55
 **Milestone:** M10
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2841,6 +2841,60 @@ its second connection, on this road only, after a probe found the upgrade
 refused; the serial form is its fallback. `AGENTS.md` (section 5, rule 2)
 names it as the third exception.
 
+2026-11-04 (the drafting agent), each call with what lost:
+
+- **The paths are #55's under `/v1/http/`**: `POST /v1/http/open/HOST/PORT`, then
+  `/v1/http/s/ID/up?seq=N`, `/down?at=OFFSET&wait=MS`, `/x` for the serial form and `/close`.
+  A quick tunnel's node gives each path under `/v1/` to the role already (T-428), so neither the
+  node nor `serve::serves` changes. Lost: a path at the root, which the node would not give.
+- **The open takes the forward token, checks and dials the target as `/connect/` does before its
+  upgrade, and answers a session's id and key**; each later request carries the key in
+  `X-Session-Key` alone. Lost: the token on each request, as with `--mint anyone` a token is free,
+  so a token and an id read from a log would reach a session; the key in the path or a cookie,
+  which go into logs.
+- **The bytes down are acknowledged by their offset**, a byte count, as TCP's are, where #55
+  numbers chunks: an answer that a hop cut gives each byte that came, and the next request asks
+  from there. Lost: numbered chunks framed inside the body, a second framing inside HTTP's, whose
+  cut chunk is lost whole.
+- **The batches up are numbered, as #55 has them, and stored once**: `204` once stored, the same
+  number again answered alike, `X-Ack` the batches that the target took; the role holds 8, and a
+  batch past them waits 10 s for room, then gets `503` with `Retry-After`. Lost: the client
+  keeping each batch until `X-Ack` passes it, as the role's store lives as long as the session
+  and a restart ends both; an answer only once the target took the batch, which would add the
+  target's write to each POST's trip.
+- **An answer down ends 20 ms after nothing more came, or at 1 MiB, and is a whole `204` after
+  its wait (20 s, 25 s at most)**: in chunks on a kept connection, to its connection's end else
+  and behind a quick tunnel's node, which reads an answer so. Lost: an answer that streams until
+  a time limit, whose bytes a hop that holds answers holds until then (an echo of a keystroke
+  would wait for it); measuring the path's buffering at each start, which T-325's probes take
+  seconds for.
+- **The serial form pauses 50 ms, then half as long again to 1 s, with nothing either way**, and
+  an exchange with a batch waits for no byte down. Lost: the role's long wait on an exchange,
+  behind which the next batch waits on the one connection; meek's 5 s, too slow for an echo.
+- **With no form asked, the split form opens when its second connection answers a first request
+  down within 20 s**; else the serial form on the first connection. Lost: both forms at once (two
+  sessions at the target); the serial form first, slower on each proxy that takes two
+  connections.
+- **Each request goes again, as it was, until an answer comes**: 100 ms, doubling to 2 s, for 60 s
+  since the last answer. Lost: an end at the first failure, as a hop's `502` and a lost answer
+  are what such paths do.
+- **The role's sessions are in one table of the process**, each with the `Config` of its role
+  (`Arc::ptr_eq`), as `probe.rs` counts its probes in a static. Lost: a field of `Config`, which
+  each of its constructors (about a dozen, in tests and in other drafts' work) would take, as
+  T-325's Decision found.
+- **A connection of the road is kept**, and a request of another path on it goes back to
+  `serve_from`. Lost: one request on each connection (a TLS handshake for each batch); refusing
+  another path there, which a proxy that pools connections may send.
+- **The client is in `podssh-relay` with no feature, its server under `serve`**, and the CLI
+  takes the road after each relay host failed, at the first host whose upgrade the way refused, by
+  the probe of the Piping Server road (`piping::probe::upgrade_refused`), before the direct road
+  and the forwarders. Lost: the road raced beside the WebSocket, as Q44 allows the second
+  connection only after the refusal; the road after the direct road, which names the target to
+  the proxy where the relay's road does not.
+- **`PODSSH_HTTP_ROAD`**: unset, `auto` or `yes`, the split form then the serial; `split` or
+  `serial`, that form; `no`, none. Lost: a flag, as the variable reaches each command of `ssh`'s
+  road at once, as `PODSSH_DIRECT` does.
+
 ## Prove
 
 ```sh
@@ -2852,6 +2906,20 @@ a session carries 20 MiB each way with equal digests on the split form and
 on the serial form. Planted: the sequence number ignored; the digests differ.
 
 ## Correction
+
+2026-11-04 (the drafting agent). The Premise holds, and so does "Not measured: the body
+buffering of this container's proxy". Of the Correction below: the node of a quick tunnel gives
+each path under `/v1/` to the role when it serves one (`--relay`, T-428, done), and answers 404
+to each other request but a visitor's WebSocket (`crates/podssh-relay/src/quick/serve.rs:8`
+says "any other request gets 404 with no body"), so the road behind a node is the role's, and a
+node with no `--relay` serves none of it. That node takes a request's body whole, 32 KiB at most
+(`crates/podssh-relay/src/quick/origin.rs:26`), and passes an answer to the end of its
+connection, so the role closes each connection there and names that bound on a batch. The new
+Prove's tests take features: `serve,plain-ws` for `http_road`, which runs the role on the
+loopback over plain TCP (`role_harness`), and `quick,serve,plain-ws` for `http_road_quick`. A
+library test has no SSH client, so its 20 MiB each way go to an echo on the loopback, and OpenSSH's
+sshd, where the host has one, says its version line through the road; 20 MiB to sshd under
+OpenSSH's client, through `podssh proxy`, is the CLI's test (Done, what remains).
 
 2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
 read, moved here as `cargo todo check` refuses a Blocker on an open entry:
@@ -2907,6 +2975,81 @@ relay role with OpenSSH's sshd as the target, and to a quick tunnel's node behin
 edge of T-300. Planted: the sequence number ignored; the digests differ. Live: in
 `.github/workflows/quick-tunnel-live.yml`, through a quick tunnel of the run, and on a GitHub
 runner where `podssh relay serve` runs.
+
+## Done
+
+Drafted 2026-11-04 (the drafting agent, `3739bcf`): its first part, the role's side and the
+client's road behind the probe, with tests; merged and measured by the main session the same day.
+What the draft holds:
+
+- The wire, the client and the role's server: `crates/podssh-relay/src/http_road/` (the paths
+  and words, an answer's reader, a kept connection, the open, the split form and the serial form)
+  and `crates/podssh-relay/src/serve/http_road/` (the open, the sessions in one table of the
+  process, the target's tasks, the answers); `serve_from` gives the road's paths to it and takes
+  back a request of another path that came on a kept connection
+  (`crates/podssh-relay/src/serve/mod.rs`); `probe::is_behind_node` is the road's too.
+- The client's road in the CLI (`crates/podssh-cli/src/http_road.rs`): `podssh proxy`
+  (`crates/podssh-cli/src/proxy.rs`) and `podssh ssh` with each command of its road
+  (`crates/podssh-cli/src/ssh/transport.rs`), once each relay host failed and the way to one
+  refused the upgrade, before the direct road and the forwarders; `PODSSH_HTTP_ROAD`.
+- The manual: `PODSSH_HTTP_ROAD` (`crates/podssh-cli/src/man/facts/roads.rs`) and THE RELAY's
+  item (`crates/podssh-cli/src/man/facts/http_road.rs`); `docs/relay.md` ("The relay role's
+  HTTP road"), `docs/cli.md` ("The HTTP road after the relay hosts"), `docs/architecture.md`,
+  `docs/mesh.md`, `docs/relay-operator.md` (item 5), `docs/STATUS.md`.
+- The tests: `crates/podssh-relay/tests/http_road.rs`, `crates/podssh-relay/tests/http_road_quick.rs`
+  and their harness (a stand-in proxy that refuses the upgrade, holds each body and answer, carries
+  one request on each connection, and loses the answer of each Nth batch and cuts each Nth answer
+  down; an echo; OpenSSH's sshd where the host has one); the plants `t319-seq-ignored` (the
+  batch's number not read) and `t319-offset-ignored` (the bytes down from the first unacknowledged
+  byte, not from the offset asked).
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test http_road
+cargo test -p podssh-relay --features serve,plain-ws,piping --test http_road -- the_proxy_s_refusal
+cargo test -p podssh-relay --features quick,serve,plain-ws --test http_road_quick
+cargo test -p podssh-relay --features serve,quick --lib http_road
+cargo test -p podssh-cli --lib http_road
+cargo test -p podssh-cli --lib man::
+sh scripts/plant-each.sh --here t319-seq-ignored t319-offset-ignored
+```
+
+- `--test http_road`: 8 passed (20 MiB each way in each form straight to the role and through the
+  stand-in, with the session's end `1000 target closed`; 4 MiB each way in each form through lost and
+  cut answers; the split form with no form asked; sshd's version line; the open's token and policy,
+  a wrong key and an unknown id alike, a session's close and its `410`), in 3.6 s; with `piping`,
+  `the_proxy_s_refusal` 1 passed.
+- `--test http_road_quick`: 2 passed (20 MiB each way in each form behind the stand-in edge, and
+  the open's `batch_max` of 32768 there), in 5.1 s.
+- `--lib http_road`: 16 passed (the relay crate), 3 passed (the CLI); `--lib man::`: 40 passed; the
+  CLI's lib: 826 passed.
+- Planted (`sh scripts/plant-each.sh --here t319-seq-ignored t319-offset-ignored`): 2 caught,
+  "each byte came back once, in order: 4222854 bytes, not 4194304" and "... the digests differ".
+- Each test of the relay crate with `--features serve,plain-ws,quick,pair,grant,piping`: no failure;
+  the CLI's `forwarder_cli` 4, `faults` 1 (12 ignored), `relay` 12, `ipv6_fallback` 16,
+  `direct_fallback` 4, `doctor_upgrade` 2, `ssh_args` 36, `proxy` 3, `opentunnel_road` 15,
+  `relay_serve` 14: passed.
+- `cargo clippy` of both crates (the relay's with `serve,plain-ws,quick,pair,grant,piping`) with
+  `--all-targets -D warnings`: clean, once the harness's `n % every == 0` became
+  `n.is_multiple_of(every)`; rustfmt: clean once it reflowed six of the draft's files. At the merge,
+  the role's dispatch of the road follows T-326's read of the request (`head_of`).
+
+What remains of the entry, for its next part:
+
+1. The quick tunnel's node with no `--relay` as a server of the road for its own target, with no
+   relay token, its sessions guarded by the layer's secret and the end-to-end channel (the new
+   Approach, item 2); and `ssh node://` over the road, the reverse road's sockets over requests
+   (item 3).
+2. The numbers of `doctor --stream` (T-325's `samples`) into `Tuning::measured`, so that the
+   batch and the wait come from the path's probe (#55's invariant 5); and `doctor` naming the road
+   that answered (item 5), and `/relays.json` naming the road's limits.
+3. A test of the CLI through a proxy that ends TLS for the relay's name: `podssh proxy` and
+   `podssh ssh` to `podssh relay serve`, OpenSSH's client to OpenSSH's sshd over the road, 20 MiB
+   each way, in each form; and `ssh`'s line for a close of the road other than `1000`, which the
+   stream's end alone gives it today, where `proxy` names it.
+4. The live runs: through a quick tunnel of `.github/workflows/quick-tunnel-live.yml`, and a
+   runner where `podssh relay serve` runs (Q88: they wait until podssh is stable).
+5. XHTTP's packet-up over HTTP/1.1 to a user's Xray-core (item 4) is T-456's.
 
 # T-321: An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441)
 
@@ -4003,13 +4146,13 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:249-254`; `docs/design.md:66`), and
+- Read: credentials never go in URLs (`docs/architecture.md:266-271`; `docs/design.md:66`), and
   `docs/decisions.md:78` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:238`); an RSA key signs through aws-lc-rs in the
   binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
-  the relay's caps (`docs/relay.md:361-367`), as an hour of EICE would need.
+  the relay's caps (`docs/relay.md:363-369`), as an hour of EICE would need.
 - Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
 
 ## Approach
@@ -4898,7 +5041,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:227-231`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:242-246`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
    `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
@@ -5029,7 +5172,7 @@ does not depend on them.
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:288`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:279-323`) and a check of `--upgrade`
+  (`crates/podssh-cli/src/ssh/transport.rs:289-333`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:343-346`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
@@ -5040,7 +5183,7 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:276-286`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:339-353`, `crates/podssh-relay/src/open.rs:31`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:349-363`, `crates/podssh-relay/src/open.rs:31`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:192-199`, `:201-293`).
@@ -5528,7 +5671,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:146`).
+  port 443 answers (`docs/STATUS.md:147`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -5753,7 +5896,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:249-254`); an `ss://` URI holds the password.
+  (`docs/architecture.md:266-271`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
@@ -7490,7 +7633,7 @@ puts the fallback in its `ok` column without a probe.
 - Read: the fallback follows each failure of the relay whose exit is 69 or 77
   (`crates/podssh-cli/src/forwarder/fallback.rs:91-111`), on by default
   (`crates/podssh-cli/src/forwarder/fallback.rs:55-67`), after the direct road
-  (`crates/podssh-cli/src/ssh/transport.rs:217-238`); the module's own words are that "a target
+  (`crates/podssh-cli/src/ssh/transport.rs:217-248`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
   (`crates/podssh-cli/src/proxy.rs:397-398`), and each other answer, the 502 of a target that the
