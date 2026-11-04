@@ -533,7 +533,7 @@ Read, the bounds today:
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:36-39`). Pump buffers: 32 KiB
-  (`crates/podssh-cli/src/pipe/pump.rs:23`).
+  (`crates/podssh-cli/src/pipe/pump.rs:24`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:31-35`, `crates/podssh-ssh/src/session.rs:22`.
 - No limit: a `known_hosts` file was read whole (`crates/podssh-ssh/src/known_hosts.rs`,
@@ -1376,12 +1376,12 @@ that fails at random hides a defect, or teaches the reader to rerun.
 
 ## Premise
 
-- The test (`crates/podssh-cli/tests/pipe.rs:234`) gives the bytes to podssh's stdin from a
+- The test (`crates/podssh-cli/tests/pipe.rs:235`) gives the bytes to podssh's stdin from a
   thread and waits 10 s for podssh to end; its server answers the digest once its input ends
-  (`crates/podssh-cli/tests/pipe.rs:134`).
+  (`crates/podssh-cli/tests/pipe.rs:135`).
 - The pump shuts the other side's write half down when its input ends
-  (`crates/podssh-cli/src/pipe/pump.rs:82`), and reads more of the input that is ready at once
-  without waiting (`crates/podssh-cli/src/pipe/pump.rs:139`).
+  (`crates/podssh-cli/src/pipe/pump.rs:94`), and reads more of the input that is ready at once
+  without waiting (`crates/podssh-cli/src/pipe/pump.rs:163`).
 
 ## Approach
 
@@ -1421,6 +1421,20 @@ podssh's stdin and whether it closed it, and how many bytes its server read, whe
 input ended, and whether it answered: so the next failure tells a pump that stopped reading stdin, a
 half-close that did not reach the server, and an answer or an exit that podssh did not finish apart.
 `cargo test -p podssh-cli --test pipe`: 10 passed here. It stays partial for those words.
+
+2026-11-04, later: the words came. `suite-repeat.yml` with `runner=windows-2025`, `package=podssh-cli`,
+`test=pipe`, 50 runs at `e5eb6cf` (run 41783492970): run 49 failed, the other 49 passed, and the test
+said: "the test gave stdin 1000000 bytes (closed: yes); the server read 1000000 bytes (its input
+ended: no, it answered: no); podssh said: Ok("")". So each byte crossed, and the end of input did
+not: either podssh's read of stdin never gave its end, or the half-close of the AF_UNIX socket did
+not reach the server; the server's read neither failed nor ended. From outside the two look alike.
+`podssh pipe -v` now says, for each direction, when its input ended, after how many bytes, and
+whether the other side's write half took the shutdown (`crates/podssh-cli/src/pipe/pump.rs`), and
+the test runs podssh with `-v`, so the next failure names the half. Two repeats on Windows follow:
+the test alone, and the suite with its other tests beside it, as a handle that another child of
+the test inherited would hold an end open only beside them. `cargo test -p podssh-cli --test
+pipe`: 10 passed here; by hand, 300,000 bytes to a Python AF_UNIX server: both lines said, the
+digest the same.
 
 # T-564: podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE`
 

@@ -13,14 +13,26 @@
 //! would read it.
 
 use std::future::Future;
+use std::io::Write as _;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::process::Child;
 
 /// The size of each read.
 const CHUNK: usize = 32 * 1024;
+
+/// Whether each direction says, at `-v`, when its input ended and how the
+/// other side's write half took the shutdown: the words that tell an input
+/// whose end never came from a half-close that did not reach the far side
+/// (T-465). A fact of the process, as the verb's `-v` is.
+static SAY_ENDS: AtomicBool = AtomicBool::new(false);
+
+/// Say each direction's end on stderr from now on (`podssh pipe -v`).
+pub fn say_ends() {
+    SAY_ENDS.store(true, Ordering::Relaxed);
+}
 
 pub type Reader = Box<dyn AsyncRead + Send + Unpin>;
 pub type Writer = Box<dyn AsyncWrite + Send + Unpin>;
@@ -78,15 +90,27 @@ pub struct Pumped {
 }
 
 /// Copy `from` to `to` until `from` ends, then shut `to` down; `count`
-/// holds the bytes written.
-pub async fn copy(mut from: Reader, mut to: Writer, count: &AtomicU64) -> Flow {
+/// holds the bytes written, and `input` names `from` at `-v`.
+pub async fn copy(mut from: Reader, mut to: Writer, count: &AtomicU64, input: &str) -> Flow {
     let mut buf = vec![0u8; CHUNK];
     loop {
         // A read that fails is an end of input, as `podssh proxy` reads stdin.
         let mut n = from.read(&mut buf).await.unwrap_or(0);
         if n == 0 {
             drop(from);
-            let _ = to.shutdown().await;
+            let shut = to.shutdown().await;
+            if SAY_ENDS.load(Ordering::Relaxed) {
+                let carried = count.load(Ordering::Relaxed);
+                let how = match shut {
+                    Ok(()) => "shut down".to_owned(),
+                    Err(e) => format!("not shut down: {e}"),
+                };
+                // A closed stderr is no reason to stop the pipe.
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "podssh: pipe: {input}'s input ended after {carried} bytes; the other side's write half {how}"
+                );
+            }
             return Flow::Ended;
         }
         n += ready_now(&mut from, &mut buf[n..]);
@@ -104,8 +128,8 @@ pub async fn pump(a: End, b: End) -> Pumped {
     let End { read: a_read, write: a_write, child: mut a_child, last_word: a_last, ending: a_ending } = a;
     let End { read: b_read, write: b_write, child: mut b_child, last_word: b_last, ending: b_ending } = b;
     let counts = [AtomicU64::new(0), AtomicU64::new(0)];
-    let a_to_b = copy(a_read, b_write, &counts[0]);
-    let b_to_a = copy(b_read, a_write, &counts[1]);
+    let a_to_b = copy(a_read, b_write, &counts[0], "A");
+    let b_to_a = copy(b_read, a_write, &counts[1], "B");
     tokio::pin!(a_to_b);
     tokio::pin!(b_to_a);
     // Whether A's output, and B's, has ended.
@@ -245,7 +269,7 @@ mod tests {
         let sizes = writes.0.clone();
         let total = 256 * 1024;
         let count = AtomicU64::new(0);
-        let flow = copy(Box::new(Cells { left: total }), Box::new(writes), &count).await;
+        let flow = copy(Box::new(Cells { left: total }), Box::new(writes), &count, "A").await;
         assert_eq!(flow, Flow::Ended);
         assert_eq!(count.load(Ordering::Relaxed), total as u64);
         let sizes = sizes.lock().unwrap().clone();

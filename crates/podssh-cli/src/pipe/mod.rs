@@ -61,6 +61,9 @@ pub struct PipeArgs {
 
 /// Run the verb; returns the process exit code.
 pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
+    if args.ssh.verbose > 0 {
+        pump::say_ends();
+    }
     let (a, b) = match address::both(args.a.as_deref(), args.b.as_deref()) {
         Ok(both) => both,
         Err(refusal) => return refusal.report("pipe", err),

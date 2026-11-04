@@ -906,8 +906,8 @@ line of `podssh ssh` at the end of `run_ssh`, from its result
 `crates/podssh-cli/src/proxy.rs:76-90`, its destination at
 `crates/podssh-cli/src/proxy.rs:163` and `crates/podssh-cli/src/proxy.rs:273`,
 its session at `crates/podssh-cli/src/proxy.rs:431-438`; the bytes of the
-pump at `crates/podssh-cli/src/pipe/pump.rs:96` and
-`crates/podssh-cli/src/pipe/pump.rs:106-134`, and the relay's close at
+pump at `crates/podssh-cli/src/pipe/pump.rs:120` and
+`crates/podssh-cli/src/pipe/pump.rs:130-158`, and the relay's close at
 `crates/podssh-cli/src/pipe/relay.rs:228`. `SessionLog` at
 `crates/podssh-cli/src/settings.rs:266-269`, and `podssh status` at
 `crates/podssh-cli/src/status.rs:129-140`. The variable in VARIABLES, the
