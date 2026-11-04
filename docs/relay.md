@@ -378,7 +378,13 @@ X-Relay-Token: <forward token>
   relay's Close is `1000 client half-closed, target idle for 15s`. Measured
   2026-10-09 (`python scripts/capture-close.py --client-close`): GitHub's
   answer, 800 bytes, came 0.4 s after the Close, and the relay's Close
-  15.4 s after it.
+  15.4 s after it. podssh's relay role does the same (T-671): the client's
+  Close shuts the target's writing side, so a target that reads to the end
+  of its input still answers; its bytes go to the client, and the role's
+  Close, the answer to the client's, is `1000 target closed` when the
+  target closes, or the line above after 15 s of its silence, counted from
+  its last byte. A link of the role's resumable layer (`/v1/layer/`) ends
+  at its client's Close, as the layer's `END` is its half-close (T-632).
 - The maximum frame is 262144 bytes (`/relays.json`,
   `limits.max_frame_bytes`). podssh takes in frames up to that cap, or up to
   a larger `max_frame_bytes` that its cached `/relays.json` gives, never over
@@ -788,6 +794,29 @@ through the default one:
   digits, `400`; a method other than POST, `405`. A relay of the contract
   answers the path as one it does not have, which the node reads as no
   rotation.
+- Beside the contract, a halt by the pair's owner (T-647, GitHub #145):
+  `POST /v1/halt/<name>` with the stop token and `{}` or `{"reason":
+  TEXT}` (one line of 200 bytes at most, else `400`) answers `{"halted":
+  true, "sessions": N, "since": MS}`. Each session of the pair ends once:
+  its operator hears `1011 the pair's owner halted it` after what waits
+  for it, and the node `close {id}` with those words, each id in flight
+  for the frames that cross it. Then each operator's upgrade, by the
+  connect token or a token of one leg, gets `503 reverse: the pair's owner
+  halted it: TEXT` with no `Retry-After`, before a token of `once` or of
+  one leg is spent; the node keeps its socket, so a second node still gets
+  `409`, and hears `{"type":"halted","since":MS,"reason":TEXT}`, which a
+  node of before skips as a type that it does not know; a node that joins
+  a halted pair hears it after its `hello`, which offers `"halt": true`.
+  A second halt changes nothing and says `"already": true`.
+  `POST /v1/resume/<name>` answers `{"resumed": true}` (`false` for a pair
+  that was not halted), the node hears `{"type":"resumed"}`, and the next
+  operator joins on the same socket. `GET /v1/status/<name>` says
+  `"halted"`, and while it holds `halted_since` and `halt_reason`;
+  `/relays.json` offers it as `"reverse": {"halt": true}`. The halt lives
+  in memory alone: a restart serves the pair again. Another token, and a
+  pair that ended, get `403`; a method other than POST, `405`. A relay of
+  the contract answers the paths as ones it does not have, which `podssh
+  relay halt` and `resume` say (69).
 
 ## Tokens for the keys of a list (T-448)
 

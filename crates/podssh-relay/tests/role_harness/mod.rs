@@ -52,12 +52,20 @@ impl Role {
     /// [`Role::configured`] with the sessions of its forward road in the
     /// resumable layer: their budget, their deadline, its own name (T-173).
     pub async fn configured_with(mint: Mint, policy: Policy, egress: Egress, resumes: Resumes) -> Role {
-        Role::serving(mint, policy, egress, resumes, Default::default()).await
+        Role::serving(mint, policy, egress, resumes, Default::default(), Limits::default()).await
     }
 
     /// The role with `pairs`: a small table, for a key's share of it (T-630).
     pub async fn with_pairs(mint: Mint, pairs: serve::reverse::Pairs) -> Role {
-        Role::serving(mint, Default::default(), Default::default(), Default::default(), pairs).await
+        let (policy, egress, resumes) = Default::default();
+        Role::serving(mint, policy, egress, resumes, pairs, Limits::default()).await
+    }
+
+    /// The role with `policy` and its own `limits`: a shorter silence of a
+    /// half-closed target, for its end (T-671).
+    pub async fn limited(policy: Policy, limits: Limits) -> Role {
+        let (egress, resumes, pairs) = Default::default();
+        Role::serving(Mint::Anyone, policy, egress, resumes, pairs, limits).await
     }
 
     async fn serving(
@@ -66,6 +74,7 @@ impl Role {
         egress: Egress,
         resumes: Resumes,
         pairs: serve::reverse::Pairs,
+        limits: Limits,
     ) -> Role {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
         let port = listener.local_addr().unwrap().port();
@@ -78,7 +87,7 @@ impl Role {
             tokens: serve::tokens::Tokens::new([5; 32]),
             policy,
             egress,
-            limits: Limits::default(),
+            limits,
             pairs,
             resumes,
             answered: Default::default(),

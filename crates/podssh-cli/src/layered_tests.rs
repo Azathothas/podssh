@@ -52,3 +52,15 @@ fn a_session_cut_after_a_signal_is_a_clean_end() {
     let unended = Carried { why: None, leg: None, channel: None, signalled: false };
     assert!(crate::operator::judged("lab", &unended).is_some(), "with no signal, the relay did not end it in time");
 }
+
+/// A halt of the pair's owner (T-647) is final for a new leg, as a refused
+/// token is, so that the session ends with the owner's words; a planned
+/// stop's `503` is not.
+#[test]
+fn a_halt_is_final_for_a_new_leg_and_a_restart_is_not() {
+    let refused = |status, body: &str| ConnectError::Refused { status, body: body.into() };
+    assert!(is_final(&refused(503, "reverse: the pair's owner halted it: a new disk\n")));
+    assert!(!is_final(&refused(503, "reverse: relay restarting\n")));
+    assert!(!is_final(&refused(503, "reverse: node unavailable\n")));
+    assert!(is_final(&refused(403, "reverse: forbidden\n")));
+}

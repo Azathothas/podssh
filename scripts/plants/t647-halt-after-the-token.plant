@@ -1,0 +1,8 @@
+# T-647: podssh's relay role checks a pair's halt only once the operator's
+# session joins, after the upgrade took the connect token of a pair of
+# `once`; the test that the halt's refusal leaves that token unspent, a 503
+# before the upgrade, must fail.
+ENTRY=T-647
+GROUP=resume
+EXPECT='test a_halt_does_not_spend_a_once_pairs_one_upgrade \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_halt -- a_halt_does_not_spend_a_once_pairs_one_upgrade'

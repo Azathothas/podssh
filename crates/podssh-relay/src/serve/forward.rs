@@ -5,7 +5,10 @@
 //! bound: a slow client slows the target's reads, as TCP would (T-336). The
 //! dial goes through the host's proxy when one is set (T-457, `egress`).
 //! The road with the resumable layer (T-173, `layer`) dials and pumps each
-//! of its links with the same functions.
+//! of its links with the same functions. The client's Close shuts the
+//! target's writing side, and the target's bytes still go to the client
+//! until it closes or is silent for 15 s, as the contract says (T-671); a
+//! link of the layer ends at its client's Close, as its session outlives it.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -119,7 +122,8 @@ where
         return;
     }
     cfg.event("upgrade");
-    let session = Arc::new(server::session(stream, pending, None));
+    // The client's Close is answered once the target's bytes are over.
+    let session = Arc::new(server::session(stream, pending, None).holding_close_answer());
     let tcp = match dialed {
         Some(tcp) => tcp,
         // `?dial=lazy`: the target is dialed once the client's first bytes come.
@@ -139,7 +143,8 @@ where
             Err(None) => return,
         },
     };
-    pump(session, tcp.into_split(), early, cfg).await;
+    let after = AfterClose::Drains(cfg.limits.half_closed);
+    pump(session, tcp.into_split(), early, cfg, after).await;
 }
 
 /// The target `host` by `plan`, within the dial's limit in all; `Err` holds
@@ -189,21 +194,41 @@ where
 
 /// How a session ended, and the Close that says so.
 enum End {
-    /// The client's Close, already answered.
+    /// The client's Close: the target's writing side is shut.
     Client,
     /// Nothing more can be said to the client.
     Gone,
     Close(u16, String),
 }
 
+/// What the client's Close does to the target's way to the client.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AfterClose {
+    /// It ends the session, answered by the reader: a link of the layer,
+    /// whose session goes on without it.
+    Ends,
+    /// The target's bytes go on until it closes, or is silent this long
+    /// after its last byte or the Close; the session's Close is the answer
+    /// (`docs/relay.md`, "The forward path", T-671). Its session holds the
+    /// answer ([`RelaySession::holding_close_answer`]).
+    Drains(Duration),
+}
+
+/// The words of a Close after the client's, when the target was silent for
+/// `idle`: the contract's, `client half-closed, target idle for 15s`.
+pub(super) fn half_closed(idle: Duration) -> String {
+    format!("client half-closed, target idle for {}s", idle.as_secs())
+}
+
 /// Bytes both ways between the client and the target's two halves until one
 /// side ends or a limit is met. The target is a TCP connection, or a link's
-/// end of the resumable layer (T-173).
+/// end of the resumable layer (T-173); `after`, what the client's Close does.
 pub(super) async fn pump<S, R, W>(
     session: Arc<RelaySession<S>>,
     (mut from_target, mut to_target): (R, W),
     early: Vec<u8>,
     cfg: Arc<Config>,
+    after: AfterClose,
 ) where
     S: AsyncRead + AsyncWrite + Send + 'static,
     R: AsyncRead + Unpin + Send,
@@ -295,13 +320,43 @@ pub(super) async fn pump<S, R, W>(
             }
         }
     };
+    // The way down and the limits outlive the client's Close.
+    tokio::pin!(down, limit);
     let end = tokio::select! {
         end = up => end,
-        end = down => end,
-        end = limit => end,
+        end = &mut down => end,
+        end = &mut limit => end,
+    };
+    let end = match (end, after) {
+        // The target's writing side is shut; its answer still comes.
+        (End::Client, AfterClose::Drains(idle)) => {
+            let quiet = until_quiet(started, started.elapsed(), &heard, idle);
+            tokio::select! {
+                end = &mut down => end,
+                end = &mut limit => end,
+                end = quiet => end,
+            }
+        }
+        (end, _) => end,
     };
     if let End::Close(code, why) = end {
         let _ = session.send_close(code, &why).await;
+    }
+}
+
+/// Until the target was silent for `idle` since its last byte, or since the
+/// client's Close at `closed_at`, each counted from `started`: the
+/// contract's end of a half-closed session (15.4 s after a Close that
+/// GitHub answered 0.4 s after it, measured 2026-10-09).
+async fn until_quiet(started: Instant, closed_at: Duration, heard: &AtomicU64, idle: Duration) -> End {
+    loop {
+        // After the Close, only the target's bytes move `heard`.
+        let last = Duration::from_millis(heard.load(Ordering::SeqCst)).max(closed_at);
+        let due = started + last + idle;
+        if Instant::now() >= due {
+            return End::Close(1000, half_closed(idle));
+        }
+        tokio::time::sleep_until(due).await;
     }
 }
 
@@ -329,5 +384,11 @@ mod tests {
         for bad in ["/connect/h", "/connect//22", "/connect/h/0", "/connect/h/x", "/health", "/connect/a/b/22"] {
             assert!(asked(bad).is_none(), "{bad}");
         }
+    }
+
+    #[test]
+    fn a_half_closed_session_ends_in_the_contracts_words() {
+        let idle = super::super::Limits::default().half_closed;
+        assert_eq!(half_closed(idle), "client half-closed, target idle for 15s");
     }
 }

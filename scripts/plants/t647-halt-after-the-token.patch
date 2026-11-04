@@ -1,0 +1,16 @@
+diff --git a/crates/podssh-relay/src/serve/reverse/mod.rs b/crates/podssh-relay/src/serve/reverse/mod.rs
+index d3b9dc1..15e6bdc 100644
+--- a/crates/podssh-relay/src/serve/reverse/mod.rs
++++ b/crates/podssh-relay/src/serve/reverse/mod.rs
+@@ -123,11 +123,6 @@ where
+     let Some(pair) = found else {
+         return answer(&mut stream, request::refusal(403, "reverse: forbidden", &[])).await;
+     };
+-    // A halted pair refuses each operator with its owner's words before a
+-    // token of `once` or of one leg is spent (T-647); a planned stop's first.
+-    if kind == "connect" && !cfg.pairs.stopping() && halt::refused(&mut stream, &pair).await {
+-        return;
+-    }
+     // It takes this upgrade and no other; a planned stop refuses it below, as
+     // it refuses each socket.
+     if let (Some(digest), false) = (leg, cfg.pairs.stopping()) {

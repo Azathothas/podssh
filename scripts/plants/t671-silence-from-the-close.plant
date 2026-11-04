@@ -1,0 +1,8 @@
+# T-671: the role counts a half-closed target's silence from the client's
+# Close, not from the target's last byte, so a target that answered late is
+# cut early; the test of the silent target, whose Close comes 1 s after its
+# answer, must fail.
+ENTRY=T-671
+GROUP=resume
+EXPECT='test a_silent_target_after_the_clients_close_ends_the_session_in_the_contracts_words \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_contract -- a_silent_target_after_the_clients_close_ends_the_session_in_the_contracts_words'

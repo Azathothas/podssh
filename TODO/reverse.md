@@ -3847,20 +3847,134 @@ Read at `2042200`:
 4. `podssh relay halt NAME [--reason TEXT]` and `podssh relay resume NAME`, with the pair's stored stop
    token, as `relay pair --renew` uses it; the manual and `docs/relay.md`.
 
+## Decision
+
+2026-11-04 (the drafting agent of T-647). No row of `docs/decisions.md` settles these, and none
+changes one; none is a call of policy: each is podssh's role's own, beside the contract, and a node
+or an operator of before works as before.
+
+1. **The halt is a field of the pair's state, under its lock** (`State::halted`), and its code a module
+   beside `pairs.rs` (`crates/podssh-relay/src/serve/reverse/halt.rs`), as `pairs.rs` is at its limit:
+   the request's check refuses an operator before any token is spent, and an operator that passed it
+   but registers its session after the halt gets `1011` with the halt's words, as the lock orders the
+   two. Lost: a flag beside the lock (a halt between the check and the registration would let one
+   session in).
+2. **A second halt changes nothing**: the first's time and words stay, and the answer says
+   `"already": true`; resume, then halt, for new words. Lost: a second halt that replaces the words
+   (two halts of the owner's scripts would overwrite each other).
+3. **The owner's words go into the `503`'s body and the status, never into a Close**, whose reason is
+   always `the pair's owner halted it`: a Close's reason is cut at 123 bytes, and podssh's client
+   reads it by its words. The words are optional, 200 bytes at most, one line (no control character,
+   else `400`), trimmed; blank words are none.
+4. **The node hears `{"type":"halted","since":MS,"reason":TEXT}` and `{"type":"resumed"}`**, the second
+   beyond the Approach so that a node can tell the end of a halt, and a node that joins a halted pair
+   hears `halted` after its `hello`, which offers `"halt": true` (not a carrier's). podssh's node of
+   this build skips both, as each type that it does not know: its sessions and its socket go on, and
+   `relay status` says the halt. Lost: a line of the node's (its socket's loop has no words for its
+   user, a change of `crate::reverse::serve` beside this entry); a Close to the node (it would lose
+   its name, the issue's case).
+5. **The status says `"halted"` always, false too, and `halted_since` and `halt_reason` while a halt
+   holds**: a check reads one field, and a client of the contract skips the fields that it does not
+   know, as it skips `expires`. `/relays.json` offers `"reverse": {"halt": true}` beside the others.
+   Lost: `halted` only while true.
+6. **The halt's `503` is final for podssh's layered client** (`layered::is_final`, by the words
+   `the pair's owner halted it` that `podssh_relay::pair::halt::HALTED` holds for both sides): an
+   operator whose session the halt closed asks for a new leg, as after each `1011`, and ends at once
+   with the owner's words, as the issue's "a close and not a pause" asks; a planned stop's `503`
+   stays one to wait out. Lost: a pause (each such client would retry for its resume deadline,
+   10 minutes, in silence, and resume after the owner's resume within it).
+7. **`relay halt` and `resume` refuse `--relay-host` (64)**, as `pair --renew` does: they ask the relay
+   that made the stored pair. `--reason` goes with `halt` alone (64). A relay that halts none (404 or
+   405) is 69, with `relay revoke` as the way to end the pair; a refused stop token is 77.
+8. **The role says a line for each halt and resume of an owner, and none for each operator that it
+   refuses**: each try of an operator would be one. Nothing reaps a halt but a resume, a stop, the
+   pair's end or a restart of the role, as the issue says.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_halt
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_reverse
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_once
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_contract
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib -- serve::reverse pair::
+cargo test -p podssh-cli --lib -- relay_halt relay_status layered::tests
 cargo test -p podssh-cli --test relay
+cargo test -p podssh-cli --test relay_serve_node
+cargo test -p podssh-cli --test man_flag_parity
+sh scripts/plant-each.sh --here t647-halt-after-the-token t647-halt-ends-the-node t647-halt-not-final
 ```
 
 A halted pair answers an operator `503` with its reason before the upgrade; the node's socket stays
 across a halt and a resume, and a second node is still `409`; each session hears one `1011`; a resume
 takes the next operator on the same socket; a once-pair's token is unspent after a refusal of a halt;
 `relay status --json` reads `halted`. Planted: the halted check after the token is spent, and the
-once-pair's test fails.
+once-pair's test fails; the node's socket closed by the halt, and the test of the same socket fails;
+a halt's `503` not final for the layered client, and its test fails.
+
+## Correction
+
+2026-11-04 (the drafting agent of T-647). Read in this tree before the draft (`df92546`):
+
+- `crates/podssh-relay/tests/relay_serve_reverse.rs` is 459 lines, so the role's tests of a halt are
+  a new target, `relay_serve_halt`, on raw sockets as `relay_serve_contract` speaks, and the Prove
+  above names it; `relay_serve_reverse` and `relay_serve_once` stay in it, as the node's `hello` has
+  a field more and the leg's path a check before it. The CLI's test against the role is in
+  `relay_serve_node`, beside the renewal's, and `relay` keeps the stand-in's, which halts none.
+- The Approach's `halted` frame has a second, `resumed`, and a status field more, `halted_since`, and
+  the client's end of a leg reads a halt's `503` as final (the `## Decision`, items 4 to 6).
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-647`), UNVERIFIED: no command above ran in the draft.
+
+- The role: `crates/podssh-relay/src/serve/reverse/halt.rs` (the halt, its words, its frames, the
+  status's fields, `Pairs::halt` and `Pairs::resume`, the routes and the refusal), with its unit tests
+  in `crates/podssh-relay/src/serve/reverse/halt_tests.rs`; `State::halted` and `Pairs::named` in
+  `crates/podssh-relay/src/serve/reverse/pairs.rs`; in `crates/podssh-relay/src/serve/reverse/mod.rs`
+  the paths, the check before the leg's path and `spend_connect`, the status, the routes, the `405`
+  and the `hello`'s offer; the node's `halted` at its join (`crates/podssh-relay/src/serve/reverse/node.rs`);
+  the race of a registration after the halt (`crates/podssh-relay/src/serve/reverse/operator.rs`);
+  `/relays.json`'s offer (`crates/podssh-relay/src/serve/docs.rs`).
+- The client: `crates/podssh-relay/src/pair/halt.rs` (the requests, `HALTED`, `is_halt`,
+  `check_reason`); `Status::halted` and `halt_reason` (`crates/podssh-relay/src/pair/renew.rs`, no
+  longer `Copy`); `layered::is_final` (`crates/podssh-cli/src/layered.rs`).
+- The CLI: `crates/podssh-cli/src/relay_halt.rs`; `relay_cmd.rs`'s subcommands and `--reason`;
+  `relay_status.rs`'s line (`, halted: WHY`) and `--json` (`halted`, `halt_reason`); the flag row of
+  `--reason` and the words of `--json` (`crates/podssh-cli/src/flags/relay.rs`); the positional's
+  help; the manual's notes of `relay` (`crates/podssh-cli/src/man/notes_relay.rs`).
+- `docs/relay.md` ("The relay role's reverse road"), `docs/reverse.md` ("Node"), `docs/cli.md` and
+  `docs/STATUS.md` say it.
+- `cargo test -p podssh-relay ... --test relay_serve_halt`: UNVERIFIED
+  (`a_halted_pair_refuses_an_operator_before_the_upgrade_and_says_why`: `403` for each token but the
+  stop token, `503` with the words and no `Retry-After` on the wire and through podssh's client, the
+  status, `400` and `405`; `a_halt_closes_each_session_once_and_a_resume_takes_the_next_on_the_same_socket`:
+  two sessions, one `1011` each, the node's `close` of each and `halted`, `409` for a second node,
+  `"already"`, `resumed`, the next operator's bytes on the same socket;
+  `a_halt_does_not_spend_a_once_pairs_one_upgrade`; `a_halt_does_not_take_a_token_of_one_leg`).
+- `cargo test -p podssh-relay ... --test relay_serve_reverse --test relay_serve_once --test
+  relay_serve_contract`: UNVERIFIED (unchanged, beside the new field of `hello`).
+- `cargo test -p podssh-relay ... --lib -- serve::reverse pair::`: UNVERIFIED (`halt::tests`: the
+  body's words, a node of before skips the frames, the status, `a_halt_is_idempotent_and_its_ids_stay_in_flight`;
+  `pair::halt::tests`; `pair::renew::tests` with the halt's fields; `serve::reverse::tests` with the
+  new paths).
+- `cargo test -p podssh-cli --lib -- relay_halt relay_status layered::tests`: UNVERIFIED.
+- `cargo test -p podssh-cli --test relay`: UNVERIFIED (`relay_halt_on_a_relay_with_none_says_so`: 69
+  for both verbs at the stand-in, 64 for `--reason` with `resume`).
+- `cargo test -p podssh-cli --test relay_serve_node`: UNVERIFIED
+  (`relay_halt_keeps_the_operators_out_with_its_words_and_resume_ends_it`: the line, the status and
+  its `--json`, `podssh operator` refused with the words, `halted already`, `resumed`, `not halted`).
+- `cargo test -p podssh-cli --test man_flag_parity`: UNVERIFIED (the row of `--reason`).
+- Planted (`t647-halt-after-the-token`, `t647-halt-ends-the-node`, `t647-halt-not-final`): UNVERIFIED.
+- Waits for the merge: the build, clippy and rustfmt; the crates' whole suites; `cargo todo remap` of
+  the cited files that the draft changed, none moved by hand (`crates/podssh-relay/src/serve/reverse/mod.rs`,
+  `pairs.rs`, `node.rs`, `operator.rs`, `crates/podssh-relay/src/serve/docs.rs`,
+  `crates/podssh-relay/src/pair.rs`, `crates/podssh-relay/src/pair/renew.rs`,
+  `crates/podssh-cli/src/relay_cmd.rs`, `relay_status.rs`, `layered.rs`, `lib.rs`, `positionals.rs`,
+  `crates/podssh-cli/src/flags/relay.rs`, `crates/podssh-cli/src/man/notes_relay.rs`, `docs/relay.md`,
+  `docs/reverse.md`, `docs/cli.md`, `docs/STATUS.md`); `cargo todo set T-647 done`; the comment on
+  GitHub #145 and its close (`TODO/issues.md`).
 
 # T-648: A node's socket queues each session's bytes in one line of 256 places, so one session's backlog delays each other session's
 

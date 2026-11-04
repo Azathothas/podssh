@@ -29,12 +29,15 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     // The stored pair renewed, on podssh's relay role (T-592).
     row(None, "renew", None, FlagKind::Supported,
         "pair: renew the pair stored under NAME at its relay, 72 h from now, its tokens the same, so that each operator's file holds; podssh relay serve renews, and a relay that renews none is said so (69), with the next pair in the last 24 h as the way", None),
+    // The owner's halt of a pair, on podssh's relay role (T-647).
+    row(None, "reason", Some("TEXT"), FlagKind::Supported,
+        "halt: the words that each operator of the halted pair hears in the relay's refusal, and that relay status shows: one line of 200 bytes at most", None),
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "status: the pair in FILE, or its operator's part, as pair --operator-file writes it, not the one stored under NAME; NAME, when given, is the label shown", None),
     row(None, "document", Some("FILE"), FlagKind::Supported,
         "spec: check FILE, a copy of the relay's document, and read nothing from the network", None),
     row(None, "json", None, FlagKind::Supported,
-        "status, info, trace and rank: the answer as one JSON object on stdout, when the run ends; for a pair, its label, online, sessions, expires and seconds_left", None),
+        "status, info, trace and rank: the answer as one JSON object on stdout, when the run ends; for a pair, its label, online, sessions, expires, seconds_left and halted, with halt_reason where its owner gave one", None),
     // The rank of the relay hosts, measured from this host (T-606).
     row(None, "rounds", Some("N"), FlagKind::Supported,
         "rank: probe each host N times, 1 to 20 (default 3), in a new random order each round", None),

@@ -100,6 +100,16 @@ token, with its tokens (T-592): `podssh relay pair --renew NAME` by hand,
 and the node by itself at the start of its last day, then each hour until
 it took; the role's status names the new end, which an operator whose file
 names an end that passed asks once, so the operator's file keeps working.
+On podssh's relay role the owner halts a pair for a while by the same
+token (T-647): `podssh relay halt NAME [--reason TEXT]` closes each of its
+sessions once and refuses each operator with `503` and the words, and
+`podssh relay resume NAME` lets them in again. The node keeps its socket
+across both, and its name, so it waits out no `409` (rule 6) after a
+resume; it skips the role's `halted` and `resumed` frames, as any type
+that it does not know. An operator whose session of the layer the halt
+closed asks for a new leg, as after each `1011`; the `503` of a halt is
+final for it, as a refused token is, so its session ends with the owner's
+words and does not wait out the resume deadline.
 Measured against the live relay on 2026-10-09: an operator that held the
 operator's part alone read GitHub's SSH banner through
 `podssh node lab github.com:22` (`cargo test -p podssh-cli --test node_live

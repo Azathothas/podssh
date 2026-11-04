@@ -6,7 +6,8 @@
 //! with the token in its header, its first line and the relay's refusal to
 //! dial; and a pair's state and expiry from an operator's file, on a host
 //! that stores no pair, and the words of `pair` on the way past the expiry
-//! (T-591). Those checks say that they did not run when this host has no
+//! (T-591); `halt` and `resume` of a pair at a relay that halts none
+//! (T-647). Those checks say that they did not run when this host has no
 //! Python or no openssl for the stand-in.
 
 // The signed list of deployments of podssh's relay role (T-346).
@@ -414,6 +415,32 @@ fn relay_pair_says_the_way_past_the_expiry() {
         "podssh relay: in its last 24 h, podssh relay pair lab --operator-file NEW makes the next pair, which the \
                node takes at the expiry; NEW goes to each operator";
     assert!(stderr.contains(way), "{stderr}");
+}
+
+/// T-647: the stand-in relay, whose contract halts no pair, answers the
+/// paths of a halt and of a resume as ones that it does not have: `relay
+/// halt` and `resume` say so, with the way that works there, and 69.
+#[test]
+fn relay_halt_on_a_relay_with_none_says_so() {
+    let s = Session::start("relay-halt-none");
+    let Some((flags, host)) = stand_in(&s) else { return };
+    let mut args = words(&["pair", "lab", "--relay-host", &host]);
+    args.extend(flags.iter().cloned());
+    let out = ran(relay(&s, &args));
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    for verb in [&["halt", "lab", "--reason", "a new disk"][..], &["resume", "lab"]] {
+        let mut args = words(verb);
+        args.extend(flags.iter().cloned());
+        let out = ran(relay(&s, &args));
+        let err = text(&out.stderr);
+        assert_eq!(out.status.code(), Some(69), "{verb:?}: {err}");
+        assert!(err.contains("halts no pair") && err.contains("podssh relay revoke lab"), "{err}");
+        assert!(out.stdout.is_empty(), "{verb:?}: {}", text(&out.stdout));
+    }
+    // --reason is the halt's alone.
+    let mut args = words(&["resume", "lab", "--reason", "x"]);
+    args.extend(flags);
+    assert_eq!(ran(relay(&s, &args)).status.code(), Some(64));
 }
 
 #[test]

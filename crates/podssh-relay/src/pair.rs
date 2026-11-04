@@ -19,6 +19,8 @@ use crate::cache::{self, valid_token, MIN_REMAINING_MS};
 use crate::relay::{check_node_name, parse_relay, Relay};
 use crate::token::relay_name;
 
+/// A pair that its owner halts and resumes in podssh's relay role (T-647).
+pub mod halt;
 /// A pair whose connect token takes one upgrade alone (T-226).
 pub mod once;
 /// The operator's part kept under a label on an operator's host (T-086).
