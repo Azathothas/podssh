@@ -10,7 +10,9 @@
 //! pair's last day renew it at the role, with its tokens, so that an
 //! operator's file past its end still reaches the node; the stand-in, whose
 //! contract renews no pair, gets the way of the next pair and 69. A node of
-//! the role rotates its stop token, which the store keeps (T-615).
+//! the role rotates its stop token, which the store keeps (T-615), and the
+//! next pair's that it goes on with at an expiry, which it renews too
+//! (T-620).
 
 mod live_harness;
 mod ssh_harness;
@@ -211,6 +213,84 @@ fn a_node_rotates_its_stop_token_and_revoke_takes_the_new_one() {
     assert!(String::from_utf8_lossy(&out.stdout).starts_with("lab: stopped"), "{}", said(&out));
 }
 
+/// The seconds after which the stand-in ends the first pair of T-620's test.
+const FIRST_PAIR_ENDS: u64 = 15;
+
+/// The field `name` of the pair's file at `path`, compared, never shown.
+fn field_of(path: &std::path::Path, name: &str) -> String {
+    let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    doc[name].as_str().unwrap_or_default().to_string()
+}
+
+/// T-620: a node whose pair ends while it runs goes on with the next pair,
+/// and renews and rotates that one as it would the first. The first pair is
+/// the stand-in's, whose contract renews and rotates none, and whose mode
+/// `expirefirst` gives it 23 h and ends it early; the next one is the
+/// role's, made by `relay pair` in the first one's last day, and in its own
+/// last day by its record. The first pair's stop token is not sent again:
+/// the stand-in says each renewal and rotation that it was asked for.
+#[test]
+fn a_node_that_goes_on_with_its_next_pair_renews_and_rotates_that_one() {
+    let s = Session::start("serve-rotate-next");
+    let Some((_, host, ca)) = role(&s) else { return };
+    let mode = format!("expirefirst:{FIRST_PAIR_ENDS}");
+    let first = match Cell::fake_relay_mode(&s, &mode, "the stand-in relay") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = first.args.iter().position(|a| a == "--relay-host").map(|i| first.args[i + 1].clone()).unwrap();
+    // The stand-in's stderr, where it says each request that it has not.
+    let log = s.home.join(format!("fake-relay-{}.log", mode.replace(':', "-")));
+    let asked = |path: &str| std::fs::read_to_string(&log).unwrap_or_default().matches(path).count();
+    let started = Instant::now();
+    let out = podssh(&s, &ca, &["relay", "pair", "lab", "--relay-host", &at]);
+    assert!(out.status.success(), "the first pair, at the stand-in: {}", said(&out));
+    let stored = s.home.join("cache").join("podssh").join(podssh_relay::pair::file_name("lab").unwrap());
+    let args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", s.port)];
+    let mut node = without_proxy(s.command(&args));
+    let node = node.envs(role_env(&ca)).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
+    let mut node = node.spawn().unwrap();
+    let lines = lines_of(&mut node);
+    s.keep(node);
+    // The first pair is in its last day, and its relay renews none.
+    both(&lines, "online", "and the relay renews none").unwrap_or_else(|why| panic!("the first pair: {why}"));
+    let renewals = asked("POST /v1/renew/");
+    assert_eq!(renewals, 1, "the node asked the stand-in once to renew the first pair");
+
+    // The next pair, at the role, while the first lives; in its own last day
+    // by its record, so that the node renews it once it holds it.
+    let out = podssh(&s, &ca, &["relay", "pair", "lab", "--relay-host", &host]);
+    assert!(out.status.success(), "the next pair, at the role: {}", said(&out));
+    assert!(said(&out).contains("the next one takes its place in the store"), "{}", said(&out));
+    set_expires(&stored, now_ms() + 23 * 3_600_000);
+    let (next, made) = (field_of(&stored, "name"), field_of(&stored, "stop_token"));
+    let early = started.elapsed() < Duration::from_secs(FIRST_PAIR_ENDS);
+    assert!(early, "the next pair was made before the first ended; raise FIRST_PAIR_ENDS on a slow host");
+
+    // At the first one's end: the next pair, online, renewed and rotated.
+    let words = [
+        "takes its place",
+        "online again",
+        "the pair is renewed at its relay until",
+        "the pair's stop token is new at its relay",
+    ];
+    let limit = Duration::from_secs(FIRST_PAIR_ENDS + 60);
+    each_of(&lines, &words, limit).unwrap_or_else(|why| panic!("the next pair, renewed and rotated: {why}"));
+    assert_eq!(field_of(&stored, "name"), next, "the store holds the next pair");
+    let rotated = field_of(&stored, "stop_token");
+    assert!(rotated != made && rotated.len() == 64, "the store keeps the next pair's new stop token");
+    assert!(expires_of(&stored) > now_ms() + 71 * 3_600_000, "the store keeps the next pair's new end");
+    assert_eq!(asked("POST /v1/renew/"), renewals, "the first pair's stop token renewed nothing after it ended");
+    assert_eq!(asked("POST /v1/rotate/"), 0, "the first pair's stop token rotated nothing");
+    // The role takes the next pair's new stop token, and no other.
+    let out = podssh(&s, &ca, &["relay", "revoke", "lab"]);
+    assert!(out.status.success(), "{}", said(&out));
+    assert!(String::from_utf8_lossy(&out.stdout).starts_with("lab: stopped"), "{}", said(&out));
+}
+
 /// T-592: the stand-in relay, whose contract has no renewal, answers its
 /// path with 404: `relay pair --renew` says that it renews no pair, with the
 /// way of the next pair, exits 69, and leaves the store as it was. The mode
@@ -321,17 +401,25 @@ fn openssh_through_podssh_operator_and_a_node_of_the_role_reaches_openssh_with_e
 /// The line of `renewal` once both it and a line of `first` came, in either
 /// order, within the harness's bound; else what came.
 fn both(lines: &std::sync::mpsc::Receiver<String>, first: &str, renewal: &str) -> Result<String, String> {
-    let (mut seen_first, mut found) = (false, None);
+    each_of(lines, &[first, renewal], Duration::from_secs(60)).map(|mut found| found.remove(1))
+}
+
+/// The first line of each of `words`, in the order of `words`, once each
+/// came, in any order, within `limit`; else what came.
+fn each_of(lines: &std::sync::mpsc::Receiver<String>, words: &[&str], limit: Duration) -> Result<Vec<String>, String> {
+    let mut found: Vec<Option<String>> = vec![None; words.len()];
     let mut seen = Vec::new();
-    let deadline = Instant::now() + Duration::from_secs(60);
-    while !(seen_first && found.is_some()) {
+    let deadline = Instant::now() + limit;
+    while found.iter().any(Option::is_none) {
         let left = deadline.saturating_duration_since(Instant::now());
-        let line = lines.recv_timeout(left).map_err(|_| format!("within 60 s: {}", seen.join(" | ")))?;
-        seen_first |= line.contains(first);
-        if line.contains(renewal) {
-            found = Some(line.clone());
+        let line =
+            lines.recv_timeout(left).map_err(|_| format!("within {} s: {}", limit.as_secs(), seen.join(" | ")))?;
+        for (word, slot) in words.iter().zip(found.iter_mut()) {
+            if slot.is_none() && line.contains(word) {
+                *slot = Some(line.clone());
+            }
         }
         seen.push(line);
     }
-    Ok(found.unwrap_or_default())
+    Ok(found.into_iter().flatten().collect())
 }

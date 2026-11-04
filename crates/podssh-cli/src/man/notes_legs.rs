@@ -16,8 +16,10 @@ pub(super) const NODE: &str = "Where its relay is podssh relay serve, whose hell
      one before; a stop at any step leaves a token that the relay takes. podssh relay revoke, and the \
      renewal of podssh relay pair, on the node's host read the store, so they take the new one; a copy of \
      the pair on another host can no longer stop or renew it. A pair of --pair-file keeps its stop token, as its file \
-     is the user's and is never rewritten, and the node says so. A relay of the contract (the default \
-     relay) offers neither, and the pair's tokens stay as they were.";
+     is the user's and is never rewritten, and the node says so. The next pair that the node goes on with at \
+     an expiry is rotated so too, from its own first socket that hears the offer, and renewed in its last 24 \
+     hours where its relay renews, also when the pair before it was on a relay that does neither. A relay of \
+     the contract (the default relay) offers neither, and the pair's tokens stay as they were.";
 
 /// An operator's legs, each with a token of its own.
 pub(super) const OPERATOR: &str = "Where the node gave the seed of the session's tokens of one leg (a node \

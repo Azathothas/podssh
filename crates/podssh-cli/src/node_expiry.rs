@@ -11,10 +11,14 @@
 //! each hour until it took, and says each renewal; the store keeps the new
 //! end. A relay that renews none (404, or 405) gets the lines above. The
 //! renewal takes the stop token as the node rotated it (T-615,
-//! `node_rotate`), which runs beside it.
+//! `node_rotate`), which runs beside it, one request by the token at a time.
+//!
+//! Each of them acts for the pair that the node holds now: at the expiry,
+//! the next pair takes the first one's place, and its end, its renewal, its
+//! lines and its rotation follow it at once (T-620), also where the first
+//! pair's relay renewed none.
 
-use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use podssh_relay::pair::renew::Renewed;
@@ -23,7 +27,7 @@ use podssh_relay::reverse::node::RepairHook;
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
-use crate::node_rotate::{lock, Held};
+use crate::node_rotate::Held;
 use crate::pairs::{now_ms, utc};
 
 /// The times before an expiry at which a node says it, the longest first.
@@ -86,58 +90,50 @@ fn next_look(left: Duration) -> Duration {
     edge.unwrap_or(LOOK).min(LOOK).max(Duration::from_secs(1))
 }
 
-/// The expiry of the pair that the node runs with, shared by its hook and
-/// its lines.
-#[derive(Clone)]
-pub(crate) struct Current(Arc<AtomicI64>);
-
-impl Current {
-    pub(crate) fn of(pair: &Pair) -> Current {
-        Current(Arc::new(AtomicI64::new(pair.expires_ms)))
-    }
-
-    fn get(&self) -> i64 {
-        self.0.load(Ordering::Relaxed)
-    }
-}
-
 /// In the pair's last day, its renewal first, where the relay renews; else
 /// each part of [`WARN_BEFORE`] once for each pair, the first at once when
-/// the node starts within it; until the node ends, which aborts it.
-pub(crate) async fn warn(label: String, current: Current, stored: bool, say: Say, mut renewer: Option<Renewer>) {
+/// the node starts within it; until the node ends, which aborts it. The pair
+/// is the one that `held` holds now: a move to the next one wakes the loop,
+/// and the next pair's relay is asked again (T-620).
+pub(crate) async fn warn(label: String, held: Held, stored: bool, say: Say, renewer: Option<Renewer>) {
     let mut said: Option<(i64, usize)> = None;
     let mut tried: Option<Instant> = None;
+    // The pair whose relay refused its renewal, or renews none: the lines
+    // of T-395 are its, and the next pair's relay is asked again.
+    let mut off: Option<String> = None;
+    let mut moves = held.moves();
     loop {
-        let (expires, now) = (current.get(), now_ms());
+        let (expires, now) = (held.end(), now_ms());
         let left = Duration::from_millis(u64::try_from(expires - now).unwrap_or(0));
         let due = tried.is_none_or(|at| at.elapsed() >= RETRY);
         let ask = !left.is_zero() && left <= RENEW_WINDOW && due;
-        let outcome = match renewer.as_ref().filter(|_| ask) {
-            Some(by) => Some(by.once(expires).await),
-            None => None,
-        };
-        match outcome {
-            // The next look reads the new end; a relay that renewed by little
-            // is asked again then, never at once.
-            Some(Tried::Took(until)) => {
-                if let Some(by) = &renewer {
-                    by.took(&label, &current, until, stored, &say);
+        let renewing = renewer.as_ref().filter(|_| off.as_deref() != Some(held.name().as_str()));
+        if let Some(by) = renewing.filter(|_| ask) {
+            // One request by the stop token at a time, with its write of the
+            // store: the rotation's waits.
+            let _turn = held.turn().await;
+            let (name, outcome) = by.once(expires).await;
+            match outcome {
+                // The next look reads the new end; a relay that renewed by
+                // little is asked again then, never at once.
+                Tried::Took(until) => {
+                    by.took(&label, &name, until, stored, &say);
+                    tried = None;
                 }
-                tried = None;
+                Tried::Again(why) => {
+                    say(format!("{}: its renewal did not take ({why}); trying again in an hour", when(expires, now)));
+                    tried = Some(Instant::now());
+                }
+                Tried::Refused => {
+                    say("the relay refused the renewal of the pair (403): it was stopped, or it ended".into());
+                    off = Some(name);
+                }
+                // The relay renews none: the lines of T-395.
+                Tried::NotServed => off = Some(name),
             }
-            Some(Tried::Again(why)) => {
-                say(format!("{}: its renewal did not take ({why}); trying again in an hour", when(expires, now)));
-                tried = Some(Instant::now());
-            }
-            Some(Tried::Refused) => {
-                say("the relay refused the renewal of the pair (403): it was stopped, or it ended".into());
-                renewer = None;
-            }
-            // The relay renews none: the lines of T-395.
-            Some(Tried::NotServed) => renewer = None,
-            None => {}
         }
-        if !left.is_zero() && renewer.is_none() {
+        let renews = renewer.is_some() && off.as_deref() != Some(held.name().as_str());
+        if !left.is_zero() && !renews {
             if let Some(part) = band(left) {
                 let fresh = said.is_none_or(|(at, before)| at != expires || part > before);
                 if fresh {
@@ -147,7 +143,14 @@ pub(crate) async fn warn(label: String, current: Current, stored: bool, say: Say
             }
         }
         let wait = if left.is_zero() { LOOK } else { next_look(left) };
-        tokio::time::sleep(wait).await;
+        // The next pair's end, at once (T-620).
+        let moved = tokio::select! {
+            () = tokio::time::sleep(wait) => false,
+            Ok(()) = moves.changed() => true,
+        };
+        if moved {
+            tried = None;
+        }
     }
 }
 
@@ -159,19 +162,23 @@ pub(crate) fn next_pair(stored: Option<Pair>, ending_ms: i64, now: i64) -> Optio
 
 /// The node's hook for an expired pair: the next pair under `label`, with
 /// a line; none, and the node ends with 77 as before, when nobody made one.
-pub(crate) fn hook(label: String, current: Current, say: Say) -> RepairHook {
+/// The next pair takes the first one's place in `held`, so that the
+/// renewal and the rotation are its own from now on (T-620).
+pub(crate) fn hook(label: String, held: Held, say: Say) -> RepairHook {
     Arc::new(move || {
-        let (label, current, say) = (label.clone(), current.clone(), say.clone());
+        let (label, held, say) = (label.clone(), held.clone(), say.clone());
         Box::pin(async move {
-            let ending = current.get();
+            let ending = held.end();
             let next = next_pair(pair::load(&label).ok().flatten(), ending, now_ms());
             match &next {
+                // The line first: the renewal's and the rotation's lines of
+                // the next pair come after it.
                 Some(next) => {
-                    current.0.store(next.expires_ms, Ordering::Relaxed);
                     say(format!(
                         "the pair expired; the next pair under {label:?}, which expires at {}, takes its place",
                         utc(next.expires_ms)
                     ));
+                    held.move_to(next);
                 }
                 None => say(format!("the pair expired, and no next pair is stored under {label:?}")),
             }
@@ -181,9 +188,10 @@ pub(crate) fn hook(label: String, current: Current, say: Say) -> RepairHook {
 }
 
 /// The hook and the lines of a node's pair, and its renewal at the relay
-/// that `trust` reaches, beside the rotation of its stop token (T-615): the
-/// hook only for a pair of the store, as the next one is looked for there.
-/// The task ends with the node: the caller aborts it.
+/// that `trust` reaches, beside the rotation of its stop token (T-615),
+/// each for the pair that the node holds now (T-620): the hook only for a
+/// pair of the store, as the next one is looked for there. The task ends
+/// with the node: the caller aborts it.
 pub(crate) fn watch(
     label: &str,
     pair: &Pair,
@@ -191,20 +199,19 @@ pub(crate) fn watch(
     say: Say,
     trust: &Trust,
 ) -> (Option<RepairHook>, tokio::task::JoinHandle<()>) {
-    let current = Current::of(pair);
-    let held: Held = Arc::new(Mutex::new(pair.with_expiry(pair.expires_ms)));
+    let held = Held::of(pair);
     let renewer = Renewer { pair: held.clone(), trust: trust.clone() };
-    let lines = warn(label.to_string(), current.clone(), stored, say.clone(), Some(renewer));
-    let rotation = crate::node_rotate::run(label.to_string(), held, stored, say.clone(), trust.clone());
+    let lines = warn(label.to_string(), held.clone(), stored, say.clone(), Some(renewer));
+    let rotation = crate::node_rotate::run(label.to_string(), held.clone(), stored, say.clone(), trust.clone());
     let task = tokio::spawn(async move {
         tokio::join!(lines, rotation);
     });
-    (stored.then(|| hook(label.to_string(), current, say)), task)
+    (stored.then(|| hook(label.to_string(), held, say)), task)
 }
 
-/// The node's renewal of its own pair (T-592): its copy, with the stop
-/// token now, which the node holds as the pair's owner does and rotates
-/// (T-615), and the trust of its relay.
+/// The node's renewal of its own pair (T-592): the pair that it holds now,
+/// with the stop token now, which the node holds as the pair's owner does
+/// and rotates (T-615), and the trust of its relay.
 pub(crate) struct Renewer {
     pair: Held,
     trust: Trust,
@@ -223,24 +230,28 @@ enum Tried {
 }
 
 impl Renewer {
-    /// One renewal of the pair that ends at `expires_ms`.
-    async fn once(&self, expires_ms: i64) -> Tried {
-        let (pair, proxy) = (lock(&self.pair).with_expiry(expires_ms), ProxyChoice::FromEnvironment);
+    /// One renewal of the pair now, which ends at `expires_ms`; with the
+    /// relay's name of the pair that it asked for.
+    async fn once(&self, expires_ms: i64) -> (String, Tried) {
+        let (pair, proxy) = (self.pair.pair().with_expiry(expires_ms), ProxyChoice::FromEnvironment);
         let ctx = crate::pairs::context(&pair.relay, &self.trust, &proxy);
-        match pair::renew::renew(&ctx, &pair).await {
+        let tried = match pair::renew::renew(&ctx, &pair).await {
             Ok(Renewed::Until(until)) if until > expires_ms => Tried::Took(until),
             Ok(Renewed::Until(_)) => Tried::Again("the relay kept the same end".into()),
             Ok(Renewed::NotServed) => Tried::NotServed,
             Err(PairError::Forbidden) => Tried::Refused,
             Err(e) => Tried::Again(e.to_string()),
-        }
+        };
+        (pair.name.clone(), tried)
     }
 
-    /// A renewal that took: the node's end, the store's copy when it is this
-    /// pair (not a next one made since), and the line.
-    fn took(&self, label: &str, current: &Current, until: i64, stored: bool, say: &Say) {
-        current.0.store(until, Ordering::Relaxed);
-        let name = lock(&self.pair).name.clone();
+    /// A renewal of the pair `name` that took: the node's end, the store's
+    /// copy when it is this pair (not a next one made since), and the line;
+    /// nothing once the node went on with its next pair meanwhile.
+    fn took(&self, label: &str, name: &str, until: i64, stored: bool, say: &Say) {
+        if !self.pair.renewed(name, until) {
+            return;
+        }
         let unkept = match stored {
             true => match pair::load(label) {
                 Ok(Some(held)) if held.name == name => pair::store(label, &held.with_expiry(until)).err(),

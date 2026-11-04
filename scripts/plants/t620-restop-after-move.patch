@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_rotate.rs
++++ b/crates/podssh-cli/src/node_rotate.rs
+@@ -112,7 +112,7 @@ impl Held {
+     /// nothing changed, once the node holds another pair.
+     fn restop(&self, name: &str, stop: &str) -> Option<Pair> {
+         let mut now = self.now();
+-        (now.pair.name == name).then(|| {
++        (!name.is_empty()).then(|| {
+             now.pair = now.pair.with_stop(stop);
+             copy(&now.pair)
+         })

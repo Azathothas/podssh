@@ -321,10 +321,10 @@ drafted 2026-11-04; `crates/podssh-relay/src/e2e/legs.rs`,
    that the role takes. `podssh relay revoke` and `relay pair --renew` on
    the node's host read the store; a copy of the pair elsewhere can no
    longer stop it. A pair of `--pair-file` keeps its stop token, as that
-   file is the user's.
+   file is the user's. The next pair that a node goes on with at an expiry
+   (T-395) is rotated so too, at its own first socket that heard the offer, and renewed (T-620).
 
-Measured on 2026-11-04: `relay_serve_once` 6 passed and `relay_serve_node` 6 passed (T-615's
-Prove).
+Measured on 2026-11-04: `relay_serve_once` 6 passed and `relay_serve_node` 6 passed (T-615's Prove).
 
 ## Pairing by a short code
 

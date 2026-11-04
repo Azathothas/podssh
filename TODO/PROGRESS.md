@@ -5,6 +5,35 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## State
 
+- **Checkpoint, 2026-11-04, about 10:00 UTC: where the cloud session stopped.** A new session
+  starts here, after `AGENTS.md`'s steps at the start.
+  1. **`v1.1.0-beta.2` is not published.** Its version and notes are on `main` (`22da36c`,
+     `docs/releases/v1.1.0-beta.2.md`, which names T-618, T-617, T-435 and T-173's repairs too). The
+     first candidate, `501999f` (the branch `beta/v1.1.0-beta.2`, its release dry run 41800163773
+     passed), failed its gate (run 41800030980) on two defects of T-173's new default, repaired in
+     `3988c8c` (T-173's Done). When the session stopped, the gates of `3988c8c` (run 41807740017)
+     and `b750af3` (run 41808982013) ran, and the merge of T-620 was pushed after them. Next: take
+     the newest commit of `main` whose gate is green, with Windows' and macOS's jobs; move
+     `beta/v1.1.0-beta.2` to it by a fast-forward (no force); run `release.yml` by hand on that
+     branch; run `scripts/release-short.sh BINARY --net` on its x86_64 binary; publish with
+     `release.yml` and `publish=v1.1.0-beta.2`; then `release-proofs.yml` and `update-live.yml`;
+     then mark each `unreleased` row of `docs/STATUS.md` up to that commit with the release, and add
+     the commit to the list of releases in `scripts/check-repo.py`, as beta.1's record did
+     (`15819f9`). Beta.1 went out on 2026-11-03 at 08:31 UTC, so the day's beta is allowed. A red
+     job is repaired first, as `3988c8c` repaired `501999f`'s.
+  2. **The drafts of the eighth round are merged and closed** (the paragraph "Drafts" below): no
+     draft waits. Their `draft/` branches on GitHub can go.
+  3. **Partial and watched:** T-465 (`pipe`'s end of input lost 2 runs in 50 on Windows and
+     macOS; the probe of Windows' AF_UNIX lost none of 600, so the next step is a client in another
+     process than its server, or a failure that says the time of each step); T-627 (a test of
+     T-615 timed out once in the relay crate's suite; it says the role's events at its limit); T-319,
+     T-321 and T-253 (their parts that wait for a runner, Q88).
+  4. **Questions Q93 to Q97** wait for the operator ("Questions for the operator"); each has a
+     recommendation, and the work goes on with it.
+  5. **The work order** (below): item 2, T-106; item 3, T-433, T-180, T-434 and T-459 (a WIP
+     branch, `draft/wip-459` (`b5f9a50`), untested); T-618's and
+     T-619's GitHub source (#125) is deleted, so no comment is due.
+
 - **The record.** The work is in `TODO/` since 2026-10-08 (T-204). Each open
   item of `docs/ROADMAP.md`, each row of the former defects page, each
   GitHub issue and the two sandbox reports of 2026-10-08 is an entry or part
@@ -156,6 +185,13 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   use, resumed; merged and closed). Each is merged; their worktrees and local branches are gone, and
   their `draft/` branches on GitHub can go.
 
+  On 2026-11-04 an eighth round was drafted, unbuilt, one commit for each entry, each branch pushed
+  as `draft/worktree-agent-*`: T-435 (`093970b`, merged and closed, `57faf83`); T-617 (`1cbdc10`,
+  merged and closed, `00ba332`); T-618 and T-619 (`worktree-agent-a813dd96e40d4756b`, `9d04d4d` and
+  `66eb08b`, merged and closed, `b750af3`; the live relay's document read once for T-619); T-620
+  (`worktree-agent-a866bb2e35c2100ff`, `cc54c09`, merged and closed after `b750af3`). Their worktrees
+  and local branches are gone, and their `draft/` branches on GitHub can go.
+
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them). At `d0dbb59` (run
@@ -199,7 +235,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 591 entries: 92 open, 5 partial, 2 blocked, 492 done.
+`TODO/INDEX.md` holds 591 entries: 91 open, 5 partial, 2 blocked, 493 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -245,7 +281,8 @@ this order:
    with `doctor`'s line of them, a client's lost link during a node's bulk, and the cleartext road
    on the relay's port are done.
 2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once, a copy's race of the roads, the pairing by a short code, a device's join by one, the signed list of deployments and the
-   tokens of one leg, and the hosts of the relay members, are done): T-106 and T-620.
+   tokens of one leg, the hosts of the relay members, and the rotation at a node's next pair, are
+   done): T-106.
 3. Exit, routes, share and funnel (the exit, `doctor --exit` and the net's routes are done): T-433,
    T-180, then T-434 and T-459 (the status of the net, `ping` of a node and doctor's sections are done).
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**591 entries: 92 open, 5 partial, 2 blocked, 492 done.**
+**591 entries: 91 open, 5 partial, 2 blocked, 493 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 63 | 65 |
 | P2 | 25 | 2 | 0 | 238 | 265 |
-| P3 | 67 | 1 | 2 | 190 | 260 |
-| **All** | 92 | 5 | 2 | 492 | 591 |
+| P3 | 66 | 1 | 2 | 191 | 260 |
+| **All** | 91 | 5 | 2 | 493 | 591 |
 
 ## Entries
 
@@ -659,7 +659,7 @@ repository and CI).
 | [T-617](mesh.md) | P3 | S | M10 | feature | done | The net's document names each relay member's hosts, for its signed list |
 | [T-618](relay.md) | P2 | S | M10 | defect | done | `relay info` names neither `podssh relay rank` nor the order that this host's runs take, which T-610 left for T-606 and T-607 |
 | [T-619](relay.md) | P3 | S | M10 | docs | done | The note to the relay's operator asks nothing of `/relays.json`'s rank, which changes with the edge that answered |
-| [T-620](reverse.md) | P3 | S | M10 | defect | open | The stop token's rotation and the renewal follow the node's next pair at expiry |
+| [T-620](reverse.md) | P3 | S | M10 | defect | done | The stop token's rotation and the renewal follow the node's next pair at expiry |
 | [T-621](mesh.md) | P3 | M | M10 | feature | open | TURN with RFC 6062: a TURN server that the user runs, as a road with no relay |
 | [T-622](roads.md) | P3 | M | M10 | feature | open | The HTTP road's one-POST form: one request carries both ways, where the way streams a body |
 | [T-623](mesh.md) | P3 | S | M10 | research | open | smee.io, a POST in and server-sent events out, as a carrier where a proxy refuses the upgrade: the research |

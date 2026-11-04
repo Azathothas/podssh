@@ -3390,7 +3390,7 @@ pair's expiry (T-395) still rotates and renews the pair that it started with, as
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3411,6 +3411,64 @@ the new pair's stop token is never rotated.
    move to the next pair replaces, so that each next turn is the new pair's.
 2. The new pair's stop token is rotated at its first socket that hears the offer, as the first pair's.
 
+## Decision
+
+2026-11-04 (the drafting agent). The Premise holds at its files: `watch` makes the node's copy of its pair
+once, at its start, and the hook of the expiry moves only the end that the lines read
+(`crates/podssh-cli/src/node_expiry.rs`), so the renewal, where it is still on, asks for the first pair's
+name with the next one's end (a `403`, then no renewal for good), and stays off where the first pair's
+relay renewed none; and the rotation's task, which a flag of the process wakes
+(`crates/podssh-relay/src/reverse/legs.rs`), sleeps a day after its last turn and then rotates the first
+pair's token (a `403`, and the task ends), or, where the first pair's relay offered none, rotates the first
+pair at the first pair's relay as soon as the next pair's socket set the flag (a `404`, and the task ends).
+Two more facts of the same reading: the loop of the lines sleeps up to 10 min after the expiry before it
+reads the next pair's end, and the flag cannot tell the next pair's first socket from the first pair's. No
+row of `docs/decisions.md` settles these, and none changes one.
+
+1. **One `Held` for the pair now, which the hook replaces** (Approach 1): `node_rotate::Held` keeps the
+   pair with its stop token as rotated and its end as renewed, in the place of the `Arc<Mutex<Pair>>` of
+   T-615 and of `node_expiry::Current`, so that the hook, the renewal, the lines and the rotation read one
+   place, and an end and a pair never disagree. The hook says its line first, then moves, so that the next
+   pair's lines come after it. Lost: `Current` kept beside it, two places that a move sets one after the
+   other; each task reading the store, which holds the next pair from the first one's last day, before the
+   first ended.
+2. **A move wakes each task**, by a `tokio::sync::watch` of the count of moves: the next pair's end, its
+   renewal and its rotation at once. Lost: the sleeps as they were, up to 10 min for the lines and the
+   renewal, and a day or an hour for the rotation.
+3. **The next pair's own first socket that heard the offer** (Approach 2): the relay crate counts the
+   sockets of the process that heard a `hello` with `stopRotation` (`legs::offers`; `legs::rotates` stays,
+   as `offers() > 0`), and the node takes the count when it begins with a pair and rotates once it grew. A
+   node's sockets are of one pair at a time, and the hook runs between the last socket of one and the first
+   of the next. Lost: the flag of T-615, set by the first pair's sockets, which would rotate the next pair
+   at once, before its relay said that it rotates; the flag reset at the move, which a count needs no
+   order for; the pair's name in what a socket heard, which `reverse::serve` does not know.
+4. **A refusal or a relay that serves none is the pair's, not the task's**: a relay that renews none, or
+   refuses the renewal, gives that pair the lines of T-395; a relay that rotates none, or refuses the stop
+   token, ends that pair's rotation; the next pair's relay is asked again. Lost: the end of each task for
+   good, as before, which leaves a next pair on podssh's role unrenewed and unrotated after a first pair on
+   the default relay, the case of a node that moves to its own relay.
+5. **Nothing of the first pair after the move**: a rotation or a renewal in flight at the move writes
+   nothing into the pair now (`Held::restop` and `Held::renewed` check the name), nor its line, and the
+   store's copy only under its own name, as before. Lost: the hook taking the turn of item 6, which would
+   hold the node's repair while a request by the stop token waits for its answer.
+6. **One request by the stop token at a time** (`Held::turn`), each with its write of the store. Before, a
+   renewal could send the token that a rotation's first use had just ended (a `403`: "the relay refused the
+   renewal"), and their two writes of the store could cross, one's end or token lost; at a node's start the
+   rotation waits for its socket, so the two did not meet, but after a move both begin at once. Lost: the
+   order that the timing gave.
+7. **The Prove's test**, `a_node_that_goes_on_with_its_next_pair_renews_and_rotates_that_one`: the first
+   pair is the stand-in relay's, whose mode `expirefirst` ends it while the node runs, and the next one is
+   the role's, made by `relay pair` in the first one's last day, and in its own last day by its record. The
+   role's pairs live 72 h, and the role has no shorter life to give; a restart of the role on the same port
+   with an edited `--pairs` file needs a port that the sockets of its last run may still hold. It is also
+   the case where the defect showed most, a first pair of the default relay and the next of podssh's role.
+   The rotation's line names no pair, as podssh never shows a pair's random name: the test reads the next
+   pair's name in the store, with its new stop token and its new end, and `relay revoke` stops the pair
+   with that token; the stand-in says each `/v1/renew/` and `/v1/rotate/` that it was asked for, on its
+   stderr, with the pair's name and never a token (`scripts/fake_reverse.py`), and none comes after the
+   move. Lost: a variable of the role for a short life of its pairs, a setting that the product would
+   carry for a test alone.
+
 ## Prove
 
 ```sh
@@ -3421,3 +3479,39 @@ cargo test -p podssh-cli --test relay_serve_node
 A node of the role whose pair ends while it runs moves to the next one, and its next rotation names
 the new pair's name; the first pair's stop token is not used again. Planted: the task keeps the first
 pair; the test fails.
+
+## Done
+
+2026-11-04, drafted (`cc54c09`, unbuilt), merged and measured by the main session the same day, onto
+`b750af3`.
+
+- The pair now (`crates/podssh-cli/src/node_rotate.rs`): `Held`, its move, its turn, and the rotation of
+  each pair that the node holds (`run`, `after`, `offered`, `once`); its tests, with no network, in
+  `crates/podssh-cli/src/node_rotate_tests.rs` (a move replaces the pair and wakes each task; a rotation
+  or a renewal of the pair before a move changes nothing after it; one request by the stop token at a
+  time; the next pair's rotation waits for a socket that heard the offer after the move).
+- The expiry (`crates/podssh-cli/src/node_expiry.rs`): the hook moves `Held` to the next pair after its
+  line; `warn` reads the end of `Held`, wakes at a move, keeps a refused or unserved renewal to its pair,
+  and takes the turn; `Renewer::once` names the pair that it asked for, and `took` changes nothing after a
+  move; `Current` is gone.
+- The count of the sockets that heard the offer (`crates/podssh-relay/src/reverse/legs.rs`, `offers`).
+- The stand-in's line of each renewal and rotation that its contract has not (`scripts/fake_reverse.py`,
+  `unserved`).
+- `crates/podssh-cli/tests/relay_serve_node.rs`: the test of item 7, and `both` through `each_of`.
+- `docs/reverse.md` ("Tokens of one leg", item 5), `docs/relay.md`, `docs/cli.md` and the node's notes in
+  the manual (`crates/podssh-cli/src/man/notes_legs.rs`), each with no line moved; `docs/STATUS.md`, in
+  T-615's row, as a row of its own would move the lines that entries cite after it.
+- `cargo test -p podssh-cli --test relay_serve_node`: 7 passed (the 6 of before, and the new one, a node
+  through the stand-in's first pair and the role's next one).
+- `cargo test -p podssh-cli --lib -- node_rotate node_expiry man::`: 49 passed (the 4 new tests of
+  `node_rotate::tests` and the 5 of `node_expiry::tests` among them).
+- `cargo test -p podssh-relay --features pair --lib -- reverse::legs`: 1 passed.
+- `cargo test -p podssh-cli --test node_expiry`: 4 passed (T-395's, through the hook and the lines that
+  this changed; the stand-in's new line too).
+- The CLI's whole `--lib`: 867 passed; the node's suites through the stand-in (`node`, `node_moves`,
+  `node_detach`, `node_copy`): 31 passed.
+- Planted (`sh scripts/plant-each.sh --here t620-rotation-keeps-first t620-renewal-off-for-good
+  t620-restop-after-move t620-offers-a-flag`): 4 caught.
+- `cargo clippy -p podssh-cli --all-targets` and `-p podssh-relay --features pair` and `--features
+  pair,serve,plain-ws`, `--all-targets`, with `-D warnings`: clean; rustfmt: clean once the merge
+  formatted `crates/podssh-cli/tests/relay_serve_node.rs`.

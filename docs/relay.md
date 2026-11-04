@@ -476,7 +476,7 @@ pair expired`), which the layer does not resume. The node says the expiry
 `podssh relay pair NAME` makes it in the last 24 h of the old one, and the
 node takes it at the expiry with no new start (T-395). podssh's own relay
 role renews a pair by its stop token, with its tokens (T-592, "The relay
-role's reverse road", below).
+role's reverse road", below), and a node the next pair that it goes on with too (T-620).
 
 ### Connect options (query string)
 

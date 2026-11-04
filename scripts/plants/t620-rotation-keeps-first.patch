@@ -1,0 +1,10 @@
+--- a/crates/podssh-cli/src/node_expiry.rs
++++ b/crates/podssh-cli/src/node_expiry.rs
+@@ -178,7 +178,6 @@ pub(crate) fn hook(label: String, held: Held, say: Say) -> RepairHook {
+                         "the pair expired; the next pair under {label:?}, which expires at {}, takes its place",
+                         utc(next.expires_ms)
+                     ));
+-                    held.move_to(next);
+                 }
+                 None => say(format!("the pair expired, and no next pair is stored under {label:?}")),
+             }
