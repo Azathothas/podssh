@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/doctor/carriers.rs
++++ b/crates/podssh-cli/src/doctor/carriers.rs
+@@ -49,7 +49,7 @@
+ pub(super) fn plan(transit_value: Option<&str>, mailbox_value: Option<&str>, piping_value: Option<&str>) -> Plan {
+     let transit = transit::setting(transit_value).map(|setting| match setting {
+         Setting::On(url) => Some(url),
+-        Setting::Off => None,
++        Setting::Off => WsUrl::parse(transit::DEFAULT_URL).ok(),
+     });
+     let mailboxes = match off(mailbox_value) {
+         true => Ok(None),

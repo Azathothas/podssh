@@ -217,7 +217,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
         "ping" => cmd.arg(
             Arg::new("destination")
                 .value_name("[user@]host")
-                .help("a host to log in to for the echo and the throughput; with none, the relay leg alone"),
+                .help("a host for the login, echo and throughput, or node://NAME for its roads; none: the relay leg"),
         ),
         "health" => cmd.arg(
             Arg::new("destination")

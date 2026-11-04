@@ -1,0 +1,7 @@
+# T-435: doctor's section of the public carriers asks Least Authority's
+# transit relay although PODSSH_TRANSIT=no turns the road off; the test of
+# each carrier's variable must fail.
+ENTRY=T-435
+GROUP=cli-tests
+EXPECT='test doctor::carriers::tests::each_carrier_is_asked_unless_its_variable_turns_it_off \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- doctor::carriers::tests'

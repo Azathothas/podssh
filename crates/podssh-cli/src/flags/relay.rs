@@ -179,4 +179,8 @@ pub const STATUS_FLAGS: &[FlagRow] = &[
         "relay hosts to report, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
         "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
+    // The members of the net, as `tailscale status` lists a tailnet (T-435).
+    row(None, "net", None, FlagKind::Supported,
+        "also each member of the net held: its roles, key, tickets and routes, and the road that last reached it \
+         from this host, or the race that last found none", None),
 ];

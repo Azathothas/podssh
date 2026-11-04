@@ -1,0 +1,7 @@
+# T-435: the road named as the one that answered first is the first of the
+# list that answered, not the first far end that spoke; the test of a later
+# road that spoke sooner must fail.
+ENTRY=T-435
+GROUP=resume
+EXPECT='test first_answered_is_the_first_far_end_that_spoke \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test session_race -- first_answered'

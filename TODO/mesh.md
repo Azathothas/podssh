@@ -1175,7 +1175,7 @@ Planted: no registration on member relays, and the session fails.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1194,6 +1194,62 @@ reach, as `tailscale status`, `ping` and `netcheck` show.
 2. `podssh ping NAME`: the roads raced to a member, each with its time, and the one that won.
 3. `doctor`: the net's member relays (T-434) and the carriers of Q65 that this host reaches.
 
+## Decision
+
+- **`ping NAME` measures the race; it does not win it.** It runs the race of `ssh`, the roads made
+  as `ride` makes them, by a child of `crates/podssh-cli/src/ssh/roads.rs`
+  (`crates/podssh-cli/src/ssh/road_probe.rs`), with `each_timed`, a measured `in_turn`
+  (`crates/podssh-relay/src/session/race.rs`): each road that starts runs on to its far end's
+  first bytes, so that each has its time, and its link is dropped there, before `OPEN`. Lost: the
+  race of `ssh` as it is, which drops each loser where it stands, so that only the winner has a
+  time; each road alone, one after another, which loses the race's delays and starts the
+  fallbacks; a race with a session above it, which opens the node's TARGET.
+- **A road whose wait comes after another answered still starts at its wait**, as the race would
+  start it had the first road been slow, so that each road that the race orders by a delay has a
+  time; a fallback (`Start::WhenAllFailed`) does not start once a road answered, and its line says
+  so. Lost: no road after the winner (no time for them); each fallback too, which would ask the
+  free carriers of Q65 and Q50's DERP fleet at each ping while a road works.
+- **Rule 2 of `AGENTS.md`, section 5.** Each road that starts opens its one connection, as a race
+  of `ssh` opens it (the exception of a race between relay hosts, which T-164 and T-379 widened to
+  the roads of a node), and its link closes at its far end's first bytes; nothing listens. The
+  manual says what `ping NAME` opens.
+- **No login.** `ping NAME` names the roads, as `tailscale ping` names the path that answered; a
+  node's TARGET is any TCP service, not always SSH, and a login would open it. `--size`, `--count`
+  and `--target` are a host's, and refused with a node (64). Lost: the login, the echo and the
+  throughput of a host after the roads, over the winner, which need the node's SSH server and a
+  key; a flag for the roads alone.
+- **`ping` is entered at `crates/podssh-cli/src/ping/node.rs`**, which hands each destination that
+  is no node to `ping::run`; a destination is a node when `podssh ssh` would read it as one
+  (`node://NAME`, a member's name with the role node, a group of one of them). Lost: a branch
+  inside `ping::run`, whose lines entries cite (`crates/podssh-cli/src/ping/mod.rs:156-161`).
+- **The record of the roads is the client's**, `net-roads.json` in the cache, by the node's label:
+  each race's winner writes it (`road_link::winner`, so each resume of `ssh` too), and so do
+  `ping`, the pair's road alone in `crates/podssh-cli/src/ssh/node.rs` (`ssh` and the copies take
+  it with no race when no other road is on), and each first race that found no road. A road is
+  named in the race's words, as `ssh -v` says them. Lost: short words for programs (`pair`,
+  `derp`), a second spelling beside the race's; the node's record of who reached it, which tells
+  nothing of this host's roads; `status` asking the roads, which opens no connection.
+- **`status --net` keeps the one line of JSON.** `net` is in each line, the net held with its
+  count, and `--net` adds the members, so that a program's first read stays short for a net of a
+  thousand members; a file of the net that does not read is `net.error`, never a refusal of the
+  line. Lost: a table in text, as `tailscale status` prints (`podssh net ls` is that table, and
+  `status` is for programs); the members in each line.
+- **doctor's `carriers`** asks each carrier of Q65 that a road of a node tries unasked: the
+  transit relay, its WebSocket opened and closed with no line, so that nothing pairs; each mailbox,
+  its welcome read and bound, no nameplate claimed; the Piping Server, its `/version`, a path that
+  waits for no sender. Not the Wisp demo server: it is a forwarder, which the line `fallback`
+  names and `--forwarder wisp` asks, and asking it unasked sends it a target (Q69). Lost: each
+  mailbox's upgrade alone, which cannot tell a mailbox from a page of a proxy; a meeting at the
+  transit relay, which needs a second side.
+- **doctor's `net`** reads a member relay's host from the field `relay` of its member's object, as
+  the document holds it and as T-617 writes it, so that this entry changes no type of
+  `crates/podssh-cli/src/net/doc.rs`, which T-617 changes; a member relay with no host is `????`,
+  and at most 8 are asked, one after another. Lost: the member's tickets, which are roads to its
+  node, not to its relay role; its record of pkarr, a lookup that T-434's registration is to use.
+- **The two sections go last**, before `--full`'s stream: `carriers` after DERP, `net` after the
+  pairs. `--quick` leaves both out; with `PODSSH_OFFLINE`, the net's line comes, as it reads a
+  file.
+
 ## Prove
 
 ```sh
@@ -1204,6 +1260,58 @@ cargo test -p podssh-cli --test net
 Against three ends offline: the status lists each member and its road; `ping` names the road
 that answered first; a member that is stopped shows as not reached. Planted: a road's time not
 measured, and the test fails.
+
+## Correction
+
+- `podssh ping` with a node's destination was refused, not measured:
+  `crates/podssh-cli/src/ssh/transport.rs:262` says "a node:// destination is reached through
+  its pair, not here", which `ping::run` reached for each destination that `podssh ssh` reads as a
+  node (64). So item 2 gives `ping` a node's destination, with lines of its own, rather than a
+  line among a host's measures.
+
+## Done
+
+2026-11-04: drafted by an agent in a worktree, merged by the main session, built and run here.
+At the merge: `ssh::roads::Raced` is `pub(crate)`, as the probe that takes it is; and a road that
+started with the race, some microseconds in, no longer reads "started 0.0 ms into the race" (the
+test of three ends caught it): only a road that waited a millisecond or more says when, as
+`docs/cli.md` says.
+
+- `podssh ping node://NAME` and `podssh ping NAME` of a member
+  (`crates/podssh-cli/src/ping/node.rs`, entered from dispatch in place of `ping::run`): the roads
+  of `node_roads::measure` (`crates/podssh-cli/src/ssh/node_roads.rs`), chosen as `ssh` chooses
+  them, raced by `crates/podssh-cli/src/ssh/road_probe.rs` with
+  `podssh_relay::session::race::each_timed`, a line for each road and the one that answered first,
+  `--json`, 0 or 69. `crates/podssh-cli/src/ssh/roads.rs` lost its two helpers of a link, inlined,
+  for the room of its child.
+- The record: `crates/podssh-cli/src/net/reached.rs`, written by `road_link::winner`, by the first
+  race that found no road in `ride`, by `ping`, and by the pair's road alone in
+  `crates/podssh-cli/src/ssh/node.rs`; `podssh status`'s `net`, and its members with `--net`
+  (`crates/podssh-cli/src/net/state.rs`, the flag row in `crates/podssh-cli/src/flags/relay.rs`).
+- doctor: the sections `carriers` (`crates/podssh-cli/src/doctor/carriers.rs`) and `net`
+  (`crates/podssh-cli/src/doctor/members.rs`), in `crates/podssh-cli/src/doctor/sections.rs`, and
+  the net's lines offline; the line of `--quick` names them.
+- The manual: the notes of `status`, `ping` and `doctor` (`crates/podssh-cli/src/man/notes_net.rs`,
+  `notes_ping.rs`, `notes_doctor.rs`), the row of `net-roads.json` in FILES, `--net`, and the words
+  of `ping`'s argument and verb. `docs/cli.md` ("The status of the net") and `docs/mesh.md`.
+- `cargo test -p podssh-cli --test net` (the module `net_status`: three ends on the stand-in relay;
+  `ping lab`, its road's time and the winner, lab's TARGET dialled no more; `ping gone`, 69;
+  `status --net`; doctor offline): 10 passed.
+- `cargo test -p podssh-relay --test session_race` (four tests of the measured race on a paused
+  clock): 15 passed.
+- `cargo test -p podssh-cli --lib -- net::reached net::state ping::node doctor::members
+  doctor::carriers doctor::sections ssh::roads::probe`: in the CLI's whole `--lib`, 857 passed.
+- `cargo test -p podssh-cli --test doctor --test doctor_jobs` (the section `net` offline in
+  `--json`, the line of `--quick`), and the manual's (`cargo test -p podssh-cli --lib -- man::`,
+  `cargo test -p podssh-cli --test man_flag_parity --test flag_table`): 13, 3, 6 and 9 passed;
+  `status`, `ping`, `node`, `node_copy`, `relay_serve_node` and `node_moves`: 18, 3, 2, 12, 6 and 7.
+- Planted, `sh scripts/plant-each.sh --here t435-time-unmeasured t435-winner-first-listed
+  t435-miss-hidden t435-record-unwritten t435-member-role-unchecked t435-carrier-off-asked
+  t435-line-untimed`: 7 caught.
+- `cargo clippy -p podssh-cli -p podssh-relay --all-targets -- -D warnings`, `cargo fmt --check`,
+  `python scripts/check-repo.py` and `cargo todo check`: clean once rustfmt reflowed two files.
+- Not run: doctor's member relay against podssh's relay role at a host that the net names, which
+  needs T-617's field; and the carriers' probes from a runner and this host (Q88).
 
 # T-436: The magic-wormhole transit relay as a carrier of a pair's road
 
@@ -8370,7 +8478,7 @@ say of it, need podssh's own number.
   of 4 MiB that moved no byte (results/http-piping.json); through the demo server, one stream on
   port 80 moved 5,054,472 bytes in its window, 903 ms of it the upgrade
   (results/wisp-throughput.json).
-- T-437's live run measured no rate: `TODO/mesh.md:1505` says "carried 64 KiB each way each time
+- T-437's live run measured no rate: `TODO/mesh.md:1613` says "carried 64 KiB each way each time
   (about 4 s)".
 
 ## Approach

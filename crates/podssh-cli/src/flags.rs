@@ -97,14 +97,8 @@ pub const ABOUT: &str = "no-privilege SSH over a WebSocket relay";
 /// `podssh man` renders it for every section, and `--help` renders it for
 /// every verb, so the sentence lives here and the parity gate compares the
 /// two renderings of it rather than trusting either copy.
-pub const HELP_FLAG: FlagRow = row(
-    None,
-    "help",
-    None,
-    FlagKind::Supported,
-    "Print help for this subcommand and exit",
-    None,
-);
+pub const HELP_FLAG: FlagRow =
+    row(None, "help", None, FlagKind::Supported, "Print help for this subcommand and exit", None);
 
 /// **`ssh`'s flags, one row for each OpenSSH flag (`docs/cli.md`, "Options of `podssh ssh`").**
 ///
@@ -318,8 +312,8 @@ mod keygen;
 mod man;
 mod mcp;
 mod node;
-mod operator;
 mod opentunnel;
+mod operator;
 mod ping;
 mod pipe;
 mod play;
@@ -342,8 +336,8 @@ pub use copy::CP_FLAGS;
 pub use detach::DETACHED_FLAGS;
 pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
-pub use health::HEALTH_FLAGS;
 pub use groups::GROUPS;
+pub use health::HEALTH_FLAGS;
 pub use job::JOB_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use man::MAN_FLAGS;
@@ -426,7 +420,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "agent", aliases: &["agent", "ssh-agent"], flags: AGENT_FLAGS,
         about: "an SSH agent inside podssh, and add, list, remove and lock its keys" },
     Verb { name: "ping", aliases: &["ping"], flags: PING_FLAGS,
-        about: "a short check of the path: each step to the relay, pings, and with a host the echo and throughput" },
+        about: "a short check of the path: each step to the relay, pings, and with a host the echo and throughput; with node://NAME, each of its roads and the one that answered first" },
     Verb { name: "health", aliases: &["health"], flags: HEALTH_FLAGS,
         about: "the far host's load, CPUs, memory, uptime, network, disks and processes, read over one exec" },
     Verb { name: "play", aliases: &["play"], flags: PLAY_FLAGS,

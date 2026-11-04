@@ -344,7 +344,7 @@ failure at `crates/podssh-relay/src/failures.rs:289-308`. `open` orders
 the hosts at `crates/podssh-relay/src/open.rs:212-218` and keeps the record
 after each round at `crates/podssh-relay/src/open.rs:253-260`; the race
 gives the silent hosts at `crates/podssh-relay/src/failover.rs:245-248`.
-`podssh status` at `crates/podssh-cli/src/status.rs:121-125`, `podssh
+`podssh status` at `crates/podssh-cli/src/status.rs:125-129`, `podssh
 doctor` at `crates/podssh-cli/src/doctor/mod.rs:99-109`, THE RELAY in the
 manual at `crates/podssh-cli/src/man/facts.rs:380-397`, and
 `docs/relay.md` and `docs/cli.md`.
@@ -790,7 +790,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:122-297`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/flags.rs:116-291`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:183-222`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:46-300`, 170-183); both to `docs/relay.md:102-147`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:211-225`,
    `crates/podssh-cli/src/man/data.rs:168-176`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:251-332`).
+   notes (`crates/podssh-cli/src/man/notes.rs:251-333`).
 
 ## Decision
 
@@ -2834,7 +2834,7 @@ session on 2026-11-03.
   (`crates/podssh-cli/src/proxy.rs:411`) and the relay's end of `podssh pipe` (`carry_opened`)
   tell it at their end (`crates/podssh-cli/src/pipe/relay.rs:210-212`).
 - `podssh status`: `relay_failures` names the road, and `relay_opened` gives the hosts that opened
-  lately (`crates/podssh-cli/src/status.rs:221-228`); `podssh doctor`'s line `failed relays` says
+  lately (`crates/podssh-cli/src/status.rs:225-232`); `podssh doctor`'s line `failed relays` says
   each host tried last, and a line `opened relays` those tried first
   (`crates/podssh-cli/src/doctor/mod.rs:275-303`). THE RELAY in the manual
   (`crates/podssh-cli/src/man/facts.rs:376-393`), `docs/relay.md` (step 5 of the selection) and

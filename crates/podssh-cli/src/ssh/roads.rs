@@ -19,6 +19,7 @@
 //! A copy to the node races the same roads (T-551): [`ride`] runs the race
 //! and the layer, and hands the layered stream to the SSH client of `podssh
 //! ssh`, or to a copy's task (`super::node_roads`), whose SSH runs at its end.
+//! [`probe`] times each road of the same race, with no session above it.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -46,10 +47,14 @@ use super::road_link::Kind;
 pub use super::road_link::Road;
 use super::road_link::{lost_words, order, winner, Handed, Rider, Unasked};
 
+// Each road of the race timed for `podssh ping node://NAME` (T-435).
+#[path = "road_probe.rs"]
+pub(crate) mod probe;
+
 /// The roads of a run beside the pair's: the iroh road of `--iroh-ticket`,
 /// the DERP road of a ticket given or kept, the transit relay's, and the
 /// Piping Server road.
-pub(super) struct Raced<'a> {
+pub(crate) struct Raced<'a> {
     pub iroh: Option<&'a super::iroh::Race>,
     pub derp: Option<super::derp::Road>,
     /// The OpenTunnel road of a name given or kept (T-531).
@@ -104,7 +109,7 @@ impl<'a> Roads<'a> {
         if let Some((dialer, asked)) = &self.derp {
             // A kept ticket is the fallback: only when each road before it failed.
             let start = if *asked { Start::After(HEAD_START) } else { Start::WhenAllFailed };
-            list.push((start, Box::pin(derp_link(dialer))));
+            list.push((start, Box::pin(async move { dialer.link().await.map(Road::Derp) })));
             kinds.push(Kind::Derp);
         }
         if let Some((dialer, asked)) = &self.opentunnel {
@@ -128,7 +133,7 @@ impl<'a> Roads<'a> {
         }
         if let Some(dialer) = &self.transit {
             // Q65's fallback: only when each road before it failed.
-            list.push((Start::WhenAllFailed, Box::pin(transit_link(dialer))));
+            list.push((Start::WhenAllFailed, Box::pin(async move { dialer.link().await.map(Road::Transit) })));
             kinds.push(Kind::Transit);
         }
         if !piping_asked {
@@ -229,14 +234,6 @@ async fn pair_link(
             Err(crate::pairs::connect_refusal(&e, roads.label).message)
         }
     }
-}
-
-async fn derp_link(dialer: &Dialer) -> Result<Road, String> {
-    dialer.link().await.map(Road::Derp)
-}
-
-async fn transit_link(dialer: &podssh_relay::transit::Dialer) -> Result<Road, String> {
-    dialer.link().await.map(Road::Transit)
 }
 
 /// A link of the Piping Server road: asked, or once a road found the
@@ -365,6 +362,7 @@ where
                 _ => "",
             };
             let why = format!("no road reached the node: {}{refused}", lost_words(&kinds, &lost));
+            crate::net::reached::missed(label, &why);
             let code = hand(not_reached(&why, sysexits::EX_UNAVAILABLE)).await;
             roads.close().await;
             return code;

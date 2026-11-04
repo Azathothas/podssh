@@ -199,6 +199,22 @@ What T-616 built (drafted 2026-11-04; [cli.md](cli.md), "`podssh net`"):
   held, by a new code, as the key is the member's already; never a serial
   that the device holds and the owner does not.
 
+What T-435 built (drafted 2026-11-04; [cli.md](cli.md), "The status of the
+net"), as Tailscale's `ping`, `status` and `netcheck`:
+
+- `podssh ping NAME` races a member's roads as `podssh ssh` races them, but
+  lets each road that starts run on to the far end's first bytes, so that
+  each has its time, and names the one that answered first; each link ends
+  before a byte is sent on it, so the node dials nothing at its TARGET
+  (`crates/podssh-cli/src/ssh/road_probe.rs`).
+- Each race to a node keeps its end in the cache, and `podssh status --net`
+  lists each member with its roles, the document's serial, and the road that
+  last reached it from this host, or the race that found none
+  (`crates/podssh-cli/src/net/state.rs`).
+- `podssh doctor` asks the public carriers of Q65 that the roads try
+  unasked, and the net's member relays at the hosts that the document names
+  for them (`crates/podssh-cli/src/doctor/members.rs`).
+
 ## 4. The relay as a role of podssh
 
 `podssh relay serve` (T-169, T-427) serves the relay's contract, version

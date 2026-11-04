@@ -241,7 +241,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         report.section("pairs");
         let stored = pairs::stored(&mut report);
         pairs::not_asked(&mut report, &stored, "not asked: PODSSH_OFFLINE is set");
-        return report.finish();
+        return members::offline(report);
     }
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => {
@@ -301,6 +301,10 @@ fn relay_record(report: &mut Report<'_>) {
         report.ok("opened relays", format!("tried first while their sessions hold: {}", opened.join(", ")));
     }
 }
+
+// The public carriers of Q65, and the net held with its member relays (T-435).
+mod carriers;
+mod members;
 
 #[cfg(test)]
 mod tests {

@@ -277,6 +277,17 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec![crate::net::reached::FILE.to_string()],
+            format!(
+                "The road that last reached each node from this host (T-435), in the cache: by the node's label, the \
+                 road that answered first, its time and when, and why the last race that found no road ended so, as \
+                 JSON with mode 0600, at most {} nodes, the oldest going first. Each race of podssh ssh, of the \
+                 copies and of podssh ping to node://NAME writes it, and podssh status --net reads it. It holds no \
+                 secret; a record that does not read is none.",
+                crate::net::reached::MOST
+            ),
+        ),
+        (
             vec![crate::ssh::cloud::warp::DEVICE_FILE.to_string()],
             "The device of WARP's road (warp://, in a build with the feature warp), in the cache, as JSON: its id \
              and its token at WARP's API, its P-256 key, the endpoint's key that the road pins, and its \

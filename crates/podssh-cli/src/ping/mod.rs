@@ -3,7 +3,7 @@
 //! WebSocket pings, each with its time in its payload and matched to its
 //! pong. With a destination, the SSH login too, the echo of single bytes
 //! through `cat`, and the throughput down and up, each remote command named.
-//! Each step has a limit, and so has the whole run.
+//! Each step has a limit, and so has the whole run. A node's roads are `node`'s.
 
 mod far;
 // `relay rank` probes each host with the leg of `ping` (T-606).
@@ -324,3 +324,7 @@ fn json(report: &Report, size: u64, count: usize) -> serde_json::Value {
         "exit": report.code,
     })
 }
+
+// A node's roads, each with its time, and the one that answered first
+// (T-435); dispatch enters `ping` there.
+pub(crate) mod node;

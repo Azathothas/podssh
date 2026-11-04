@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**591 entries: 96 open, 5 partial, 2 blocked, 488 done.**
+**591 entries: 95 open, 5 partial, 2 blocked, 489 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 63 | 65 |
-| P2 | 27 | 2 | 0 | 236 | 265 |
+| P2 | 26 | 2 | 0 | 237 | 265 |
 | P3 | 69 | 1 | 2 | 188 | 260 |
-| **All** | 96 | 5 | 2 | 488 | 591 |
+| **All** | 95 | 5 | 2 | 489 | 591 |
 
 ## Entries
 
@@ -506,7 +506,7 @@ repository and CI).
 | [T-432](mesh.md) | P2 | M | M10 | feature | done | Routes: a node reaches its private networks for the net |
 | [T-433](mesh.md) | P2 | M | M10 | feature | open | `podssh share`: a node's local services by name, for the net |
 | [T-434](mesh.md) | P2 | M | M10 | feature | open | A member that relays between two other members |
-| [T-435](mesh.md) | P2 | M | M10 | feature | open | `status`, `ping` and `doctor` for the net |
+| [T-435](mesh.md) | P2 | M | M10 | feature | done | `status`, `ping` and `doctor` for the net |
 | [T-436](mesh.md) | P2 | M | M10 | feature | done | The magic-wormhole transit relay as a carrier of a pair's road |
 | [T-437](mesh.md) | P2 | M | M10 | feature | done | Piping Server, a road for a proxy that refuses the WebSocket upgrade |
 | [T-438](mesh.md) | P3 | M | M10 | feature | done | Wisp: the demo server as a forwarder, and the Wisp protocol |

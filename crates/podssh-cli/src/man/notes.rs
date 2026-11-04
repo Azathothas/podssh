@@ -272,6 +272,7 @@ const DOCTOR: &[&str] = &[
     super::notes_doctor::DOCTOR_CLEARTEXT,
     super::notes_doctor::DOCTOR_HTTP2,
     super::notes_doctor::DOCTOR_STREAM,
+    super::notes_net::DOCTOR_NET,
     "Each CONNECT, and the direct TCP check, is tried nine times over a second or more: its line gives \
      the best time (the path's floor), the median, the 95th percentile and the jitter (the median change \
      from one try to the next), and the loss, the tries that timed out and those that broke counted \
@@ -350,6 +351,7 @@ const STATUS: &[&str] = &[
      at_start, raised, refused: the limit of open files, which podssh raises at start; null on \
      Windows), and pairs: each stored pair's label, when it expires, whether it expired, and \
      next_now, whether podssh relay pair LABEL makes its next pair now.",
+    super::notes_net::STATUS_NET,
     "It shows no token and no proxy credentials, opens no connection, asks no DNS and writes nothing. A \
      bad --relay-host or destination is a usage error (64), a bad PODSSH_RELAY a configuration error \
      (78). podssh doctor is the report that measures.",

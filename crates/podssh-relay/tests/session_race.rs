@@ -4,13 +4,15 @@
 //! road has the head start; the second starts after it, or at once when the
 //! first fails; the first far end to speak wins, and the loser's far end
 //! reads nothing at all: no `OPEN`, so no target. A planted race that waits
-//! for the first road's own time limit fails the first check.
+//! for the first road's own time limit fails the first check. The measured
+//! race of `podssh ping node://NAME` (T-435) times each road that starts, and
+//! no far end of it reads a byte either.
 
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::session::race::{in_turn, race, Lost, Start, Won, HEAD_START};
+use podssh_relay::session::race::{each_timed, first_answered, in_turn, race, Lost, Start, Timed, Won, HEAD_START};
 use podssh_relay::session::record::kind::GREETING;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
@@ -205,4 +207,79 @@ async fn in_turn_says_each_road_s_reason_in_the_order_of_the_list() {
     let lost = in_turn(roads).await.err().expect("no winner");
     assert_eq!(lost, ["the iroh relay refused", "the pair expired", "no DERP server holds the node"]);
     assert_eq!(in_turn(Vec::<(Start, Road)>::new()).await.err(), Some(Vec::new()), "no road, no winner");
+}
+
+/// The measured race of `podssh ping node://NAME` (T-435): each road that
+/// starts is timed to its far end's first bytes, the second at its wait
+/// after the first answered; a fallback never starts while a road answered;
+/// and no far end gets a byte, so none opens a session.
+#[tokio::test(start_paused = true)]
+async fn each_timed_measures_each_road_that_starts_and_sends_nothing() {
+    let (first, first_seen) = road(100 * MS, 20 * MS);
+    let (second, second_seen) = road(10 * MS, 10 * MS);
+    let (fallback, fallback_seen) = road(10 * MS, 10 * MS);
+    let roads = vec![
+        (Start::After(HEAD_START), boxed(first)),
+        (Start::After(HEAD_START), boxed(second)),
+        (Start::WhenAllFailed, boxed(fallback)),
+    ];
+    let timed = each_timed(roads, Duration::from_secs(30)).await;
+    let ok = |started, took| Some(Timed { started, took, answered: Ok(()) });
+    assert_eq!(timed, [ok(Duration::ZERO, 120 * MS), ok(HEAD_START, 20 * MS), None]);
+    assert_eq!(first_answered(&timed), Some(0));
+    assert!(fallback_seen.lock().unwrap().is_none(), "the fallback started while a road answered");
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    for seen in [first_seen, second_seen] {
+        assert_eq!(seen.lock().unwrap().as_deref(), Some(&[][..]), "a far end got bytes");
+    }
+}
+
+/// Each road before the fallback fails: each is timed with its reason, the
+/// next at once, and the fallback last, which answers.
+#[tokio::test(start_paused = true)]
+async fn each_timed_starts_a_fallback_once_each_road_before_it_failed() {
+    let (fallback, _) = road(10 * MS, 10 * MS);
+    let roads = vec![
+        (Start::After(HEAD_START), boxed(failing(30 * MS, "refused"))),
+        (Start::After(HEAD_START), boxed(failing(40 * MS, "the pair expired"))),
+        (Start::WhenAllFailed, boxed(fallback)),
+    ];
+    let timed = each_timed(roads, Duration::from_secs(30)).await;
+    let failed = |started, took, why: &str| Some(Timed { started, took, answered: Err(why.to_string()) });
+    assert_eq!(timed[0], failed(Duration::ZERO, 30 * MS, "refused"));
+    assert_eq!(timed[1], failed(30 * MS, 40 * MS, "the pair expired"));
+    assert_eq!(timed[2], Some(Timed { started: 70 * MS, took: 20 * MS, answered: Ok(()) }));
+    assert_eq!(first_answered(&timed), Some(2));
+}
+
+/// A road that neither answers nor fails ends at the bound of the measure,
+/// with the bound as its reason; the road that answered wins.
+#[tokio::test(start_paused = true)]
+async fn each_timed_ends_a_road_that_does_not_answer_at_its_bound() {
+    let (second, _) = road(10 * MS, 10 * MS);
+    let roads = vec![
+        (Start::After(HEAD_START), boxed(failing(Duration::from_secs(60), "no relay"))),
+        (Start::After(HEAD_START), boxed(second)),
+    ];
+    let timed = each_timed(roads, Duration::from_secs(2)).await;
+    let Some(first) = &timed[0] else { panic!("the first road did not start") };
+    assert_eq!((first.started, first.took), (Duration::ZERO, Duration::from_secs(2)));
+    assert_eq!(first.answered, Err("no answer within 2 s of the race's start".to_string()));
+    assert_eq!(timed[1], Some(Timed { started: HEAD_START, took: 20 * MS, answered: Ok(()) }));
+    assert_eq!(first_answered(&timed), Some(1));
+    assert!(each_timed(Vec::<(Start, Road)>::new(), Duration::from_secs(1)).await.is_empty(), "no road");
+}
+
+/// The road that answered first is the first far end that spoke from the
+/// start of the race, not the first road of the list that answered; of two
+/// at once, the earlier in the list, as `in_turn` polls them.
+#[test]
+fn first_answered_is_the_first_far_end_that_spoke() {
+    let ms = Duration::from_millis;
+    let ok = |started, took| Some(Timed { started: ms(started), took: ms(took), answered: Ok(()) });
+    let failed = Some(Timed { started: ms(0), took: ms(5), answered: Err("refused".into()) });
+    assert_eq!(first_answered(&[ok(0, 400), ok(250, 20)]), Some(1), "the second spoke at 270 ms");
+    assert_eq!(first_answered(&[failed.clone(), ok(5, 30), ok(250, 0), None]), Some(1));
+    assert_eq!(first_answered(&[ok(0, 30), ok(10, 20)]), Some(0), "at once: the earlier in the list");
+    assert_eq!(first_answered(&[failed, None]), None);
 }

@@ -6,8 +6,14 @@
 use super::{row, FlagKind, FlagRow};
 
 /// `ssh`: OpenSSH's `-f`, and `--detach` of each command that serves.
-pub const SSH_DETACH: FlagRow = row(Some('f'), "detach", None, FlagKind::Supported,
-    "go to the background once logged in and the request went, with a command or -N (see --detach)", None);
+pub const SSH_DETACH: FlagRow = row(
+    Some('f'),
+    "detach",
+    None,
+    FlagKind::Supported,
+    "go to the background once logged in and the request went, with a command or -N (see --detach)",
+    None,
+);
 
 /// `ssh`: the supervisor of a detached run.
 pub const SSH_RESTART: FlagRow = row(None, "restart", None, FlagKind::Supported,

@@ -2578,7 +2578,7 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
 - **The sections at once** (T-511, the operator's ruling Q73). The
   sections that connect (the egress's probes, the quick tunnel's edge, the
   relay, the forwarders and each road that the run names, iroh and tor in a
-  build with them, OpenTunnel, DERP and the pairs) start together by default, each into
+  build with them, OpenTunnel, DERP, the public carriers, the pairs and the net, T-435) start together by default, each into
   its own part of the report, and the report keeps its order: a part's
   lines go out once each part before it has ended, the first that still
   runs line by line, as a run of one section at a time showed them. A run
@@ -2586,8 +2586,8 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   40 s in the testers' runs of `v1.0.0`, most of it the iroh relays, the
   DERP servers and the quick tunnel's edge). Each section still reaches its
   servers one after another, so a run holds at most one connection for
-  each section that runs, four in a run with no flag and no stored pair
-  (the egress, the relay, OpenTunnel, DERP), and the relay's forward races its hosts as `ssh` does
+  each section that runs, five in a run with no flag, no stored pair and no member relay
+  (the egress, the relay, OpenTunnel, DERP, the public carriers), and the relay's forward races its hosts as `ssh` does
   (Q10). `--jobs N` (1 to 64), or `DoctorJobs N` in the settings file,
   starts at most N together, in the order of the report; `--jobs 1` is one
   after another, as before. A bad value is 64 for the flag, 78 for the
@@ -2596,7 +2596,7 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   what each run of `ssh` and `proxy` needs, with the section of each road
   that the run names (`--forwarder`, `--shadowsocks`, `--via`, `--vless`).
   It leaves out the quick tunnel's edge (its roots, `UDP out`, `edge
-  road`), iroh and tor in a build with them, OpenTunnel, DERP and the pairs, and says
+  road`), iroh and tor in a build with them, OpenTunnel, DERP, the public carriers, the pairs and the net, and says
   so in its last line, `sections` in the section `left out`, as `????`: a
   check that did not run. The MCP tool `doctor` takes it as `quick`.
 - `ok`: the check ran and podssh can work with the result. A condition that
@@ -2829,7 +2829,7 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
 
 ## `podssh status`
 
-`podssh status [--relay-host HOSTS] [--relay-addr HOST=IP] [[user@]host]`
+`podssh status [--relay-host HOSTS] [--relay-addr HOST=IP] [--net] [[user@]host]`
 writes one line of JSON and exits 0 (GitHub #11). It is the cheap call
 before anything else; `podssh doctor` is the report that measures.
 
@@ -5392,3 +5392,80 @@ must not stop each connection.
 NOTE: In its recommended parsing mode, `ssh2-config` 0.8.1 drops
 `ProxyCommand` and `StrictHostKeyChecking` silently (read 2026-10-01). Do not
 use it.
+
+## The status of the net
+
+`podssh ping NAME`, `podssh status --net` and the sections `carriers` and
+`net` of `podssh doctor` (T-435, milestone M10, [mesh.md](mesh.md)) are
+Tailscale's `ping`, `status` and `netcheck` for the net of `podssh net`.
+
+- **`podssh ping node://NAME`**, and `podssh ping NAME` of a member with the
+  role `node`, read as `podssh ssh` reads the destination, race the roads
+  that `ssh` races to that node, chosen as it chooses them, in its order and
+  with its delays (`crates/podssh-cli/src/ssh/road_probe.rs`): the pair's
+  road, with the Piping Server road behind it when no other road races, as
+  `ssh` takes the pair's road alone; and the iroh road, the DERP road, the
+  OpenTunnel road, the record's roads and the transit road where `ssh` has
+  them. The race is measured, not won: each road that starts runs on to the
+  far end's first bytes, so each has its time
+  (`crates/podssh-relay/src/session/race.rs`, `each_timed`); a road whose
+  wait came after another answered still starts at its wait, as the race
+  would have started it had the first been slow; a fallback that waits for
+  each road before it to fail does not start once one answered, and says so.
+  The road that answered first is the first far end that spoke, from the
+  start of the race, as `ssh -v` names it. The whole measure has a bound of
+  45 s, above each road's own limits.
+- **What `ping NAME` opens.** Each road that starts opens its one connection,
+  as a race of `ssh` opens it, and its link ends as soon as the far end
+  spoke, before a byte is sent on it: no `OPEN`, so the node opens no session
+  and dials nothing at its TARGET, and no end-to-end channel is made, as no
+  session goes above the roads. Nothing logs in, so `ping NAME` needs no key
+  of the node's server; the login, the echo and the throughput stay a host's
+  measures, and `--size`, `--count` and `--target` with a node are 64.
+- Its lines: one for each road, `node://NAME: ROAD: answered in T ms`, with
+  `, started S ms into the race` for a road that did not start first, or
+  `failed after T ms: WHY`, or `not started`; then `node://NAME: ROAD answered
+  first, in T ms`, or `node://NAME: not reached: no road answered`. `--json`
+  gives one object: `node` (`name`, `roads`, each with `road`, `started`,
+  `started_ms`, `ms`, `answered` and `error`, then `won` and `won_ms`) beside
+  `schema`, `podssh`, `relays` (empty), `destination` (null) and `exit`. 0
+  when a road answered, 69 when none did or with `PODSSH_OFFLINE`, the
+  refusal's code of the node's resolution before anything connects.
+- **The record of the roads** (`crates/podssh-cli/src/net/reached.rs`).
+  Each race to `node://NAME` keeps its end in `net-roads.json` in the cache,
+  by the label: the road that answered first, its time and when, written by
+  `ssh`'s race and each of its resumes, a copy's race, `ping`, and the
+  pair's road alone where `ssh` and the copies take it; and the race that
+  found no road, with why. At most 256 labels, the oldest word going first;
+  two runs at once may each lose the other's word, which costs a status line
+  its newest race and nothing else. It holds no secret.
+- **`podssh status --net`** (`crates/podssh-cli/src/net/state.rs`). The line
+  of `status` has `net` in each run: the net held, read with no connection
+  (`name`, `serial`, `owner`, `expires_ms`, `ended`, `file`, `count`), null
+  when this host holds none or `PODSSH_NET=no`, and `error` when its file
+  does not read, which never stops the line. With `--net`, `net.members`
+  too: each member's `name`, `roles`, `key` (its fingerprint), `tickets`
+  (their kinds, never a ticket) and `routes`, and of the record `reached`
+  (`road`, `ms`, `ago_s`), `missed` (`why`, `ago_s`) and `last`, `reached` or
+  `missed`, whichever came last, or null. `status` still opens no connection
+  and writes nothing.
+- **`podssh doctor`'s section `carriers`** (`crates/podssh-cli/src/doctor/carriers.rs`):
+  the public carriers of Q65 that this host reaches, as the roads of a node
+  try them unasked, one connection through the proxy each, one after
+  another: the transit relay of `PODSSH_TRANSIT` (Least Authority's), its
+  WebSocket opened and closed with no line said, so that it pairs nothing;
+  each mailbox of `PODSSH_PAIR_MAILBOX` (magic-wormhole's, then Least
+  Authority's), its welcome read and podssh's application bound, no
+  nameplate claimed; and the Piping Server of `PODSSH_PIPING` (`ppng.io`),
+  asked its `/version`, which waits for no sender. A variable's `no` asks
+  none of its carrier (`????`), a value that its road refuses is `FAIL`. The
+  Wisp demo server is a forwarder: the line `fallback` names it, and
+  `--forwarder wisp` asks it.
+- **The section `net`** (`crates/podssh-cli/src/doctor/members.rs`): the net
+  held, read with no connection, `FAIL` for a file that does not read or a
+  net that ended; then `/health` of each member with the role `relay`, at
+  most 8, one after another, at the host that its object names in the
+  document (the field `relay`, T-617), verified with doctor's trust, as the
+  relay section asks the relay hosts; one with no host is `????`. With
+  `PODSSH_OFFLINE`, the net's line comes and no member relay is asked.
+  `--quick` leaves out both sections.

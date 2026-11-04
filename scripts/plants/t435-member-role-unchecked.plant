@@ -1,0 +1,7 @@
+# T-435: doctor's section of the net asks each member at a host of the
+# document as a member relay, its role relay not checked; the test of the
+# members that are asked must fail.
+ENTRY=T-435
+GROUP=cli-tests
+EXPECT='test doctor::members::tests::only_a_member_with_the_role_relay_is_asked_by_its_host \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- doctor::members::tests'

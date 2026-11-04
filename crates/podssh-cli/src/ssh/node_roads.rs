@@ -213,3 +213,22 @@ pub(crate) async fn reach(transport: &Transport, log: &Arc<Log>) -> Result<Reach
         }),
     }
 }
+
+/// The roads of the node of `transport`, each timed to its far end's first
+/// bytes, for `podssh ping node://NAME` (T-435): the roads that `ssh` races,
+/// chosen as it chooses them, in its order with its delays, and the pair's
+/// road with them also where `ssh` takes it alone; no session above them.
+pub(crate) async fn measure(
+    transport: &Transport,
+    log: &Arc<Log>,
+) -> Result<super::roads::probe::Measures, super::transport::NotReached> {
+    let Some(dest) = Dest::of(transport) else {
+        let why = "the roads of a node were asked for another destination".to_string();
+        return Err(NotReached { lines: vec![why], code: sysexits::EX_SOFTWARE });
+    };
+    let chosen = chosen(&dest).map_err(|refusal| NotReached { lines: vec![refusal.message], code: refusal.code })?;
+    let Dest { label, pair_file, trust, race, .. } = dest;
+    let Chosen { record, derp, opentunnel, transit, piping } = chosen;
+    let raced = Raced { iroh: race, derp, opentunnel, transit, piping, record: record.as_ref() };
+    super::roads::probe::measure(label, pair_file, trust, raced, log.clone()).await
+}

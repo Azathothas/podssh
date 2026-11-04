@@ -271,11 +271,11 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     }
 
     if verb.name == "status" {
-        let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Status {
-            relay_host: get("relay-host"),
-            relay_addr: get("relay-addr"),
-            destination: get("destination"),
+            relay_host: matches.get_one::<String>("relay-host").cloned(),
+            relay_addr: matches.get_one::<String>("relay-addr").cloned(),
+            destination: matches.get_one::<String>("destination").cloned(),
+            net: matches.get_flag("net"),
             refused,
         };
     }

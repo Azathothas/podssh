@@ -108,6 +108,7 @@ pub enum Parsed {
         relay_host: Option<String>,
         relay_addr: Option<String>,
         destination: Option<String>,
+        net: bool,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh node NAME TARGET` (T-083).

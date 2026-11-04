@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/net/reached.rs
++++ b/crates/podssh-cli/src/net/reached.rs
+@@ -85,7 +85,7 @@
+             (None, None) => None,
+             (Some(_), None) => Some(true),
+             (None, Some(_)) => Some(false),
+-            (Some(reached), Some(missed)) => Some(reached.at_ms >= missed.at_ms),
++            (Some(_), Some(_)) => Some(true),
+         }
+     }
+ }

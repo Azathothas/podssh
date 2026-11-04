@@ -199,7 +199,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 591 entries: 96 open, 5 partial, 2 blocked, 488 done.
+`TODO/INDEX.md` holds 591 entries: 95 open, 5 partial, 2 blocked, 489 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -247,7 +247,7 @@ this order:
 2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once, a copy's race of the roads, the pairing by a short code, a device's join by one, the signed list of deployments and the
    tokens of one leg are done): T-106, T-617 and T-620.
 3. Exit, routes, share and funnel (the exit, `doctor --exit` and the net's routes are done): T-433,
-   T-180, then T-434, T-435 and T-459.
+   T-180, then T-434 and T-459 (the status of the net, `ping` of a node and doctor's sections are done).
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the
    protocols of Q66 are done), XHTTP over HTTP/1.1 (T-456, Q67), then what the research of more services (done) filed: the protocols of
    servers that a user runs (T-490 and T-493, then T-491, T-492, T-494 and T-498), upterm's door

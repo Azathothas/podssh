@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/session/race.rs
++++ b/crates/podssh-relay/src/session/race.rs
+@@ -291,7 +291,7 @@
+             Event::Road(place, answered) => {
+                 slots[place] = None;
+                 let start = at[place].unwrap_or(began);
+-                timed[place] = Some(Timed { started: start.duration_since(began), took: start.elapsed(), answered });
++                timed[place] = Some(Timed { started: start.duration_since(began), took: Duration::ZERO, answered });
+             }
+             Event::Start => {
+                 last = Instant::now();

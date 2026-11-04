@@ -1,0 +1,7 @@
+# T-435: the measured race of `podssh ping node://NAME` keeps no time for a
+# road that ended, as if it did not measure it; the test of each road timed
+# to its far end's first bytes must fail.
+ENTRY=T-435
+GROUP=resume
+EXPECT='test each_timed_measures_each_road_that_starts_and_sends_nothing \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test session_race -- each_timed'

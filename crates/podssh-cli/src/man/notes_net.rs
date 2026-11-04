@@ -86,6 +86,32 @@ pub const NET: &[&str] = &[
      exit); the node says at its start when the document lists other routes than its own.",
 ];
 
+/// The note of `podssh status --net` (T-435), as `tailscale status` lists a
+/// tailnet: the notes of status name it.
+pub const STATUS_NET: &str = "The line's net is the net that this host holds, read with no connection: name, serial, \
+     owner (its fingerprint), expires_ms, ended, file and count, the number of members; null when this host holds \
+     none or PODSSH_NET is no, and error, with why, when its file does not read. With --net, net also holds \
+     members: each member's name, roles, key (its fingerprint), tickets (their kinds, never a ticket) and routes, \
+     and what the races from this host last found of it: reached, the road that answered first in the words of \
+     podssh ssh -v, with ms from the start of the race and ago_s; missed, why the last race found no road, with \
+     ago_s; and last, reached or missed, whichever came last, or null when no race to it was kept. Each race of \
+     podssh ssh, of the copies and of podssh ping to node://NAME, and the pair's road alone, keeps its end in \
+     net-roads.json in the cache (see FILES), at most 256 nodes.";
+
+/// The note of `podssh doctor`'s sections of the net and of the public
+/// carriers (T-435), as `tailscale netcheck` says what a host reaches.
+pub const DOCTOR_NET: &str = "The section carriers asks each public carrier that the roads of a node try \
+     unasked, one connection through the proxy each, one after another, carrying nothing of yours: the transit \
+     relay of PODSSH_TRANSIT (Least Authority's by default), whose WebSocket opens and closes with no line said, so \
+     it pairs nothing; each mailbox of PODSSH_PAIR_MAILBOX (magic-wormhole's and Least Authority's by default), \
+     which says its welcome and is bound to podssh's application, no nameplate claimed; and the Piping Server of \
+     PODSSH_PIPING (ppng.io by default), asked its /version. A variable's no asks none of its carrier, ????; a \
+     value that its road refuses is a FAIL. The Wisp demo server is a forwarder, which the line fallback names. \
+     The section net says the net held, read with no connection (FAIL for a file that does not read, or a net \
+     that ended), then asks /health of each member with the role relay, at most 8, at the host that the net's \
+     document names for it, as the relay section asks the relay hosts; a member relay that the document names no \
+     host for is ????. With PODSSH_OFFLINE, the net's line comes, and no member relay is asked.";
+
 /// The notes of `podssh exit` (T-431), beside the net's, as an exit is a
 /// node of the net.
 pub const EXIT: &[&str] = &[

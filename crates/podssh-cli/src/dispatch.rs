@@ -136,7 +136,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Relay(args) if refusals("relay", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Relay(args) => crate::relay_cmd::run_relay(args, s.out, s.err),
         Parsed::Ping(args) if refusals("ping", &args.refused, s.err) => EXIT_USAGE,
-        Parsed::Ping(args) => crate::ping::run(args, s.out, s.err),
+        Parsed::Ping(args) => crate::ping::node::run(args, s.out, s.err),
         Parsed::Health(args) if refusals("health", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Health(args) => crate::health::run(args, s.out, s.err),
         Parsed::Play(args) if refusals("play", &args.refused, s.err) => EXIT_USAGE,
@@ -180,14 +180,14 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Exit(args) => crate::exit::run_exit(args, s.err),
         Parsed::Agent(args) if refusals("agent", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Agent(args) => crate::agent::run(args, s.out, s.err),
-        Parsed::Status { relay_host, relay_addr, destination, refused } => {
-            if refusals("status", refused, s.err) {
-                return EXIT_USAGE;
-            }
+        Parsed::Status { refused, .. } if refusals("status", refused, s.err) => EXIT_USAGE,
+        Parsed::Status { relay_host, relay_addr, destination, net, .. } => {
             let args = crate::status::StatusArgs {
                 relay_host: relay_host.clone(),
                 relay_addr: relay_addr.clone(),
                 destination: destination.clone(),
+                // `--net`: each member of the net held, and its road (T-435).
+                net: *net,
             };
             crate::status::run_status(&args, tty, s.out, s.err)
         }

@@ -903,7 +903,7 @@ host, never the relay's name (`SECURITY.md:215-225`); `HostKeyAlias` exists
 4. Host keys: record and check the node's key under the name `node://NAME`, which no DNS name can be;
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
-6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:122-297`,
+6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:116-291`,
    lines 418-419 at `3cbf215`). Update the manual's examples and notes, `docs/cli.md` (lines 62-75 at `3cbf215`) and `docs/reverse.md`.
 
 ## Decision
@@ -2609,7 +2609,7 @@ documents works; the form that a user expects is missing.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
   (`crates/podssh-cli/src/man/notes_pair.rs:300-302`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
-  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:392`), with no word of a node.
+  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:386`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
   `iap://`, `eice://`, `warp://` and `tor://` (`crates/podssh-cli/src/proxy.rs:124-139`).
 
@@ -2729,7 +2729,7 @@ cannot set.
 - Read: the rows of `operator` are "a pipe, with no `--timeout`"
   (`crates/podssh-cli/src/flags/operator.rs` line 9 at `d629249`, before T-613 gave it one), and
   have no ConnectTimeout; `ssh` has one
-  (`crates/podssh-cli/src/flags.rs:179-180`).
+  (`crates/podssh-cli/src/flags.rs:173-174`).
 - Read: `operator`'s waits are 30 s for each request of the relay
   (`crates/podssh-cli/src/operator.rs:142`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
   node's `ready` (`crates/podssh-relay/src/reverse/operator.rs:59`); `proxy`'s, 20 s for each

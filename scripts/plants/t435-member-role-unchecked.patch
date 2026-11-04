@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/doctor/members.rs
++++ b/crates/podssh-cli/src/doctor/members.rs
+@@ -31,7 +31,7 @@
+ /// The members of `doc` with the role `relay`, in its order; no other.
+ pub(super) fn relays_of(doc: &Doc) -> Vec<MemberRelay> {
+     let objects: &[Value] = doc.field("members").and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
+-    let relays = doc.members.iter().filter(|member| member.has_role("relay"));
++    let relays = doc.members.iter().filter(|_member| true);
+     relays
+         .map(|member| {
+             let named = |object: &&Value| object.get("name").and_then(Value::as_str) == Some(member.name.as_str());

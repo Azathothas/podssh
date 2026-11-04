@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ssh/road_probe.rs
++++ b/crates/podssh-cli/src/ssh/road_probe.rs
+@@ -130,7 +130,7 @@
+     let winner = won.and_then(|at| Some((measured[at].road, measured[at].timed.as_ref()?.ended())));
+     let measures = Measures { shown: shown.clone(), roads: measured, won };
+     match winner {
+-        Some((road, took)) => crate::net::reached::reached(label, road, took),
++        Some((_road, _took)) => {}
+         None => crate::net::reached::missed(label, &measures.why_none()),
+     }
+     Ok(measures)

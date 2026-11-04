@@ -216,8 +216,13 @@ pub(super) async fn connect(
     // SSH <-> the resumable layer <-> the operator's leg, a new leg after
     // each lost one when the node offers the layer (T-153).
     let (link_end, leg_end) = tokio::io::duplex(PIPE);
+    let began = tokio::time::Instant::now();
     let leg = match operator::start(&config, leg_end).await {
-        Ok(leg) => leg,
+        Ok(leg) => {
+            // The road that reached the node, for `podssh status --net` (T-435).
+            crate::net::reached::reached(label, super::road_link::Kind::Pair.name(), began.elapsed());
+            leg
+        }
         Err(e) => {
             let why = crate::pairs::connect_refusal(&e, label).message;
             if let Some(race) = piping.filter(|_| podssh_relay::piping::probe::upgrade_refused(&e)) {
@@ -234,6 +239,7 @@ pub(super) async fn connect(
                 return Box::pin(super::node_roads::connect(label, pair_file, trust, raced, ask, opts, log)).await;
             }
             log.error(&format!("{shown}: {why}"));
+            crate::net::reached::missed(label, &why);
             podssh_ssh::outcome::failed("relay");
             return EXIT_FAILURE;
         }
@@ -351,15 +357,20 @@ pub async fn reach(
             wire: Wire::Tls,
         };
         let (link, leg_end) = tokio::io::duplex(PIPE);
+        let began = tokio::time::Instant::now();
         let leg = match operator::start(&config, leg_end).await {
             Ok(leg) => {
+                // The road that reached the node, for `podssh status --net` (T-435).
+                crate::net::reached::reached(&task_label, super::road_link::Kind::Pair.name(), began.elapsed());
                 let _ = started.send(Ok(()));
                 leg
             }
             Err(e) => {
                 // A refusal of the upgrade on the way is the cue of Q65.
                 let cue = podssh_relay::piping::probe::upgrade_refused(&e);
-                let _ = started.send(Err((crate::pairs::connect_refusal(&e, &task_label), cue)));
+                let refusal = crate::pairs::connect_refusal(&e, &task_label);
+                crate::net::reached::missed(&task_label, &refusal.message);
+                let _ = started.send(Err((refusal, cue)));
                 return;
             }
         };

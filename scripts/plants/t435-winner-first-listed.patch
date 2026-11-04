@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/session/race.rs
++++ b/crates/podssh-relay/src/session/race.rs
+@@ -213,7 +213,7 @@
+ /// race; of two at once, the earlier in the list, as [`in_turn`] polls them.
+ pub fn first_answered(timed: &[Option<Timed>]) -> Option<usize> {
+     let answered = |(at, t): (usize, &Option<Timed>)| Some((t.as_ref().filter(|t| t.answered.is_ok())?.ended(), at));
+-    timed.iter().enumerate().filter_map(answered).min().map(|(_, at)| at)
++    timed.iter().enumerate().filter_map(answered).next().map(|(_, at)| at)
+ }
+ 
+ /// What a wait of [`each_timed`] ended with.

@@ -234,7 +234,8 @@ fn quick_checks_the_host_the_egress_and_the_relay_and_names_what_it_left_out() {
     assert_eq!(sections, ["this host", "egress", "relay", "forwarders", "via", "left out"], "{}", run.out);
     let last = run.out.lines().rev().find(|l| l.starts_with("  ")).unwrap_or_default();
     assert!(last.starts_with("  ????  sections       not checked with --quick: the quick tunnel's edge"), "{last}");
-    assert!(last.contains("DERP and the pairs; a run without --quick checks them"), "{last}");
+    let tail = "DERP, the public carriers, the pairs and the net held; a run without --quick checks them";
+    assert!(last.contains(tail), "{last}");
     // --json: no check of the roads left out, and the same line, unknown,
     // in its section.
     let json = doctor(&["--quick", "--json", "--relay-host", "fast-relay.example"], port);
@@ -243,7 +244,7 @@ fn quick_checks_the_host_the_egress_and_the_relay_and_names_what_it_left_out() {
     let checks = doc["checks"].as_array().unwrap();
     for item in checks {
         let (section, check) = (item["section"].as_str().unwrap(), item["check"].as_str().unwrap());
-        assert!(!["derp", "pairs", "iroh", "tor"].contains(&section), "{item}");
+        assert!(!["derp", "carriers", "pairs", "net", "iroh", "tor"].contains(&section), "{item}");
         let gone = ["UDP out", "edge road", "quick tunnel roots", "bind UDP"].contains(&check)
             || ["DERP", "iroh", "pair "].iter().any(|word| check.starts_with(word));
         assert!(!gone, "{item}");

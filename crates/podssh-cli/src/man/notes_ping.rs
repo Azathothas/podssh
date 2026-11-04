@@ -18,6 +18,18 @@ pub const PING: &[&str] = &[
      into cat > /dev/null; each line names the remote command that ran. These programs are an \
      assumption about the host, so they run only for a destination. A program that the host lacks \
      ends the run with its status, never with a hang: each step and the whole run have a limit.",
+    "With node://NAME, or the name alone of a member of the net with the role node, podssh ping measures the \
+     roads that podssh ssh races to that node (T-435), as tailscale ping names the path that answered: in the \
+     order of the race and with its delays, each road that starts runs on to the far end's first bytes, and a \
+     line for each says its time and when it started into the race, why it failed, or that it did not start, as \
+     a fallback starts only when each road before it failed; the last line names the road that answered first, \
+     with its time from the start of the race. Each road that starts opens its one connection, as a race of \
+     podssh ssh does, and each link ends before a byte is sent on it, so the node opens no session and dials \
+     nothing at its TARGET, and nothing logs in. The exit is 0 when a road answered and 69 when none did; --size, \
+     --count and --target are a host's, and refused with a node (64). --json gives node (name, roads, each with \
+     road, started, started_ms, ms, answered and error, then won and won_ms) beside schema, podssh, relays, \
+     empty, destination, null, and exit. The road that answered, or the race that found none, is what podssh \
+     status --net says of the node.",
     "With --json, the run writes one JSON object on stdout when it ends, and nothing before it: schema \
      (1), podssh, count, size, relays (each with host, target, token, token_ms, connect, connect_ms, \
      tls_ms, upgrade_ms, pings with min_ms, p50_ms, p95_ms and max_ms, pings_lost and error), \

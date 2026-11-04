@@ -64,7 +64,11 @@ pub(super) enum Kind {
     /// The API's host of OpenTunnel (T-531).
     OpenTunnel,
     Derp,
+    /// The public carriers of Q65 that this host reaches (T-435).
+    Carriers,
     Pairs,
+    /// The net held, and its member relays (T-435).
+    Net,
 }
 
 impl Kind {
@@ -85,7 +89,9 @@ impl Kind {
             Kind::Tor => "tor",
             Kind::OpenTunnel => "opentunnel",
             Kind::Derp => "derp",
+            Kind::Carriers => "carriers",
             Kind::Pairs => "pairs",
+            Kind::Net => "net",
         }
     }
 
@@ -114,7 +120,7 @@ pub(super) fn kinds(quick: bool, servers: bool, road: bool, links: bool, exit: b
         kinds.push(Kind::Iroh);
         #[cfg(feature = "tor")]
         kinds.push(Kind::Tor);
-        kinds.extend([Kind::OpenTunnel, Kind::Derp, Kind::Pairs]);
+        kinds.extend([Kind::OpenTunnel, Kind::Derp, Kind::Carriers, Kind::Pairs, Kind::Net]);
     }
     if stream {
         kinds.push(Kind::Stream);
@@ -196,10 +202,12 @@ async fn checks_of(kind: Kind, report: &mut Report<'_>, checks: &Checks<'_>) {
         Kind::Tor => super::tor::check(report, trust, full).await,
         Kind::OpenTunnel => super::opentunnel::check(report, trust).await,
         Kind::Derp => super::derp::check(report, trust).await,
+        Kind::Carriers => super::carriers::check(report, trust).await,
         Kind::Pairs => {
             let stored = super::pairs::stored(report);
             super::pairs::presence(report, &stored, trust).await;
         }
+        Kind::Net => super::members::check(report, trust).await,
     }
 }
 
@@ -231,7 +239,7 @@ fn left_out() -> Vec<&'static str> {
     names.push("iroh (bind UDP and its relays)");
     #[cfg(feature = "tor")]
     names.push("tor");
-    names.extend(["OpenTunnel", "DERP", "the pairs"]);
+    names.extend(["OpenTunnel", "DERP", "the public carriers", "the pairs", "the net held"]);
     names
 }
 
@@ -258,13 +266,14 @@ mod tests {
     fn the_parts_are_in_the_order_of_the_report_and_quick_keeps_the_roads_named() {
         let whole = kinds(false, false, false, false, false, false);
         assert_eq!(whole[..4], [Kind::Network, Kind::QuickTunnel, Kind::Relay, Kind::Forwarders]);
-        assert_eq!(whole[whole.len() - 2..], [Kind::Derp, Kind::Pairs]);
+        assert_eq!(whole[whole.len() - 4..], [Kind::Derp, Kind::Carriers, Kind::Pairs, Kind::Net]);
         assert_eq!(kinds(true, false, false, false, false, false), [Kind::Network, Kind::Relay, Kind::Forwarders]);
         let named = kinds(true, true, true, true, true, false);
         assert_eq!(named[3..], [Kind::Shadowsocks, Kind::Via, Kind::Vless, Kind::Exit]);
         let probed = kinds(false, false, false, false, false, true);
-        assert_eq!(probed[probed.len() - 2..], [Kind::Pairs, Kind::Stream], "the long part last (T-325)");
+        assert_eq!(probed[probed.len() - 2..], [Kind::Net, Kind::Stream], "the long part last (T-325)");
         assert!(!named.contains(&Kind::Derp) && !named.contains(&Kind::QuickTunnel), "{named:?}");
+        assert!(!named.contains(&Kind::Carriers) && !named.contains(&Kind::Net), "{named:?}");
         assert!(!named.contains(&Kind::OpenTunnel) && whole.contains(&Kind::OpenTunnel), "{whole:?}");
         let sections: Vec<&str> = kinds(false, true, false, false, false, false).iter().map(|k| k.section()).collect();
         assert_eq!(sections[..5], ["egress", "egress", "relay", "forwarders", "shadowsocks"]);
@@ -303,7 +312,8 @@ mod tests {
         let text = String::from_utf8(out).unwrap();
         let line = "\nleft out\n  ????  sections       not checked with --quick: the quick tunnel's edge";
         assert!(text.contains(line), "{text}");
-        assert!(text.contains(", DERP and the pairs; a run without --quick checks them"), "{text}");
+        let tail = ", DERP, the public carriers, the pairs and the net held; a run without --quick checks them";
+        assert!(text.contains(tail), "{text}");
         assert!(text.contains("0 ok, 0 FAIL, 1 ????"), "{text}");
     }
 }

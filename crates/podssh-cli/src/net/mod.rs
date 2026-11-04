@@ -17,7 +17,8 @@
 //! owner's `invite NAME` signs its key in as `add` would, and the device's
 //! `join` takes the document as `take` does (`invite`, `join`,
 //! `invitation`). stdout carries the answer (a list, a document, a verdict);
-//! podssh's words go to stderr.
+//! podssh's words go to stderr. `podssh status --net` lists the members and
+//! the road that last reached each from this host (`state`, `reached`).
 
 pub mod admit;
 pub mod doc;
@@ -30,7 +31,10 @@ pub mod mint;
 pub mod policy;
 mod policy_cmd;
 pub(crate) mod policy_words;
+// The road that last reached each node, and the net in `podssh status` (T-435).
+pub mod reached;
 pub mod sign;
+pub mod state;
 pub mod store;
 
 use std::io::Write;

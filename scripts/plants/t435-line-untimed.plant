@@ -1,0 +1,7 @@
+# T-435: the line of a road that answered says no time, as if the road's time
+# were not measured; the test of the lines of `podssh ping node://NAME` must
+# fail.
+ENTRY=T-435
+GROUP=cli-tests
+EXPECT='test ping::node::tests::each_road_has_its_time_and_the_last_line_names_the_first_that_answered \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- ping::node::tests'

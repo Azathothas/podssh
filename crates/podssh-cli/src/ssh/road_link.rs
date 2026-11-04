@@ -178,7 +178,8 @@ pub(super) fn lost_words(kinds: &[Kind], lost: &[String]) -> String {
 }
 
 /// The winner's link, with the bytes that the race read given back first,
-/// and a line with `-v`.
+/// and a line with `-v`; the road is kept as the one that last reached the
+/// node.
 pub(super) fn winner(
     won: WonAt<Road>,
     took: Duration,
@@ -188,5 +189,10 @@ pub(super) fn winner(
 ) -> client::Rewound<Road> {
     let road = kinds.get(won.at).map_or("a road", |kind| kind.name());
     log.verbose(&format!("{shown}: {road} answered first, in {} ms", took.as_millis()));
+    // The road that reached the node, for `podssh status --net` (T-435);
+    // `shown` is `node://` and the label, as `super::roads::ride` makes it.
+    if let Some(label) = shown.strip_prefix(super::node::SCHEME) {
+        crate::net::reached::reached(label, road, took);
+    }
     won.link.rewound()
 }

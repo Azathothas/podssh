@@ -9,29 +9,59 @@
 use super::{row, FlagKind, FlagRow};
 
 /// `ssh`, `cp`, `each`, `proxy`, `pipe` and the others of `ssh`'s road.
-pub const VIA: FlagRow = row(None, "via", Some("https://[USER@]HOST[:PORT]"), FlagKind::Supported,
+pub const VIA: FlagRow = row(
+    None,
+    "via",
+    Some("https://[USER@]HOST[:PORT]"),
+    FlagKind::Supported,
     "reach the first hop through a forward proxy over TLS that you run (Caddy's forwardproxy, squid's \
      https_port), in place of the relay: TLS to it, through HTTPS_PROXY when one is set, then CONNECT inside, \
-     HTTP/2 when it chooses h2, else HTTP/1.1; also env PODSSH_VIA", None);
+     HTTP/2 when it chooses h2, else HTTP/1.1; also env PODSSH_VIA",
+    None,
+);
 
 /// The same commands, and `doctor`.
-pub const VIA_AUTH_FILE: FlagRow = row(None, "via-auth-file", Some("FILE"), FlagKind::Supported,
+pub const VIA_AUTH_FILE: FlagRow = row(
+    None,
+    "via-auth-file",
+    Some("FILE"),
+    FlagKind::Supported,
     "the Basic credentials of --via in FILE, a private file: one line, USER:PASSWORD, or the password alone \
-     when the URL names USER; never in the URL; also env PODSSH_VIA_AUTH_FILE", None);
+     when the URL names USER; never in the URL; also env PODSSH_VIA_AUTH_FILE",
+    None,
+);
 
 /// `doctor`.
-pub const DOCTOR_VIA: FlagRow = row(None, "via", Some("https://[USER@]HOST[:PORT]"), FlagKind::Supported,
+pub const DOCTOR_VIA: FlagRow = row(
+    None,
+    "via",
+    Some("https://[USER@]HOST[:PORT]"),
+    FlagKind::Supported,
     "also check this forward proxy over TLS: TLS to it, the version of HTTP that it chose, then one of \
-     GitHub's published host keys on github.com port 22 through its CONNECT (default: env PODSSH_VIA)", None);
+     GitHub's published host keys on github.com port 22 through its CONNECT (default: env PODSSH_VIA)",
+    None,
+);
 
 /// `ssh`, `cp`, `each`, `proxy` and the others of `ssh`'s road.
-pub const WSTUNNEL: FlagRow = row(None, "wstunnel", Some("wss://HOST[:PORT]"), FlagKind::Supported,
+pub const WSTUNNEL: FlagRow = row(
+    None,
+    "wstunnel",
+    Some("wss://HOST[:PORT]"),
+    FlagKind::Supported,
     "reach the first hop through a wstunnel server that you run (wstunnel server wss://[::]:443), in place of \
      the relay: the WebSocket to it, through HTTPS_PROXY when one is set, its token naming the target; ws:// \
-     has no TLS; also env PODSSH_WSTUNNEL", None);
+     has no TLS; also env PODSSH_WSTUNNEL",
+    None,
+);
 
 /// The same commands.
-pub const WSTUNNEL_SECRET_FILE: FlagRow = row(None, "wstunnel-secret-file", Some("FILE"), FlagKind::Supported,
+pub const WSTUNNEL_SECRET_FILE: FlagRow = row(
+    None,
+    "wstunnel-secret-file",
+    Some("FILE"),
+    FlagKind::Supported,
     "what the server of --wstunnel checks, in FILE, a private file: path-prefix PREFIX, credentials \
      USER[:PASSWORD] or authorization VALUE, or the prefix alone; never in the URL; also env \
-     PODSSH_WSTUNNEL_SECRET_FILE", None);
+     PODSSH_WSTUNNEL_SECRET_FILE",
+    None,
+);

@@ -1,0 +1,7 @@
+# T-435: the record of the roads takes the road that once won as the last
+# word, past a later race that found none, so a node that stopped shows as
+# reached; the test of the last race's word must fail.
+ENTRY=T-435
+GROUP=cli-tests
+EXPECT='test net::reached::tests::the_last_race_is_the_word_and_the_road_that_won_stays \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- net::reached::tests net::state::tests'

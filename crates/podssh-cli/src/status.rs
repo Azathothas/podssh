@@ -3,8 +3,9 @@
 //! they came from, the cached pool, the token (where it is, for which relay,
 //! until when; never the token), the proxy (never its credentials), whether
 //! podssh has a terminal, and, given a destination, whether its host key is
-//! known. It opens no connection, asks no DNS and writes nothing: `podssh
-//! doctor` is the report that measures.
+//! known; the net held, and with `--net` its members (T-435). It opens no
+//! connection, asks no DNS and writes nothing: `podssh doctor` is the report
+//! that measures.
 
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -26,6 +27,8 @@ pub struct StatusArgs {
     pub relay_addr: Option<String>,
     /// `[user@]host[:port]`, to say whether its host key is known.
     pub destination: Option<String>,
+    /// `--net`: each member of the net held, and its road (T-435).
+    pub net: bool,
 }
 
 /// The variables that name a proxy, in the order podssh reads them.
@@ -92,6 +95,7 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "relay_rank_auto": crate::relay_rank_auto::status_value(),
         "open_files": open_files(),
         "pairs": pairs_state(),
+        "net": crate::net::state::status_value(args.net),
     });
     let _ = writeln!(out, "{line}");
     let _ = out.flush();
