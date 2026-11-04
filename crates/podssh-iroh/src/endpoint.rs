@@ -14,17 +14,21 @@
 //! - UDP only after a datagram came back: a round trip of QUIC address
 //!   discovery to the home relay in the endpoint's first report, before
 //!   anything is dialled or served ([`crate::probe`], T-359); the relay
-//!   alone, else.
+//!   alone, else;
+//! - QUIC's settings of [`crate::tuning`], iroh's own unless
+//!   `PODSSH_IROH_QUIC` names an arm of the A/B run (T-665).
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use iroh::dns::DnsResolver;
-use iroh::endpoint::{presets, BindOpts};
+use iroh::endpoint::{presets, BindOpts, QuicTransportConfig};
 use iroh::tls::CaTlsConfig;
 use iroh::{Endpoint, NetReportConfig, RelayConfig, RelayMap, RelayMode, RelayUrl, SecretKey};
 use podssh_ws::{ProxyChoice, Trust};
+
+use crate::tuning::Tuning;
 
 /// The relays to use, and the endpoint's way out.
 #[derive(Debug, Clone)]
@@ -50,6 +54,10 @@ pub struct Options {
     /// The port of the relays' QUIC address discovery in place of iroh's
     /// 7842, as a test gives it. podssh's own commands never set it.
     pub qad_port: Option<u16>,
+    /// QUIC's settings (T-665): `None` reads them from
+    /// [`crate::tuning::QUIC_ENV`] at the bind, as podssh's commands do; a
+    /// test gives an arm of its own.
+    pub quic: Option<Tuning>,
 }
 
 impl Default for Options {
@@ -63,6 +71,7 @@ impl Default for Options {
             accepts: false,
             relay_tls: None,
             qad_port: None,
+            quic: None,
         }
     }
 }
@@ -112,6 +121,8 @@ pub enum BindError {
     Trust(String),
     /// iroh refused the configuration, or could not bind.
     Iroh(String),
+    /// The arm of [`crate::tuning::QUIC_ENV`] is no arm (T-665).
+    Quic(String),
 }
 
 impl std::fmt::Display for BindError {
@@ -120,6 +131,7 @@ impl std::fmt::Display for BindError {
             BindError::Proxy(why) => write!(f, "the proxy setting is not usable for the iroh relay: {why}"),
             BindError::Trust(why) => write!(f, "the trust store for the iroh relay: {why}"),
             BindError::Iroh(why) => write!(f, "the iroh endpoint could not start: {why}"),
+            BindError::Quic(why) => write!(f, "the QUIC settings of the iroh road: {why}"),
         }
     }
 }
@@ -219,11 +231,27 @@ fn relay_tls(trust: &Trust) -> Result<CaTlsConfig, BindError> {
     })))
 }
 
-/// An endpoint, and what its probe of UDP found.
+/// An endpoint, what its probe of UDP found, and the QUIC settings that it
+/// took (T-665), with a line for each of them that iroh's types refused.
 #[derive(Debug)]
 pub struct Opened {
     pub endpoint: Endpoint,
     pub udp: crate::probe::Answer,
+    pub quic: Tuning,
+    pub kept: Vec<String>,
+}
+
+impl Opened {
+    /// What the endpoint says of its QUIC: nothing with iroh's own settings,
+    /// else the arm, and each setting whose iroh's own value was kept.
+    pub fn quic_lines(&self) -> Vec<String> {
+        if self.quic == Tuning::IROH && self.kept.is_empty() {
+            return Vec::new();
+        }
+        let mut lines = vec![format!("QUIC: {}", self.quic)];
+        lines.extend(self.kept.iter().map(|line| format!("QUIC: {line}")));
+        lines
+    }
 }
 
 /// How long the endpoint that a probe gave up on may take to close.
@@ -235,6 +263,7 @@ struct Parts {
     tls: CaTlsConfig,
     mode: RelayMode,
     proxy: Option<url::Url>,
+    quic: QuicTransportConfig,
 }
 
 /// An endpoint with `options`; with the ALPN of podssh's sessions when it
@@ -258,39 +287,43 @@ pub(crate) async fn open_with(
     bind_probe: fn() -> std::io::Result<SocketAddr>,
 ) -> Result<Opened, BindError> {
     use crate::probe::Answer;
+    // The arm first: a bad one is said before anything binds.
+    let tuning = match options.quic {
+        Some(tuning) => tuning,
+        None => Tuning::from_environment().map_err(BindError::Quic)?,
+    };
+    let (quic, kept) = tuning.config();
     let tls = match &options.relay_tls {
         Some(tls) => tls.clone(),
         None => relay_tls(&options.trust)?,
     };
     let mode = relay_mode(&options.relays, options.qad_port);
     let proxy = proxy_url(&options.proxy, &mode).await?;
-    let parts = Parts { tls, mode, proxy };
+    let parts = Parts { tls, mode, proxy, quic };
+    let opened = |endpoint: Endpoint, udp: Answer| Opened { endpoint, udp, quic: tuning, kept: kept.clone() };
     let addr = match options.udp {
-        Udp::Off => return Ok(Opened { endpoint: make(&parts, options, false, None).await?, udp: Answer::Off }),
+        Udp::Off => return Ok(opened(make(&parts, options, false, None).await?, Answer::Off)),
         Udp::Probe | Udp::On => match bind_probe() {
             Ok(addr) => addr,
-            Err(e) => {
-                let endpoint = make(&parts, options, false, None).await?;
-                return Ok(Opened { endpoint, udp: Answer::Refused(e) });
-            }
+            Err(e) => return Ok(opened(make(&parts, options, false, None).await?, Answer::Refused(e))),
         },
     };
     let endpoint = make(&parts, options, true, None).await?;
     if options.udp == Udp::On {
-        return Ok(Opened { endpoint, udp: Answer::BindOnly(addr) });
+        return Ok(opened(endpoint, Answer::BindOnly(addr)));
     }
     let started = tokio::time::Instant::now();
     let came_back = crate::probe::round_trip(&endpoint, crate::probe::REPORT_LIMIT).await == Some(true);
     let took = started.elapsed();
     if came_back {
-        return Ok(Opened { endpoint, udp: Answer::Answered(took) });
+        return Ok(opened(endpoint, Answer::Answered(took)));
     }
     // The same key for the endpoint that takes its place: a node's ticket,
     // and a client's allowlisted key, name it.
     let secret = endpoint.secret_key().clone();
     let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
     let endpoint = make(&parts, options, false, Some(secret)).await?;
-    Ok(Opened { endpoint, udp: Answer::Unknown(took) })
+    Ok(opened(endpoint, Answer::Unknown(took)))
 }
 
 /// One endpoint of `parts`, with UDP sockets (not required) or none, and
@@ -308,6 +341,9 @@ async fn make(parts: &Parts, options: &Options, udp: bool, secret: Option<Secret
         .dns_resolver(DnsResolver::custom(crate::resolve::Podssh))
         .ca_tls_config(parts.tls.clone())
         .net_report_config(report)
+        // QUIC's settings, for the connections that it dials and that it
+        // takes (T-665).
+        .transport_config(parts.quic.clone())
         // iroh's own UDP sockets are required by default: a host that
         // refuses UDP would stop the endpoint. They come back below, not
         // required, for the probe.

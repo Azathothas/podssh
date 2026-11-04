@@ -95,8 +95,12 @@ impl<'a> IrohRoad<'a> {
             ..Options::default()
         };
         let opened = podssh_iroh::endpoint::open(&options).await.map_err(|e| e.to_string())?;
-        // Which answer the road took of this host's UDP (T-359).
+        // Which answer the road took of this host's UDP (T-359), and the arm
+        // of QUIC's settings when it is not iroh's own (T-665).
         self.log.verbose(&format!("the iroh road: {}", opened.udp));
+        for line in opened.quic_lines() {
+            self.log.verbose(&format!("the iroh road's {line}"));
+        }
         let endpoint = opened.endpoint;
         let dialer = Dialer::new(endpoint.clone(), self.addr.clone());
         let dialer = match &self.finder {

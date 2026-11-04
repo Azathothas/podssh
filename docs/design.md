@@ -1308,6 +1308,30 @@ the net, whose key the net names, is found by that key alone: `podssh ssh
 node://NAME` races the record's roads once each road with a ticket failed
 ([mesh.md](mesh.md), section 3). Its tests passed at T-445's merge (its Done).
 
+**Drafted (T-665, 2026-11-04):** QUIC's settings, as arms of an A/B run.
+READ in iroh 1.4.1 and noq-proto 1.4.0, the QUIC that iroh builds: the
+endpoint's builder takes one `QuicTransportConfig` for the connections that it
+dials and those that it takes, made from iroh's own builder, which keeps the
+keep-alive of 5 s, the paths' idle times and the multipath that its hole
+punching needs. iroh's own settings: a first round trip of 333 ms; Cubic, with
+no HyStart, from a window of 12000 bytes (14720 clamped to 10 packets of
+1200); a stream's receive window of 1.25 MB (100 Mbit/s at 100 ms), a
+connection's with no bound, and a send window of 10 MB; a first MTU of 1200,
+QUIC's floor, which osewa takes for Tailscale's 1280, then MTU discovery.
+iroh's UDP sockets ask for 7 MiB of buffer each way by `SO_RCVBUF` and
+`SO_SNDBUF` (netwatch 0.19.3), never the `FORCE` forms; the kernel grants up to
+its `rmem_max` and `wmem_max`, which an A/B run keeps. `PODSSH_IROH_QUIC`
+chooses the arm at each end (`podssh-iroh`'s `tuning.rs`): `iroh`, the
+default; `tuned`, osewa's where iroh lets podssh set them (a first round trip
+of 100 ms, a first window of 32 packets, receive windows of 8 MiB a stream,
+above the resumable layer's 4 MiB in flight, and 16 MiB a connection); or its
+words, `rtt`, `window`, `streams`, and one of `cubic`, `bbr` and `newreno`. A
+bad value is refused (78), and a value that iroh's types cannot hold keeps
+iroh's own and says so. `scripts/iroh-ab.py` measures the arms by T-157's
+method on a direct path between GitHub Actions and the operator's server of
+`PODSSH_THROUGHPUT_SSH` (`.github/workflows/iroh-ab.yml`, by hand); the default
+changes only with what that run shows (T-665).
+
 MEASURED on the loopback (T-157, the debug build, 2026-10-10): SSH through
 iroh's relay server, p50 34.6 MiB/s up and 25.6 MiB/s down, where `--direct`
 to the same server gives 165.9 and 106.3: the iroh road's own limit on this

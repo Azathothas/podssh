@@ -9145,9 +9145,84 @@ iroh road takes iroh's defaults, and nobody has measured them on a wide-area pat
 
 ```sh
 cargo test -p podssh-iroh --lib
+python3 -I scripts/iroh-ab.py --self-test
+sh scripts/plant-each.sh --here t665-quic-unset
+gh workflow run iroh-ab.yml --ref main -f arms='iroh;tuned' -f runs=5 -f mib=4
 ```
 
 The A/B runs, with their commands in `docs/STATUS.md`.
+
+## Decision
+
+2026-11-04, with the draft (read in iroh 1.4.1, noq-proto 1.4.0 and netwatch 0.19.3, the crates that
+`Cargo.lock` holds):
+
+1. **iroh's own settings stay the default until the A/B run shows what helps** (`DEFAULT` in
+   `crates/podssh-iroh/src/tuning.rs`), as the Approach sets only what the run shows; the arm is one
+   variable, `PODSSH_IROH_QUIC`, which each end reads, so that the node and the client of a cell take
+   the same arm. Lost: osewa's values as the default at once (measured on none of podssh's paths); a
+   flag of `ssh` and `node` (a setting for a measurement, not for a user).
+2. **The arms.** `tuned` is osewa's where iroh 1.4's `QuicTransportConfigBuilder` lets podssh set it:
+   a first round trip of 100 ms (iroh's is 333 ms), a first window of 32 packets (10: noq clamps the
+   RFC's 14720 bytes to 12000), receive windows of 8 MiB a stream (1.25 MB), above the resumable
+   layer's 4 MiB in flight so that QUIC does not bound what T-662's SSH window of 16 MiB lets through,
+   and 16 MiB a connection (no bound), two such streams (T-666); Cubic. Each is a word of its own
+   (`rtt`, `window`, `streams`), so that a run can tell which helps, and `bbr` and `newreno` are the
+   knob of the congestion controller. Lost: osewa's send window of the congestion window and 16 KiB
+   (iroh's send window is one number, with no hook on the congestion window; T-661 bounds what SSH
+   has in flight while one types); a first MTU of 1200 (iroh's own already); no HyStart (noq's Cubic
+   has none).
+3. **No UDP buffer of podssh's.** iroh's sockets already ask 7 MiB each way by `SO_RCVBUF` and
+   `SO_SNDBUF` (netwatch's `SocketState::bind`), never the `FORCE` forms, and iroh's builder has no
+   hook for a socket's options; the run keeps each end's `rmem_max` and `wmem_max`, the bound of what
+   the kernel grants. Lost: a socket of podssh's own beside iroh's (a second socket, rule 2).
+4. **The controllers come from noq-proto**, the one that iroh builds, at iroh's requirement and with
+   none of its features: iroh takes a controller's factory and names no controller. Lost: iroh's
+   types alone, which set no first window and no other controller.
+5. **A value that iroh's types refuse keeps iroh's own and is said** (`Opened::kept`, then `-v` and the
+   node's lines); a word that is no setting is refused, 78 at `ssh` before anything connects and at
+   `node`, as a run of the wrong arm measures nothing.
+6. **The run** is `scripts/iroh-ab.py`, by T-157's method (its statistics, tested offline on T-157's
+   known sample and planted p95), in `.github/workflows/iroh-ab.yml` by hand, the arms in turn in each
+   round. The node runs on the operator's server in front of its own sshd, from the commit's static
+   binary, in a private directory removed at the end, as a direct path of the iroh road needs podssh
+   at both ends; OpenSSH sets it up, so that the code under test is not its own setup. Its defaults
+   move 80 MiB in all (Q35, Q91). Lost: a cell of `crates/podssh-cli/tests/throughput_live.rs` (its
+   harness cannot start a node on a far server); n0's relays alone (a relay path, not the direct path
+   that the entry asks).
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-665`), UNVERIFIED: no command below ran in the draft but the harness's
+self-test.
+
+- QUIC's settings: `crates/podssh-iroh/src/tuning.rs` (the arms, their words and the variable, iroh's
+  transport config from iroh's own builder, and the controller with its first window), and the
+  endpoint (`crates/podssh-iroh/src/endpoint.rs`: `Options::quic`, read from the variable when
+  `None`; `BindError::Quic`; `Opened::quic`, `kept` and `quic_lines`; the builder's
+  `transport_config`). `cargo test -p podssh-iroh --lib -- tuning::`: UNVERIFIED (7 tests: the default
+  is iroh's own, its round trip, stream window and keep-alive; the tuned arm in iroh's config with
+  iroh's keep-alive and first MTU kept; each controller's first window; a window past QUIC's bound
+  keeps iroh's and says so; a word that is no setting and two controllers refused; an endpoint takes
+  its arm, read in its server's settings; each arm's words). `cargo test -p podssh-iroh --lib`:
+  UNVERIFIED.
+- podssh-cli: `-v` says an arm that is not iroh's own (`crates/podssh-cli/src/ssh/iroh/dial.rs`,
+  `crates/podssh-cli/src/ssh/iroh/race.rs`), and so do a node's lines
+  (`crates/podssh-cli/src/node_iroh.rs`); a bad value is 78 before anything connects
+  (`crates/podssh-cli/src/ssh/iroh.rs`); the manual's variable; `crates/podssh-cli/tests/iroh_road.rs`
+  clears it.
+  `cargo test -p podssh-cli --features iroh-test --test iroh_road`: UNVERIFIED.
+- The run: `scripts/iroh-ab.py` and `.github/workflows/iroh-ab.yml`. `python3 -I scripts/iroh-ab.py
+  --self-test`: 13 ok (ran in the draft, offline: the statistics, a planted p95 caught, the
+  destination, the arms, a node's ticket, the refused key, the path, the arm of `-v`, the scrub of
+  users, hosts and addresses, an ELF's machine, and the nodes' TARGET, the address where the far sshd
+  took the login, as a forwarded port may not be its own). The A/B run itself: UNVERIFIED, waits for a dispatch
+  at the merge; its table goes into `docs/STATUS.md` with its command, its JSON into the record, and
+  the default of item 1 moves only with what it shows.
+- Planted, which must fail its test: the endpoint takes iroh's own settings whatever the arm
+  (`scripts/plants/t665-quic-unset.plant`): UNVERIFIED.
+- The documents: `docs/design.md` (section 7), `docs/development.md` (the run). `cargo todo remap` of
+  each: at the merge.
 
 # T-666: Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection
 

@@ -16,7 +16,8 @@
 //! ([`relays`]). A node keeps a record of its home relay at a server of
 //! pkarr, and a client whose ticket's relay does not reach the node asks it
 //! ([`pkarr`], T-350); the record names the node's DERP home and quick
-//! tunnel too, for a client with the node's key alone (T-445).
+//! tunnel too, for a client with the node's key alone (T-445). QUIC's
+//! settings are iroh's own, or an arm of an A/B run ([`tuning`], T-665).
 
 pub mod allow;
 pub mod client;
@@ -34,6 +35,8 @@ pub mod test_pkarr;
 #[cfg(feature = "test-relay")]
 pub mod test_relay;
 pub mod ticket;
+// QUIC's settings, and the arms of the A/B run (T-665).
+pub mod tuning;
 // Whether a relay takes this build's iroh (T-348).
 pub mod version;
 

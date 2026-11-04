@@ -29,6 +29,7 @@ fn options(relay: &RelayUrl, qad_port: u16, udp: Udp) -> Options {
         accepts: false,
         relay_tls: Some(CaTlsConfig::insecure_skip_verify()),
         qad_port: Some(qad_port),
+        quic: None,
     }
 }
 
