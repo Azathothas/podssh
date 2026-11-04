@@ -142,7 +142,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `draft/worktree-agent-*` (the agents stopped at a limit of use at 00:50 UTC and were resumed):
   T-326 (`worktree-agent-a8b2a4b9acf9c2a8f`, `27a97cf`, merged and closed); T-319
   (`worktree-agent-a39b6bc24832c974f`, `3739bcf`, a first part, merged, the entry partial); T-173
-  (`worktree-agent-a935f48070b310b7c`, `6165bbc`, a first part); T-551
+  (`worktree-agent-a935f48070b310b7c`, `6165bbc`, a first part, merged, the entry partial); T-551
   (`worktree-agent-a5583c3e8856c1e14`, `b4568a4`); T-086 (`worktree-agent-aae965649ba432a53`,
   `7a0c97f`, whose `Cargo.lock` the merge makes). They wait to be merged in that order.
 
@@ -189,7 +189,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 579 entries: 93 open, 3 partial, 2 blocked, 481 done.
+`TODO/INDEX.md` holds 579 entries: 92 open, 4 partial, 2 blocked, 481 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

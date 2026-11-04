@@ -14,6 +14,9 @@
 //! ([`http_road`], T-319). The role's own listener takes TLS, or the
 //! cleartext road beside it by the first byte ([`listener`], [`cleartext`],
 //! T-326), with tokens of one session alone.
+//! Beside the contract, its forward road in the resumable layer keeps a
+//! standard sshd's connection across a drop of the client's link ([`layer`],
+//! T-173).
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -25,6 +28,7 @@ pub mod forward;
 pub mod http_road;
 pub mod ipv6;
 pub mod keys;
+pub mod layer;
 pub mod listener;
 pub mod policy;
 pub mod probe;
@@ -128,6 +132,9 @@ pub struct Config {
     pub limits: Limits,
     /// The pairs of the reverse road, and their sockets.
     pub pairs: reverse::Pairs,
+    /// The sessions of the forward road in the resumable layer, with their
+    /// targets, across links (T-173).
+    pub resumes: layer::Resumes,
     /// The challenges that a key answered (T-448).
     pub answered: keys::Answered,
     /// The counts of `/v1/mint` and `/v1/pair` for each address (T-454).
@@ -201,6 +208,8 @@ where
     }
     match (head.method.as_str(), path.as_str()) {
         ("GET", p) if p.starts_with("/connect/") => forward::connect(stream, head, pending, cfg).await,
+        // The forward road in the resumable layer (T-173), beside the contract.
+        ("GET", p) if layer::serves(p) => layer::connect(stream, head, pending, cfg).await,
         ("POST", "/v1/mint") => mint(&mut stream, &head, pending, &cfg, sni.as_deref()).await,
         ("GET", "/health") => answer(&mut stream, docs::json(&docs::health(&cfg))).await,
         ("GET", "/relays.json") => answer(&mut stream, docs::json(&docs::relays(&cfg, &head))).await,

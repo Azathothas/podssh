@@ -59,6 +59,7 @@ impl Role {
             egress: Default::default(),
             limits: Limits::default(),
             pairs: Default::default(),
+            resumes: Default::default(),
             answered: Default::default(),
             brake: Default::default(),
             events: Some(say),

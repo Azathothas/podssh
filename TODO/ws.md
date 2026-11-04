@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`crates/podssh-relay/src/token.rs:95-100`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:177-185`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:470`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:474`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -705,7 +705,7 @@ socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
 `HTTPS_PROXY`, `all_proxy` and `ALL_PROXY` (lines 163 and 184), and parses the first that is set
 (line 192). `dial` makes the error `DialError::BadProxy` (line 232), which stops the failover at
 once (`crates/podssh-relay/src/open.rs:71`) and gives exit 78 in `podssh proxy`
-(`crates/podssh-cli/src/proxy.rs:460`). `doctor` reports it as `FAIL`
+(`crates/podssh-cli/src/proxy.rs:467`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
 50-58.
@@ -724,7 +724,7 @@ once (`crates/podssh-relay/src/open.rs:71`) and gives exit 78 in `podssh proxy`
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
    (`crates/podssh-relay/src/open.rs:63-85`) and the exit codes of `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:456-469`) already treat: a refused user or password as 407
+   (`crates/podssh-cli/src/proxy.rs:463-476`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
@@ -1879,9 +1879,9 @@ sh scripts/plant-each.sh --here t326-cleartext-first t326-once-twice t326-long-t
 - `doctor`'s line `cleartext` and the forwarders' `ws://` form (`crates/podssh-cli/src/doctor/cleartext.rs`,
   `crates/podssh-cli/src/forwarder/cleartext.rs`). `cargo test -p podssh-cli --test doctor_cleartext`:
   4 passed; `--lib`: 823 passed (`doctor::cleartext::` 2, `forwarder::cleartext::` 1); `forwarder_cli`
-  4, `doctor` 13, `doctor_tls` 3, `doctor_upgrade` 2, `doctor_ipv6` 3, `doctor_exit` 3, `relay` 12,
+  16, `doctor` 13, `doctor_tls` 3, `doctor_upgrade` 2, `doctor_ipv6` 3, `doctor_exit` 3, `relay` 12,
   `relay_rank` 6, `relay_serve` 14, `relay_serve_node` 5, `relay_spec` 3, `faults` 1 (12 ignored),
-  `ipv6_fallback` 16, `direct_fallback` 4, `ssh_tls_hop` 5: passed. `doctor_jobs` 3, after its filter of a
+  `ipv6_fallback` 4, `direct_fallback` 4, `ssh_tls_hop` 5: passed. `doctor_jobs` 3, after its filter of a
   host's own line skips the new `cleartext` line of a forwarder's host, as it skips the line `rank`.
 - Planted (`sh scripts/plant-each.sh --here t326-cleartext-first t326-once-twice
   t326-long-token-in-cleartext t326-reset-unnamed t326-tls-failure-unread t326-doctor-reset-unnamed`):

@@ -91,6 +91,10 @@ the cleartext road beside TLS, by the first byte of each connection, with
 tokens of one session alone ("The cleartext road", below; T-326). For a
 proxy that refuses the upgrade, its HTTP road carries the same sessions over
 plain requests ("The relay role's HTTP road", below; T-319).
+Beside the contract, `/v1/layer/<host>/<port>` carries a forward session in
+the resumable layer, so that the role keeps a standard sshd's connection
+across a drop of the client's link ("The relay role's resumable layer",
+below; T-173).
 
 ## How podssh selects relay hosts
 
@@ -916,3 +920,47 @@ The role's lines say `http open` and `http close CODE` for each session.
 Measured on 2026-11-04 (`crates/podssh-relay/tests/http_road.rs`, 8 passed, and
 `crates/podssh-relay/tests/http_road_quick.rs`, 2 passed): 20 MiB each way in each form, each
 byte once through lost and cut answers.
+
+## The relay role's resumable layer (T-173)
+
+A forward session to a standard sshd ends at each drop of the client's
+link: the contract's `/connect/` ends the target's connection with its
+WebSocket. `podssh relay serve`, and the role behind a node's quick tunnel,
+serve `/v1/layer/<host>/<port>` beside the contract, where the role is the
+far end of podssh's resumable layer ([design.md](design.md), section 5) for
+a target that speaks none, as a node is for its TARGET
+(`crates/podssh-relay/src/serve/layer.rs`):
+
+- each WebSocket to the path is one link of a session; the role greets,
+  and the layer's handshake tells a new session from a resume;
+- the target is dialed once, after a new session's handshake, so a link
+  that never completes one costs no dial; it waits while the client's link
+  is lost, until a resume on a new link carries the session on, or the
+  layer's 10 minutes pass and the target is shut;
+- the token (`X-Relay-Token`), the upgrade and the policy are checked
+  before the upgrade, for each link, with the refusals of `/connect/`
+  (`403 forward: ... not in the ALLOW list`, `502 relay: ...`); a
+  `?family` holds, and the dial of a new session waits for its handshake
+  whatever `?dial` and `?precheck` say;
+- the layer's secret never crosses the role: each resume proves it with
+  the nonces of its own link, and the path names the target alone;
+- each link keeps the limits of a session (180 s with no payload, 12 h,
+  64 MiB); the layer's heartbeat is payload, and the client moves the
+  session to a new link at 48 MiB or 11 h (T-155);
+- the sessions hold 256 MiB of replay buffers at most, 4 MiB each; a new
+  session past them gets a `CLOSE` that names what holds them, and the
+  role's stdout says it once a minute at most;
+- a restart forgets each session: a resume then gets the layer's refusal
+  of an unknown session, once its client minted a new token where the role
+  mints for it, and else `403` for the old one; either ends the session.
+
+`/relays.json` offers it as `forward.layer: true`, and a client asks for it
+only there (`crates/podssh-relay/src/forward_layer/offer.rs`). The client of
+the library (`crates/podssh-relay/src/forward_layer/client.rs`) sends each
+link of a session to the host that opened it, never another of a list, as
+only that process holds the session; a refusal that a new link would get
+again (`401`, `403`, `404`, `410`) ends the session, and each other failure
+is tried again with the layer's backoff until the deadline. `podssh proxy`
+takes it with `PODSSH_RELAY_LAYER=yes` ([cli.md](cli.md)). The default
+relay offers none ([relay-operator.md](relay-operator.md), item 16): a
+Durable Object of that deployment would be its far end.

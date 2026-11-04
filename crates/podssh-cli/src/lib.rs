@@ -163,6 +163,9 @@ mod relay_diag_text;
 // How a session that a relay host carried ended, for the record of the
 // hosts (T-563).
 pub mod relay_ends;
+// `podssh proxy` in the resumable layer at podssh's relay role, where it is
+// asked for and offered (T-173).
+pub mod relay_layer;
 // `podssh relay pair --renew NAME`: a pair renewed at podssh's relay role (T-592).
 mod relay_renew;
 // `podssh relay rank`: each relay host measured from this host, the rank kept (T-606).

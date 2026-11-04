@@ -413,7 +413,7 @@ Read: the session pings the relay every 10 s and counts the pongs, but it measur
 trip (`crates/podssh-ws/src/session.rs:272-300`; the payload is a counter, `:297`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
-against 64 MiB for each session (`docs/relay.md:350`). The stand-in relay answers pings
+against 64 MiB for each session (`docs/relay.md:354`). The stand-in relay answers pings
 (`scripts/fake-relay.py:388-389`).
 
 ## Approach
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4950-4978`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4974-5002`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:234-249`), and stdio needs no listener.
@@ -903,9 +903,9 @@ and its last line at `crates/podssh-cli/src/session_log.rs:246-263`. The
 line of `podssh ssh` at the end of `run_ssh`, from its result
 (`crates/podssh-cli/src/ssh/mod.rs:89-120`), and its destination at
 `crates/podssh-cli/src/ssh/mod.rs:247`; that of `podssh proxy` at
-`crates/podssh-cli/src/proxy.rs:74-88`, its destination at
-`crates/podssh-cli/src/proxy.rs:161` and `crates/podssh-cli/src/proxy.rs:271`,
-its session at `crates/podssh-cli/src/proxy.rs:424-431`; the bytes of the
+`crates/podssh-cli/src/proxy.rs:76-90`, its destination at
+`crates/podssh-cli/src/proxy.rs:163` and `crates/podssh-cli/src/proxy.rs:273`,
+its session at `crates/podssh-cli/src/proxy.rs:431-438`; the bytes of the
 pump at `crates/podssh-cli/src/pipe/pump.rs:96` and
 `crates/podssh-cli/src/pipe/pump.rs:106-134`, and the relay's close at
 `crates/podssh-cli/src/pipe/relay.rs:228`. `SessionLog` at

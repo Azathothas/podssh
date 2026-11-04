@@ -16,6 +16,9 @@
 //! - [`http_road`]: the HTTP road (T-319), a forward session over plain
 //!   requests of HTTP/1.1 where a proxy refuses the WebSocket upgrade, in its
 //!   split form and its serial form, whose server is the relay role's;
+//! - [`forward_layer`]: a forward session in the resumable layer, whose far
+//!   end is podssh's relay role, so that a standard sshd's session outlives
+//!   a drop of the client's link (T-173);
 //! - [`keyed`]: a mint or a pair that the relay asks this client's key to
 //!   sign (T-448);
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
@@ -63,6 +66,7 @@ pub mod derp;
 pub mod e2e;
 pub mod failover;
 pub mod failures;
+pub mod forward_layer;
 #[cfg(feature = "grant")]
 pub mod grant;
 pub mod health;

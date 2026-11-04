@@ -71,6 +71,7 @@ impl Tunnel {
             egress: Default::default(),
             limits: Limits::default(),
             pairs: Default::default(),
+            resumes: Default::default(),
             answered: Default::default(),
             events: Some(say),
             brake: Default::default(),

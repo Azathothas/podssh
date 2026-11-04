@@ -5,12 +5,15 @@
 //! for no one, a relay that mints for the keys of a list (T-448) or for the
 //! members of the net (T-455, `serve_net`), its targets through its host's
 //! proxy (T-457, `serve_proxy`), the documents that `podssh relay` reads,
-//! and its certificate read again on SIGHUP (T-447, `serve_certs`). The
+//! its certificate read again on SIGHUP (T-447, `serve_certs`), and its
+//! forward road in the resumable layer, which `podssh proxy` takes when
+//! asked, across cuts of its link (T-173, `serve_layer`). The
 //! suite of the stand-in also runs against the role with
 //! `PODSSH_RELAY_UNDER_TEST=podssh`.
 
 mod live_harness;
 mod serve_certs;
+mod serve_layer;
 mod serve_net;
 mod serve_proxy;
 mod ssh_harness;

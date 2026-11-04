@@ -1,0 +1,9 @@
+# T-173: the relay role keeps no session past the link that carries it: each
+# link of the forward road in the resumable layer gets a keeper of its own,
+# so at each cut the session and its connection to the target go with the
+# link, and a resume on a new link finds no session. The test of 20 cuts
+# must then see the session end before its bytes came back.
+ENTRY=T-173
+GROUP=resume
+EXPECT='did not live on its cuts'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test session_relay_resume -- lives_on_20_cuts'

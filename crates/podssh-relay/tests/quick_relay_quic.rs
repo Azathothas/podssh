@@ -34,6 +34,7 @@ fn cfg(mint: Mint) -> Arc<Config> {
         egress: Default::default(),
         limits: Default::default(),
         pairs: Default::default(),
+        resumes: Default::default(),
         answered: Default::default(),
         events: None,
         brake: Default::default(),

@@ -196,13 +196,15 @@ step_libs() {
     # raw sockets and against podssh's node and operator on plain ws://, also
     # across a planned stop and the role's return (T-255); its forward road
     # through a stand-in of the host's proxy (T-457), its bound on a slow
-    # reader (T-336), and its IPv6 targets (T-253).
+    # reader (T-336), its IPv6 targets (T-253), and its forward road in the
+    # resumable layer across cuts of the client's link (T-173), against
+    # OpenSSH's sshd where the image has it.
     tests "the relay role's routes (feature serve, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve --lib serve::
     tests "the relay role's reverse road (features serve, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve,plain-ws \
             --test relay_serve_contract --test relay_serve_reverse --test relay_serve_backpressure \
-            --test relay_serve_ipv6 --test reverse_restart
+            --test relay_serve_ipv6 --test reverse_restart --test session_relay_resume
     # The cleartext road at the role's listener and from the client (T-326),
     # through a stand-in proxy that intercepts TLS.
     tests "the relay role's cleartext road (feature serve, no C compiler)" \

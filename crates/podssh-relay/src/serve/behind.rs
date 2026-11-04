@@ -57,6 +57,7 @@ mod tests {
             egress: Default::default(),
             limits: Default::default(),
             pairs: Default::default(),
+            resumes: Default::default(),
             answered: Default::default(),
             events: None,
             brake: Default::default(),

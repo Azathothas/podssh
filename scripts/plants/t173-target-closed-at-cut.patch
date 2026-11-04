@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/layer.rs
++++ b/crates/podssh-relay/src/serve/layer.rs
+@@ -138,7 +138,7 @@
+     let resumes = &cfg.resumes;
+     resumes.sweep();
+     let (ours, theirs) = tokio::io::duplex(PIPE);
+-    let (keeper, settings, budget) = (resumes.keeper.clone(), resumes.settings, resumes.budget);
++    let (keeper, settings, budget) = (Arc::new(Keeper::new(resumes.settings.resume_deadline)), resumes.settings, resumes.budget);
+     let (far_cfg, dial_cfg) = (cfg.clone(), cfg.clone());
+     // The layer's end of the link runs on its own: the session that it
+     // carries outlives this link.
