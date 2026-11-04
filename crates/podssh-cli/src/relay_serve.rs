@@ -9,8 +9,13 @@
 //! reverse socket with `1012` first (T-255). The sessions of its forward
 //! road in the resumable layer take their budget, their deadline and this
 //! process's name from flags of their own (T-173, `relay_serve/resumes.rs`).
+//! Once its listener is bound, before the runtime starts a thread, it gives
+//! up the capabilities of its start (T-629, `relay_serve/harden.rs`).
 
 mod certs;
+mod harden;
+#[cfg(target_os = "linux")]
+mod harden_sys;
 mod list;
 mod resumes;
 
@@ -170,8 +175,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         (Some(file), n) => format!(", its pairs kept in {file} ({n} now)"),
         (None, _) => String::new(),
     };
-    let listener = std::net::TcpListener::bind(listen)
-        .map_err(|e| Refusal { message: format!("cannot listen on {listen}: {e}"), code: EX_UNAVAILABLE })?;
+    // The one call that may need a privilege, then none kept (T-629).
+    let (listener, dropped) = bind_then_drop(listen, |_| harden::give_up())?;
     let bound = listener.local_addr().map_err(|e| Refusal::config(e.to_string()))?;
     let events: serve::Events = Box::new(|line: &str| {
         let mut out = std::io::stdout().lock();
@@ -195,15 +200,30 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let inside = if s.allow_private { ", private targets too" } else { "" };
     let clear = if cleartext { ", the cleartext road beside TLS" } else { ", TLS alone" };
     let h2 = if http2 { ", HTTP/2 with extended CONNECT" } else { ", no HTTP/2" };
+    let dropped = dropped.unwrap_or_default();
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}; {}",
+         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{dropped}; {}",
         serve::CONTRACT,
         certs.shown
     );
     let port_file = s.port_file.clone().map(|path| (path, bound.port()));
     let door = Door { acceptor, cleartext };
     Ok(Prepared { listener, door, cfg: Arc::new(cfg), certs, shown, port_file })
+}
+
+/// The listener of `listen`, then `give_up` once it is bound: the
+/// capabilities of the start go after the one call that needs them, and
+/// before the runtime makes a thread, which would keep the sets that it was
+/// made with.
+fn bind_then_drop(
+    listen: &str,
+    give_up: impl FnOnce(&std::net::TcpListener) -> Result<Option<String>, Refusal>,
+) -> Result<(std::net::TcpListener, Option<String>), Refusal> {
+    let listener = std::net::TcpListener::bind(listen)
+        .map_err(|e| Refusal { message: format!("cannot listen on {listen}: {e}"), code: EX_UNAVAILABLE })?;
+    let dropped = give_up(&listener)?;
+    Ok((listener, dropped))
 }
 
 /// The words of `--mint`, as a refusal names them.
@@ -363,5 +383,36 @@ async fn stopped() {
     #[cfg(not(unix))]
     {
         let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // T-629: the drop comes once, after the bind, on a listener that is
+    // bound; a bind that fails drops nothing; a drop that fails refuses the
+    // start and its words reach the first line.
+    #[test]
+    fn the_drop_happens_once_and_only_after_the_bind() {
+        let mut seen = Vec::new();
+        let (listener, words) = bind_then_drop("127.0.0.1:0", |bound| {
+            seen.push(bound.local_addr().map(|a| a.port() != 0).unwrap_or(false));
+            Ok(Some(", dropped".into()))
+        })
+        .unwrap();
+        assert_eq!(seen, [true], "one drop, on a bound listener");
+        assert_eq!(words.as_deref(), Some(", dropped"));
+        let taken = listener.local_addr().unwrap().to_string();
+        let mut called = false;
+        let refused = bind_then_drop(&taken, |_| {
+            called = true;
+            Ok(None)
+        })
+        .unwrap_err();
+        assert_eq!(refused.code, EX_UNAVAILABLE, "{refused:?}");
+        assert!(!called, "a bind that failed dropped nothing");
+        let refused = bind_then_drop("127.0.0.1:0", |_| Err(Refusal::config("capset after the bind: no"))).unwrap_err();
+        assert_eq!((refused.code, refused.message.as_str()), (EX_CONFIG, "capset after the bind: no"));
     }
 }

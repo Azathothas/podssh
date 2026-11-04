@@ -4121,12 +4121,43 @@ one that does not know); a warning alone (the path stays open); a change of uid 
 needs a user of the host by name and moves the cache, the pairs and ACME's account to another owner (a
 later entry, if an owner asks).
 
+2026-11-04 (the drafting agent of T-629), for what the draft met. No row of `docs/decisions.md` settles
+these, and none changes one.
+
+1. A start as root keeps uid 0, and its first line says so: "it stays uid 0, which may still write each
+   file that root owns", with the way out, a user of its own with the file capability
+   `cap_net_bind_service`. With no capability, uid 0 still writes each file that root owns by its mode
+   (a crontab, an `authorized_keys`), so the drop alone closes less for root than for a user with a file
+   capability, and the line tells the owner. Lost: a change to another uid after the bind (it needs
+   `CAP_SETUID` before the drop and a user of the host by name, and the cache, the file of pairs and
+   ACME's account, written as root, would refuse that user: the next pair and the next renewal fail); a
+   refusal to start as root (a role that starts today would stop); a flag that names the user (a later
+   entry, if an owner asks).
+2. No new privileges is asked for at each start, also one that holds no capability, and nothing is said
+   of it: it costs nothing, and keeps a fault that runs a setuid program from gaining by it. Lost: no
+   call at all for such a start (step 2 of the Approach), which leaves that path open.
+3. The first thread drops on itself, by a job that the command's thread sends it
+   (`crates/podssh-cli/src/first_thread.rs`), and each thread of `/proc/self/task` is then read again
+   (the Correction). Lost: a first thread that drops its capabilities right after it starts the command's
+   thread, for each command (each podssh process would show no capability in `/proc/PID/status` while its
+   command's thread holds them, for a need of `relay serve` alone); `relay serve` on the first thread
+   (`main.rs` would read the arguments, and it decides nothing).
+4. With a capability held, a step that fails and a thread that keeps one refuse the start (78), as the
+   Approach says. With none held, or with sets that neither `capget` nor `/proc/thread-self/status`
+   gives, each failure is a note of the first line, and the start goes on: a start that works today does
+   not stop for a drop of nothing. Lost: a line alone with a capability held (the role would serve with
+   what it says it gave up).
+5. The bounding set goes where `CAP_SETPCAP` is effective; else the first line says that it stays, as no
+   new privileges keeps an exec from gaining by it. Lost: each of the 64 drops tried, and `EPERM` taken.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --lib relay_serve
+cargo test -p podssh-cli --lib first_thread
 cargo test -p podssh-cli --test relay_serve
+sh scripts/plant-each.sh --here t629-drop-after-runtime t629-capset-failure-taken t629-job-on-its-own-thread
 ```
 
 With the seam: the order bind, drop, runtime; `EINVAL` and `EPERM` of the bounding set taken; each
@@ -4135,6 +4166,46 @@ a role started with `CAP_NET_BIND_SERVICE` (`setpriv --inh-caps`, or a container
 a port below 1024, and `/proc/PID/task/*/status` of each of its threads reads `CapEff` and `CapPrm` 0
 once the first line is out. Planted: the drop moved after the runtime starts, and the worker threads'
 `CapEff` test fails.
+
+## Correction
+
+2026-11-04 (the drafting agent of T-629). Read in this tree: `crates/podssh-cli/src/main.rs` runs each
+command on a thread of 16 MiB that it starts, and its first thread waits for it in a join. So at the
+bind the process has two threads, not one as the Premise says, and Linux keeps the capability sets for
+each thread: a drop on the command's thread alone left the first thread with each capability of the
+start, and `/proc/PID/status`, which reads the first thread, would have shown them. The first thread
+now waits for work from the command's thread (`crates/podssh-cli/src/first_thread.rs`), and the drop
+runs on both; then each thread of `/proc/self/task` is read again, and one that keeps a capability
+stops the start (78). The Approach is otherwise as written, with the calls of the Decision (no new
+privileges at each start; the bounding set where `CAP_SETPCAP` is effective). The Prove's role is
+started as the test runs (as root in the build image), on `127.0.0.1:0`, not with `setpriv`: an exec as
+root gives each capability of the bounding set, and the test reads each thread's `CapEff`, `CapPrm`,
+`CapInh`, `NoNewPrivs` and, with `CAP_SETPCAP`, `CapBnd`.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-629`), UNVERIFIED: no command below ran in the draft.
+
+- The drop (`crates/podssh-cli/src/relay_serve/harden.rs`, its calls on Linux in
+  `crates/podssh-cli/src/relay_serve/harden_sys.rs`): the probe by `capget` (else
+  `/proc/thread-self/status`) and `PR_CAPBSET_READ`, the plan, the steps with their errors, the words
+  of the first line, and the read of each thread again; the first thread's work
+  (`crates/podssh-cli/src/first_thread.rs`, `main.rs`); a certificate that cannot be read after the drop
+  says why. `cargo test -p podssh-cli --lib relay_serve`: UNVERIFIED (the order bind then drop; the plan
+  of a start with none, as root and with a file capability; `EINVAL` and `EPERM` of the bounding set
+  taken; another errno and a failed `capset`, 78; an old kernel's `EINVAL` of no new privileges said;
+  sets that cannot be read; the status of a thread; on Linux, the real calls on a thread of the test,
+  read back from `/proc/thread-self/status`). `cargo test -p podssh-cli --lib first_thread`: UNVERIFIED.
+- The role as a process: `cargo test -p podssh-cli --test relay_serve -- serve_caps`: UNVERIFIED (each
+  thread of `podssh relay serve` with no effective, permitted or inheritable capability and no new
+  privileges once its port is out; as root, the bounding set empty and the first line's words).
+- Planted, each of which must fail its test: the drop after the runtime made its workers
+  (`scripts/plants/t629-drop-after-runtime.plant`, caught only by a run as root), a failed `capset`
+  taken as done (`scripts/plants/t629-capset-failure-taken.plant`), and the first thread's job run on
+  the thread that asks (`scripts/plants/t629-job-on-its-own-thread.plant`): UNVERIFIED.
+- The manual (`podssh man relay`), `docs/relay.md` ("podssh's own relay") and `SECURITY.md` name the
+  drop, the uid that stays and the files that need their mode. `cargo test -p podssh-cli --test
+  man_page --test man_flag_parity` and `--lib man::`: UNVERIFIED.
 
 # T-635: `podssh relay serve` has no list of private targets between public ones alone and `--allow-private`
 

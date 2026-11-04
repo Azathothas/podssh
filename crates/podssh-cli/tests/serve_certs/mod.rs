@@ -4,7 +4,9 @@
 //! replaced by the second's and SIGHUP makes the next handshakes take them,
 //! while a session through `podssh proxy` that was open before goes on. A
 //! pair whose key is not its certificate's is said, and the pair of before
-//! stays. Windows has no SIGHUP: this runs on Unix.
+//! stays. Windows has no SIGHUP: this runs on Unix. Its role, certificate
+//! and scratch directory serve the test of the capabilities too
+//! (`serve_caps`, T-629).
 
 #![cfg(unix)]
 
@@ -19,7 +21,7 @@ const NAME: &str = "relay-a.test";
 const WAIT: Duration = Duration::from_secs(30);
 
 /// The test's directory, removed when it goes, passed or not.
-struct Scratch(PathBuf);
+pub(crate) struct Scratch(pub(crate) PathBuf);
 
 impl Drop for Scratch {
     fn drop(&mut self) {
@@ -28,7 +30,7 @@ impl Drop for Scratch {
 }
 
 /// A child of the test, ended when the test ends.
-struct Killed(Child);
+pub(crate) struct Killed(pub(crate) Child);
 
 impl Drop for Killed {
     fn drop(&mut self) {
@@ -92,7 +94,7 @@ fn serial() -> rcgen::SerialNumber {
 }
 
 /// A CA of the test, and a leaf of it for NAME with its key: each as PEM.
-fn ca_and_leaf(tag: &str) -> (String, String, String) {
+pub(crate) fn ca_and_leaf(tag: &str) -> (String, String, String) {
     let (ca_key, leaf_key) = (Key::new(), Key::new());
     let mut ca = rcgen::CertificateParams::new(Vec::<String>::new()).unwrap();
     ca.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
@@ -107,7 +109,7 @@ fn ca_and_leaf(tag: &str) -> (String, String, String) {
 }
 
 /// `path` replaced whole by `text`, by a rename, as a renewal replaces it.
-fn replace(path: &Path, text: &str) {
+pub(crate) fn replace(path: &Path, text: &str) {
     use std::os::unix::fs::PermissionsExt;
     let tmp = path.with_extension("new");
     std::fs::write(&tmp, text).unwrap();
@@ -123,7 +125,7 @@ fn handshake(rt: &tokio::runtime::Runtime, port: u16, ca: &Path) -> Result<(), S
 }
 
 /// Wait until `done`, or fail with what the role said in `log`.
-fn until(what: &str, log: &Path, mut done: impl FnMut() -> bool) {
+pub(crate) fn until(what: &str, log: &Path, mut done: impl FnMut() -> bool) {
     let end = Instant::now() + WAIT;
     while !done() {
         let said = std::fs::read_to_string(log).unwrap_or_default();
@@ -151,7 +153,7 @@ fn echo_target() -> u16 {
     port
 }
 
-fn podssh(dir: &Path) -> Command {
+pub(crate) fn podssh(dir: &Path) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "PODSSH_RELAY", "PODSSH_RELAY_TOKEN"] {
         cmd.env_remove(name);

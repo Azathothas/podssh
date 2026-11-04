@@ -1,0 +1,7 @@
+# T-629: the job for the first thread runs on the thread that asks, so the
+# first thread keeps each capability of the start while the role says that
+# it gave them up; the test of the first thread must fail.
+ENTRY=T-629
+GROUP=cli-tests
+EXPECT='test first_thread::tests::a_job_runs_on_the_first_thread_and_its_end_stops_the_wait \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib first_thread'

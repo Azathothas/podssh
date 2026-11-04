@@ -54,6 +54,9 @@ pub mod exitmap;
 // `podssh exit NAME --listen ADDR:PORT`, and the client's side of an exit of
 // the net: `--exit NAME` of proxy and pipe (T-431).
 pub mod exit;
+// The first thread, which runs on itself what the command's thread asks: the
+// capabilities that `relay serve` drops after its bind (T-629).
+pub mod first_thread;
 // Tables, one flag to a row: rustfmt would spread each row over many lines.
 #[rustfmt::skip]
 pub mod flags;

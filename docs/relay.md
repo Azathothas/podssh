@@ -104,6 +104,24 @@ the resumable layer, so that the role keeps a standard sshd's connection
 across a drop of the client's link ("The relay role's resumable layer",
 below; T-173).
 
+A port below 1024 needs a privilege for its bind alone: a start as root, or
+the file capability `cap_net_bind_service` on the binary. On Linux the role
+gives up each capability of its start once its listener is bound, before its
+runtime makes a thread (T-629): `PR_SET_NO_NEW_PRIVS`, each capability of
+the bounding set where `CAP_SETPCAP` allows it, and `capset` with the
+effective, permitted and inheritable sets empty. Linux keeps them for each
+thread, so the process's first thread, which waits while another runs the
+command, does the same on itself; then each thread of `/proc/self/task` is
+read again. A step that fails, or a thread that keeps a capability, stops the
+start (78); a start that held none asks for no new privileges alone, and says
+nothing. The uid and the gid stay: a start as root stays uid 0, which may
+still write each file that root owns, and its first line says so; a user of
+its own with the file capability binds the port with none of root's. A file
+of another owner that the role reads again (its certificate, the file of
+`--pairs`, the cache of ACME) must let it read by its mode, and a reload that
+cannot read it says so and keeps the pair that it serves. Other systems have
+no such sets.
+
 ## How podssh selects relay hosts
 
 The code is in `crates/podssh-relay/`.

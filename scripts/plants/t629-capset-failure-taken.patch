@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-cli/src/relay_serve/harden.rs b/crates/podssh-cli/src/relay_serve/harden.rs
+index f157804..54eb7bd 100644
+--- a/crates/podssh-cli/src/relay_serve/harden.rs
++++ b/crates/podssh-cli/src/relay_serve/harden.rs
+@@ -153,7 +153,7 @@ pub fn apply(steps: &[Step], strict: bool, calls: &mut dyn Calls) -> Result<Vec<
+         };
+         let Err(errno) = result else { continue };
+         match (*step, errno) {
+-            (Step::Bound(_), EINVAL | EPERM) => {}
++            (Step::Bound(_) | Step::Clear, EINVAL | EPERM) => {}
+             (Step::NoNewPrivs, EINVAL) => notes.push("this kernel has no PR_SET_NO_NEW_PRIVS".to_string()),
+             _ if strict => {
+                 return Err(Refusal::config(format!(

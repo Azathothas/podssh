@@ -1,0 +1,9 @@
+# T-629: the drop of the capabilities moved after the runtime made its
+# workers, which keep the sets that they were made with; the role's own read
+# of each thread then stops its start, or a worker keeps a capability, and
+# the test that reads each thread of the role must fail. It needs a start
+# with capabilities: the build image runs as root.
+ENTRY=T-629
+GROUP=cli-tests
+EXPECT='test serve_caps::each_thread_of_the_role_holds_no_capability_after_the_bind \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- serve_caps'
