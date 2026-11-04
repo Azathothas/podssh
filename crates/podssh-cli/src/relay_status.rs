@@ -6,7 +6,8 @@
 //! pair's last day the expiry says how long is left. `--json` gives the same
 //! as one object, for a check. The expiry is the one that the relay names
 //! where it names one (podssh's relay role, whose renewal moves it, T-592),
-//! else the file's.
+//! else the file's; and the owner's halt, with its words, where podssh's
+//! relay role says it (T-647).
 
 use std::io::Write;
 
@@ -48,7 +49,7 @@ pub(crate) fn pair(args: &RelayArgs, label: Option<&str>, out: &mut dyn Write) -
     let expires_ms = presence.expires.unwrap_or(part.expires_ms);
     let left_ms = expires_ms.saturating_sub(pairs::now_ms()).max(0);
     let _ = if args.json {
-        let doc = json!({
+        let mut doc = json!({
             "schema": 1,
             "podssh": crate::help::version(),
             "label": shown,
@@ -56,17 +57,33 @@ pub(crate) fn pair(args: &RelayArgs, label: Option<&str>, out: &mut dyn Write) -
             "sessions": presence.sessions,
             "expires": pairs::utc(expires_ms),
             "seconds_left": left_ms / 1000,
+            "halted": presence.halted,
         });
+        if let Some(why) = &presence.halt_reason {
+            doc["halt_reason"] = json!(podssh_ws::text::one_line(why));
+        }
         writeln!(out, "{doc}")
     } else {
         let until = expiry(expires_ms, left_ms);
-        match (presence.online, presence.sessions) {
-            (true, 1) => writeln!(out, "{shown}: online, 1 session; {until}"),
-            (true, n) => writeln!(out, "{shown}: online, {n} sessions; {until}"),
-            (false, _) => writeln!(out, "{shown}: offline; {until}"),
-        }
+        let state = match (presence.online, presence.sessions) {
+            (true, 1) => "online, 1 session".to_string(),
+            (true, n) => format!("online, {n} sessions"),
+            (false, _) => "offline".to_string(),
+        };
+        writeln!(out, "{shown}: {state}{}; {until}", halted(presence.halted, presence.halt_reason.as_deref()))
     };
     Ok(())
+}
+
+/// The words of its owner's halt, which podssh's relay role says (T-647):
+/// `, halted: WHY`, or nothing for a pair that is not halted. The relay's
+/// words come on one line, with no control character.
+fn halted(halted: bool, why: Option<&str>) -> String {
+    match (halted, why.map(podssh_ws::text::one_line).filter(|w| !w.is_empty())) {
+        (true, Some(why)) => format!(", halted: {why}"),
+        (true, None) => ", halted".to_string(),
+        (false, _) => String::new(),
+    }
 }
 
 /// `expires AT`, or in the pair's last day, in which its next pair may be
@@ -83,7 +100,15 @@ pub(crate) fn expiry(expires_ms: i64, left_ms: i64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::expiry;
+    use super::{expiry, halted};
+
+    #[test]
+    fn a_halt_is_said_with_its_owners_words_on_one_line() {
+        assert_eq!(halted(false, None), "");
+        assert_eq!(halted(true, None), ", halted");
+        assert_eq!(halted(true, Some(" \n ")), ", halted");
+        assert_eq!(halted(true, Some("a new\ndisk")), ", halted: a new disk");
+    }
 
     const HOUR: i64 = 3_600_000;
 

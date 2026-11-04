@@ -27,14 +27,29 @@ pub const RELAY: &[&str] = &[
      is 69; a refused stop token (403) is a pair that was stopped or ended (77). --operator-file and \
      --relay-host are refused with it (64): the operator's file is never touched, and its end is asked \
      of the relay once the file's has passed.",
+    "podssh relay halt NAME keeps the operators of the pair stored under NAME out for a while, at podssh \
+     relay serve, by the pair's stop token (T-647): each of its sessions ends once, with 1011 the pair's \
+     owner halted it, and each operator's upgrade then hears 503 with the words of --reason TEXT (one \
+     line of 200 bytes at most) and no Retry-After, until podssh relay resume NAME. That refusal spends \
+     no connect token of --once and no token of one leg. The node keeps its socket, and so the pair's \
+     name: it hears that the pair is halted, a frame that a node of before skips, and takes the next \
+     operator after the resume on the same socket, with no new registration. podssh relay status NAME \
+     says halted, with the words, and its --json halted and halt_reason. A second halt changes nothing \
+     (stdout: halted already, since when); resume, then halt, for new words. The halt lives in the \
+     relay's memory alone: a restart of the relay serves the pair again. stdout has one line, the label \
+     and halted, with the sessions that it closed, or resumed, or not halted. A relay that halts none \
+     (the default relay's contract has no such request: 404 or 405) is said so, with podssh relay revoke \
+     as the way to end the pair, and the exit is 69; a refused stop token (403) is a pair that was \
+     stopped or ended (77); --relay-host is refused with them (64).",
     "podssh relay status NAME says whether the pair's node is online, its sessions, and when the pair \
      expires, as the relay names it where it does (podssh relay serve, whose renewal moves it), else as \
      the file does; in its last 24 hours, how long is left too (expires in 5 h, at ...). On an operator's host, \
      which stores no pair, podssh relay status --pair-file FILE [NAME] asks the same of the pair in FILE, \
      or of its operator's part, which podssh relay pair --operator-file writes: the relay answers the \
      status to its connect token. NAME is then only the label shown (else FILE). With --json, the pair's \
-     state is one object: schema (1), podssh, label, online, sessions, expires (RFC 3339) and \
-     seconds_left, for a check.",
+     state is one object: schema (1), podssh, label, online, sessions, expires (RFC 3339), seconds_left \
+     and halted, with halt_reason where the pair's owner halted it with words (podssh relay halt), for a \
+     check.",
     "podssh relay pair NAME --code gives the operator's part by a short code in place of a file (T-086): the \
      pair stored under NAME while it has 10 minutes left, else the next pair, made first, and the node's key \
      (node-NAME.key, made when it is missing). The code, such as 7-crossover-clockwork-adroitness, shows on \
@@ -193,7 +208,9 @@ pub const RELAY: &[&str] = &[
      ssh node:// work through it with no other relay. A pair lives 72 hours, and /v1/renew/NAME, with \
      the stop token, gives it 72 hours from then with its tokens, as often as its owner asks (podssh \
      relay pair --renew, and its node in its last day); /v1/status/NAME names the expiry beside the \
-     contract's fields. --pairs FILE keeps the \
+     contract's fields. /v1/halt/NAME and /v1/resume/NAME, with the stop token, keep a pair's operators \
+     out while its node keeps its socket, and let them in again (podssh relay halt and resume); the \
+     status says halted. --pairs FILE keeps the \
      pairs in FILE, a file of mode 0600 that holds the digests of their tokens and never a token, so \
      that they outlive a restart. At most 1 MiB waits for a slow operator: past it, the session ends \
      with 1011 relay backpressure, and the node's other sessions go on; a node that reads slowly slows \

@@ -3255,7 +3255,9 @@ commands. The rules behind them:
   `relay pair NAME` makes and keeps one; `node NAME TARGET` serves it;
   `relay status NAME` asks whether its node is online, and `relay status
   --pair-file FILE` the same of an operator's file (T-591); `relay revoke
-  NAME` stops it and forgets it.
+  NAME` stops it and forgets it. At podssh's relay role, `relay halt NAME
+  [--reason TEXT]` keeps its operators out while its node keeps its
+  socket, and `relay resume NAME` lets them in again (T-647).
 - **A pair expires, and its node goes on (T-395).** A pair lives 72 h at
   most and the relay renews none. The node says the expiry 24 h, 6 h and
   1 h before it, with the command that makes the next pair. `relay pair

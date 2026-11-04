@@ -449,9 +449,14 @@ pub(crate) fn stops(outcome: &LegOutcome) -> Option<String> {
 }
 
 /// A refusal of the relay that a new leg would only get again: the pair or
-/// its token is no longer good.
+/// its token is no longer good, or its owner halted it until a resume, whose
+/// words the end says (T-647).
 pub(crate) fn is_final(e: &ConnectError) -> bool {
-    matches!(e, ConnectError::Refused { status: 401 | 403 | 404 | 410, .. })
+    match e {
+        ConnectError::Refused { status: 401 | 403 | 404 | 410, .. } => true,
+        ConnectError::Refused { status: 503, body } => podssh_relay::pair::halt::is_halt(body),
+        _ => false,
+    }
 }
 
 /// The line of a step of the session across links.

@@ -1,0 +1,8 @@
+# T-647: the layered client takes a halt's 503 for one that may pass, so an
+# operator whose session the halt closed asks for a new leg until its resume
+# deadline, with no word of the owner's; the test that a halt is final for a
+# new leg must fail.
+ENTRY=T-647
+GROUP=cli-tests
+EXPECT='a_halt_is_final_for_a_new_leg_and_a_restart_is_not \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- layered::tests::a_halt_is_final_for_a_new_leg_and_a_restart_is_not'

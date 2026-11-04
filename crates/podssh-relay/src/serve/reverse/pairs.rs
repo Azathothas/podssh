@@ -11,6 +11,7 @@
 //! that leaks after it is worth nothing, also after a restart. Its node
 //! registers tokens of one leg, and rotates its stop token ([`legs`], T-615).
 //! A key that the role mints for has a share of the table ([`share`], T-630).
+//! Its owner halts it and resumes it, in memory alone ([`super::halt`], T-647).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -129,6 +130,8 @@ pub struct State {
     pub closed: HashMap<SessionId, (Instant, bool)>,
     /// Stopped or expired: nothing joins it again.
     pub ended: bool,
+    /// Its owner keeps its operators out, in memory alone (T-647).
+    pub halted: Option<super::halt::Halt>,
 }
 
 impl State {
@@ -353,6 +356,11 @@ impl Pairs {
             node.close(code, why);
         }
         Some((node.is_some(), sessions.len()))
+    }
+
+    /// The pair `name`, whose token the caller checked, ended or not.
+    pub(super) fn named(&self, name: &str) -> Option<Arc<Pair>> {
+        self.map.lock().unwrap_or_else(|e| e.into_inner()).get(name).cloned()
     }
 
     /// A number for each node's socket, so that the end of one never

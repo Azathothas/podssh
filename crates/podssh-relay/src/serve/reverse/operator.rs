@@ -86,19 +86,24 @@ where
     let node = {
         let mut state = pair.lock();
         match state.node_outbox() {
+            // A halt that came after its request's check (T-647).
+            _ if state.halted.is_some() => Err(super::halt::HALTED),
             Some(node) if state.sessions.len() < MAX_SESSIONS && !state.ended => {
                 let entry = Session { operator: outbox.clone(), ready: false, answer: Some(told), bytes: 0 };
                 state.sessions.insert(id, entry);
-                Some(node)
+                Ok(node)
             }
-            _ => None,
+            _ => Err("node unavailable"),
         }
     };
-    let Some(node) = node else {
+    let node = match node {
+        Ok(node) => node,
         // No node, or no room on it: the `open` could not be queued.
-        outbox.close(1011, "node unavailable");
-        let _ = tokio::time::timeout(CLOSE_WAIT, outbox.ended()).await;
-        return;
+        Err(why) => {
+            outbox.close(1011, why);
+            let _ = tokio::time::timeout(CLOSE_WAIT, outbox.ended()).await;
+            return;
+        }
     };
     if let Some(digest) = spent {
         node.text(super::spent(&digest));

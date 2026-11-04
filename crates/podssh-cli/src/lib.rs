@@ -178,6 +178,8 @@ pub mod relay_ends;
 pub mod relay_layer;
 // `podssh relay pair --renew NAME`: a pair renewed at podssh's relay role (T-592).
 mod relay_renew;
+// `podssh relay halt NAME` and `resume NAME`: the owner's halt of a pair (T-647).
+mod relay_halt;
 // `podssh relay rank`: each relay host measured from this host, the rank kept (T-606).
 mod relay_rank;
 // The rank of a session's background, with RelayRank auto alone (T-608).

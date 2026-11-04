@@ -1,0 +1,8 @@
+# T-647: a halt closes the node's socket too, as a stop does, so the node
+# loses its name and its next registration may meet 409; the test that the
+# node keeps its socket and takes the next operator on it after the resume
+# must fail.
+ENTRY=T-647
+GROUP=resume
+EXPECT='test a_halt_closes_each_session_once_and_a_resume_takes_the_next_on_the_same_socket \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_halt -- a_halt_closes_each_session_once_and_a_resume_takes_the_next_on_the_same_socket'

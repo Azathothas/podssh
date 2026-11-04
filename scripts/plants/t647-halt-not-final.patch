@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-cli/src/layered.rs b/crates/podssh-cli/src/layered.rs
+index 2cff9da..5a567ad 100644
+--- a/crates/podssh-cli/src/layered.rs
++++ b/crates/podssh-cli/src/layered.rs
+@@ -454,7 +454,7 @@ pub(crate) fn stops(outcome: &LegOutcome) -> Option<String> {
+ pub(crate) fn is_final(e: &ConnectError) -> bool {
+     match e {
+         ConnectError::Refused { status: 401 | 403 | 404 | 410, .. } => true,
+-        ConnectError::Refused { status: 503, body } => podssh_relay::pair::halt::is_halt(body),
++        ConnectError::Refused { status: 503, body } => body.is_empty() && podssh_relay::pair::halt::is_halt(body),
+         _ => false,
+     }
+ }
