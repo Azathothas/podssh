@@ -82,6 +82,8 @@ pub mod via;
 // VLESS over a WebSocket and over XHTTP, to a server that the user runs
 // (T-440).
 pub mod vless;
+// A tick of the clocks that tells a host that slept (T-663).
+pub mod wake;
 // Tor's WebTunnel, for a bridge of the Tor road (T-385).
 pub mod webtunnel;
 mod wire;

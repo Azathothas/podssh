@@ -234,6 +234,8 @@ where
         }
     });
 
+    // A host that wakes asks at once, while no question waits (T-663).
+    let waking = tokio::spawn(ask_on_wake(session.clone(), status.clone()));
     let down_status = status.clone();
     tokio::spawn(async move {
         // A link that dies without a word is found by pinging, in about 30 s
@@ -285,10 +287,29 @@ where
         }
         // End of stream for russh; the sending task stops too.
         down_ended.notify_one();
+        waking.abort();
         let _ = to_ssh.shutdown().await;
     });
 
     (ours, status)
+}
+
+/// Ask the relay with a Ping at each wake of the host, while no question
+/// waits: a link that the sleep took then shows the notice within its wait
+/// of the wake, not of the next key (T-663). Until the caller aborts it.
+async fn ask_on_wake<S>(session: Arc<RelaySession<S>>, status: RelayStatus)
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    let mut wake = podssh_ws::wake::Wake::new(podssh_ws::wake::Reading::now());
+    loop {
+        wake.woke().await;
+        // No frame follows this side's Close.
+        if !session.close_sent() && status.ask(tokio::time::Instant::now()) {
+            // A send that fails is the copying tasks' to find.
+            let _ = session.send_ping(ASK).await;
+        }
+    }
 }
 
 #[cfg(test)]

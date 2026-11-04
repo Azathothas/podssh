@@ -149,8 +149,8 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
         &["PODSSH_SPARE_LINKS"],
         "no: with a node that offers the resumable layer, podssh opens no spare link beside a link that \
       went silent, and finds such a link dead after 30 s only (see podssh ssh). Else a spare link opens \
-      once the node has not answered for 3 s, one each 10 s at most, but on the iroh road, whose QUIC \
-      carries a session across a new address by itself.",
+      once the node has not answered for three round trips of the link (1 s at least, 3 s at most), one \
+      each 10 s at most, but on the iroh road, whose QUIC carries a session across a new address by itself.",
     ),
     (
         &["PODSSH_TITLE_STACK"],

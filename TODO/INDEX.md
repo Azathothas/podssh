@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**624 entries: 122 open, 6 partial, 2 blocked, 494 done.**
+**624 entries: 121 open, 6 partial, 2 blocked, 495 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
-| P2 | 33 | 3 | 0 | 238 | 274 |
+| P2 | 32 | 3 | 0 | 239 | 274 |
 | P3 | 89 | 1 | 2 | 191 | 283 |
-| **All** | 122 | 6 | 2 | 494 | 624 |
+| **All** | 121 | 6 | 2 | 495 | 624 |
 
 ## Entries
 
@@ -693,7 +693,7 @@ repository and CI).
 | [T-660](machine.md) | P2 | M | M10 | measurement | partial | What a user feels, measured on each road: a key's echo while a download runs, a cold connect and its first command, a bulk copy while one types |
 | [T-661](ssh.md) | P2 | M | M10 | feature | open | Typing-aware flow control in podssh's SSH client: a bulk channel's window held to a round trip and 40 ms while a key waits |
 | [T-662](ssh.md) | P2 | S | M10 | feature | open | SSH windows that grow to the path where nobody types, to a cap of each road |
-| [T-663](resume.md) | P2 | S | M10 | feature | open | Liveness in round trips: a spare link after the larger of three round trips and 1 s, and a check when the host wakes |
+| [T-663](resume.md) | P2 | S | M10 | feature | done | Liveness in round trips: a spare link after the larger of three round trips and 1 s, and a check when the host wakes |
 | [T-664](ssh.md) | P3 | M | M10 | feature | open | A faster cold connect: TLS tickets kept across runs, a key's signature sent with no query first, and fewer waits before the first command |
 | [T-665](roads.md) | P3 | S | M10 | measurement | open | QUIC on the iroh road, tuned and measured on a wide-area path |
 | [T-666](roads.md) | P3 | M | M10 | feature | open | Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection |

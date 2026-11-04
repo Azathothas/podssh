@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:708`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:709`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -1512,7 +1512,7 @@ Read:
   (`crates/podssh-ws/src/session.rs:403-410`). Then the copy task stops
   (`crates/podssh-ssh/src/relay_stream.rs:216-232`), the next ping meets the
   same limit and ends the read task (`crates/podssh-ws/src/session.rs:313-316`,
-  `crates/podssh-ssh/src/relay_stream.rs:238-249`), and russh's next write
+  `crates/podssh-ssh/src/relay_stream.rs:240-251`), and russh's next write
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
   (`crates/podssh-cli/src/ssh/transport.rs`, lines 99-101 at `cafcdb4`,
@@ -2445,7 +2445,7 @@ and a send waits for the channel's window; while it waited, the loop read
 none of the channel's messages, which carry the end. And in the relay
 stream, the task that sends stopped reading the pipe when a send failed,
 while the task that receives could wait for russh to read (now
-`crates/podssh-ssh/src/relay_stream.rs:195-289`): russh, which waited on a
+`crates/podssh-ssh/src/relay_stream.rs:195-292`): russh, which waited on a
 write into the pipe, read nothing, so neither task ended.
 
 ## Approach
@@ -2476,7 +2476,7 @@ hang. Plant: the relay stream's receiving task with no stop fails its test.
 2026-10-10. The session's loop reads the channel's messages while a send
 waits for the window (`crates/podssh-ssh/src/io.rs:229-241`), and in the
 relay stream each task's end with the link stops the other
-(`crates/podssh-ssh/src/relay_stream.rs:195-289`).
+(`crates/podssh-ssh/src/relay_stream.rs:195-292`).
 - T-156's control of a stopped relay host (the forward road, 20 MiB up and
   back, the relay host's connections end with RST at 8 MiB; a limit of 60 s
   for each run): before, 7 of 54 runs never ended; with the loop's change

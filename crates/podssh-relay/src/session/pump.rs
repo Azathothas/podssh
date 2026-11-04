@@ -288,7 +288,7 @@ where
         let writer = outbox::write(&mut link_w, &mut data_rx, &outbox, state, watch, hearing);
         let beat = async {
             if heartbeat {
-                beat(&outbox, &heard).await
+                beat(&outbox, &heard, hearing).await
             } else {
                 std::future::pending().await
             }
@@ -410,7 +410,15 @@ async fn finish<F: Future<Output = Written> + Unpin>(outbox: &Outbox, last: Fini
 /// after [`DEAD_AFTER`] with nothing heard from the far end (T-154). Each
 /// record is payload to the relay, so the pings also keep its idle cut away;
 /// the far end's `PONG` carries its received offset, an acknowledgement.
-async fn beat(outbox: &Outbox, heard: &Mutex<Instant>) -> End {
+///
+/// A `PING` goes at once too when the hearing asks for one (a spare link
+/// opened beside this one), and when a tick of the clocks comes late, as
+/// after a sleep of the host, which the monotonic clock of the bounds above
+/// does not count: the far end's answer, or its silence, then tells within
+/// the bound of a spare link whether the link outlived the sleep (T-663).
+async fn beat(outbox: &Outbox, heard: &Mutex<Instant>, hearing: &Hearing) -> End {
+    use podssh_ws::wake::{Reading, Wake};
+    let mut wake = Wake::new(Reading::now());
     loop {
         let now = Instant::now();
         let last_heard = *lock(heard);
@@ -421,8 +429,15 @@ async fn beat(outbox: &Outbox, heard: &Mutex<Instant>) -> End {
         if now.duration_since(outbox.quiet_since()) >= PING_EVERY {
             outbox.ping();
         }
-        let next = (outbox.quiet_since() + PING_EVERY).min(last_heard + DEAD_AFTER);
+        if now >= wake.due() && wake.tick(Reading::now()).is_some() {
+            outbox.ping();
+        }
+        let next = (outbox.quiet_since() + PING_EVERY).min(last_heard + DEAD_AFTER).min(wake.due());
         // Never a wait of nothing: a clock that stands still would spin.
-        tokio::time::sleep_until(next.max(Instant::now() + Duration::from_millis(10))).await;
+        let next = next.max(Instant::now() + Duration::from_millis(10));
+        tokio::select! {
+            () = tokio::time::sleep_until(next) => {}
+            () = hearing.asking() => outbox.ping(),
+        }
     }
 }

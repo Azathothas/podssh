@@ -53,7 +53,7 @@ pub const MOVE_AGE: Duration = Duration::from_secs(11 * 3600);
 const REFUSE_WAIT: Duration = Duration::from_secs(5);
 /// How long a resume after a `CLOSE` with no answer goes on before its loss
 /// is said: a first new link learns sooner whether the far end had the
-/// `CLOSE`, as a spare link opens after a question waited as long (T-354).
+/// `CLOSE`, as a spare opens after a question waited as long at most (T-354).
 const LOSS_GRACE: Duration = beside::SPARE_AFTER;
 
 /// What the caller gives in place of a lost link, or for a move.

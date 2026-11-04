@@ -503,7 +503,13 @@ ends (T-307).
   loss. Any byte from the far end answers each question. A question that
   waits 5 s makes the far end silent (UNVERIFIED: the value waits for its
   measurement); so a prompt that echoes nothing is no silence, and an idle
-  session neither, as its `PING` of each 10 s is answered.
+  session neither, as its `PING` of each 10 s is answered. A host that
+  wakes from a sleep asks at once with a `PING` (T-663): a tick of the
+  clocks each second that comes more than 2 s late, by tokio's clock or by
+  the time that the host slept (on Linux, `CLOCK_BOOTTIME` against
+  `CLOCK_MONOTONIC`; elsewhere the wall clock), is a wake. The monotonic
+  clock of the waits stops in a sleep, so with no check a link that the
+  sleep took would be asked only at the next key or heartbeat.
 - **Where it shows.** With a pty on a terminal, in the window's title:
   `podssh: no word from HOST for N s, ~. ends the session`, counting up each
   second. podssh first saves the title on the terminal's stack
@@ -530,7 +536,11 @@ ends (T-307).
   too, and any frame of the relay answers it, its Pong or the target's
   bytes; the silence counts from the relay's last frame, with the same
   wait of 5 s and the same places. A key that nothing echoes is then no
-  silence. Measured through the stand-in relay and a proxy that holds each
+  silence. A wake of the host asks the same Ping at once (T-663), so a
+  session of `--persist` whose link the sleep took shows the notice 5 s
+  after the wake, with no key typed; its link still ends when the relay
+  stream's pings find it dead, as SSH there has no layer to move it.
+  Measured through the stand-in relay and a proxy that holds each
   byte (`cargo test -p podssh-cli --test silent_notice -- --ignored`): with
   a pause of 20 s, the notice came 6.0 s after it began and went before the
   key's answer at 20.0 s; a pause of 90 s ended the session 40.0 s after it

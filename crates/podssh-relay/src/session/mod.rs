@@ -25,8 +25,9 @@
 //!   a far end keeps across links, charged against its [`budget`] (T-586);
 //! - [`deadline`]: how long each end waits for a new link (T-306), and
 //!   [`hearing`]: what the client heard from the far end, for a notice of
-//!   its silence (T-302); [`once`]: a session that ends with its link, at
-//!   its client's ask (T-612);
+//!   its silence (T-302), with the round trip of the link that [`round_trip`]
+//!   times, for a spare link (T-663); [`once`]: a session that ends with its
+//!   link, at its client's ask (T-612);
 //! - [`sessions`]: the secrets and offsets that a far end keeps, by id.
 //!
 //! The records, the offsets, the secrets, the handshakes, the link and the
@@ -50,6 +51,7 @@ pub mod race;
 pub mod record;
 pub mod replay;
 pub mod resume;
+pub mod round_trip;
 pub mod secret;
 pub mod sessions;
 

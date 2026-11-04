@@ -238,7 +238,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 624 entries: 122 open, 6 partial, 2 blocked, 494 done.
+`TODO/INDEX.md` holds 624 entries: 121 open, 6 partial, 2 blocked, 495 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -277,7 +277,7 @@ operator and the parked ones.
 **First tonight (2026-11-04, Q98 to Q100):** `v1.1.0-beta.2` (GitHub #126, the testers' P1
 defect, is repaired); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first), T-661 and
-T-662 (the SSH client's flow control and windows), T-663 (liveness in round trips), T-664, T-665,
+T-662 (the SSH client's flow control and windows; liveness in round trips is done), T-664, T-665,
 T-666, T-667, T-668 and T-669; then GitHub #127 to #148 (T-629 to T-650,
 `TODO/issues.md`) by their priority, the P2 ones first (T-629, T-630, T-632, T-635 and T-648),
 beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.

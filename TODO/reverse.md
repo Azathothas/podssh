@@ -884,7 +884,7 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/hop.rs:30-78`).
 `Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-76`, chosen at `:313-375`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
-`relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:272-278`); the
+`relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:274-280`); the
 operator leg receives text frames (`docs/relay.md:617-620`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:222-232`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:420`). `podssh ssh` uses the exit codes of OpenSSH, and
@@ -910,7 +910,7 @@ host, never the relay's name (`SECURITY.md:222-232`); `HostKeyAlias` exists
 
 Recommendation: `node://[user@]NAME`, read as `ssh://` is (`crates/podssh-cli/src/ssh/hop.rs:35`),
 because it changes no destination that works today (measured above). The alternative `node:NAME`, the
-address form of `podssh pipe` (`docs/design.md:1036`), lost: `podssh ssh node:22` already means host
+address form of `podssh pipe` (`docs/design.md:1064`), lost: `podssh ssh node:22` already means host
 `node`, port 22. A flag such as `--node NAME` lost: `podssh ssh` takes its destination as a word, as
 OpenSSH does.
 
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:143`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:144`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1331,7 +1331,7 @@ Read in the reports (not verified here): iroh-ssh warns about an ephemeral node 
 default-deny allowlist (`arjun988/GPU-Share:crates/gpumesh-core/src/node.rs`); warren pins a key on
 first sight, has `trust NAME --expect FINGERPRINT` and revocation, and exits 7 on a mismatch
 (`willykeenan/warren:src/cli.rs`); zuko stores device authorization for each peer
-(`adonm/zuko:src/store.rs`). iroh identifies endpoints by Ed25519 keys (`docs/design.md:1089-1091`).
+(`adonm/zuko:src/store.rs`). iroh identifies endpoints by Ed25519 keys (`docs/design.md:1117-1119`).
 
 ## Approach
 
@@ -1461,7 +1461,7 @@ podbox has the same, on by default (`NodeChannel`, `OperatorChannel`). The manua
 # T-088: End-to-end encryption between two podssh ends
 
 **Source:** GitHub #18 (report on warren; read in the report, not verified here);
-`docs/design.md:1303-1309`, `:1432-1436`.
+`docs/design.md:1331-1337`, `:1460-1464`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -1480,8 +1480,8 @@ Read: the relay sees the target, the time and volume of the traffic, and the sta
 connection; after the key exchange it sees only ciphertext (`SECURITY.md:21-31`). It can drop, delay
 or add frames (`SECURITY.md:33-36`).
 
-Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:1303-1309`);
-for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1435-1437`).
+Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:1331-1337`);
+for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1463-1465`).
 The resumable layer of M6 runs under SSH (`docs/design.md:674-686`).
 
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
@@ -1870,7 +1870,7 @@ Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
 issue's "rule 8" is rule 6 (`docs/architecture.md:289-294`), and its "section 2" sentence about an allowlist of
-keys is in section 7 (`docs/design.md:1266-1267`). Read in the report (not verified here): syq signs a grant in a
+keys is in section 7 (`docs/design.md:1294-1295`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
 (lines 11-12 at `22c3b88`); signing buys scope, single use and non-repudiation, not safety after a leak.

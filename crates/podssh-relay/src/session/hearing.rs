@@ -8,6 +8,11 @@
 //! far end answer each question, as they show that it is there. So a program
 //! that echoes nothing (a password's prompt) is no silence, and neither is an
 //! idle session: each side's `PING` each 10 s is answered.
+//!
+//! It keeps the round trip of the link that carries the session too, which
+//! sets how long a question waits before a spare link opens, and it carries
+//! a wish to ask the far end at once, which the link's heartbeat sends as a
+//! `PING` (T-663).
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
@@ -16,6 +21,8 @@ use std::time::Duration;
 use tokio::sync::Notify;
 // tokio's clock, which a test can pause.
 use tokio::time::Instant;
+
+use super::round_trip::RoundTrip;
 
 /// How long a question waits for its answer before the far end counts as
 /// silent: a few round trips and the 200 ms of an `ACK`. Through the
@@ -33,6 +40,10 @@ pub struct Hearing {
     words: AtomicU64,
     /// Woken by each read, for a wait for the far end's next bytes.
     spoke: Notify,
+    /// The round trip of the link that carries the session (T-663).
+    round_trip: Mutex<RoundTrip>,
+    /// A wish to ask the far end at once, which the link's heartbeat takes.
+    asks: Notify,
 }
 
 impl Default for Hearing {
@@ -42,6 +53,8 @@ impl Default for Hearing {
             asked: Mutex::new(None),
             words: AtomicU64::new(0),
             spoke: Notify::new(),
+            round_trip: Mutex::new(RoundTrip::default()),
+            asks: Notify::new(),
         }
     }
 }
@@ -79,6 +92,12 @@ impl Hearing {
         Some(now.saturating_duration_since(*lock(&self.heard)))
     }
 
+    /// When the oldest question that waits was asked; `None` while the far
+    /// end answers.
+    pub fn asked_at(&self) -> Option<Instant> {
+        *lock(&self.asked)
+    }
+
     /// How long the far end has said nothing at `now`, asked or not.
     pub fn quiet(&self, now: Instant) -> Duration {
         now.saturating_duration_since(self.heard_at())
@@ -109,6 +128,35 @@ impl Hearing {
             }
             spoke.await;
         }
+    }
+
+    /// A new link carries the session: its round trip is its own, from its
+    /// first answer on, as it may take another road (T-663).
+    pub fn new_link(&self) {
+        *lock(&self.round_trip) = RoundTrip::default();
+    }
+
+    /// A question of the link was answered after `sample`.
+    pub fn timed(&self, sample: Duration) {
+        lock(&self.round_trip).sample(sample);
+    }
+
+    /// The smoothed round trip of the link, once a question of it was
+    /// answered.
+    pub fn round_trip(&self) -> Option<Duration> {
+        lock(&self.round_trip).smoothed()
+    }
+
+    /// Ask the far end at once: the link's heartbeat sends a `PING`, as for a
+    /// spare link beside a silent one, which an answer on the old link
+    /// closes (T-663). A wish made while no heartbeat waits is kept for it.
+    pub fn ask_now(&self) {
+        self.asks.notify_one();
+    }
+
+    /// Until a wish to ask the far end comes ([`Hearing::ask_now`]).
+    pub async fn asking(&self) {
+        self.asks.notified().await;
     }
 }
 
@@ -148,5 +196,21 @@ mod tests {
         tokio::time::timeout(Duration::from_millis(1), waiting).await.expect("the bytes woke the wait").unwrap();
         // Bytes that came before the wait end it at once.
         tokio::time::timeout(Duration::from_millis(1), hearing.spoke_after(mark)).await.expect("at once");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_new_link_times_its_own_round_trip_and_a_wish_to_ask_waits_for_the_heartbeat() {
+        let hearing = Hearing::default();
+        hearing.asked();
+        assert_eq!(hearing.asked_at(), Some(Instant::now()));
+        hearing.timed(Duration::from_millis(400));
+        assert_eq!(hearing.round_trip(), Some(Duration::from_millis(400)));
+        hearing.new_link();
+        assert_eq!(hearing.round_trip(), None, "the new link answered nothing yet");
+        // A wish made while nobody waits is kept for the next wait, once.
+        hearing.ask_now();
+        tokio::time::timeout(Duration::from_millis(1), hearing.asking()).await.expect("the wish was kept");
+        let again = tokio::time::timeout(Duration::from_millis(1), hearing.asking()).await;
+        assert!(again.is_err(), "a wish is taken once");
     }
 }
