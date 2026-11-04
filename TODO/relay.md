@@ -4693,10 +4693,77 @@ role's forward road.
 2. A contract test beside `crates/podssh-relay/tests/relay_serve_contract.rs`: a target that answers
    500 ms after the end of its input; its answer comes after the client's Close.
 
+## Decision
+
+2026-11-04 (the drafting agent of T-671). No row of `docs/decisions.md` settles these, and none
+changes one; none is a call of policy.
+
+1. **The role holds its answer to the client's Close by a builder of podssh-ws's session,
+   `RelaySession::holding_close_answer`**, which only the role's `/connect/` takes: its reader then
+   returns the Close and sends none, and the role's own Close, after the target's bytes, is the
+   answer (RFC 6455, section 5.5.1, lets a side send data until it sent its Close). Each other user
+   of the crate keeps the reader's echo. Lost: a reader that never echoes (each client, and `pipe
+   ws-listen:`, would answer by hand); a second reader of the role's socket.
+2. **A link of the resumable layer (`/v1/layer/`) still ends at its client's Close**
+   (`AfterClose::Ends`): a link is not the session, the layer's `END` is its half-close (T-632), and
+   a link that its client retires must free its pump at once. Lost: the 15 s on each link, which
+   would hold a retired link's pump and pipe.
+3. **The silence is counted from the target's last byte, or from the Close when it came later**, as
+   the measurement of 2026-10-09 reads (GitHub's answer 0.4 s after the Close, the relay's Close
+   15.4 s after it). Lost: 15 s from the Close alone.
+4. **The 15 s is a field of the role's limits (`Limits::half_closed`)**, so that a test waits 1 s;
+   no flag of `relay serve` sets it, as the contract fixes it. The close's words name the window's
+   seconds, the contract's on the default. Lost: a constant (a test of 15 s); a flag (nobody asked).
+5. **After the client's Close the role reads nothing more of the client**: nothing follows a Close,
+   and a client that went away is found at the next write to it, or at the window's end. Lost: a
+   reader of the client's socket to the end.
+6. **A side effect, kept**: a client's Close before a lazy dial now hears the reason that the role
+   always meant to send, `1000 client closed before the target was dialed`, where the reader's echo
+   went first and took its place.
+
 ## Prove
 
 ```sh
+export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract
+cargo test -p podssh-relay --features serve --lib serve::forward
+cargo test -p podssh-relay --features serve,plain-ws --test session_relay_resume
+sh scripts/plant-each.sh --here t671-close-ends-the-session t671-silence-from-the-close
 ```
 
-A new test as in item 2; planted, the old end at the Close, it fails.
+A new test as in item 2; planted, the old end at the Close, it fails. A target that answers, then
+holds its connection in silence, gets the role's Close 1 s after its answer, not 1 s after the
+client's Close; planted, the silence counted from the Close, it fails. The layer's road is unchanged.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-671`), UNVERIFIED: no command above ran in the draft.
+
+- `crates/podssh-ws/src/session.rs`: `RelaySession::holding_close_answer`, a session whose reader
+  returns the peer's Close and leaves the answer to its caller.
+- `crates/podssh-relay/src/serve/forward.rs`: `/connect/` holds the answer; at the client's Close
+  `pump` shuts the target's writing side and, with `AfterClose::Drains`, carries the target's bytes
+  until it closes (`1000 target closed`), a limit ends the session, or `until_quiet` finds it silent
+  for `Limits::half_closed` since its last byte or the Close (`1000 client half-closed, target idle
+  for 15s`, the words of `half_closed`). `crates/podssh-relay/src/serve/layer.rs` keeps
+  `AfterClose::Ends`. `crates/podssh-relay/src/serve/mod.rs`: `Limits::half_closed`, 15 s.
+- `crates/podssh-relay/tests/role_harness/mod.rs`: `Role::limited`, a role with its own limits.
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract`: UNVERIFIED
+  (`a_targets_answer_after_the_clients_close_reaches_the_client`: the answer, 500 ms after the end of
+  the input, after the Close, then `1000 target closed`;
+  `a_silent_target_after_the_clients_close_ends_the_session_in_the_contracts_words`: the answer at
+  0.6 s, then `1000 client half-closed, target idle for 1s` at 1.5 s or later; and the earlier tests).
+- `cargo test -p podssh-relay --features serve --lib serve::forward`: UNVERIFIED
+  (`a_half_closed_session_ends_in_the_contracts_words`, the 15 s's words).
+- `cargo test -p podssh-relay --features serve,plain-ws --test session_relay_resume`: UNVERIFIED (the
+  layer's links, unchanged).
+- Planted (`t671-close-ends-the-session`, the old end at the Close; `t671-silence-from-the-close`,
+  the silence from the Close): UNVERIFIED.
+- `docs/relay.md` ("The forward path") and `docs/STATUS.md` say it.
+- Waits for the merge: the build, clippy and rustfmt; the crate's whole suite with
+  `serve,plain-ws,quick,pair,grant,piping,code`, and `cargo test -p podssh-cli --test relay_serve`
+  (each client of the role's `/connect/` that sends a Close now waits for the role's, as on the
+  default relay); `cargo todo remap` of the cited files that the draft changed, none moved by hand
+  (`crates/podssh-relay/src/serve/forward.rs`, `crates/podssh-relay/src/serve/mod.rs`,
+  `crates/podssh-relay/src/serve/layer.rs`, `crates/podssh-ws/src/session.rs`, `docs/relay.md`,
+  `docs/STATUS.md`); `cargo todo set T-671 done`.

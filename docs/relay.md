@@ -378,7 +378,13 @@ X-Relay-Token: <forward token>
   relay's Close is `1000 client half-closed, target idle for 15s`. Measured
   2026-10-09 (`python scripts/capture-close.py --client-close`): GitHub's
   answer, 800 bytes, came 0.4 s after the Close, and the relay's Close
-  15.4 s after it.
+  15.4 s after it. podssh's relay role does the same (T-671): the client's
+  Close shuts the target's writing side, so a target that reads to the end
+  of its input still answers; its bytes go to the client, and the role's
+  Close, the answer to the client's, is `1000 target closed` when the
+  target closes, or the line above after 15 s of its silence, counted from
+  its last byte. A link of the role's resumable layer (`/v1/layer/`) ends
+  at its client's Close, as the layer's `END` is its half-close (T-632).
 - The maximum frame is 262144 bytes (`/relays.json`,
   `limits.max_frame_bytes`). podssh takes in frames up to that cap, or up to
   a larger `max_frame_bytes` that its cached `/relays.json` gives, never over
