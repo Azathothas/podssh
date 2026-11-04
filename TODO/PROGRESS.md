@@ -187,14 +187,17 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-a866bb2e35c2100ff`, `cc54c09`, merged and closed after `b750af3`). Their worktrees
   and local branches are gone, and their `draft/` branches on GitHub can go.
 
-  On 2026-11-04 (evening) a ninth round is being drafted, unbuilt, by agents of this cloud session,
-  each in a worktree under `.claude/worktrees/` on a local branch `worktree-agent-*`: the triage of
-  GitHub #127 to #148 (T-629 to T-650, `de2cc4e`, merged; its worktree and branch are gone), T-660 (measure what a user feels), T-661 and T-662
-  (the SSH client's flow control and windows), T-663 (liveness in round trips), and T-664 (a faster
-  cold connect: partial, its Done of UNVERIFIED filled at the merge; its patch of russh is
-  numbered 0003, after T-661's 0002). Each is merged
-  one at a time, built and tested, in the order of the index; a branch is pushed as `draft/<branch>`
-  before the session ends.
+  On 2026-11-04 (evening and night) a ninth round was drafted by agents of this cloud session,
+  unbuilt, each branch pushed as `draft/worktree-agent-*`: the triage of GitHub #127 to #148, T-660,
+  T-661 and T-662, T-663, T-629 and T-635, T-630 and T-648, T-632 (each merged), T-664 (on
+  `merge-664`, under test), and still to merge: T-639 and T-645 (`worktree-agent-af1f8acf4f98d8f39`,
+  `10b37ef`, `e007213`), T-671 and T-647 (`worktree-agent-a2f3e5081af50102a`, `b84add1`,
+  `3957215`), T-634 and T-640 (`worktree-agent-aae99917a53f19e77`, `0e9152e`, `2ec6c95`), T-665 and
+  T-666 (`worktree-agent-ac3e65f272f8d068d`, `2ad81c5`, `05a7326`); T-670 is being drafted. A
+  merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
+  `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
+  applied in the tree then); and when the disk fills, remove `target/` whole, never files under
+  `target/debug/deps` (cargo's records then name outputs that are gone).
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
