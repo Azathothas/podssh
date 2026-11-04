@@ -8339,7 +8339,7 @@ never passed a byte.
 
 - `crates/podssh-warp/src/road.rs`, line 5 at `1769d79`, said "The probe (T-352's Approach, step
   2) is the opening itself: the CONNECT"; this entry's draft rewrote that comment.
-- `crates/podssh-warp/src/road.rs:195` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
+- `crates/podssh-warp/src/road.rs:204` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
   at `1769d79` it returned once TLS and the stack were up, with no byte through the tunnel.
 
 ## Approach
