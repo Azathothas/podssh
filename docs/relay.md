@@ -281,7 +281,7 @@ list alone, which `/relays.json` may carry beside the pool, as its field
   file that changed stops counting at once. A list is learned from the
   `/relays.json` that the pool's refresh reads after a mint, with no request
   more, and from `podssh relay info`, which keeps the first host's list
-  when it holds.
+  when it holds; and from the host of a relay member of the net (below).
 - **The list of deployments.** With no list named, the default host and
   three hosts of its pool come first, then at most four hosts of the other
   deployments, the first host of each deployment first. Each such host
@@ -306,6 +306,19 @@ list alone, which `/relays.json` may carry beside the pool, as its field
   `RelayKeys` or the net. Nothing of a request goes into what it signs. A
   member of a net with the role `relay` that signs with the key that the
   net names for it is trusted by each member that holds the net.
+- **The net's relay members (T-617).** A member of the net with the role
+  `relay` and a host in the net's document (`podssh net add NAME KEY
+  --roles relay --relay-host HOST[:PORT]`, the member's field `relay`) is
+  asked for its list: a run that opens a session on the default list, and
+  `podssh relay status`, ask that host's `/relays.json` first, at most once
+  a day for each member whatever it answered (5 s each, 8 s in all), with
+  no token, through the proxy of the environment, and take the list there
+  only when the member's key signed it, by the check above; its
+  deployments then follow the default list in that run. The host joins no
+  list by it, as the role's own list names where sessions go. No run asks
+  with `PODSSH_RELAY_TOKEN`, with a list that the user named, or with no
+  cache; the asks are kept as `relay-members.json`
+  (`crates/podssh-relay/src/pool/members.rs`).
 
 ## The forward path: what `podssh proxy` and `podssh ssh` use
 

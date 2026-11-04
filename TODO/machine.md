@@ -218,7 +218,7 @@ Read, at `c6f09a8`: the verb has no flags (`crates/podssh-cli/src/flags.rs` line
 owner row (line 429) and no arguments (`crates/podssh-cli/src/positionals.rs` line 50). Each fact
 has a local source that
 opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:107-125`,
-`crates/podssh-relay/src/pool.rs:112-125`); the token cache
+`crates/podssh-relay/src/pool.rs:113-126`); the token cache
 (`crates/podssh-relay/src/cache.rs:84-104`, which returns the token itself in `Cached`, lines
 29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:90-96`, 90-98); the attachment
 (`crates/podssh-cli/src/non_interactive.rs:68-70`); the proxy, shown with no credentials
@@ -413,7 +413,7 @@ Read: the session pings the relay every 10 s and counts the pongs, but it measur
 trip (`crates/podssh-ws/src/session.rs:289-317`; the payload is a counter, `:314`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
-against 64 MiB for each session (`docs/relay.md:428`). The stand-in relay answers pings
+against 64 MiB for each session (`docs/relay.md:441`). The stand-in relay answers pings
 (`scripts/fake-relay.py:388-389`).
 
 ## Approach
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5170-5198`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5188-5216`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:257-272`), and stdio needs no listener.

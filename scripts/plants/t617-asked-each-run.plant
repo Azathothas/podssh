@@ -1,0 +1,8 @@
+# T-617: each run asks each relay member again, whatever the last ask, so a
+# role that is down costs each run a wait; the test of the asks of a day must
+# fail.
+ENTRY=T-617
+GROUP=cli-tests
+EXPECT='test pool::members::tests::each_member_is_asked_once_a_day_whatever_it_answered \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib pool::members'
+LIMIT=1800

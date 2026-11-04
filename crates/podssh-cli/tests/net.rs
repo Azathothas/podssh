@@ -251,6 +251,9 @@ fn a_command_of_the_net_that_cannot_be_done_says_why() {
         (vec!["net"], 64, "missing SUBCOMMAND"),
         (vec!["net", "list"], 64, "not a subcommand"),
         (vec!["net", "ls", "--roles", "node"], 64, "--roles is for podssh net add"),
+        // An exit's routes and a relay's host go with add alone (T-617).
+        (vec!["net", "ls", "--routes", "10.0.0.0/8"], 64, "--routes is for podssh net add"),
+        (vec!["net", "invite", "lab", "--relay-host", "relay.example.org"], 64, "--relay-host is for podssh net add"),
         (vec!["net", "add", "lab"], 64, "podssh net add NAME KEY"),
         (vec!["net", "ls"], 78, "holds no net"),
         (vec!["net", "add", "lab", k], 78, "holds no net"),

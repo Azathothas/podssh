@@ -1,0 +1,7 @@
+# T-617: net add takes --relay-host for a member with no role relay, whose key
+# signs no list; the test of the relay host of add must fail.
+ENTRY=T-617
+GROUP=cli-tests
+EXPECT='test net::tests::the_relay_host_of_add_is_one_host_and_only_with_the_role_relay \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib net::tests'
+LIMIT=1800

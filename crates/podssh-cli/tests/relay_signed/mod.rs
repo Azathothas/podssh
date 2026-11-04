@@ -5,6 +5,10 @@
 //! keys are made here; they need Python and openssl for the certificates of
 //! the harness, and say that they did not run without them.
 
+// The net's relay member, whose list a client asks with no --relay-host
+// (T-617).
+mod members;
+
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};

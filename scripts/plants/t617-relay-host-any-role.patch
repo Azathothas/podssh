@@ -1,0 +1,13 @@
+--- a/crates/podssh-cli/src/net/edit.rs
++++ b/crates/podssh-cli/src/net/edit.rs
+@@ -199,9 +199,7 @@
+ /// list names the hosts of its sessions.
+ pub(super) fn relay_host(text: Option<&str>, roles: &[String]) -> Result<Option<String>, Refusal> {
+     let Some(text) = text else { return Ok(None) };
+-    if !roles.iter().any(|role| role == "relay") {
+-        return Err(Refusal::usage("--relay-host is where a relay role serves its list: give --roles with relay too"));
+-    }
++    let _ = roles;
+     if text.contains(',') {
+         return Err(Refusal::usage(format!(
+             "--relay-host {text}: one host, HOST[:PORT], where the member's role serves its list"

@@ -84,6 +84,14 @@ pub const NET: &[&str] = &[
      (127.0.0.1, or ADDR/32), so that 10.0.0.0/8 does not hand the node's own services to the net. add NAME KEY \
      --roles node,exit --routes RANGES lists an exit's routes in the document, which --exit auto reads (see podssh \
      exit); the node says at its start when the document lists other routes than its own.",
+    "A member with the role relay is a podssh relay serve of yours, whose key the net names: the key that signs \
+     its list of deployments, which its first line names (see podssh relay). add NAME KEY --roles relay --relay-host \
+     HOST[:PORT] names where it serves that list, one host, written as relay.example.org or relay.example.org:8443; \
+     --relay-host with no role relay is refused (64). Each end that holds the net then asks that host's \
+     /relays.json before the race of a session on the default list, once a day whatever the answer, within 5 s, \
+     and takes the list there only when the member's key signed it, so that a client with no --relay-host and no \
+     key of its own learns its role's deployments; the host itself joins no list by it, as the role's list names \
+     where sessions go. podssh relay status names each relay member, its host, and whether its list was taken.",
 ];
 
 /// The notes of `podssh exit` (T-431), beside the net's, as an exit is a

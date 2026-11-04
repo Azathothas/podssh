@@ -135,6 +135,13 @@ Each rule is implemented.
   own name; a host so added sees what each relay sees, the target, the
   time and the volume. The relay role signs only the deployments of its
   own flags, never a text that a request shapes.
+- **A relay member's host is the net owner's word** (T-617). A member of
+  the user's net with the role `relay` and a host in the net's document is
+  asked for its list at most once a day, with no token: the host comes
+  from the owner's signature of the document, and a list there is taken
+  only when the member's key signed it, by the rules above, so neither a
+  relay in the path, a proxy, nor the host's name taken over adds a host.
+  The host joins no list by it, and learns only that an end of the net asked.
 - **Credentials are not shown.** A relay token, a tailnet auth key or a key
   never goes into output, logs, URLs or command lines. The types that hold a
   token or the tailnet key do not print it, and clear it from memory when

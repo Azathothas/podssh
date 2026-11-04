@@ -1,0 +1,13 @@
+--- a/crates/podssh-cli/src/net/doc.rs
++++ b/crates/podssh-cli/src/net/doc.rs
+@@ -256,8 +256,8 @@
+         object.insert("routes".into(), json!(member.routes));
+     }
+     // Only a relay role's host, for the same reason (T-617).
+-    if let (Some(host), Some(object)) = (&member.relay, value.as_object_mut()) {
+-        object.insert("relay".into(), json!(host));
++    if let Some(object) = value.as_object_mut() {
++        object.insert("relay".into(), json!(member.relay));
+     }
+     value
+ }

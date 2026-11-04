@@ -199,6 +199,27 @@ What T-616 built (drafted 2026-11-04; [cli.md](cli.md), "`podssh net`"):
   held, by a new code, as the key is the member's already; never a serial
   that the device holds and the owner does not.
 
+What T-617 built (drafted 2026-11-04; [relay.md](relay.md), "A signed list
+of deployments"):
+
+- The owner names where a relay member's role serves its signed list:
+  `podssh net add NAME KEY --roles relay --relay-host HOST[:PORT]`, the
+  member's field `relay`, one host, written only when given, so that a
+  document of before reads as it did (`crates/podssh-cli/src/net/doc.rs`).
+  The key that the net names for the member is the key of the role's list
+  (T-346), which its first line names.
+- A run that opens a session on the default list asks that host's
+  `/relays.json` before its race, once a day for each member whatever it
+  answered, 5 s each and 8 s in all, and takes the list there only by the
+  member's key (`crates/podssh-relay/src/pool/members.rs`); the list's
+  deployments then follow the default list in that run. The host itself
+  joins no list, as the role's own list names where sessions go. So a
+  client of the net learns its role's deployments with no `--relay-host`
+  and no key of its own, also when the default's domain is gone.
+- `podssh relay status` asks the members that are due too, and names each
+  relay member: its host, then its list taken with its serial, or why not,
+  and when it was asked (`--json`: `members`).
+
 ## 4. The relay as a role of podssh
 
 `podssh relay serve` (T-169, T-427) serves the relay's contract, version

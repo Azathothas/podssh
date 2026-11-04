@@ -1,7 +1,7 @@
 //! The net's document (T-429): its name, a serial, when it was signed and
 //! when it ends, its owner's key, and its members, each with a name, an
-//! Ed25519 key, its roles, its tickets and an exit's routes (T-432); as one
-//! JSON object, whose bytes
+//! Ed25519 key, its roles, its tickets, an exit's routes (T-432) and a relay
+//! role's host (T-617); as one JSON object, whose bytes
 //! the owner's key signs (`super::sign`). podssh writes it on one line, its
 //! keys in order, so that each change is a short diff of a text file.
 //!
@@ -49,6 +49,11 @@ pub struct Member {
     /// each as the owner wrote it: `--exit auto` finds the node by them. A
     /// word that this podssh does not read as a range is kept, and unused.
     pub routes: Vec<String>,
+    /// Where a relay role serves its signed list (T-617), one host as
+    /// `--relay-host` takes it, as the owner wrote it: a client asks it with
+    /// no `--relay-host`. A host that this podssh does not read is kept, and
+    /// unused.
+    pub relay: Option<String>,
 }
 
 impl Member {
@@ -250,6 +255,10 @@ pub fn member_value(member: &Member) -> Value {
     if let (false, Some(object)) = (member.routes.is_empty(), value.as_object_mut()) {
         object.insert("routes".into(), json!(member.routes));
     }
+    // Only a relay role's host, for the same reason (T-617).
+    if let (Some(host), Some(object)) = (&member.relay, value.as_object_mut()) {
+        object.insert("relay".into(), json!(host));
+    }
     value
 }
 
@@ -293,5 +302,9 @@ fn member_of(item: &Value) -> Result<Member, String> {
             .map(|r| r.as_str().map(str::to_string).ok_or(format!("{name}: a route that is not text")))
             .collect::<Result<Vec<_>, _>>()?,
     };
-    Ok(Member { name: name.to_string(), key, roles, tickets, routes })
+    let relay = object
+        .get("relay")
+        .map(|host| host.as_str().map(str::to_string).ok_or(format!("{name}: \"relay\" is not text")))
+        .transpose()?;
+    Ok(Member { name: name.to_string(), key, roles, tickets, routes, relay })
 }

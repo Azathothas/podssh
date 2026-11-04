@@ -8115,6 +8115,55 @@ told the role's host once by hand before the net's trust in its key is of any us
    once a day, as it reads the default host's, and takes its signed list by the member's key.
 3. `podssh relay status` names the member's role and whether its list was taken.
 
+## Decision
+
+2026-11-04, the drafting agent. The Premise holds: a member's object holds `name`, `key`, `roles`,
+`tickets` and `routes` (`member_of` in `crates/podssh-cli/src/net/doc.rs`), and the key of each
+member with the role `relay` is trusted for a signed list (`net_keys` in
+`crates/podssh-cli/src/relay_deployments.rs`). The calls of the draft, each weighed against
+`SECURITY.md` and rule 2 of `AGENTS.md` (section 5):
+
+- **The field.** `relay`, one host as `--relay-host` takes it, written as `host` or `host:port`
+  (`token::relay_name`), only when given, as `routes` is, so that a document of before reads and
+  is written as it was; a host that this podssh does not read is kept and unused, as a later
+  podssh may write another form; a value that is not text is refused, as `routes` that is not a
+  list is. `--relay-host` goes with `add` alone, and only with the role `relay` (64 else), as
+  `--routes` goes with the role `exit`. Lost: several hosts (the role's own list names the hosts
+  of its sessions, and one host asked a day keeps the cost bounded); an object with more fields
+  (none is needed now, and a field that this podssh does not know stays for a later one).
+- **Who asks, and when.** Each run that opens a forward session on the default list asks, before
+  its race and in its foreground (`podssh_relay::open::open`, which `ssh`, `proxy`, `pipe`, the
+  copies and `chat` share), and so does `relay status`, which measures. `status` (no connection,
+  by its contract), `doctor` (it reads the cache), `relay info`, `trace`, `rank`, `pair` and
+  `spec` (the first host, or the default's pool) do not. Each member is asked at most once a day,
+  whatever it answered: the ask is kept in the cache before it is made, so a role that is down
+  costs one wait of 5 s a day, and the asks of one run stop at 8 s; at most 4 members, as the
+  cache keeps 4 lists. Lost: an ask in the session's background, as the pool's refresh after a
+  mint (a short run ends before the answer, and in the case of T-346's Problem, the default's
+  domain gone, the run that needs the list most fails before its ask ends); an ask in
+  `relays_from`, for each command (it would break `status`'s promise of no connection, and each
+  unit test that builds a list would ask a host of the machine's net); an ask at each run (a role
+  that is down would slow each one).
+- **Rule 2.** The ask is one request a day, through `HTTPS_PROXY` when it is set, binding
+  nothing, to a host that the user's own net names for this use, as a relay host that the user
+  names is dialed: not a new exception of the rule, in the draft's reading. The main session may
+  read it otherwise and ask the operator; the ask would then wait behind a setting.
+- **By the member's key.** A list at the member's host is taken only when the member's key signed
+  it, then by the rules of T-346 (`PODSSH_RELAY_KEYS=none` takes none). Lost: any trusted key (a
+  list of another key is not the member's: `relay status` would name the member's list wrongly,
+  and a document with a host mistyped would bring another deployment's list unasked).
+- **The host itself joins no list.** The role's own `--deployment` names the hosts of its
+  sessions, and the ask sends no token. Lost: the member's host as one more deployment, as
+  T-346's Correction of 2026-11-02 read it (a role that serves its list alone, or mints for
+  nobody, would cost each session a failed attempt; the role knows where it serves).
+- **No ask with `PODSSH_RELAY_TOKEN`, a named list or no cache.** That token is the default's and
+  takes no other deployment; a named list takes none; with no cache no day is kept between asks.
+- **The words.** `relay status` gives a line for each member with the role `relay`, after the
+  deployments: its host, then its list taken with its serial, or why not, and when it was asked;
+  a member with no host, or a host that this podssh does not read, says so; `--json` gives
+  `members`. Not in `podssh status` nor `doctor`: the Approach names `relay status`, and the
+  `deployments` of both name the list once it is kept.
+
 ## Prove
 
 ```sh
@@ -8126,6 +8175,47 @@ Against podssh's relay role on the loopback, a member of the net with the role `
 host in the document: a client with no `--relay-host` takes the role's signed list and reaches a
 server through it. Planted: the host read and the member's key not checked; the test of another
 key fails.
+
+## Done
+
+2026-11-04, drafted by an agent (unbuilt: each result below is UNVERIFIED until the main session
+merges, builds and runs it). The field `relay` and `net add --relay-host`
+(`crates/podssh-cli/src/net/doc.rs`, `crates/podssh-cli/src/net/edit.rs`,
+`crates/podssh-cli/src/net/mod.rs`); the asks, their record and the list taken by the member's key
+(`crates/podssh-relay/src/pool/members.rs`), before the race of `open`
+(`crates/podssh-relay/src/open.rs`); the members given to the library, and the words of `relay
+status` (`crates/podssh-cli/src/relay_deployments.rs`, `crates/podssh-cli/src/relay_diag.rs`); the
+flag's row (`crates/podssh-cli/src/flags/node.rs`), the notes of `net` and of `relay`
+(`crates/podssh-cli/src/man/notes_net.rs`, `crates/podssh-cli/src/man/notes_deployments.rs`); the
+tests (`crates/podssh-relay/src/pool/members_tests.rs`, `crates/podssh-cli/src/net/tests.rs`,
+`crates/podssh-cli/tests/relay_signed/members.rs`) and the plants `t617-*` of `scripts/plants/`;
+`docs/mesh.md`, `docs/relay.md`, `docs/cli.md` and `SECURITY.md`, with the citations of
+`crates/podssh-relay/src/pool.rs`, `docs/cli.md`, `docs/relay.md`, `docs/STATUS.md` and
+`SECURITY.md` moved by hand, as the draft could not run `cargo todo remap`.
+
+- `cargo test -p podssh-relay --lib pool`: UNVERIFIED (the seven tests of `pool::members::tests`,
+  with T-346's eleven of `pool::signed::tests` and the pool's own).
+- `cargo test -p podssh-cli --lib net::`: UNVERIFIED (among them
+  `net::tests::a_relay_member_s_host_is_written_read_back_and_a_word_that_is_no_host_is_kept_unused`
+  and `net::tests::the_relay_host_of_add_is_one_host_and_only_with_the_role_relay`).
+- `cargo test -p podssh-cli --test relay`: UNVERIFIED, and whether
+  `relay_signed::members::the_net_s_relay_member_gives_its_list_with_no_relay_host` ran or said
+  that it did not (no Python or openssl): UNVERIFIED.
+- The CLI's whole `--lib` (`man::`, the notes' names), `--test man_flag_parity` and `--test
+  flag_table`: UNVERIFIED.
+- Repaired on the way (rule 8 of `AGENTS.md`): `--routes` (T-432) given to another subcommand
+  than `add` was dropped with no word, as it was missing from the flags that `checked` in
+  `crates/podssh-cli/src/net/mod.rs` holds to their subcommands; it is refused (64) now, as
+  `--relay-host` is. `cargo test -p podssh-cli --test net`
+  (`a_command_of_the_net_that_cannot_be_done_says_why`, with both cases): UNVERIFIED.
+- Planted (`sh scripts/plant-each.sh --here t617-member-key-unchecked t617-ask-skipped
+  t617-asked-each-run t617-relay-host-any-role t617-relay-written-always`): UNVERIFIED.
+- Clippy with `-D warnings` of `podssh-cli --all-targets` and of `podssh-relay --all-targets`, and
+  rustfmt: UNVERIFIED.
+- `cargo todo check` after `cargo todo remap crates/podssh-relay/src/pool.rs docs/cli.md
+  docs/relay.md docs/STATUS.md SECURITY.md` (which should move nothing more): UNVERIFIED.
+- Waits (Q88): a role on a runner that a net names, and a client of the net with no
+  `--relay-host`.
 
 # T-621: TURN with RFC 6062: a TURN server that the user runs, as a road with no relay
 

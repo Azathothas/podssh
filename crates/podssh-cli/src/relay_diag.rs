@@ -74,10 +74,10 @@ fn text(v: &Value) -> Option<String> {
     v.as_str().map(podssh_ws::text::one_line).filter(|s| !s.is_empty())
 }
 
-/// `status` with no NAME: each host's `/health`, a line for each as it
-/// comes; 0 when a host answered, 69 when none did.
+/// `status` with no NAME: the net's relay members asked when due (T-617),
+/// then each host's `/health`, a line for each; 0 when one answered, else 69.
 pub fn status(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let (relays, trust) = match settings(args) {
+    let (relays, trust) = match settings(args).map(crate::relay_deployments::asked) {
         Ok(settings) => settings,
         Err(refusal) => return refusal.report("relay", err),
     };
@@ -117,7 +117,7 @@ pub fn status(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32
         // Each deployment of the list, and whether its list was signed (T-346).
         let deployments = crate::relay_deployments::status_value(&relays);
         let doc = json!({ "schema": 1, "podssh": crate::help::version(), "hosts": hosts, "deployments": deployments,
-            "exit": code });
+            "members": crate::relay_deployments::members_value(&relays), "exit": code });
         let _ = writeln!(out, "{doc}");
     } else {
         for line in crate::relay_deployments::status_lines(&relays) {
