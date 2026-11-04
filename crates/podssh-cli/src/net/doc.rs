@@ -1,6 +1,7 @@
 //! The net's document (T-429): its name, a serial, when it was signed and
 //! when it ends, its owner's key, and its members, each with a name, an
-//! Ed25519 key, its roles and its tickets; as one JSON object, whose bytes
+//! Ed25519 key, its roles, its tickets and an exit's routes (T-432); as one
+//! JSON object, whose bytes
 //! the owner's key signs (`super::sign`). podssh writes it on one line, its
 //! keys in order, so that each change is a short diff of a text file.
 //!
@@ -17,6 +18,7 @@ use podssh_relay::identity::KeyName;
 use serde_json::{json, Map, Value};
 
 use super::policy::{self, Policy};
+use super::policy_words::Range;
 
 /// The form of the document, its field `podssh-net`.
 pub const VERSION: u64 = 1;
@@ -43,11 +45,20 @@ pub struct Member {
     pub roles: Vec<String>,
     /// Its tickets by kind (`iroh`, `derp`), as the user gave them.
     pub tickets: BTreeMap<String, String>,
+    /// The private ranges that it routes for the net, an exit's (T-432),
+    /// each as the owner wrote it: `--exit auto` finds the node by them. A
+    /// word that this podssh does not read as a range is kept, and unused.
+    pub routes: Vec<String>,
 }
 
 impl Member {
     pub fn has_role(&self, role: &str) -> bool {
         self.roles.iter().any(|r| r == role)
+    }
+
+    /// The ranges of its routes that this podssh reads.
+    pub fn ranges(&self) -> Vec<(&str, Range)> {
+        self.routes.iter().filter_map(|word| Some((word.as_str(), Range::parse(word)?))).collect()
     }
 }
 
@@ -234,7 +245,12 @@ pub fn member_value(member: &Member) -> Value {
         KeyName::Key(key) => key.hex(),
         KeyName::Fingerprint(print) => print.clone(),
     };
-    json!({ "name": member.name, "key": key, "roles": member.roles, "tickets": member.tickets })
+    let mut value = json!({ "name": member.name, "key": key, "roles": member.roles, "tickets": member.tickets });
+    // Only an exit's, so that a member with none is written as before.
+    if let (false, Some(object)) = (member.routes.is_empty(), value.as_object_mut()) {
+        object.insert("routes".into(), json!(member.routes));
+    }
+    value
 }
 
 /// Whether two names of keys name one key; a key and a fingerprint are
@@ -268,5 +284,14 @@ fn member_of(item: &Value) -> Result<Member, String> {
             tickets.insert(kind.clone(), ticket.to_string());
         }
     }
-    Ok(Member { name: name.to_string(), key, roles, tickets })
+    let routes = match object.get("routes") {
+        None => Vec::new(),
+        Some(list) => list
+            .as_array()
+            .ok_or(format!("{name}: \"routes\" is not a list"))?
+            .iter()
+            .map(|r| r.as_str().map(str::to_string).ok_or(format!("{name}: a route that is not text")))
+            .collect::<Result<Vec<_>, _>>()?,
+    };
+    Ok(Member { name: name.to_string(), key, roles, tickets, routes })
 }

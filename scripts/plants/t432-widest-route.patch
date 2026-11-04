@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/exit/auto.rs
++++ b/crates/podssh-cli/src/exit/auto.rs
+@@ -111,7 +111,7 @@
+             found.push((range.bits(), member.name.as_str(), word));
+         }
+     }
+-    found.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(b.1)));
++    found.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(b.1)));
+     let Some(&(_, name, word)) = found.first() else {
+         return Err(format!(
+             "--exit auto: no exit of the net {} (serial {}) routes {addr}: its owner names an exit's ranges with \

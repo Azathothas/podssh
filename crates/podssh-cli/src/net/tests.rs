@@ -75,8 +75,10 @@ fn podssh_signs_a_document_that_it_reads_back_and_each_change_raises_the_serial(
         key: podssh_relay::identity::KeyName::parse(&"ab".repeat(32)).unwrap(),
         roles: vec!["node".into()],
         tickets: Default::default(),
+        routes: Vec::new(),
     };
     let value = doc::member_value(&member);
+    assert!(value.get("routes").is_none(), "a member with no route is written as before T-432");
     let next = first.next(1_793_577_700, 4_102_444_800, |list| list.push(value)).unwrap();
     assert_eq!((next.serial, next.members.len()), (2, 1));
     let read = sign::verify_signed(&sign::sign_with(&next, &signing).unwrap().to_bytes()).unwrap();
@@ -148,4 +150,29 @@ fn names_have_no_dot_and_roles_are_known() {
     assert_eq!(doc::parse_roles("node, exit,node").unwrap(), ["node", "exit"]);
     assert!(doc::parse_roles("node,funnel").unwrap_err().contains("not a role"));
     assert!(doc::parse_roles(",").is_err());
+}
+
+#[test]
+fn an_exit_s_routes_are_written_read_back_and_a_word_that_is_no_range_is_kept_unused() {
+    let (_, first) = owned();
+    let exit = doc::Member {
+        name: "gw".into(),
+        key: podssh_relay::identity::KeyName::parse(&"ab".repeat(32)).unwrap(),
+        roles: vec!["node".into(), "exit".into()],
+        tickets: Default::default(),
+        routes: vec!["10.1.0.0/16".into(), "fd00::/8".into(), "a-later-form".into()],
+    };
+    let value = doc::member_value(&exit);
+    assert_eq!(value["routes"], serde_json::json!(["10.1.0.0/16", "fd00::/8", "a-later-form"]));
+    let next = first.next(1_793_577_700, 4_102_444_800, |list| list.push(value)).unwrap();
+    let read = Doc::parse(&next.to_bytes()).unwrap();
+    let gw = read.member("gw").unwrap();
+    assert_eq!(gw.routes, exit.routes, "each word is kept as the owner wrote it");
+    let ranges: Vec<&str> = gw.ranges().iter().map(|(word, _)| *word).collect();
+    assert_eq!(ranges, ["10.1.0.0/16", "fd00::/8"], "a word that is no range is not used");
+    let mut bad: Value = serde_json::from_slice(&next.to_bytes()).unwrap();
+    bad["members"][0]["routes"] = serde_json::json!("10.1.0.0/16");
+    assert!(Doc::parse(bad.to_string().as_bytes()).unwrap_err().contains("\"routes\" is not a list"));
+    bad["members"][0]["routes"] = serde_json::json!([7]);
+    assert!(Doc::parse(bad.to_string().as_bytes()).unwrap_err().contains("a route that is not text"));
 }

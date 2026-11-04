@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_exit.rs
++++ b/crates/podssh-cli/src/node_exit.rs
+@@ -219,7 +219,7 @@
+                 "{shown} resolves to {ip}, which is not a public address, and no range of the exit's --routes holds it"
+             )));
+         }
+-        if let Some(what) = crate::node_exit_own::kind(ip, own) {
++        if let Some(what) = crate::node_exit_own::kind(ip, own).filter(|_| false) {
+             if let Some(why) = crate::node_exit_own::refused(shown, ip, what, ranges) {
+                 return Err(NodeRefusal::Other(why));
+             }

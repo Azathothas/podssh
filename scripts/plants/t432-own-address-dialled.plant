@@ -1,0 +1,8 @@
+# T-432: the exit's check of its own host's addresses is skipped before the
+# dial, so a wide range of --routes (10.0.0.0/8) lets a member reach the
+# services of the node's host itself; the check of the address names it no
+# more.
+ENTRY=T-432
+GROUP=cli-tests
+EXPECT="the host's own address was let through a wide range"
+RUN='cargo test --locked -p podssh-cli --lib -- node_exit::tests::each_address_is_public_or_in_a_range_and_one_that_is_not_refuses_the_name'

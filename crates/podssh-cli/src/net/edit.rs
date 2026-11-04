@@ -120,7 +120,14 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
              key as it starts"
         ))
     })?;
+    if name == crate::exit::auto::AUTO {
+        return Err(Refusal::usage(format!(
+            "the member's name {name:?} is the word of --exit auto, which finds the exit by the net's routes: name the \
+             member otherwise"
+        )));
+    }
     let roles = doc::parse_roles(args.roles.as_deref().unwrap_or("node")).map_err(Refusal::usage)?;
+    let routes = routes(args.routes.as_deref(), &roles)?;
     let mut tickets = BTreeMap::new();
     if let Some(text) = &args.derp_ticket {
         let ticket =
@@ -134,7 +141,7 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
         iroh_names(text, &key)?;
         tickets.insert("iroh".to_string(), text.clone());
     }
-    let member = Member { name: name.clone(), key, roles, tickets };
+    let member = Member { name: name.clone(), key, roles, tickets, routes };
     let said = match before.member(name) {
         Some(_) => format!("replaced the member {name}"),
         None => format!("added the member {name}"),
@@ -145,6 +152,28 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
         list.push(value);
     });
     Ok((next.map_err(data)?, said))
+}
+
+/// `--routes RANGES` of `add` (T-432): each a range, as the exit's own
+/// `--routes` reads it, and only for a member with the role exit, as no other
+/// dials an address for the net.
+fn routes(text: Option<&str>, roles: &[String]) -> Result<Vec<String>, Refusal> {
+    let Some(text) = text else { return Ok(Vec::new()) };
+    if !roles.iter().any(|role| role == "exit") {
+        return Err(Refusal::usage("--routes names the private ranges of an exit: give --roles with exit too"));
+    }
+    let mut words: Vec<String> = Vec::new();
+    for word in text.split(',').map(str::trim) {
+        if super::policy_words::Range::parse(word).is_none() {
+            return Err(Refusal::usage(format!(
+                "--routes {text}: {word:?} is not a range: ADDR/BITS or one address, separated by commas"
+            )));
+        }
+        if !words.iter().any(|w| w == word) {
+            words.push(word.to_string());
+        }
+    }
+    Ok(words)
 }
 
 /// `rm NAME`: the member gone; each end that holds the new document

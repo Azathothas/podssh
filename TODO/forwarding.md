@@ -492,7 +492,7 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:276-282` (no bind, no listen),
-  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:195-222` ("Nothing
+  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:201-228` ("Nothing
   listens") and `README.md:44-53` state the rule from before the ruling.
   `docs/design.md:1067-1069` already allows a local listener for `pipe` after
   a probe.
@@ -588,7 +588,7 @@ box fails.
 (`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
-`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:195-222` and
+`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:201-228` and
 `README.md:44-53` state the ruling now, as `AGENTS.md:276-282` and
 `docs/target-environment.md:99-103` did already.
 

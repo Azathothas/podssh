@@ -146,6 +146,18 @@ impl Range {
         Some(Range { addr, bits })
     }
 
+    /// How many first bits it fixes: the more, the narrower, so `--exit
+    /// auto` takes the narrowest of the net's routes that holds an address.
+    pub fn bits(&self) -> u8 {
+        self.bits
+    }
+
+    /// Whether it names `addr` alone, as an exit needs for its own
+    /// addresses and the loopback (T-432).
+    pub fn names_alone(&self, addr: IpAddr) -> bool {
+        self.addr == addr && self.bits == if addr.is_ipv4() { 32 } else { 128 }
+    }
+
     /// Whether `addr` is in the range: of the same family, and the same in
     /// the range's first bits.
     pub fn contains(&self, addr: IpAddr) -> bool {

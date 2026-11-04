@@ -23,7 +23,7 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     row(None, "pair-mailbox", Some("URLS"), FlagKind::Supported,
         "pair --code and join: where the two ends meet, wss://HOST[:PORT]/PATH or ws://, by commas, in order, such as podssh relay serve's wss://HOST/v1/mailbox (default: env PODSSH_PAIR_MAILBOX, else magic-wormhole's public mailbox, then Least Authority's); no turns pairing by code off", None),
     row(None, "allow", Some("FILE"), FlagKind::Supported,
-        "pair --code: add the operator's key to FILE, the allowlist of podssh node NAME --allow FILE, which the node reads again for each session", None),
+        "pair --code: add the operator's key to FILE, the allowlist that podssh node NAME takes with its own --allow, which the node reads again for each session", None),
     row(None, "client-key", Some("FILE"), FlagKind::Supported,
         "join: this operator's key file, whose key goes to the node's host (default: client.key in the cache)", None),
     // The stored pair renewed, on podssh's relay role (T-592).
@@ -149,7 +149,8 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
     // The exit of the net, and one session from it (T-458).
     row(None, "exit", Some("NAME"), FlagKind::Supported,
         "also check the exit NAME of your net: what the net held says of it and of this client, the pair kept under \
-         NAME, and one session from it to --exit-target, with the node's verdict and whose a refusal is", None),
+         NAME, and one session from it to --exit-target, with the node's verdict and whose a refusal is; NAME auto: \
+         the exit whose route of the net holds --exit-target's address", None),
     row(None, "exit-target", Some("HOST:PORT"), FlagKind::Supported,
         "the target of the session from --exit NAME (default github.com:22, identified by its published host key)", None),
     row(None, "client-key", Some("FILE"), FlagKind::Supported,

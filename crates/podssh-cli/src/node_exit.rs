@@ -12,8 +12,9 @@
 //!    public address (`podssh_relay::serve::policy::public`), for a member
 //!    that the policy lets reach `exit:NODE`; another one only inside a
 //!    range of `--routes`, for a member that the policy lets reach that
-//!    address (T-432 builds on it); a name with one address that fails is
-//!    refused whole, as the relay refuses it;
+//!    address; a loopback address, or one of the node's own host, only
+//!    where a range names it alone (T-432, `crate::node_exit_own`); a name
+//!    with one address that fails is refused whole, as the relay refuses it;
 //! 4. dials those addresses alone, never the name again, so that a name
 //!    that resolves anew to another address (DNS rebinding) reaches nothing
 //!    that was not checked; through HTTPS_PROXY when one is set, as a node
@@ -109,14 +110,40 @@ pub(crate) fn asked() -> bool {
 /// gives it the role `exit`. Each road calls it.
 pub(crate) fn ready(label: &str, me: &PublicKey) -> Result<(), Refusal> {
     let Some(plan) = PLAN.get() else { return Ok(()) };
-    let line = crate::net::admit::exit_ready(me).map_err(|why| Refusal::config(format!("--exit: {why}")))?;
+    let (line, listed) = crate::net::admit::exit_ready(me).map_err(|why| Refusal::config(format!("--exit: {why}")))?;
     let ranges: Vec<&str> = plan.ranges.iter().map(|(word, _)| word.as_str()).collect();
     let inside = match ranges.is_empty() {
         true => ", and to no private range (--routes names some)".to_string(),
         false => format!(", and to the private ranges {}", ranges.join(", ")),
     };
     podssh_ssh::err_line!("podssh node: {label}: {line}{inside}; each name is resolved here, and each address checked");
+    if let Some(note) = listed_apart(&plan.ranges, &listed) {
+        podssh_ssh::err_line!("podssh node: {label}: {note}");
+    }
     Ok(())
+}
+
+/// What the net's document lists as this exit's routes (T-432), when it
+/// is not what `--routes` dials: `--exit auto` sends a member's session here
+/// by the document, and this node dials by its own flag.
+fn listed_apart(ranges: &[(String, Range)], listed: &[String]) -> Option<String> {
+    let dialled: Vec<Range> = ranges.iter().map(|(_, range)| *range).collect();
+    let read: Vec<Range> = listed.iter().filter_map(|word| Range::parse(word)).collect();
+    let same = dialled.iter().all(|r| read.contains(r)) && read.iter().all(|r| dialled.contains(r));
+    if same {
+        return None;
+    }
+    let shown = |words: Vec<&str>| match words.is_empty() {
+        true => "none".to_string(),
+        false => words.join(", "),
+    };
+    Some(format!(
+        "the net's document lists the routes {} for this exit, and --routes gives {}: --exit auto sends a session \
+         here by the document's, and this node dials only inside its own; its owner lists them with podssh net add \
+         NAME KEY --roles node,exit --routes RANGES",
+        shown(listed.iter().map(String::as_str).collect()),
+        shown(ranges.iter().map(|(word, _)| word.as_str()).collect())
+    ))
 }
 
 /// What the node's first line says that it serves: its targets, and its
@@ -163,18 +190,22 @@ async fn open(
     let found = podssh_ws::resolve::resolve(host, port, deadline)
         .await
         .map_err(|why| NodeRefusal::NoTarget(format!("could not resolve {host}: {why}")))?;
-    let addresses = checked(&shown, found, ranges, &|addr, public| verdict(me, peer, Asks::Dial { addr, public }))?;
-    dial_each(&shown, addresses).await
+    let own = crate::node_exit_own::addresses();
+    let net = |addr, public| verdict(me, peer, Asks::Dial { addr, public });
+    let addresses = checked(&shown, found, ranges, &own, &net)?;
+    dial_each(&shown, addresses, ranges).await
 }
 
 /// The addresses of `shown` that the exit may dial, each checked: public,
-/// or inside one of `ranges`; and each one let by `net`, the net's verdict
-/// on the member for that address. `Err` names the first that fails, and
-/// none is dialled then.
+/// or inside one of `ranges`; the host's own (a loopback one, or one of
+/// `own`) only where a range names it alone; and each one let by `net`, the
+/// net's verdict on the member for that address. `Err` names the first
+/// that fails, and none is dialled then.
 pub(crate) fn checked(
     shown: &str,
     found: Vec<SocketAddr>,
     ranges: &[Range],
+    own: &[std::net::IpAddr],
     net: &dyn Fn(std::net::IpAddr, bool) -> Verdict,
 ) -> Result<Vec<SocketAddr>, NodeRefusal> {
     if found.is_empty() {
@@ -187,6 +218,11 @@ pub(crate) fn checked(
             return Err(NodeRefusal::Other(format!(
                 "{shown} resolves to {ip}, which is not a public address, and no range of the exit's --routes holds it"
             )));
+        }
+        if let Some(what) = crate::node_exit_own::kind(ip, own) {
+            if let Some(why) = crate::node_exit_own::refused(shown, ip, what, ranges) {
+                return Err(NodeRefusal::Other(why));
+            }
         }
         match net(ip, public) {
             Verdict::Member(_) => {}
@@ -201,8 +237,9 @@ pub(crate) fn checked(
 
 /// Each address in turn, IPv6 and IPv4 interleaved, within the dial's
 /// bound: an address, never the name again, so what was checked is what is
-/// dialled.
-async fn dial_each(shown: &str, addresses: Vec<SocketAddr>) -> Result<TcpStream, NodeRefusal> {
+/// dialled. A connection that went to the host itself, which the list of
+/// its addresses missed, is closed unread unless a range names it alone.
+async fn dial_each(shown: &str, addresses: Vec<SocketAddr>, ranges: &[Range]) -> Result<TcpStream, NodeRefusal> {
     let deadline = Instant::now() + DIAL_LIMIT;
     let mut last = String::from("no address was tried in time");
     for addr in podssh_ws::dial::interleave(addresses) {
@@ -212,7 +249,15 @@ async fn dial_each(shown: &str, addresses: Vec<SocketAddr>) -> Result<TcpStream,
         }
         let ip = addr.ip().to_string();
         match podssh_ws::dial::dial(&ip, addr.port(), &ProxyChoice::FromEnvironment, left).await {
-            Ok(stream) => return Ok(stream),
+            Ok(stream) => {
+                let ends = stream.local_addr().ok().zip(stream.peer_addr().ok());
+                let looped = ends.is_some_and(|(local, peer)| crate::node_exit_own::looped(local, peer, addr));
+                let what = "an address of the exit's host";
+                match looped.then(|| crate::node_exit_own::refused(shown, addr.ip(), what, ranges)).flatten() {
+                    Some(why) => return Err(NodeRefusal::Other(why)),
+                    None => return Ok(stream),
+                }
+            }
             Err(e) => last = e.to_string(),
         }
     }

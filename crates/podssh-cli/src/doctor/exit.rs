@@ -51,6 +51,8 @@ pub(super) fn asked(flags: &Flags, ca_file: Option<&str>) -> Result<Option<Plan>
         None => (FORWARD_HOST.to_string(), 22),
         Some(text) => target(text).map_err(|why| Refusal::usage(format!("--exit-target {text}: {why}")))?,
     };
+    // `--exit auto` (T-432): the exit of the target, by the net's routes.
+    let name = &crate::exit::auto::name_for(name, &host)?;
     let to = To {
         name: name.to_string(),
         client_key: flags.client_key.clone(),

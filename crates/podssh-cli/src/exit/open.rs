@@ -87,6 +87,21 @@ impl Road {
     }
 }
 
+/// The exit that `--exit auto` takes for `host`, with its line unless
+/// quiet; none for a named exit. No route for it is the target unreachable.
+fn auto_for(to: &To, host: &str) -> Result<Option<To>, Refused> {
+    if !super::auto::is_auto(&to.name) {
+        return Ok(None);
+    }
+    super::auto::flags(&to.name, to.pair_file.as_deref(), to.carrier.as_deref())
+        .map_err(|refusal| Refused::of(refusal, Kind::Failed))?;
+    let picked = super::auto::pick(host).map_err(|refusal| Refused::of(refusal, Kind::Unreachable))?;
+    if !to.quiet {
+        podssh_ssh::err_line!("podssh: {}", picked.line(host));
+    }
+    Ok(Some(To { name: picked.name, ..to.clone() }))
+}
+
 /// What kind of refusal a client is told: SOCKS and CONNECT each have a
 /// word for these.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,6 +142,9 @@ fn tell(told: &Tell, verdict: Result<(), Refused>) {
 /// The session to the exit `to` for `host:port`: the end of the pipe once
 /// the node reached the target, or why not.
 pub async fn open(to: &To, host: &str, port: u16) -> Result<End, Refused> {
+    // `--exit auto` (T-432): the exit of this target, by the net's routes.
+    let picked = auto_for(to, host)?;
+    let to = picked.as_ref().unwrap_or(to);
     let ask = crate::channel::Ask::of(to.client_key.as_deref(), None, to.node_key.as_deref(), false)
         .and_then(|ask| ask.to_exit(host, port))
         .map_err(|why| Refused::of(Refusal::usage(why), Kind::Failed))?;

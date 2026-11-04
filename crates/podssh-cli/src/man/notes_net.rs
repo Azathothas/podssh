@@ -10,7 +10,7 @@ pub const NET: &[&str] = &[
      and which can stay on one host.",
     "The owner's subcommands each sign a new document, its serial one higher: init NAME (the first, with \
      --owner-key or ~/.ssh/id_ed25519), add NAME KEY (a member, or a new key, roles or tickets of one, with \
-     --roles, --iroh-ticket and --derp-ticket), rm NAME and renew (the same members, a new end). --days sets how \
+     --roles, --iroh-ticket, --derp-ticket and an exit's --routes), rm NAME and renew (the same members, a new end). --days sets how \
      long a document lasts, a year by default: no end takes it after its end, and a node no longer lets in by it. \
      Each end's: ls, one line for each member on stdout (its name, roles, fingerprint and tickets, apart by tabs); \
      show, the document's bytes as signed, or with --signature its signature; take FILE, a document from its owner, \
@@ -53,6 +53,12 @@ pub const NET: &[&str] = &[
      of pkarr by that key, and races each road that it names and no ticket gave (see iroh record in THE RELAY); \
      so does a copy. \
      PODSSH_NET=no turns the net off: no name, no door and no document of the channel comes from it.",
+    "An exit reaches the private networks of its host for the net, as a Tailscale subnet router does: inside the \
+     ranges of its own --routes (see podssh node), for a member that the policy lets reach the address (a rule to \
+     ADDR/BITS). A loopback address, or one of the exit's own host, is dialled only where a range names it alone \
+     (127.0.0.1, or ADDR/32), so that 10.0.0.0/8 does not hand the node's own services to the net. add NAME KEY \
+     --roles node,exit --routes RANGES lists an exit's routes in the document, which --exit auto reads (see podssh \
+     exit); the node says at its start when the document lists other routes than its own.",
 ];
 
 /// The notes of `podssh exit` (T-431), beside the net's, as an exit is a
@@ -86,4 +92,10 @@ pub const EXIT: &[&str] = &[
      --relay-addr and --ca-file are refused with it (64), and so is --carrier stdio on a terminal. podssh \
      ssh, podssh proxy and podssh pipe take --exit NAME beside --carrier ADDR too, on a stream of their own, \
      exec:CMD or fd:N, as their stdin and stdout are their own (see their notes).",
+    "--exit auto, in place of NAME here and for podssh ssh, proxy, pipe and doctor, takes the exit whose route of \
+     the net holds the target's address: the routes that the net's owner lists for each exit (see podssh net), \
+     the narrowest first, then the first by name; a line says which, for each connection here. podssh ssh --exit \
+     auto user@10.1.2.3 reaches a host of a lab whose exit routes 10.1.0.0/16. It takes an address, not a name, as \
+     the exit resolves a name itself and may resolve it otherwise; an address that no route holds is refused (78), \
+     and so are --pair-file and --carrier beside it (64), as each names one exit. auto is no member's name.",
 ];

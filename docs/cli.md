@@ -3975,6 +3975,39 @@ own, and the forward road starts at the node.
   documentation and NAT64 addresses are not; such an address needs a range
   of `--routes`. A name with one address that fails is refused whole. No
   port is refused: the members are the owner's.
+- **The node's own host** (T-432). A loopback address (with the
+  unspecified one, which reaches the host too), or an address of the
+  node's own host, is dialled only when a range of `--routes` names it
+  alone (`127.0.0.1`, `ADDR/32`, `ADDR/128`): `10.0.0.0/8` or `::/0` does
+  not hand the node's own services to the net by accident. The host's
+  addresses are read at each dial from its list of interfaces (`getifaddrs`
+  on Unix, `crates/podssh-cli/src/node_exit_own.rs`), before any dial, so
+  the refusal is the same whether the port is open; a connection whose two
+  ends have one address is the host's own too, and is closed unread, which
+  catches what the list missed (Windows, an address added since). Through
+  `HTTPS_PROXY` the proxy dials, and that second check does not apply.
+- **The net's routes** (T-432). The owner lists an exit's ranges in the
+  net's document: `podssh net add gw KEY --roles node,exit --routes
+  10.1.0.0/16,fd00:1::/32`, each a range as `--routes` reads it, and only
+  with the role `exit` (64); a member's object then has `"routes"`, and one
+  with none is written as before. A podssh that reads a word as no range
+  keeps it and leaves it unused. The node's `--routes` stays what it
+  dials; at its start it says when the document lists other routes for it,
+  as `--exit auto` sends a session there by the document's.
+- **`--exit auto`** (T-432), in place of NAME, on `ssh`, `cp`, `scp`,
+  `sftp`, `proxy`, `pipe`, `exit --listen` and `doctor`: the exit is the
+  member with the role `exit` whose route holds the target's address, the
+  narrowest route first, then the first member by name, so each end of the
+  net picks the same one (`crates/podssh-cli/src/exit/auto.rs`). A line
+  says which (`-v` for `ssh`): `--exit auto: 10.1.2.3 is in 10.1.0.0/16, a
+  route of the exit lab`, with the other exits whose routes hold it.
+  `ssh` picks once the first hop is known, after `HostName`; `exit
+  --listen` picks for each connection. The target must be an address: a
+  name is refused (64), as the exit resolves a name itself and a private
+  name (split DNS) may resolve there otherwise; an address that no route
+  holds is refused (78), and so are `--pair-file` and `--carrier` beside it
+  (64), as each names one exit. `auto` is no member's name: `net add auto`
+  is refused (64).
 - **The words of a refusal** go to the operator in the channel, and on the
   node's lines: `github.com:22 resolves to 10.0.0.1, which is not a public
   address, and no range of the exit's --routes holds it`, or the policy's

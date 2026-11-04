@@ -1,0 +1,7 @@
+# T-432: --exit auto takes the widest of the net's routes that holds the
+# address in place of the narrowest, so a session for a lab's address goes
+# to an exit whose route only covers it from afar.
+ENTRY=T-432
+GROUP=cli-tests
+EXPECT='two /16 tie'
+RUN='cargo test --locked -p podssh-cli --lib -- exit::auto::tests::the_narrowest_route_that_holds_the_address_picks_the_exit_then_the_first_by_name'

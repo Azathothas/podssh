@@ -65,7 +65,13 @@ each name itself and dials the addresses that it checked, never the name
 again, so a name that resolves anew elsewhere (DNS rebinding) reaches
 nothing unchecked; a private, loopback, link-local or other non-public
 address, the ranges that the relay refuses, is dialled only inside a range
-of the node's `--routes`. A member that the policy lets out reaches each
+of the node's `--routes`. A loopback address, or one of the exit's own host,
+is dialled only where a range names that one address (T-432), so a wide range
+does not hand the node's own services to the net: the host's addresses are
+read before each dial, and a connection that went to the host anyway is
+closed unread. `--exit auto` picks an exit by the routes that the net's signed
+document lists, and the exit still checks each address against its own
+`--routes` and the policy. A member that the policy lets out reaches each
 public address and port from the exit's host, as through a VPN, and the
 exit's owner answers for that traffic. `podssh exit --listen` serves the
 exit to the programs of the client's host on a loopback address alone, as

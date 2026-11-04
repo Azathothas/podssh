@@ -42,10 +42,10 @@ pub const PIPE_NO_RESUME: FlagRow = row(None, "no-resume", None, FlagKind::Suppo
 /// `--exit NAME` of `ssh`, `cp`, `scp` and `sftp` (T-431); over a carrier
 /// too (T-614).
 pub const EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
-    "start the road at NAME, a node of your net that lends its egress (podssh node --exit): it dials the destination, or the first hop of -J, from its own host, on each road between the two, or with --carrier ADDR on that stream alone; the host key is the destination's", None);
+    "start the road at NAME, a node of your net that lends its egress (podssh node --exit): it dials the destination, or the first hop of -J, from its own host, on each road between the two, or with --carrier ADDR on that stream alone; the host key is the destination's; NAME auto: the exit whose route of the net holds the first hop's address (T-432)", None);
 /// `--exit NAME` of `proxy`.
 pub const PROXY_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
-    "carry the pipe from NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay: it dials HOST PORT from its own host; with --carrier ADDR, NAME is the node at the other end of that stream", None);
+    "carry the pipe from NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay: it dials HOST PORT from its own host; with --carrier ADDR, NAME is the node at the other end of that stream; NAME auto: the exit whose route of the net holds HOST, an address", None);
 /// `--client-key FILE` of `proxy`, for its exit and for a node (T-587).
 pub const PROXY_CLIENT_KEY: FlagRow = row(
     None,
@@ -85,7 +85,7 @@ pub const PROXY_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), F
     "node://NAME: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
 /// `--exit NAME` of `pipe`.
 pub const PIPE_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
-    "relay:HOST:PORT and relay:%h:%p start at NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay; with --carrier ADDR, NAME is the node at the other end of that stream", None);
+    "relay:HOST:PORT and relay:%h:%p start at NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay; with --carrier ADDR, NAME is the node at the other end of that stream; NAME auto: for each, the exit whose route of the net holds HOST, an address", None);
 
 /// `exit NAME --listen ADDR:PORT` (T-431): a local proxy whose connections
 /// start at the exit NAME.
@@ -138,7 +138,7 @@ pub const NODE_FLAGS: &[FlagRow] = &[
     row(None, "exit", None, FlagKind::Supported,
         "lend this host's egress to the members of its net: a session may name a target of its own, which the node resolves, then dials at a public address alone, or in a range of --routes; needs a net that gives this node the role exit; TARGET is then optional", None),
     row(None, "routes", Some("RANGES"), FlagKind::Supported,
-        "with --exit: the private ranges that the exit dials too, ADDR/BITS or one address, separated by commas, each for the members that the net's policy lets reach the address", None),
+        "with --exit: the private ranges that the exit dials too, ADDR/BITS or one address, separated by commas, each for the members that the net's policy lets reach the address; a loopback address or one of this host's own is dialled only when a range names it alone (ADDR, or ADDR/32 and ADDR/128)", None),
     // A stream that exists already as the node's one road (T-595).
     row(None, "carrier", Some("ADDR"), FlagKind::Supported,
         "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or proxy, ssh, cp, scp or sftp --carrier to node://NAME, or for --exit, podssh exit NAME --listen ADDR:PORT --carrier, or ssh, proxy or pipe with --exit NAME --carrier; stdin may not be a terminal", None),
@@ -197,6 +197,8 @@ pub const NET_FLAGS: &[FlagRow] = &[
         "add: the member's iroh ticket, which a client races for node://NAME when it names none", None),
     row(None, "derp-ticket", Some("TICKET"), FlagKind::Supported,
         "add: the member's DERP ticket, which a client dials for node://NAME when each road before it failed", None),
+    row(None, "routes", Some("RANGES"), FlagKind::Supported,
+        "add: the private ranges that the member routes for the net, ADDR/BITS or one address, separated by commas, as its podssh node --exit --routes dials them; with the role exit; podssh ssh, proxy, pipe and exit find the node of an address by them with --exit auto", None),
     row(None, "days", Some("N"), FlagKind::Supported,
         "init, add, rm, renew, policy set and policy clear: the days that the signed document lasts, 1 to 3650 (default 365); no end takes it after", None),
     row(None, "owner", Some("KEY"), FlagKind::Supported,

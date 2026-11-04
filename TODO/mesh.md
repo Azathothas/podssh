@@ -958,7 +958,7 @@ The merge (2026-11-02):
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -978,6 +978,43 @@ routes.
    `--exit auto` finds the node that routes it.
 3. Loopback and the node's own addresses stay refused unless named whole.
 
+## Decision
+
+2026-11-04 (the main session), with the alternatives that lost:
+
+- **What the document holds.** Each exit's member object gets `"routes"`, a list of the words that
+  the owner gave, written only when it is not empty, so a member with none is written as before and
+  an older podssh keeps the field as one it does not know. A word that this podssh does not read as
+  a range is kept and unused, as a later form may add one. Lost: a new part in `requires`, which
+  would make each older end refuse the whole document for a list that only `--exit auto` reads; a
+  field of the node's own signing, which the net has no place for.
+- **What the node dials.** Its own `--routes`, as before: the document's list is what the owner says
+  of it, for the picks of the others, and the policy says who reaches what. A node whose document
+  lists other routes says so at its start. Lost: the intersection of the two (Tailscale's approved
+  routes), as the policy already holds the owner's word on each range, and a node whose document is
+  late would refuse its own ranges; refusing to start on a difference, which locks an exit out
+  while its owner renews.
+- **Which exit `auto` takes.** The member with the role `exit` whose narrowest route holds the
+  address, then the first by name, so that each end of the net picks the same one; the line names
+  the others whose routes hold it. Lost: the first in the document's order (an edit of the owner's
+  would move it); a race of each candidate (one session would dial the target from several hosts).
+- **An address, not a name.** The exit resolves a name itself (T-431), and a private name (split DNS)
+  may resolve there to an address that this host cannot see, or to another one, so this host's
+  answer would pick a node by an address that it never dials; a name is refused (64) with that
+  reason. Lost: resolving here and picking by the answer.
+- **The node's own host.** A loopback (or the unspecified) address, or one of the host's own, is
+  dialled only where a range names that one address. The host's addresses are read before each dial
+  from its list of interfaces (`getifaddrs` on Unix, through `libc`, which the binary links
+  already), so the refusal does not depend on whether the port is open; a connection whose two ends
+  have one address is the host's own too and is closed unread, which catches what the list missed
+  (Windows, an address added since). Lost: the check after the dial alone, which opens a connection
+  to the node's own service and tells an open port from a closed one; a bind of a UDP socket to read
+  the route's source (rule 2 of `AGENTS.md`); `/proc` alone, which is Linux's.
+- **The test's private network.** A container of podman on its bridge, on a private address that
+  this host reaches, of the image that the box pins; the test says that its part did not run where
+  podman runs none, and the loopback parts run everywhere. Lost: a network namespace, which needs a
+  privilege; a variable that names a host by hand.
+
 ## Prove
 
 ```sh
@@ -988,6 +1025,64 @@ cargo test -p podssh-cli --test exit
 A test server on a private address of a container network is reached through a node with that
 range; an address outside it is refused, and so is a name that resolves into a range that no
 route names. Planted: the range's check removed, and the test fails.
+
+## Correction
+
+2026-11-04 (the main session). The Premise holds, and item 1 of the Approach was built by T-431: `podssh
+node NAME --exit --routes RANGES` dials a private address inside a range, checked after the name
+resolves, for a member that the policy lets reach the address (`crates/podssh-cli/src/node_exit.rs`,
+`Asks::Dial` of `crates/podssh-cli/src/net/admit.rs`). This entry builds items 2 and 3: the net's list
+of each exit's routes, `--exit auto`, and the node's own host. The Prove's test is
+`cargo test -p podssh-cli --test exit_routes` beside `--test exit`, which stays T-431's.
+
+## Done
+
+2026-11-04 (the main session): items 2 and 3 of the Approach, on item 1 of T-431.
+
+- The net's document: a member's `routes` (`crates/podssh-cli/src/net/doc.rs`), written by `podssh
+  net add NAME KEY --roles node,exit --routes RANGES` (`crates/podssh-cli/src/net/edit.rs`), only with
+  the role `exit`; `net add auto` is refused, as `auto` is `--exit`'s word.
+- `--exit auto` (`crates/podssh-cli/src/exit/auto.rs`): the exit whose narrowest route of the net
+  holds the target's address, then the first by name, with its line; on `ssh` and the copies once
+  the first hop is known (`crates/podssh-cli/src/ssh/exit_road.rs`, whose roads are read then), and
+  on `proxy`, `pipe`, `exit --listen` (each connection) and `doctor --exit` through the exit's open
+  (`crates/podssh-cli/src/exit/open.rs`). A name, `--pair-file` and `--carrier` beside it are refused
+  (64); an address that no route holds, 78.
+- The node's own host (`crates/podssh-cli/src/node_exit_own.rs`, `checked` and `dial_each` of
+  `crates/podssh-cli/src/node_exit.rs`): a loopback or unspecified address, or one of the host's own
+  (read by `getifaddrs` before each dial on Unix), only where a range names it alone; a connection
+  whose two ends have one address is closed unread. The node says at its start when the document
+  lists other routes for it than its `--routes`.
+- The manual (the rows of `--exit` of `ssh`, `proxy`, `pipe` and `doctor`, of `node --routes` and
+  `net --routes`; the notes of `net` and `exit`), `docs/cli.md` ("The exit of the net"),
+  `docs/mesh.md` (section 5), `SECURITY.md`.
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test exit_routes --test exit --test doctor_exit --test net
+cargo test -p podssh-cli --lib
+sh scripts/plant-each.sh --here t432-own-address-dialled t432-widest-route
+```
+
+- `--test exit_routes`: 3 passed, in 12.5 s (its two tests and the harness's): the owner's refusals
+  (`--routes` with no role exit, a word that is no range, a member named `auto`) and the routes
+  written into the document; on the stand-in relay, through `--exit auto`, `podssh proxy` to a service
+  on the loopback that `gw` names alone, `podssh ssh -v` to the test's SSH server (its line names
+  `gw`), `far` picked for 10.200.0.1 by its wider route alone, 78 for an address that no route holds,
+  64 for a name; with podman here (alpine 3.24 by its digest, on the bridge 10.88.0.0/16), the
+  container's service reached through `gw`'s route, and this host's own address on that bridge, which
+  the route holds too, refused with no dial (the service's count stayed 0).
+- `--test exit`: 7 passed; `--test doctor_exit`: 3 passed; `--test net`: 9 passed.
+- `--lib`: 837 passed, among them `exit::auto::tests` (2), `node_exit_own::tests` (3) and the new
+  cases of `node_exit::tests` and `net::tests`. The run found that T-086's row of `relay --allow`
+  named `--allow FILE` in its own text, which the help's check of each flag finds (`help::tests::
+  no_flag_runs_into_its_description`); its words are changed in this commit.
+- Planted (`sh scripts/plant-each.sh --here t432-own-address-dialled t432-widest-route`): 2 caught,
+  "the host's own address was let through a wide range" and "two /16 tie, and lab comes first by
+  name".
+- clippy with `-D warnings` of `podssh-cli --all-targets`, and of `podssh-cli --features iroh`: clean.
+- Not run: the plants in the build image (Q88), and the container's part where podman is absent (the
+  gate's image): the test says that it did not run.
 
 # T-433: `podssh share`: a node's local services by name, for the net
 

@@ -30,20 +30,37 @@ pub(super) fn or_exit(args: &SshArgs, env: &Env, relay: Transport) -> Result<Tra
         return Err(Refusal::usage(why));
     }
     crate::pairs::check_label(name)?;
+    crate::exit::auto::flags(name, args.pair_file.as_deref(), args.carrier.as_deref())?;
     if let Some(text) = args.carrier.as_deref() {
         return carried(args, name, text);
-    }
-    let race = super::iroh::race(args, name)?;
-    let derp = super::derp::race(args)?;
-    crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
-    if let (Some(iroh), Some(ticket)) = (&race, &derp.ticket) {
-        super::iroh::same_node(&iroh.ticket, ticket)?;
     }
     let trust = super::resolve::ca_file(args, env).map_or(Trust::Default, |file| Trust::File(file.into()));
     let channel = super::iroh::channel_ask(args).map_err(Refusal::usage)?;
     let (label, pair_file) = (name.to_string(), args.pair_file.clone());
+    let derp = super::derp::Race { ticket: None, servers: Vec::new(), fallback: false };
     let opentunnel = Box::default();
-    Ok(Transport::Node { label, pair_file, trust, race, derp, opentunnel, channel, carrier: None })
+    let mut transport =
+        Transport::Node { label, pair_file, trust, race: None, derp, opentunnel, channel, carrier: None };
+    // `--exit auto` (T-432) knows its exit once the first hop is known: its
+    // roads are read then ([`fill`]).
+    if !crate::exit::auto::is_auto(name) {
+        roads(args, &mut transport)?;
+    }
+    Ok(transport)
+}
+
+/// The roads of the exit that `transport` names: an iroh ticket kept under
+/// its name, and DERP's; before anything connects.
+fn roads(args: &SshArgs, transport: &mut Transport) -> Result<(), Refusal> {
+    let Transport::Node { label, race, derp, .. } = transport else { return Ok(()) };
+    let found = super::iroh::race(args, label)?;
+    let servers = super::derp::race(args)?;
+    crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
+    if let (Some(iroh), Some(ticket)) = (&found, &servers.ticket) {
+        super::iroh::same_node(&iroh.ticket, ticket)?;
+    }
+    (*race, *derp) = (found, servers);
+    Ok(())
 }
 
 /// The exit at the other end of the carrier `text` (T-614): the stream is
@@ -70,12 +87,23 @@ fn carried(args: &SshArgs, name: &str, text: &str) -> Result<Transport, Refusal>
 /// destination, with its `HostName` and port), once the resolver knows it;
 /// `--exit` beside a road of its own is refused.
 pub(super) fn fill(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refusal> {
-    let Some(name) = args.exit.as_deref() else { return Ok(()) };
+    let Some(asked) = args.exit.as_deref() else { return Ok(()) };
     let opts = &resolved.options;
     let first = opts.jump.first().unwrap_or(&opts.destination);
     let (host, port) = (first.host.clone(), first.port);
     // A node's own destination is shown as node://NAME, never a host.
     let to_node = opts.destination.host.starts_with(super::node::SCHEME);
+    let mut name = asked.to_string();
+    if let (true, false, Transport::Node { label, .. }) =
+        (crate::exit::auto::is_auto(asked), to_node, &mut resolved.transport)
+    {
+        let picked = crate::exit::auto::pick(&host)?;
+        resolved.notes.push(picked.line(&host));
+        name = picked.name;
+        *label = name.clone();
+        roads(args, &mut resolved.transport)?;
+    }
+    let name = name.as_str();
     match &mut resolved.transport {
         Transport::Node { label, channel, .. } if label.as_str() == name && channel.route.is_none() && !to_node => {
             *channel = channel.clone().to_exit(&host, port).map_err(Refusal::usage)?;

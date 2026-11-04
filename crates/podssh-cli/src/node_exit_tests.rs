@@ -49,7 +49,7 @@ fn the_ranges_of_routes_are_those_of_the_policy() {
 #[test]
 fn each_address_is_public_or_in_a_range_and_one_that_is_not_refuses_the_name() {
     let none: Vec<Range> = Vec::new();
-    let found = checked("github.com:22", at(&["140.82.112.3:22", "[2606:4700::1111]:22"]), &none, &open_net);
+    let found = checked("github.com:22", at(&["140.82.112.3:22", "[2606:4700::1111]:22"]), &none, &[], &open_net);
     assert_eq!(found.unwrap().len(), 2);
     for (list, inside) in [
         (vec!["127.0.0.1:22"], "127.0.0.1"),
@@ -61,7 +61,7 @@ fn each_address_is_public_or_in_a_range_and_one_that_is_not_refuses_the_name() {
         // whole, as it could be steered to it.
         (vec!["140.82.112.3:22", "10.0.0.1:22"], "10.0.0.1"),
     ] {
-        match checked("name.example:22", at(&list), &none, &open_net) {
+        match checked("name.example:22", at(&list), &none, &[], &open_net) {
             Err(NodeRefusal::Other(why)) => {
                 assert!(why.contains(&format!("resolves to {inside}, which is not a public address")), "{why}")
             }
@@ -70,9 +70,27 @@ fn each_address_is_public_or_in_a_range_and_one_that_is_not_refuses_the_name() {
     }
     // A range of --routes lets its private addresses through, and no other.
     let ranges = vec![Range::parse("127.0.0.1").unwrap(), Range::parse("10.0.0.0/8").unwrap()];
-    assert_eq!(checked("x:22", at(&["127.0.0.1:22", "10.9.9.9:22"]), &ranges, &open_net).unwrap().len(), 2);
-    assert!(checked("x:22", at(&["127.0.0.2:22"]), &ranges, &open_net).is_err());
-    assert!(matches!(checked("x:22", Vec::new(), &ranges, &open_net), Err(NodeRefusal::NoTarget(_))));
+    assert_eq!(checked("x:22", at(&["127.0.0.1:22", "10.9.9.9:22"]), &ranges, &[], &open_net).unwrap().len(), 2);
+    assert!(checked("x:22", at(&["127.0.0.2:22"]), &ranges, &[], &open_net).is_err());
+    // The host's own address and the loopback need a range that names them
+    // alone (T-432): 10.0.0.0/8 holds the host's 10.9.9.1, and does not let it.
+    let own: Vec<std::net::IpAddr> = vec!["10.9.9.1".parse().unwrap()];
+    match checked("x:22", at(&["10.9.9.1:22"]), &ranges, &own, &open_net) {
+        Err(NodeRefusal::Other(why)) => assert!(why.contains("an address of the exit's host"), "{why}"),
+        other => panic!("the host's own address was let through a wide range: {other:?}"),
+    }
+    assert!(checked("x:22", at(&["10.9.9.2:22"]), &ranges, &own, &open_net).is_ok(), "another host of the range");
+    let alone = vec![Range::parse("10.0.0.0/8").unwrap(), Range::parse("10.9.9.1/32").unwrap()];
+    assert!(checked("x:22", at(&["10.9.9.1:22"]), &alone, &own, &open_net).is_ok(), "named alone");
+    let loopback = vec![Range::parse("127.0.0.0/8").unwrap()];
+    match checked("x:22", at(&["127.0.0.1:22"]), &loopback, &[], &open_net) {
+        Err(NodeRefusal::Other(why)) => assert!(why.contains("a loopback address of the exit's host"), "{why}"),
+        other => panic!("{other:?}"),
+    }
+    // A public address of the host itself needs it too.
+    let public_own: Vec<std::net::IpAddr> = vec!["140.82.112.3".parse().unwrap()];
+    assert!(checked("x:22", at(&["140.82.112.3:22"]), &none, &public_own, &open_net).is_err());
+    assert!(matches!(checked("x:22", Vec::new(), &ranges, &[], &open_net), Err(NodeRefusal::NoTarget(_))));
 }
 
 #[test]
@@ -83,7 +101,7 @@ fn the_net_decides_for_each_address_with_its_words() {
         seen.borrow_mut().push((addr, public));
         Verdict::Refused("no rule of the net home's policy (serial 5) lets b reach exit:lab".into())
     };
-    match checked("github.com:22", at(&["140.82.112.3:22"]), &none, &refuse) {
+    match checked("github.com:22", at(&["140.82.112.3:22"]), &none, &[], &refuse) {
         Err(NodeRefusal::Other(why)) => assert!(why.contains("lets b reach exit:lab"), "{why}"),
         other => panic!("{other:?}"),
     }
@@ -91,10 +109,10 @@ fn the_net_decides_for_each_address_with_its_words() {
     assert_eq!(*seen.borrow(), vec![egress]);
     // A private address of a range is asked as an address, not as the egress.
     let ranges = vec![Range::parse("10.0.0.0/8").unwrap()];
-    let _ = checked("db:5432", at(&["10.1.2.3:5432"]), &ranges, &refuse);
+    let _ = checked("db:5432", at(&["10.1.2.3:5432"]), &ranges, &[], &refuse);
     assert_eq!(seen.borrow()[1], ("10.1.2.3".parse().unwrap(), false));
     let outside = |_: std::net::IpAddr, _: bool| Verdict::Outside;
-    let gone = checked("a:1", at(&["1.1.1.1:1"]), &none, &outside);
+    let gone = checked("a:1", at(&["1.1.1.1:1"]), &none, &[], &outside);
     assert!(matches!(&gone, Err(NodeRefusal::Other(w)) if w.contains("in no net")), "{gone:?}");
 }
 
@@ -104,4 +122,18 @@ fn an_exit_with_no_target_has_a_stand_in_that_names_no_host() {
     assert!(stand_in.host.is_empty() && stand_in.name.is_none());
     let one = Route { name: None, host: "127.0.0.1".into(), port: 22 };
     assert_eq!(first(std::slice::from_ref(&one)), one);
+}
+
+#[test]
+fn a_node_says_when_the_net_lists_other_routes_than_its_own() {
+    let mine = ranges("10.1.0.0/16,fd00::/8").unwrap();
+    assert!(listed_apart(&mine, &["fd00::/8".into(), "10.1.0.0/16".into()]).is_none(), "the same, in any order");
+    let note = listed_apart(&mine, &["10.1.0.0/24".into()]).unwrap();
+    assert!(
+        note.contains("lists the routes 10.1.0.0/24") && note.contains("--routes gives 10.1.0.0/16, fd00::/8"),
+        "{note}"
+    );
+    let none = listed_apart(&mine, &[]).unwrap();
+    assert!(none.contains("lists the routes none"), "{none}");
+    assert!(listed_apart(&[], &[]).is_none(), "an exit with no range, listed with none");
 }

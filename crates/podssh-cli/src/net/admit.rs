@@ -132,8 +132,9 @@ fn no_role(doc: &super::doc::Doc, name: &str) -> String {
 }
 
 /// Whether the node `me` may lend its egress as it starts (T-431): a member
-/// of a net in force with the role `exit`, its line; else why not.
-pub fn exit_ready(me: &PublicKey) -> Result<String, String> {
+/// of a net in force with the role `exit`, its line and the routes that the
+/// document lists for it (T-432); else why not.
+pub fn exit_ready(me: &PublicKey) -> Result<(String, Vec<String>), String> {
     let held = match store::on().then(store::held) {
         Some(Ok(Some(held))) => held,
         Some(Err(why)) => return Err(format!("the net's document cannot be trusted: {why}")),
@@ -153,7 +154,8 @@ pub fn exit_ready(me: &PublicKey) -> Result<String, String> {
         None => "each member, as the net has no policy".to_string(),
         Some(policy) => format!("the members that the {} rules of its policy let", policy.rules.len()),
     };
-    Ok(format!("an exit of the net {} as {}: it lets out {who}, to public addresses", doc.name, mine.name))
+    let line = format!("an exit of the net {} as {}: it lets out {who}, to public addresses", doc.name, mine.name);
+    Ok((line, mine.routes.clone()))
 }
 
 /// Which routes each operator may use at the node `me`: those that the

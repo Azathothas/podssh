@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**580 entries: 91 open, 4 partial, 2 blocked, 483 done.**
+**580 entries: 90 open, 4 partial, 2 blocked, 484 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 28 | 2 | 0 | 234 | 264 |
+| P2 | 27 | 2 | 0 | 235 | 264 |
 | P3 | 63 | 1 | 2 | 185 | 251 |
-| **All** | 91 | 4 | 2 | 483 | 580 |
+| **All** | 90 | 4 | 2 | 484 | 580 |
 
 ## Entries
 
@@ -503,7 +503,7 @@ repository and CI).
 | [T-429](mesh.md) | P1 | L | M10 | feature | done | The net: an owner's signed list of its nodes, and their names |
 | [T-430](mesh.md) | P2 | M | M10 | feature | done | The net's policy: who may reach which node, share and exit |
 | [T-431](mesh.md) | P1 | L | M10 | feature | done | Exit mode: a node's egress for its owner's forward road |
-| [T-432](mesh.md) | P2 | M | M10 | feature | open | Routes: a node reaches its private networks for the net |
+| [T-432](mesh.md) | P2 | M | M10 | feature | done | Routes: a node reaches its private networks for the net |
 | [T-433](mesh.md) | P2 | M | M10 | feature | open | `podssh share`: a node's local services by name, for the net |
 | [T-434](mesh.md) | P2 | M | M10 | feature | open | A member that relays between two other members |
 | [T-435](mesh.md) | P2 | M | M10 | feature | open | `status`, `ping` and `doctor` for the net |

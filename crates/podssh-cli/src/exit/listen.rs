@@ -57,10 +57,13 @@ async fn proxy(to: To, at: Address) -> i32 {
     };
     if let Some(addr) = listener.local_addr() {
         let over = to.carrier.as_deref().map(|text| format!(" over the carrier {text}")).unwrap_or_default();
+        let exit = match super::auto::is_auto(&to.name) {
+            true => "the exit whose route of the net holds each target's address (--exit auto)".to_string(),
+            false => format!("the exit {}", to.name),
+        };
         say(&format!(
-            "a SOCKS5 and HTTP CONNECT proxy on {addr}, whose connections start at the exit {}{over}: a program \
-             reaches it with ALL_PROXY=socks5h://{addr} or HTTPS_PROXY=http://{addr}, until Ctrl-C",
-            to.name
+            "a SOCKS5 and HTTP CONNECT proxy on {addr}, whose connections start at {exit}{over}: a program reaches \
+             it with ALL_PROXY=socks5h://{addr} or HTTPS_PROXY=http://{addr}, until Ctrl-C"
         ));
     }
     let (to, room) = (Arc::new(to), Arc::new(Semaphore::new(AT_ONCE)));
@@ -118,7 +121,10 @@ async fn client(n: u64, mut end: End, to: &To) {
     };
     let Some((target, exit)) = opened else { return };
     if !to.quiet {
-        podssh_ssh::err_line!("{prefix}: {target} through the exit {}", to.name);
+        match super::auto::is_auto(&to.name) {
+            true => podssh_ssh::err_line!("{prefix}: {target} through the exit that its address picked"),
+            false => podssh_ssh::err_line!("{prefix}: {target} through the exit {}", to.name),
+        }
     }
     let pumped = crate::pipe::pump::pump(end, exit).await;
     // The exit's end says why a session ended badly; a clean end, nothing.

@@ -104,6 +104,7 @@ pub mod node_install;
 pub mod node_flags;
 // `podssh node --exit`: the node lends its egress to its net (T-431).
 pub mod node_exit;
+pub(crate) mod node_exit_own;
 // `podssh node NAME udp:HOST:PORT`: a UDP target, one flow for each session.
 pub mod node_udp;
 // `podssh node --derp`: the DERP road, and its fallback of a node with no

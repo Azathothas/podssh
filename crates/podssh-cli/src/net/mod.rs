@@ -48,6 +48,8 @@ pub struct NetArgs {
     /// `--iroh-ticket` and `--derp-ticket` of `add`: the member's roads.
     pub iroh_ticket: Option<String>,
     pub derp_ticket: Option<String>,
+    /// `--routes RANGES` of `add`: an exit's private ranges (T-432).
+    pub routes: Option<String>,
     /// `--days N`: how long a document that the owner signs lasts.
     pub days: Option<String>,
     /// `--owner KEY` of `take`: the owner that a first document must have.
@@ -68,6 +70,7 @@ impl NetArgs {
             roles: get("roles"),
             iroh_ticket: get("iroh-ticket"),
             derp_ticket: get("derp-ticket"),
+            routes: get("routes"),
             days: get("days"),
             owner: get("owner"),
             signature: matches.get_flag("signature"),

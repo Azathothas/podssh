@@ -235,7 +235,8 @@ carries sessions between two other members that no other road joins
   ssh --exit NAME` races the node's roads as `node://NAME` does, with the
   host's own key; `proxy`, `pipe`'s `relay:` and `podssh exit --listen`
   take the pair's road, and answer a client once the node's verdict came.
-  T-432 adds the net's list of each node's routes and `--exit auto`. Over
+  T-432 adds the net's list of each node's routes and `--exit auto` (see
+  Routes below). Over
   a carrier (T-596), `podssh exit --listen --carrier` is the client of
   `podssh node --exit --carrier`, each connection a leg of the one stream;
   so are `ssh`, `proxy` and `pipe` with `--exit NAME --carrier ADDR`
@@ -243,7 +244,13 @@ carries sessions between two other members that no other road joins
   --exit NAME` (T-458) says what the net held lets this client, the pair,
   and one session from the exit, with whose a refusal is.
 - **Routes** (T-432). `--routes CIDR,...` lets the net's members reach the
-  private networks that the node reaches, within the policy.
+  private networks that the node reaches, within the policy, as a Tailscale
+  subnet router does; the node's own host (its loopback and its own
+  addresses) only where a range names one address alone. The owner lists
+  each exit's routes in the net's document (`podssh net add NAME KEY
+  --roles node,exit --routes RANGES`), and `--exit auto` takes the exit
+  whose narrowest route holds a target's address ([cli.md](cli.md), "The
+  exit of the net").
 - **Share** (T-433). `podssh share` adds, removes and lists the services of
   a running node by name, for the members that the policy lets in: a
   service is reached as `node://NODE/NAME`.
