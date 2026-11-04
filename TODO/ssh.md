@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:709`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:710`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -4168,7 +4168,7 @@ would still say why the pause comes.
 
 - `crates/podssh-cli/src/ssh/mod.rs:351-353` says "if let Some(kept) = resolved.persist.clone() {",
   and returns from `persist::run` before the watch of the relay's road starts.
-- `crates/podssh-cli/src/ssh/mod.rs:355-356` says "if let Some(upgrade) = resolved.upgrade.clone() {",
+- `crates/podssh-cli/src/ssh/mod.rs:357-358` says "if let Some(upgrade) = resolved.upgrade.clone() {",
   and so does `upgrade::run`.
 - `docs/cli.md:762` says "`--direct`; with `--persist`, which attaches again after the cut, and",
   and the next line "`--upgrade`, not before T-583."
@@ -4519,7 +4519,7 @@ copy: the test fails. A key of `ssh-keygen` with such a scalar is read by `podss
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4541,25 +4541,133 @@ SSH, so it works against any sshd and through any relay, with nothing installed 
 
 ## Approach
 
-1. podssh's handler takes `adjust_window`: while a key was typed in the last 2 s, a bulk channel
-   (`direct-tcpip`, SFTP, exec with no pty, the agent's) gets rate times (least round trip plus 40
-   ms), at least 16 KiB and at most the road's cap; idle, plus 200 ms. The rate comes from the
-   window's use, the round trip from `keepalive@openssh.com` and the window's adjusts, end to end
-   (through a proxy, `TCP_INFO` sees only the first leg).
-2. If the hook's cadence is too coarse, a patch of the vendored russh grants the window as podssh
-   reads the data, not as russh receives it (`vendor/patches/russh/`, as T-460's).
+1. podssh's handler takes the hook that the patch of item 2 adds, `window_target` (Correction):
+   while a key was typed in the last 2 s, a bulk channel (`direct-tcpip`, SFTP, exec with no pty,
+   the agent's) gets rate times (least round trip plus 40 ms), at least 16 KiB and at most the road's
+   cap; idle, plus 200 ms. The rate comes from the window's use, the round trip from the window's
+   adjusts, end to end (through a proxy, `TCP_INFO` sees only the first leg; Decision 2).
+2. A patch of the vendored russh asks the handler for each channel's target at each data message
+   (`vendor/patches/russh/0002-window-target.patch`, as T-460's), as the hook of russh 0.65.0 sets
+   no target (Correction).
 3. podssh's own senders (`cp` and `sftp` uploads, `-L`, `-R`, `-D`, `pipe`) hold their writes while a
    key waits; keys and window adjusts go first. `TCP_NOTSENT_LOWAT` of 16 KiB on podssh's own TCP
    sockets where `setsockopt` takes it, a probe and not an assumption.
+
+## Decision
+
+1. **A patch of the vendored russh, not the hook alone.** The hook cannot do the work: russh keeps
+   its answer in a field that nothing reads (Correction). The patch adds a method to russh's
+   client `Handler`, `window_target(channel, window) -> u32`, asked at each data message of a
+   channel before russh decides whether to adjust its window; its default, `window`, keeps russh's
+   behaviour, so the patch changes nothing for a handler that gives no target, and is one for
+   russh upstream too (the operator's to send). `adjust_window` still tells of each adjust that went
+   out, which the round trip's timing needs. Lost: a patch that only reads `target_window_size`:
+   one target for the whole session, and set once an adjust went out, a window late (4 s at
+   1 Mbit/s and 512 KiB); a grant as podssh reads the data rather than as russh receives it (the
+   paper's form): it touches russh's read halves and its queue of 100 messages, and podssh reads
+   each channel at once anyway (`crates/podssh-ssh/src/handler.rs:234` says "Asked for: joined at
+   once, as a channel kept unread stops the"); a lane of its own for the session's data in russh's
+   writer: a deeper patch, where podssh's senders can hold instead (Approach item 3).
+2. **The round trip from the window's adjusts, not from keepalives.** russh sends its
+   `keepalive@openssh.com` only after a silence, so never while bulk flows, and gives its reply to
+   no handler; a ping of T-332 would wait behind the queue that it should not count. A sample is the
+   time from an adjust to the message that carries the first byte that only it allowed, less that
+   message's time on the path at the measured rate: end to end, through any relay or proxy. Lost:
+   `TCP_INFO` (the proxy's leg alone), and a key's echo (it holds the queue).
+3. **The windows drain for a moment** (as BBR's probe of its least round trip): a queue that never
+   empties is in each sample, and the least round trip would grow with the queue that the windows
+   keep (a download starts with one: the first 512 KiB fill it). At the first key after a pause,
+   while bulk presses on its windows, and each 10 s of bulk, each window is 16 KiB until what was
+   in flight came at the path's rate and two round trips more, 1 s at most: a few per cent of a
+   download. Lost: the least of 5 minutes, as Linux keeps it: a download that began with a full
+   queue never sees the path; and a queue read from the arrivals: a bottleneck that never idles
+   tells nothing of its delay.
+4. **Twice the path's bytes of a round trip at least.** russh adjusts a window once less than half
+   is left, so half a target must hold a round trip's bytes, or the path runs dry before each
+   adjust arrives: at 1 Mbit/s and 100 ms the margin's target alone (23 KiB) leaves the path idle
+   7 ms in each 94. On a path longer than about 80 ms this, not the 40 ms, bounds the queue: half a
+   round trip on average, an echo of 1.5 round trips. Lost: a finer adjust in russh (at a quarter
+   left): more adjusts, and russh's rule changed for each caller.
+5. **Each channel of the destination is held while a key waits, the session's own too**: an echo
+   needs far less than 16 KiB, and Ctrl-C shows sooner after `cat` of a large file (the paper's G2,
+   item 1). Lost: a list of bulk channels by kind, which the handler cannot learn of the channels
+   that podssh opens (russh tells it nothing of them). A channel of a `-J` hop, which carries the
+   next connection, gets the road's cap whatever is typed: the connection inside paces its own
+   channels, and a smaller window there would only queue at the hop.
+6. **Typing is the process's**: a key in any session of this process holds each connection's
+   windows (`podssh each --interactive` types to several hosts; one user waits). Lost: per
+   connection, which needs the handler's state in the session's code, where only russh's handle is.
+7. **podssh's senders hold until the echo, 1 s at most**, the echo being the session's next output.
+   Lost: 2 s after each key, as the windows: an upload would stop while the user types; until the
+   echo with no limit: a password's prompt echoes nothing. The local side of `-L`, `-R` and `-D` is
+   held in `crates/podssh-ssh/src/tally.rs`, the one stream that each forward reads.
+8. **Unmeasured, the window of before**: 512 KiB idle, and 16 KiB while a key waits. A channel that
+   opens while a key waits still starts with the 512 KiB that russh advertises at its open. Lost: a
+   smaller first window, which costs each channel its first round trip.
+9. **No switch to turn it off.** Unmeasured, each window is today's; measured, the bound is the
+   path's own. Lost: a variable of its own (`PODSSH_PACE=off`), more for the manual and its tests;
+   T-660's measurement compares with today's by the plant of the patch.
+10. **`TCP_NOTSENT_LOWAT` on the socket of the direct road**, which podssh-cli makes, before and
+    after a relay (`crates/podssh-cli/src/ssh/transport/after.rs`). Linux and macOS have the option;
+    Windows has none, and `-v` says so.
 
 ## Prove
 
 ```sh
 cargo test -p podssh-ssh --lib
+cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::window_target
 ```
 
 With T-660's deep-buffer shape: the echo's p50 under load at most twice the idle echo,
 the download within 10% of today's; the hook planted out fails it.
+
+## Correction
+
+Read at `856940b`, the tree of this entry: russh's client asks its handler for no target that it
+uses. After an adjust it passes the handler's `adjust_window` the session's
+`target_window_size` (`vendor/russh/src/client/mod.rs:100` says "target_window_size: u32,") and
+keeps the answer there, but the target of each adjust of CHANNEL_DATA and CHANNEL_EXTENDED_DATA was
+the configured window, `self.common.config.window_size`, and nothing read `target_window_size`
+again. The hook alone holds no window. The patch of Decision 1 asks at each message:
+`vendor/russh/src/client/encrypted.rs:614` says "let target = window_target(client, channel_num, self.common.config.window_size);".
+
+At the merge (2026-11-04) the Prove's second bound did not hold on the slowest path: on the fake
+path of 1 Mbit/s and 100 ms, with a key each 300 ms for the whole run, the paced download moved
+3,595,483 bytes where today's window moved 4,980,736 (72%), while the key's echo fell from 3,009 ms
+to 114 ms (the idle echo is 101 ms); at 10 Mbit/s and 60 ms it moved 93%, the echo 97 ms against
+305 ms. Neither a window of three round trips' bytes (74%) nor no drain (72%) moved it: holding the
+bulk to a round trip while a key waits costs the rate of a path that slow, as osewa's own bound does.
+The test holds that path's download at 70% of today's, the bound that was measured, and T-670
+wins the rest back.
+
+## Done
+
+2026-11-04, merged from its draft (`d51f254`).
+
+- The patch `vendor/patches/russh/0002-window-target.patch` (`Handler::window_target`, asked at
+  each data message); `crates/podssh-ssh/src/pace/` (the target, the measures of rate and round
+  trip, the keys and the senders' turn, the drains); `TCP_NOTSENT_LOWAT` of 16 KiB on each TCP
+  socket that podssh dials (`crates/podssh-ws/src/lowat.rs`, moved there at the merge from
+  podssh-ssh, so the relay's and a proxy's sockets take it beside the direct road's); `podssh ping
+  --under-load` marks its keys and their echoes (T-660's keys were not a user's to the pace).
+- `cargo test -p podssh-ssh --lib`: 329 passed (the pace 36); `cargo test --manifest-path
+  vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::window_target`: 5 passed;
+  `cargo test -p podssh-ws --lib`: passed; `cargo test -p podssh-ssh -p podssh-cli
+  --no-fail-fast`: 2,243 passed, 4 failed, each repaired at the merge and passed again: two of the
+  manual's checks (a name in capitals read as a variable; `-W` in the sentence of `-R`), the copy
+  test of `-R 64 -B 64K` (64 requests in flight now on the direct road, T-662), and
+  `relay_code_role`, whose check read a word of the code's English list in podssh's own lines once
+  (it now looks for the code and two of its words in a row; 10 runs passed). Plants:
+  `t661-target-unasked` and `t661-no-drain` caught (the second by the slow path's test, its
+  `EXPECT` moved at the merge). Clippy and rustfmt clean.
+- T-660's matrix, `python3 scripts/feel-matrix.py target/x86_64-unknown-linux-musl/release/podssh
+  --runs 3 --roads openssh,direct,role,node`, a key's echo (p50) beside a download, before and
+  after: cellular 300 to 98 ms by `--direct`, 254 to 109 ms through the relay role, 255 to 127 ms
+  through a node (idle 62 ms; OpenSSH 1,631 ms; osewa's lab 73 to 138 ms); wifi 148 to 69, 124 to
+  73, 121 to 85 ms (OpenSSH 816); far 122 ms each, as before; slow 2,963 to 2,399 ms by `--direct`,
+  2,779 to 2,680 ms through the role, 2,666 to 486 ms through a node (OpenSSH 16,214). The
+  download while typing: cellular 1.1 MiB/s against 1.2, far 0.8 against 2.1. T-670 takes the slow
+  link's echo by `--direct` and the role, and the rate while typing.
 
 # T-662: SSH windows that grow to the path where nobody types, to a cap of each road
 
@@ -4568,7 +4676,7 @@ the download within 10% of today's; the hook planted out fails it.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4590,13 +4698,70 @@ both moved more on a long path in osewa's runs.
    768 KiB on the pair road (T-443).
 2. SFTP's requests in flight follow the window.
 
+## Decision
+
+1. **The caps** (`crates/podssh-ssh/src/pace/road.rs`): 16 MiB on `--direct` (also the direct road
+   after the relay hosts), the iroh road and podssh's relay role; 1.5 MiB through the default relay, a
+   quarter under the 2 MiB of its `1013` for the frames around SSH's bytes, and the room that `podssh
+   cp` already shares among its tasks there (`RELAY_ROOM`); 768 KiB on the pair's road, the layer's
+   window there (a test of podssh-cli holds it to `PAIR_WINDOW`); 512 KiB, the window of before, on each
+   road whose hold for a slow reader podssh has not measured (DERP, `cf://`, a forwarder, Shadowsocks,
+   VLESS, wstunnel, `--via`, a cloud's tunnel). Lost: 64 MiB on the direct road (the paper's "as memory
+   allows"): 16 MiB fills about 1 Gbit/s at 100 ms with the idle margin, and is what each channel may
+   hold in memory; 2 MiB on the relay: the very size at which its document closes the session.
+2. **The growth is T-661's rule**: its target is twice the round trip's bytes at least, which russh's
+   adjust at half the target needs on any long path, idle or not, so this entry adds the caps and their
+   share, not a second rule. Idle, the rate times the round trip and 200 ms grows a window that limits
+   the rate from round to round, as a start of TCP does.
+3. **The channels that carry bulk share the cap**, each with 512 KiB at least, so no channel gets less
+   than before and one channel alone gets it all. A `-J` hop's channel gets the whole cap, and each hop
+   rides the destination's road (`hop_options`). Lost: the whole cap for each channel (memory of 16 MiB
+   for each forward of `-L`); a strict share (four downloads through the relay would get less than
+   before).
+4. **podssh-cli names the road** (`crates/podssh-cli/src/ssh/window.rs`), from the resolved transport
+   and what reached it: a relay host's session with no relay leg and the resumable layer is podssh's
+   relay role's (T-173), with neither the direct road's after the relay hosts. A node races its roads;
+   the pair's cap holds whichever won, as each node has that road. Lost: the winner's own cap, which
+   needs the race's outcome in `Reached`, built in 24 places. The relay role and the iroh road carry
+   the resumable layer, whose replay buffer (4 MiB by default, `PODSSH_REPLAY_BUFFER` up to 16 MiB)
+   bounds what is unacknowledged: there a window past it waits at the far end, and costs nothing.
+5. **SFTP's requests follow the room of their session**: `sftp::Limits::in_flight`, the road's cap,
+   which `podssh cp` gives each session that it opens; a pipeline that asks nothing asks for as much as
+   its session takes, and `--parallel`'s tasks share it, each with 512 KiB at least, as before through
+   the relay. The requests stay at 64 at most (OpenSSH's `sftp -R`): of OpenSSH's blocks of 255 KiB
+   they fill 16 MiB; of 32 KiB, 2 MiB. Lost: more requests, which changes what `-R` means and fills a
+   server's queue of requests; the check of a relay session's budget counts the relay's room now.
+6. **A channel still opens with 512 KiB**, russh's advertised window: it grows from the first measures.
+   Lost: a larger first window on the direct road: a channel opened on a slow path would queue it all
+   in front of the first key.
+
 ## Prove
 
 ```sh
 cargo test -p podssh-ssh --lib
+cargo test -p podssh-ssh --test sftp_pipeline --test sftp_client
+cargo test -p podssh-cli --lib -- ssh::window cp::chunks
 ```
 
 A copy through a shaped stand-in of 100 ms and 100 Mbit/s moves more than twice today's rate.
+
+## Done
+
+Partial, 2026-11-04, merged from its draft (`8d72e03`).
+
+- The caps by road (`crates/podssh-ssh/src/pace/road.rs`): 16 MiB on `--direct`, the iroh road
+  and podssh's relay role, 1.5 MiB through the default relay, 768 KiB on a node's pair road, 512
+  KiB on each other; the channels that carry bulk share a cap, each with 512 KiB at least; SFTP's
+  requests in flight follow the room of the road (`crates/podssh-ssh/src/sftp/pipeline.rs`), also
+  `cp`'s chunks and lanes (`crates/podssh-cli/src/ssh/window.rs`, `cp/chunks.rs`, `cp/lanes.rs`,
+  `cp/bysftp.rs`).
+- `cargo test -p podssh-ssh --lib`: 329 passed, the fake path's test of 100 Mbit/s and 100 ms with
+  nobody typing among them (the direct road moves more than twice today's window); `cargo test -p
+  podssh-ssh --test sftp_pipeline --test sftp_client`: 8 and 7 passed; `cargo test -p podssh-cli
+  --lib -- ssh::window cp::chunks`: 5 passed; `--test copy_pipeline`: 4 passed, its case of `-R 64
+  -B 64K` now 64 requests in flight on the direct road. Plant `t662-one-cap`: caught.
+- Waits, so the entry is partial: a copy through T-660's shaped stand-in of 100 ms and 100 Mbit/s
+  against the window of before.
 
 # T-664: A faster cold connect: TLS tickets kept across runs, a key's signature sent with no query first, and fewer waits before the first command
 
@@ -4673,3 +4838,48 @@ cargo test -p podssh-ssh --lib
 ```
 
 The figures, with their commands, in `docs/STATUS.md`.
+
+# T-670: The download's rate while a key waits on a slow path: win back what T-661 gives up
+
+**Source:** the merge of T-661, 2026-11-04 (its Correction).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-661 holds a bulk channel to about a round trip of the path while a key waits. On a path of 1
+Mbit/s and 100 ms, with a key each 300 ms, the download moves 72% of what today's fixed window
+moves, for an echo of 114 ms where today's is 3,009 ms. A user who types beside a long download on
+a slow link pays that much of the download.
+
+## Premise
+
+- `crates/podssh-ssh/src/pace/sim_tests.rs`, the test `on_a_slow_long_path_too`, holds the paced
+  download at 70% of today's at least; at 10 Mbit/s and 60 ms it moves 93%.
+- Neither a target of three round trips' bytes nor a run with no drain moved the slow path's rate
+  (T-661's Correction).
+- T-660's matrix with T-661 (2026-11-04): on the slow link (1 Mbit/s, 100 ms, 1% loss) a key's
+  echo beside a download is 2,399 ms by `--direct` and 2,680 ms through the relay role, where a
+  node's road gives 486 ms (idle 103 ms); the download while typing on the far link (50 Mbit/s,
+  120 ms) is 0.8 MiB/s where it was 2.1.
+
+## Approach
+
+1. Find where the rate goes on the fake path: the rate's samples while the window bounds the flow
+   (a window that limits the rate measures that limit), russh's adjust at half the window, and the
+   server's packets of 32 KiB against a window of a few of them.
+2. A probe of the rate, as BBR's gain of 1.25 for one round trip in eight, so the measured rate can
+   rise to the path's while the echo stays within twice the idle one.
+3. The test's bound goes back to 90% of today's, and its echo's bound stays.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib pace::sim_tests
+```
+
+On the slow path, the download at 90% of today's at least, the echo's p50 at most twice the idle
+echo; T-660's matrix on the slow link, before and after.

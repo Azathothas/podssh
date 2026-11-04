@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
-use podssh_ssh::sftp::{FileAttributes, Limits, OpenFlags, Sftp, SftpError, CHUNK};
+use podssh_ssh::sftp::{FileAttributes, Limits, OpenFlags, Sftp, SftpError, CHUNK, IN_FLIGHT};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::process::{Child, Command};
 
@@ -220,7 +220,7 @@ fn play(plays: Plays) -> DuplexStream {
     client
 }
 
-const SHORT: Limits = Limits { metadata: Duration::from_secs(1), data: Duration::from_secs(3) };
+const SHORT: Limits = Limits { metadata: Duration::from_secs(1), data: Duration::from_secs(3), in_flight: IN_FLIGHT };
 
 /// The call fails by its limit, no later than one second after it.
 async fn times_out<T: std::fmt::Debug>(call: impl std::future::Future<Output = Result<T, SftpError>>, limit: Duration) {

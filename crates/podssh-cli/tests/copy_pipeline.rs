@@ -105,7 +105,9 @@ fn sftp_puts_and_gets_with_the_requests_and_the_size_that_it_is_given() {
     for (flags, says) in [
         (vec!["-R", "4", "-B", "32768"], "32768 bytes, 4 in flight"),
         (vec!["-X", "nrequests=2", "-X", "buffer=16K"], "16384 bytes, 2 in flight"),
-        (vec!["-R", "64", "-B", "64K"], "65536 bytes, 8 in flight"),
+        // On the direct road a window may grow to 16 MiB (T-662), so the 64
+        // requests asked fit; through the default relay's cap they would not.
+        (vec!["-R", "64", "-B", "64K"], "65536 bytes, 64 in flight"),
     ] {
         let _ = std::fs::remove_file(home.join("back.bin"));
         let mut args = vec!["sftp".to_string(), "-P".into(), port.to_string(), "-b".into(), "batch".into()];

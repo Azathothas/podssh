@@ -1,12 +1,13 @@
 //! The russh client handler: where the host key is checked, the server's
-//! banner shown, its disconnect kept, and each channel that it opens unasked
-//! refused. Everything else russh handles itself.
+//! banner shown, its disconnect kept, each channel that it opens unasked
+//! refused, and each channel's window paced (T-661). Everything else russh
+//! handles itself.
 
 use std::sync::{Arc, Mutex};
 
 use russh::client::{ChannelOpenHandle, DisconnectReason, Handler, Msg, Session};
 use russh::keys::PublicKeyOrCertificate;
-use russh::{Channel, ChannelOpenFailure};
+use russh::{Channel, ChannelId, ChannelOpenFailure};
 
 use crate::agent_forward::Forward;
 use crate::hostkey::{Offer, Policy, Verdict};
@@ -67,6 +68,8 @@ pub struct Client {
     /// The record of the session that made this client, where the server's
     /// last words and the connection's error go (T-484).
     here: crate::outcome::Here,
+    /// Each channel's window, held while a key waits (T-661).
+    pace: crate::pace::Pace,
 }
 
 impl Client {
@@ -82,7 +85,15 @@ impl Client {
             limits: crate::algorithms::HostLimits::default(),
             record: crate::handshake::Record::default(),
             here: crate::outcome::here(),
+            pace: crate::pace::Pace::default(),
         }
+    }
+
+    /// Pace each channel's window as `pace` says (T-661): a hop's, or the
+    /// destination's, under its road's cap.
+    pub fn pacing(mut self, pace: crate::pace::Pace) -> Self {
+        self.pace = pace;
+        self
     }
 
     /// Mark the host key's question on `record`, the handshake's (T-588).
@@ -311,6 +322,40 @@ impl Handler for Client {
             Some(x11) => crate::x11::join(x11.clone(), channel, reply, self.log.clone()),
             None => self.unasked("x11", reply).await,
         }
+        Ok(())
+    }
+
+    // The window of each channel (T-661): russh asks for its target at each
+    // data message (podssh's patch of russh), tells of each adjust that went
+    // out, then hands over the bytes.
+
+    fn window_target(&mut self, channel: ChannelId, _window: u32) -> u32 {
+        self.pace.target(u32::from(channel), std::time::Instant::now())
+    }
+
+    fn adjust_window(&mut self, channel: ChannelId, window: u32) -> u32 {
+        self.pace.adjusted(u32::from(channel), std::time::Instant::now());
+        window
+    }
+
+    async fn data(&mut self, channel: ChannelId, data: &[u8], _session: &mut Session) -> Result<(), Self::Error> {
+        self.pace.received(u32::from(channel), data.len(), std::time::Instant::now());
+        Ok(())
+    }
+
+    async fn extended_data(
+        &mut self,
+        channel: ChannelId,
+        _ext: u32,
+        data: &[u8],
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.pace.received(u32::from(channel), data.len(), std::time::Instant::now());
+        Ok(())
+    }
+
+    async fn channel_close(&mut self, channel: ChannelId, _session: &mut Session) -> Result<(), Self::Error> {
+        self.pace.closed(u32::from(channel));
         Ok(())
     }
 }

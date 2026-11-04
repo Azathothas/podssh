@@ -99,7 +99,9 @@ Not done here: the home-region override, and connecting again after a drop
   that release, whose archive has the SHA-256 of `Cargo.lock`'s checksum
   (`3bb77a4b...`). The import is the published crate byte for byte, but
   `.cargo-ok`, a mark of cargo's own; the shipped tree is the import plus
-  the one patch `patches/russh/0001-reply-data.patch`, and nothing else.
+  the two patches `patches/russh/0001-reply-data.patch` and
+  `patches/russh/0002-window-target.patch` (T-661), in that order, and
+  nothing else.
 - **License**: Apache-2.0, as its `Cargo.toml` says.
 - **How podssh uses it**: the root `Cargo.toml` puts it in the place of the
   release with `[patch.crates-io]`, and excludes it from the workspace, so
@@ -114,16 +116,18 @@ Not done here: the home-region override, and connecting again after a drop
 | Patch | Files | Why |
 | --- | --- | --- |
 | `patches/russh/0001-reply-data.patch` | `src/client/encrypted.rs`, `src/client/mod.rs`, `src/client/reply_data.rs` (new) | podssh T-460, GitHub #83 and #85: russh's client ended the whole connection when a reply to a global request held data after its type: `ensure_end` on each failure, before it looked at which request the reply answers, and on a success of a keepalive, a ping, `no-more-sessions@openssh.com` or a cancel; and it read a success of `tcpip-forward` with more than a port as a refusal. RFC 4254, section 4, lets a success carry "response specific data", and Go's x/crypto/ssh sends data in a failure too (`Request.Reply(false, payload)`): its servers answer a keepalive that they do not know with one, so each quiet session on them died at the first keepalive, and `-R` that they refuse as a lost connection. OpenSSH's client reads none of such data. The patch drops the data that a request needs none of, with a debug line, and reads the port of a success of `tcpip-forward` before the rest. Proven by the tests of `src/client/reply_data.rs`, in russh's own way of crafted packets, and in podssh by `scripts/interop-go-ssh.sh` against a server of x/crypto/ssh. |
+| `patches/russh/0002-window-target.patch` | `src/client/encrypted.rs`, `src/client/mod.rs`, `src/client/window_target.rs` (new) | podssh T-661: russh's client adjusted each channel's window to its configured window alone; the target that its handler's `adjust_window` returned was kept in the session and never read, so no client could hold a bulk channel's window while the user types. The patch adds `Handler::window_target(channel, window) -> u32`, asked at each data message of a channel before russh decides whether to adjust its window: its answer is that channel's target, and the default, `window`, keeps russh's behaviour, as 0 does. A window already granted is never taken back (RFC 4254, section 5.2): a smaller target withholds the next adjusts. `adjust_window` still hears each adjust that went out. Proven by the tests of `src/client/window_target.rs`, in the way of crafted packets of `reply_data.rs`, and in podssh by `crates/podssh-ssh/src/pace/wire_tests.rs` against russh's server in the same process. |
 
-No podssh build runs the crate's own tests. Run its tests of the patch with
-its manifest, in a target directory of their own (it fetches the crate's
-dev-dependencies, and uses the crate's own `Cargo.lock`):
+No podssh build runs the crate's own tests. Run its tests of the patches
+with its manifest, in a target directory of their own (it fetches the
+crate's dev-dependencies, and uses the crate's own `Cargo.lock`):
 `cargo test --manifest-path vendor/russh/Cargo.toml --target-dir
-.work/russh-target --lib client::reply_data`.
+.work/russh-target --lib client::reply_data` and `... --lib
+client::window_target`.
 
-The patch is for russh upstream too: sending it is the operator's, as no
-session changes another repository. Drop the patch, and this tree, when a
-release of russh reads such replies.
+The patches are for russh upstream too: sending them is the operator's, as
+no session changes another repository. Drop a patch when a release of russh
+does what it does, and this tree when both are gone.
 
 ### How to carry it to another version
 
@@ -134,15 +138,17 @@ rm -rf vendor/russh
 cp -r ~/.cargo/registry/src/index.crates.io-*/russh-NEW/. vendor/russh/
 rm -f vendor/russh/.cargo-ok
 
-# 2. The patch (it must exit 0), then the version of the crates' requirement
-#    of russh, and the lock files, follow.
+# 2. The patches in order (each must exit 0), then the version of the
+#    crates' requirement of russh, and the lock files, follow.
 git apply --directory=vendor/russh vendor/patches/russh/0001-reply-data.patch
+git apply --directory=vendor/russh vendor/patches/russh/0002-window-target.patch
 ```
 
-The patch is a unified diff of the published crate (`a/`) against the
-shipped tree (`b/`); `patch -p1 -d vendor/russh` takes it too. A release
-whose reading of a reply changed needs the patch moved onto it, and its
-tests run again.
+Each patch is a unified diff of the tree before it (`a/`: the published
+crate, then the crate with the patches before it) against the tree after it
+(`b/`); `patch -p1 -d vendor/russh` takes each too. A release whose reading
+of a reply, or whose adjust of a window, changed needs its patch moved onto
+it, and its tests run again.
 
 ## iroh-relay
 

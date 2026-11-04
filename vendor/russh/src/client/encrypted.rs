@@ -609,7 +609,9 @@ impl Session {
                 if !self.common.is_established_channel(channel_num) {
                     return Ok(());
                 }
-                let target = self.common.config.window_size;
+                // The handler's target of this channel's window, asked at
+                // each message (podssh's patch, vendor/patches/russh/).
+                let target = window_target(client, channel_num, self.common.config.window_size);
                 #[allow(clippy::collapsible_if)]
                 if let Some(ref mut enc) = self.common.encrypted {
                     if enc.adjust_window_size(channel_num, &data, target)? {
@@ -636,7 +638,7 @@ impl Session {
                 if !self.common.is_established_channel(channel_num) {
                     return Ok(());
                 }
-                let target = self.common.config.window_size;
+                let target = window_target(client, channel_num, self.common.config.window_size);
                 #[allow(clippy::collapsible_if)]
                 if let Some(ref mut enc) = self.common.encrypted {
                     if enc.adjust_window_size(channel_num, &data, target)? {
@@ -1629,5 +1631,16 @@ impl Encrypted {
             }
         });
         Ok(())
+    }
+}
+
+/// The target of `channel`'s window, as the handler gives it now (podssh's
+/// patch, vendor/patches/russh/); 0 keeps the configured one. russh used the
+/// configured window alone, and the target that `adjust_window` returns was
+/// kept and never read.
+fn window_target<H: Handler>(client: &mut H, channel: ChannelId, configured: u32) -> u32 {
+    match client.window_target(channel, configured) {
+        0 => configured,
+        target => target,
     }
 }

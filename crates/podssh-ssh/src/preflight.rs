@@ -132,7 +132,7 @@ pub async fn keepalive(handle: &Handle<Client>, limit: Duration) -> Answer<bool>
 /// The `sftp` subsystem, its version exchange and its limits, within
 /// `limit` in all; the session is ended again at once.
 pub async fn sftp(handle: &Handle<Client>, limit: Duration) -> Result<SftpFacts, SftpError> {
-    let limits = Limits { metadata: limit, data: limit };
+    let limits = Limits { metadata: limit, data: limit, ..Limits::default() };
     let opened = match tokio::time::timeout(limit, Sftp::open(handle, limits)).await {
         Err(_) => return Err(SftpError::Timeout { what: "the SFTP subsystem and its version".into(), limit }),
         Ok(opened) => opened?,

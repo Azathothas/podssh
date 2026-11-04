@@ -8,7 +8,7 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use podssh_ssh::sftp::{FileAttributes, OpenFlags, Reads, Sftp, Writes, IN_FLIGHT};
+use podssh_ssh::sftp::{FileAttributes, OpenFlags, Reads, Sftp, Writes};
 use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
@@ -38,10 +38,10 @@ fn rate(source: &str, bytes: u64, took: std::time::Duration) -> String {
 }
 
 /// Whether the relay session may carry `n` more bytes (T-137), with room for
-/// a window of requests that are in flight and not yet counted: the failure
-/// that says it may not.
+/// the requests that are in flight and not yet counted, as many as a relay
+/// session takes (T-662): the failure that says it may not.
 fn spent(meter: &Meter, n: u64) -> Option<Failed> {
-    meter.spent(n + u64::from(IN_FLIGHT))
+    meter.spent(n + u64::from(chunks::RELAY_ROOM))
 }
 
 /// Copy the local file `source` to `dest` on the server, or write on in the
@@ -148,7 +148,7 @@ pub async fn up(
             // digest of the whole source after the last of them.
             let started = std::time::Instant::now();
             let tasks = shape.tasks;
-            let each = chunks::share(pipe, tasks, meter.through_relay());
+            let each = chunks::share(pipe.within(sftp.limits().in_flight), tasks, meter.through_relay());
             log.verbose(&format!("{source}: chunks of {} bytes, {tasks} at once", chunks::CHUNK));
             chunks::up(handle, local, &temp, before.len(), tasks, each, progress, meter).await?;
             log.verbose(&rate(source, before.len(), started.elapsed()));
@@ -312,7 +312,7 @@ pub async fn down(
             drop(out.take());
             let started = std::time::Instant::now();
             let tasks = shape.tasks;
-            let each = chunks::share(pipe, tasks, meter.through_relay());
+            let each = chunks::share(pipe.within(sftp.limits().in_flight), tasks, meter.through_relay());
             log.verbose(&format!("{source}: chunks of {} bytes, {tasks} at once", chunks::CHUNK));
             chunks::down(handle, source, &temp, size, tasks, each, progress, meter).await?;
             if shape.inplace {

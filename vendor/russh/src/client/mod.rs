@@ -3169,6 +3169,18 @@ pub trait Handler: Sized + Send {
         window
     }
 
+    /// The target of `channel`'s window now, asked at each of its data
+    /// messages before russh decides whether to adjust the window (podssh's
+    /// patch, vendor/patches/russh/). `window` is the configured target,
+    /// which the default keeps, as 0 does. A window already granted is never
+    /// taken back (RFC 4254, section 5.2): a smaller target withholds the
+    /// next adjusts, and a larger one is granted at the next message.
+    /// `adjust_window` still hears each adjust that went out.
+    #[allow(unused_variables)]
+    fn window_target(&mut self, channel: ChannelId, window: u32) -> u32 {
+        window
+    }
+
     /// Called when the server announces its host keys
     /// (`hostkeys-00@openssh.com`, sent by OpenSSH after authentication).
     ///
@@ -3205,3 +3217,8 @@ pub trait Handler: Sized + Send {
         }
     }
 }
+
+// Each channel's window at the target that the handler gives (podssh's
+// patch, vendor/patches/russh/).
+#[cfg(test)]
+mod window_target;

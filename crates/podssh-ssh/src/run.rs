@@ -23,10 +23,10 @@ use crate::{auth, forward, retry, session};
 /// and a session that ends without an exit status.
 pub const EXIT_FAILURE: i32 = 255;
 
-/// The SSH window advertised to the server: the most that a server has in
-/// flight to a slow podssh, so all that the relay holds for it (its own check,
-/// `1013` at 2 MiB by its document, does not operate: T-062). Under those
-/// 2 MiB for a relay whose check does; russh's default is 2 MiB.
+/// The SSH window that a channel opens with, and the most on a road whose
+/// hold for a slow podssh is not known: a window is what the relay holds
+/// (its check, `1013` at 2 MiB, does not operate: T-062). The window that the
+/// path asks, and each road's cap, are [`crate::pace`]'s (T-661, T-662).
 pub(crate) const WINDOW: u32 = 512 * 1024;
 
 /// Run `opts` over `stream`, which reaches the first `-J` hop or, without one,
@@ -315,6 +315,8 @@ fn hop_options(opts: &Options, i: usize) -> Cow<'_, Options> {
         Some(own) => {
             let mut own = own.clone();
             own.remembered = opts.remembered.clone();
+            // The road is the connection's: each hop rides it (T-661).
+            own.window_cap = opts.window_cap;
             Cow::Owned(own)
         }
         None => Cow::Borrowed(opts),
@@ -383,8 +385,10 @@ where
     // never a jump hop.
     let forwarded = if is_destination { opts.forward_agent.clone() } else { Agent::Off };
     let x11 = if is_destination { opts.forward_x11.clone() } else { None };
-    let client =
-        Client::new(policy, log.clone()).forwarding_agent(forwarded).forwarding_x11(x11).limiting(&opts.algorithms);
+    // A hop's channel carries the next connection, which paces its own (T-661).
+    let pace = crate::pace::Pace::new(!is_destination, opts.window_cap);
+    let client = Client::new(policy, log.clone()).forwarding_agent(forwarded).forwarding_x11(x11);
+    let client = client.limiting(&opts.algorithms).pacing(pace);
     // What the handshake sees, for its line when it does not finish (T-588).
     let record = Record::default();
     let client = client.recording(record.clone());

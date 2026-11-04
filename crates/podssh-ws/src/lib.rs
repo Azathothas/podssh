@@ -51,6 +51,7 @@ pub mod frame;
 pub mod h2_road;
 pub mod handshake;
 pub mod http;
+pub mod lowat;
 // The road of GCP's Identity-Aware Proxy for TCP (T-351).
 pub mod iap;
 // Tor's meek_lite, for a bridge of the Tor road (T-385).

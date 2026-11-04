@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:325`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:326`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -3972,7 +3972,7 @@ samples hold.
 - Read: `docs/relay-operator.md` has no item on `/relays.json`'s rank or `score_ms`: its sections
   "Defects on the relay's side" (`docs/relay-operator.md:34`) and "Questions about the contract"
   (`docs/relay-operator.md:430`) name other changes.
-- Read: `docs/relay.md:549-550` says "ranks relays by the Cloudflare edge that answered, which
+- Read: `docs/relay.md:551-552` says "ranks relays by the Cloudflare edge that answered, which
   changes between identical calls" (measured 2026-10-01); #125 measured it again on 2026-11-03,
   through one proxy: three calls answered by NRT, SIN and ARN, each of the 37 hosts with another
   rank and score between the first and the third.
@@ -4446,7 +4446,7 @@ Read at `2042200`:
   (`crates/podssh-cli/src/node_quick_relay.rs:70`).
 - The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs:68`, and
   `crates/podssh-relay/src/serve/keys.rs:72` says "this relay cannot read its list of keys";
-  `docs/relay.md:758` says "read again for each request".
+  `docs/relay.md:760` says "read again for each request".
 - `crates/podssh-relay/src/serve/mod.rs:93` holds the list as a path; the net's members are a source
   that the binary gives (`crates/podssh-relay/src/serve/keys.rs:31`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.

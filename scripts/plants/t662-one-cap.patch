@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/pace/road.rs
++++ b/crates/podssh-ssh/src/pace/road.rs
+@@ -44,7 +44,7 @@
+     /// The most window that a channel may have on this road.
+     pub fn cap(self) -> u32 {
+         match self {
+-            Road::Direct | Road::Iroh | Road::Role => DIRECT_CAP,
++            Road::Direct | Road::Iroh | Road::Role => crate::run::WINDOW,
+             Road::Relay => RELAY_CAP,
+             Road::Pair => PAIR_CAP,
+             Road::Other => crate::run::WINDOW,

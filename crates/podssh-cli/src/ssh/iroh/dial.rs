@@ -184,6 +184,8 @@ pub(super) async fn connect(
             None => None,
         }
     };
+    // The cap of the iroh road's SSH windows (T-662).
+    let opts = &crate::ssh::window::on(opts, podssh_ssh::pace::Road::Iroh);
     let (code, carried, failed) = tokio::join!(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
         podssh_iroh::client::carry_heard(&dialer, layer_app, settings, note, hearing),

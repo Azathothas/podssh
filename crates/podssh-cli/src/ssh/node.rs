@@ -404,9 +404,10 @@ pub async fn reach(
 
 /// `opts` with the node's road under its handshake (T-588): its far end, the
 /// node's TARGET, what its layer carries into `flow`, and whether the
-/// end-to-end channel runs above the layer.
+/// end-to-end channel runs above the layer; and the cap of its SSH windows,
+/// the pair's, which each node has among its roads (T-662).
 pub(super) fn on_the_road(opts: &Options, flow: &Arc<Flow>, channel: bool) -> Options {
-    let mut opts = opts.clone();
+    let mut opts = super::window::on(opts, podssh_ssh::pace::Road::Pair);
     let (far, end) = ("the node's TARGET".to_string(), "the node".to_string());
     opts.road = Some(Road { far, end, flow: flow.clone(), channel });
     opts
