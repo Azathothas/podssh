@@ -182,7 +182,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         (None, _) => String::new(),
     };
     // The one call that may need a privilege, then none kept (T-629).
-    let (listener, dropped) = bind_then_drop(listen, |_| Ok(None))?;
+    let (listener, dropped) = bind_then_drop(listen, |_| harden::give_up())?;
     let bound = listener.local_addr().map_err(|e| Refusal::config(e.to_string()))?;
     let events: serve::Events = Box::new(|line: &str| {
         let mut out = std::io::stdout().lock();
@@ -337,10 +337,6 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
             return EX_CONFIG;
         }
     };
-    // Planted: the drop once the runtime made its workers.
-    if let Err(refusal) = harden::give_up() {
-        return refusal.report("relay serve", err);
-    }
     let Prepared { listener, door, cfg, certs: kept, port_file, .. } = prepared;
     // SIGHUP is taken before a harness learns the port, so that none sent
     // after it ends the role.
