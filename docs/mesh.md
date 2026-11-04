@@ -55,7 +55,7 @@ gave.
   session moves between carriers.
 - The roads between two ends, raced: `crates/podssh-cli/src/ssh/roads.rs:1`
   races the iroh road, the pair's road and the DERP road, and each resume
-  races them again.
+  races them again, for `ssh` and for the copies (T-551).
 - A node with no inbound port that serves visitors: the quick tunnel's node
   is the server of the visitors' WebSockets on the connection that podssh
   dialed, and gives 404 to each other request
@@ -140,8 +140,8 @@ What T-445 built (drafted 2026-11-02; [design.md](design.md), section 7):
 - A member's name is a destination (`crates/podssh-cli/src/net/lookup.rs`):
   `node://NAME`, and `NAME` alone with the role `node`; the net names the key
   that the channel checks, and the tickets that race. The copies read
-  `NAME:PATH` by the same resolution, and reach the node on its pair's road
-  (T-453).
+  `NAME:PATH` by the same resolution (T-453), and race the roads that `ssh`
+  races, in the same order (T-551, `crates/podssh-cli/src/ssh/node_roads.rs`).
 
 What T-430 built ([cli.md](cli.md), "`podssh net`"):
 

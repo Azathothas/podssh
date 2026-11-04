@@ -3,9 +3,9 @@
 //! destination's host is `node://NAME`, so the messages and the known hosts
 //! name the node so: a name that no DNS name can be. `node://NAME/ROUTE`
 //! names a route of the node (T-089), and its own name in the known hosts.
-//! `cp`, `scp` and `sftp` reach a node too (T-296), on the stream of
-//! [`reach`]. With `--carrier ADDR`, the node's one road is a stream that
-//! exists already (T-595, `super::carried`), whose session [`run_on`] runs.
+//! `cp`, `scp` and `sftp` reach a node too (T-296), on the stream of [`reach`]
+//! or of the race of its roads (T-551). With `--carrier ADDR`, the node's one
+//! road is a stream that exists already (T-595, `super::carried`), whose session [`run_on`] runs.
 
 use std::sync::Arc;
 
@@ -153,57 +153,19 @@ pub(super) fn transport(
 
 /// SSH to the node of a `node://NAME` destination: over its carrier alone
 /// (T-595); else over the race of its roads beside the pair's, when one is
-/// given, kept or asked; else over the pair's road. None for another
-/// destination. Apart from `super`'s `mod.rs`, for the length of that file.
+/// given, kept or asked; else over the pair's road, each chosen as a copy
+/// chooses them (`super::node_roads`, T-551). None for another destination.
+/// Apart from `super`'s `mod.rs`, for the length of that file.
 pub(super) async fn run(transport: &Transport, opts: &Options, log: Arc<Log>) -> Option<i32> {
-    let Transport::Node { label, pair_file, trust, race, derp, opentunnel, channel, carrier } = transport else {
+    let Transport::Node { label, channel, carrier, .. } = transport else {
         return None;
     };
     // A carrier is the node's one road: no other races it (T-595).
     if let Some(text) = carrier {
         return Some(Box::pin(super::carried::connect(label, text, channel, opts, log)).await);
     }
-    // The member's record of pkarr, for each road that no ticket gave
-    // (T-445): a bad variable of it is said before anything connects.
-    let record = match super::iroh::record_ask(label, race.is_some(), derp, channel) {
-        Ok(record) => record,
-        Err(refusal) => {
-            log.error(&refusal.message);
-            return Some(refusal.code);
-        }
-    };
-    // The DERP road: the ticket given, else the one kept under the label
-    // (Q50); never with --no-e2e, as its node's door is the channel.
-    let derp = derp.road(label).filter(|_| !channel.off);
-    // The OpenTunnel road (T-531): the name given, else the one kept under
-    // the label (Q76); never with --no-e2e, as its node's door is the channel.
-    let opentunnel = opentunnel.road(label).filter(|_| !channel.off);
-    // The transit relay of the pair (T-436, Q65): never with --no-e2e,
-    // and only with a good pair here, whose token it is; with none, the
-    // pair's road says why, as before.
-    let good_pair = || crate::pairs::operator_part(label, pair_file.as_deref()).is_ok();
-    let transit = crate::node_transit::url().filter(|_| !channel.off && good_pair());
-    // The Piping Server road (T-437): asked, or the fallback of Q65 once
-    // the upgrade is refused; never with --no-e2e, as its server would
-    // see each byte.
-    let piping = match crate::piping_road::race() {
-        Ok(piping) => piping.filter(|_| !channel.off),
-        Err(refusal) => {
-            log.error(&refusal.message);
-            return Some(refusal.code);
-        }
-    };
-    let piping_asked = piping.as_ref().is_some_and(|road| road.asked);
-    let others = derp.is_some() || opentunnel.is_some() || transit.is_some() || piping_asked || record.is_some();
-    if race.is_some() || others {
-        let record = record.as_ref();
-        let raced = super::roads::Raced { iroh: race.as_ref(), derp, opentunnel, transit, piping, record };
-        return Some(
-            Box::pin(super::roads::connect(label, pair_file.as_deref(), trust, raced, channel, opts, log)).await,
-        );
-    }
-    let piping = piping.as_ref();
-    Some(Box::pin(connect(label, pair_file.as_deref(), trust, piping, channel, opts, log)).await)
+    let dest = super::node_roads::Dest::of(transport)?;
+    Some(Box::pin(super::node_roads::run(dest, opts, log)).await)
 }
 
 /// SSH over the operator's leg to the node of the pair under `label`; over
@@ -269,7 +231,7 @@ pub(super) async fn connect(
                     piping,
                     record: None,
                 };
-                return Box::pin(super::roads::connect(label, pair_file, trust, raced, ask, opts, log)).await;
+                return Box::pin(super::node_roads::connect(label, pair_file, trust, raced, ask, opts, log)).await;
             }
             log.error(&format!("{shown}: {why}"));
             podssh_ssh::outcome::failed("relay");
@@ -342,19 +304,20 @@ pub(super) async fn run_on(
     code
 }
 
-/// The stream to the node of the pair under `label`, for a copy (T-296): a
-/// task carries it over the operator's leg, in the resumable layer when the
-/// node offers it, a new leg after each lost one, as `connect` carries a
-/// session, and SSH runs on it as on the first hop of any road. When the
-/// carriage fails, the task says why, and SSH sees its stream end. A copy
-/// names no iroh ticket: the pair's road is its only one.
+/// The stream to the node of the pair under `label`, for a copy (T-296) with
+/// no road beside the pair's (`super::node_roads::reach`, T-551): a task
+/// carries it over the operator's leg, in the resumable layer when the node
+/// offers it, a new leg after each lost one, as `connect` carries a session,
+/// and SSH runs on it as on the first hop of any road. When the carriage
+/// fails, the task says why, and SSH sees its stream end. A refusal says too
+/// whether the upgrade was refused on the way: the Piping Server road's cue.
 pub async fn reach(
     label: &str,
     pair_file: Option<&str>,
     trust: &Trust,
     ask: &crate::channel::Ask,
     log: &Arc<Log>,
-) -> Result<Reached, NotReached> {
+) -> Result<Reached, (NotReached, bool)> {
     let shown = format!("{SCHEME}{label}");
     let refused =
         |refusal: Refusal| NotReached { lines: vec![format!("{shown}: {}", refusal.message)], code: refusal.code };
@@ -365,11 +328,11 @@ pub async fn reach(
             crate::pairs::online()?;
             Ok(part)
         })
-        .map_err(refused)?;
+        .map_err(|refusal| (refused(refusal), false))?;
     let say_line = |line: String| log.info(&format!("{shown}: {line}"));
     let channel = ask
         .operator(crate::channel::Expect::Pinned(label.to_string()), &say_line)
-        .map_err(|why| refused(Refusal::config(why)))?;
+        .map_err(|why| (refused(Refusal::config(why)), false))?;
     log.verbose(&format!("connecting to {shown} through the relay {}", part.relay.host));
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let (started, has_started) = oneshot::channel();
@@ -394,7 +357,9 @@ pub async fn reach(
                 leg
             }
             Err(e) => {
-                let _ = started.send(Err(crate::pairs::connect_refusal(&e, &task_label)));
+                // A refusal of the upgrade on the way is the cue of Q65.
+                let cue = podssh_relay::piping::probe::upgrade_refused(&e);
+                let _ = started.send(Err((crate::pairs::connect_refusal(&e, &task_label), cue)));
                 return;
             }
         };
@@ -415,11 +380,14 @@ pub async fn reach(
     });
     match has_started.await {
         Ok(Ok(())) => Ok(Reached { stream: Box::new(ours), relay: None, direct_proxy: None, layer: Some(done) }),
-        Ok(Err(refusal)) => Err(refused(refusal)),
-        Err(_) => Err(NotReached {
-            lines: vec![format!("{shown}: the leg's task ended before it started")],
-            code: sysexits::EX_SOFTWARE,
-        }),
+        Ok(Err((refusal, cue))) => Err((refused(refusal), cue)),
+        Err(_) => Err((
+            NotReached {
+                lines: vec![format!("{shown}: the leg's task ended before it started")],
+                code: sysexits::EX_SOFTWARE,
+            },
+            false,
+        )),
     }
 }
 

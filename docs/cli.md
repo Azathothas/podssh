@@ -1944,10 +1944,10 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   directory. Two local operands, sources from both sides, or remote
   sources on two servers exit 64 before anything connects.
 - **A node of a pair** (T-296): `node://[user@]NAME[/ROUTE]:path` is the
-  node of the pair under the label NAME, reached through its pair as
-  `podssh ssh node://NAME` reaches it (`crates/podssh-cli/src/ssh/node.rs`,
-  `reach`): the operator's leg, the resumable layer when the node offers
-  it, the end-to-end channel, and the host key under `node://NAME`. The
+  node of the pair under the label NAME, reached as `podssh ssh node://NAME`
+  reaches it (`crates/podssh-cli/src/ssh/node_roads.rs`, `reach`, T-551):
+  the race of its roads, or the operator's leg alone, the resumable layer
+  when the node offers it, the end-to-end channel, and the host key under `node://NAME`. The
   path comes after the first `:` after the name, as a `/` there names a
   route (T-089); with no `:`, it is the login directory. `--pair-file`,
   `--client-key`, `--node-key`, `--no-e2e` and `--no-resume` (T-612) are
@@ -1964,9 +1964,9 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   the operand's server to `ssh`'s resolution, which asks the net first
   (`crates/podssh-cli/src/ssh/node.rs`, `destination`); a name with a dot is
   a host. The net names the node's key, which the channel checks. A copy
-  reaches the node on its pair's road alone, so the pair under NAME (or
-  `--pair-file`) must be here, where `ssh` also races the tickets that the
-  net names. `mv` takes `NAME:path` and `node://NAME:path` for one server,
+  races the tickets that the net names beside the pair under NAME (or
+  `--pair-file`), as `ssh` does (T-551), so a member that its DERP ticket
+  reaches needs no pair here. `mv` takes `NAME:path` and `node://NAME:path` for one server,
   which renames within itself, and refuses one file named both ways (64).
   `scp` and `edit` take the same operand, and `sftp` the destination
   `[user@]NAME[:path]`.
@@ -3801,8 +3801,8 @@ that the owner's key signs, and that each end keeps.
   ticket kept under NAME. A `Host` block that sets `HostName` for a
   member's name is refused, as for `node://NAME`. So is `[user@]NAME:path`
   of `cp`, `mv`, `scp` and `edit`, and `[user@]NAME` of `sftp` (T-453), each
-  read by `ssh`'s resolution; a copy reaches the node on the pair's road
-  alone.
+  read by `ssh`'s resolution; a copy races the same roads as `ssh` (T-551),
+  the net's tickets among them.
 - `PODSSH_NET=no` turns the net off: no name, no door, no document of the
   channel. Exit codes: 64 for the command line, 65 for a document or a
   policy refused, 66 for a file of `take` or `policy set` that is not there,

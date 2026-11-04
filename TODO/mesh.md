@@ -3112,8 +3112,8 @@ The calls of the draft (2026-11-02), each with what lost:
   copy above; leaving the test as it was, by which `mv NAME:a node://NAME:b` copies through this
   host and removes the source, where the server could rename it, and `mv NAME:a node://NAME:a` is
   not refused as one file before anything connects.
-- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs:350` says "the
-  pair's road is its only one"), and the manual says so. Lost: racing the net's iroh and DERP
+- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs` line 350 at `6a62cdc`
+  says "the pair's road is its only one"), and the manual says so. Lost: racing the net's iroh and DERP
   tickets for a copy as `ssh` races them, which needs `roads::connect` to give a stream in place
   of running SSH itself: more than this entry's effort, in a file of 463 of its 500 lines; it is
   the merge's to file as an entry of its own.
@@ -3136,7 +3136,7 @@ The copies do ask the net (read 2026-11-02). Each reads its operand with its own
 `crates/podssh-cli/src/edit/mod.rs:153`), which reads the destination's node before its host
 (`crates/podssh-cli/src/ssh/resolve.rs:146`), and a name alone there in the net
 (`crates/podssh-cli/src/ssh/node.rs:44` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
-(`crates/podssh-cli/src/cp/link.rs:161-162`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
+(`crates/podssh-cli/src/cp/link.rs`, lines 161-162 at `6a62cdc`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
 already resolve to the member's node. What was missing: a test that proves it, the manual's and
 the documents' words, and the copies' own test of one server, which compared the operands as
 typed (`crates/podssh-cli/src/cp/operand.rs`, lines 59-64 at `f8d15bf`), so that `lab:` and
@@ -4838,7 +4838,7 @@ where `ssh` would reach it.
 
 ## Premise
 
-- `crates/podssh-cli/src/cp/link.rs:161` says "Transport::Node { label, pair_file, trust, channel, .. } => {",
+- `crates/podssh-cli/src/cp/link.rs` line 161 at `6a62cdc` says "Transport::Node { label, pair_file, trust, channel, .. } => {",
   and the copy reaches the node by `crate::ssh::node::reach`, the pair's road.
 - `crates/podssh-cli/src/ssh/roads.rs:1` says "`podssh ssh node://NAME` over more roads than the pair's (T-164, T-379):".
 
@@ -4850,30 +4850,155 @@ where `ssh` would reach it.
 2. A copy that resumes on another road, as the layer allows, says so at `-v`.
 3. The manual's notes of the copies say that they reach a node as `ssh` does.
 
+## Decision
+
+The calls of the draft (2026-11-04), each with what lost:
+
+- **The roads beside the pair's are chosen once, for `ssh` and the copies**: the choice that
+  `node::run` made (the record, the DERP and OpenTunnel roads, the transit relay, the Piping
+  Server road, and whether any races) is `chosen` and `Chosen::races` of
+  `crates/podssh-cli/src/ssh/node_roads.rs`, which `node::run` and the copies' `reach` both call.
+  Lost: a second copy of the choice in the copies' path, which the next road added to `ssh` would
+  miss, as this entry found the copies missing the net's tickets.
+- **The race takes a closure in the place of SSH, and a `Rider`**: `roads::ride` is generic over
+  `hand`, which gets the layered stream (or the lines and code of a failure before the layer is
+  up), and `Rider` carries what only `ssh` has, its shell (kept shells, the notice of silence, the
+  flow of T-588) and the signals that it takes. So the copy's task holds no `Options` and no
+  future of `podssh_ssh::run`, whose `Send` nobody measured. Lost: an enum of riders, whose SSH
+  arm would put those types in the copy's spawned future; a trait with a future of its own, more
+  code for two riders.
+- **A copy gets its stream once the layer is up**, after `client::start`, so that each failure
+  before it is the copy's `NotReached`, said once with the copy's exit code: the network's and the
+  pair's refusal their own codes, 78 for the channel's ask and for a DERP dialer that cannot be
+  made, 64 for an iroh ticket that is none, 69 when no road answered or the layer did not start.
+  After it, the task says why the layer ended, as `node::reach`'s task does; `ssh` exits 255 for
+  each, as before. Lost: the stream at the race's win, which would make a layer that does not
+  start an SSH error with no words of the roads.
+- **A copy's layer is the pair's road alone's**: `layered::settings`, with no `keep.v1`, as a copy
+  keeps no shell, and the window off the pair's when no pair carries it (T-443), as `ssh` does; a
+  copy takes no signal itself, and reads those that its command took, as `layered::carry` does.
+  Lost: `ssh`'s settings and its SIGHUP and SIGTERM, which would make a copy's end on a signal
+  differ by its road.
+- **With no road beside the pair's, the pair's road alone (`node::reach`), and the Piping Server
+  road after a refused upgrade**, as `node::connect` gives `ssh` (T-437, Q65): `node::reach` says
+  whether the upgrade was refused on the way, and the copy then races the Piping Server road
+  alone. Lost: the race for each copy with the unasked Piping Server road in it, which changes the
+  words and the code of a copy whose pair is refused (`tests/node_copy.rs`) for no road more.
+- **No flag of a ticket on the copies**: they race the roads that the net, the cache and the
+  variables give (`PODSSH_DERP_SERVER` for the DERP servers), and a ticket or a name that `ssh`
+  took once is kept under NAME for them (Q50, Q76). Lost: `--iroh-ticket`, `--derp-ticket`,
+  `--derp-server` and `--opentunnel-name` in the tables of `cp`, `scp`, `sftp` and `edit`, with
+  their manual and tests: not what the Problem asks, and more than its effort.
+- **The test is a module of `tests/derp_road.rs`** (`derp_net`, T-452's), not of `tests/net.rs`:
+  the DERP lab is there, its stand-in DERP servers and its member by name; the stand-in relay is a
+  TLS server of the test's own CA (`tests/update_support/mod.rs`) that answers the pair's
+  `/v1/connect/NAME` with the 403 of `scripts/fake_reverse.py` for a pair it does not know, and the
+  client's `--ca-file` holds both CAs. Lost: `tests/net.rs` with the Python stand-in relay beside
+  the DERP stand-ins, two harnesses in one binary for the same proof, with Python and openssl; the
+  pair at a closed port, as `with_the_pair_s_road_blocked_the_race_gives_the_session_to_the_derp_road`
+  blocks it, which is no refusal of a relay.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-cli --test net
+cargo test -p podssh-cli --test derp_road
+cargo test -p podssh-cli --test net --test node_copy --test node_carrier --test opentunnel_road --test node
+cargo test -p podssh-cli --lib
+cargo clippy -p podssh-cli --all-targets -- -D warnings
+cargo clippy -p podssh-cli --features iroh --all-targets -- -D warnings
+cargo test -p podssh-cli --features iroh --test derp_road
+sh scripts/plant-each.sh --here t551-copy-race-skipped
 ```
 
-With the pair's road refused at the stand-in relay, `cp` to a member by its name reaches it over
-the DERP road that the net names; planted, the race skipped for the pair's road alone, and the
-test fails.
+With the pair's road refused at a stand-in relay (403), `cp` to a member by its name reaches it
+over the DERP road that the net names, up and down, the stand-in asked first; with
+`PODSSH_DERP=no`, the pair's road alone, refused. Planted, the race skipped for the pair's road
+alone, and the test fails. The copies on the pair's road alone and on a carrier, and `ssh`'s race,
+pass as before.
 
 ## Correction
 
 2026-11-03 (the main session, read before any change). The copies take a stream from `reach` and
-keep it for the whole run (`crates/podssh-cli/src/cp/link.rs:161`), while the race of
+keep it for the whole run (`crates/podssh-cli/src/cp/link.rs`, line 161 at `6a62cdc`), while the race of
 `ssh::roads::connect` runs SSH itself over the layered stream, its roads borrowing the run's
-locals (`crates/podssh-cli/src/ssh/roads.rs:238-246`). So the copies need the race in a task of
+locals (`crates/podssh-cli/src/ssh/roads.rs`, lines 238-246 at `6a62cdc`). So the copies need the race in a task of
 its own, which owns what the roads borrow. Measured: `Transport` is `Clone`
 (`crates/podssh-cli/src/ssh/resolve.rs:24`), and each road's future is `Send` already (the type
 `Going` with `+ Send` compiled with no change elsewhere). The Approach's item 1 is then: the body
 of `connect` as a function that hands the layered stream to a closure in the place of
 `podssh_ssh::run`; `connect` passes SSH, and a copy's `reach` spawns it with a clone of the
-transport and a pipe to the copy, as the pair's road alone does (`crates/podssh-cli/src/ssh/node.rs:351`).
+transport and a pipe to the copy, as the pair's road alone does (`crates/podssh-cli/src/ssh/node.rs`, line 351 at `6a62cdc`).
 `roads.rs` is at its 500 lines, so the order's words move to `road_link.rs` first.
+
+2026-11-04 (the draft, read at `6a62cdc`). The Premise and the plan above hold, with four
+changes. `connect` moves out of `roads.rs` too, to `crates/podssh-cli/src/ssh/node_roads.rs`
+beside the choice of the roads that `node::run` made (the Decision), as `roads.rs` would pass its
+500 lines with it even with the order's words moved; `roads.rs` keeps the race and its body,
+`ride`. The copy's task takes the transport's parts that the race needs (the label, the pair's
+file, the trust, the iroh ticket and the channel's ask, cloned) and the roads chosen, owned, not a
+clone of the whole `Transport`. No second pipe: the layered stream of `ride` is the copy's,
+handed over a oneshot. The Approach's item 1 keeps the road that answered first until a loss, and
+then, as for `ssh`, each resume races the roads again and `-v` names the road that answered (item
+2). The Prove's test is a module of `tests/derp_road.rs`, whose DERP lab serves the member's road,
+with a stand-in relay of its own that refuses the pair (the Decision); the Prove above names it.
+
+## Done
+
+Drafted 2026-11-04 (DRAFT T-551), unbuilt; each result is UNVERIFIED until the main session runs
+it.
+
+- The choice of the roads beside the pair's, once for `ssh` and the copies: `Dest`, `chosen` and
+  `Chosen::races` of `crates/podssh-cli/src/ssh/node_roads.rs`, out of `node::run`, which keeps
+  the carrier and calls `node_roads::run`; `ssh`'s race, `node_roads::connect` (out of
+  `roads.rs`), passes SSH to `roads::ride`. The copies' `reach` there: with a road beside the
+  pair's, the race in a task of its own that owns the roads, the layer with the pair's road
+  alone's settings, the stream handed once the layer is up; else `node::reach`, which says too
+  whether the upgrade was refused on the way, then the Piping Server road as for `ssh`.
+  `crates/podssh-cli/src/cp/link.rs` calls it for each copy to a node with no carrier.
+- `crates/podssh-cli/src/ssh/roads.rs`: the body of `connect` as `ride`, generic over `hand` and
+  given a `Rider`; `Going` is `Send`; the order's words, `Unasked`, `Rider` and `Handed` in
+  `crates/podssh-cli/src/ssh/road_link.rs`. Each file within 500 lines (`roads.rs` 497).
+- The manual (`crates/podssh-cli/src/man/notes.rs`, the notes of `cp`; `man/notes_net.rs`),
+  `docs/cli.md` ("`podssh cp`", "`podssh net`", each paragraph of the same lines), `docs/mesh.md`
+  (sections 2 and 3) and `docs/STATUS.md`. Citations moved by hand where this change rewrote the
+  cited lines: T-453's (`node.rs`, `link.rs`) and this entry's read at `6a62cdc`, T-586's
+  (`TODO/resume.md`) and the reading in `TODO/ssh.md` to `node_roads.rs`. Each other citation of
+  the files changed moves by a line diff, at the merge:
+
+  ```sh
+  cargo todo remap crates/podssh-cli/src/ssh/mod.rs crates/podssh-cli/src/ssh/node.rs crates/podssh-cli/src/ssh/roads.rs
+  cargo todo remap crates/podssh-cli/src/cp/link.rs crates/podssh-cli/src/man/notes.rs crates/podssh-cli/src/man/notes_net.rs
+  cargo todo remap docs/STATUS.md docs/mesh.md docs/cli.md
+  ```
+- Test: `derp_net::a_copy_to_a_member_whose_pair_is_refused_goes_over_the_derp_ticket_of_the_net`
+  (`crates/podssh-cli/tests/derp_net/mod.rs`), against OpenSSH's `sftp-server`, which it needs.
+- Planted: `scripts/plants/t551-copy-race-skipped.plant` (the copy's race skipped for the pair's
+  road alone; the test must fail with "the copy up over the DERP ticket of the net"), with the
+  build image's `openssh-sftp-server` as its SETUP.
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test derp_road
+cargo test -p podssh-cli --test net --test node_copy --test node_carrier --test opentunnel_road --test node
+cargo test -p podssh-cli --lib
+cargo clippy -p podssh-cli --all-targets -- -D warnings
+cargo clippy -p podssh-cli --features iroh --all-targets -- -D warnings
+cargo test -p podssh-cli --features iroh --test derp_road
+sh scripts/plant-each.sh --here t551-copy-race-skipped
+```
+
+- `derp_road`: the new test, `cp` up and down by the member's name over the DERP ticket of the
+  net with the pair refused at the stand-in (403), the stand-in asked first, `-v` saying "the
+  pair's road first" and "the DERP road answered first", the bytes equal; with `PODSSH_DERP=no`
+  the pair's road alone, refused (403), no file written: UNVERIFIED. The 4 tests of `ssh`'s race
+  and the 2 of `derp_net` before it, as before: UNVERIFIED.
+- `net` (`net_copy`, on the pair's road alone), `node_copy` (78 with no pair, 69 offline through
+  the race now that the transit road is on there, no key made), `node_carrier`, `opentunnel_road`
+  and `node`, as before: UNVERIFIED. `--lib`: UNVERIFIED.
+- Clippy, both builds: UNVERIFIED; with `--features iroh`, the iroh road's and the record's
+  futures are `Send` in `Going`, and the copy's spawned race is `Send`: UNVERIFIED.
+- The plant `t551-copy-race-skipped`: UNVERIFIED (its patch applies: `git apply --check`, passed).
 
 # T-534: Tailscale's main DERP fleet after tailcat's: a short test that it lets podssh in, then the fallback
 

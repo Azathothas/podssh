@@ -48,9 +48,10 @@ pub const NET: &[&str] = &[
      and edit, and NAME of podssh sftp, each read as podssh ssh reads it. A name has no dot, so no DNS name is \
      a member's. The net names the member's key, which the end-to-end channel checks in place of the pins of \
      known-nodes, and its tickets, which race beside the pair kept under NAME when the command line names none; \
-     a copy takes the pair's road alone. Once each road \
+     a copy races them as podssh ssh does. Once each road \
      with a ticket failed, or at once with none, podssh ssh of a build with the iroh road asks the member's record \
-     of pkarr by that key, and races each road that it names and no ticket gave (see iroh record in THE RELAY). \
+     of pkarr by that key, and races each road that it names and no ticket gave (see iroh record in THE RELAY); \
+     so does a copy. \
      PODSSH_NET=no turns the net off: no name, no door and no document of the channel comes from it.",
 ];
 
