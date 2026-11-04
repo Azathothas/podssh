@@ -1376,7 +1376,7 @@ that fails at random hides a defect, or teaches the reader to rerun.
 
 ## Premise
 
-- The test (`crates/podssh-cli/tests/pipe.rs:181`) gives the bytes to podssh's stdin from a
+- The test (`crates/podssh-cli/tests/pipe.rs:234`) gives the bytes to podssh's stdin from a
   thread and waits 10 s for podssh to end; its server answers the digest once its input ends
   (`crates/podssh-cli/tests/pipe.rs:134`).
 - The pump shuts the other side's write half down when its input ends
@@ -1411,6 +1411,16 @@ failure's words, or for more runs.
 2026-11-03: 50 more runs on `macos-15` at `a003af3` (run 41560477021), after the merges of
 T-460 to T-509: 50 of 50 passed, so 100 in a row since the one failure, with no word of where
 podssh waited. It stays partial for the next failure's words.
+
+2026-11-04: it failed again, on Windows, in the gate of `dbde47e` (run 41769967226, the job
+`windows`): `unix-connect:C:\...\podssh-digest-6616.sock: no end within 10 s`, and podssh had said
+nothing on stderr, so the words named no place. On the same runner the gates before and after it
+passed. The failure is not of one system's sockets, as macOS's AF_UNIX is a socket of the kernel and
+Windows' is afunix's through WinSock. The test now says, at its limit, how many bytes it gave
+podssh's stdin and whether it closed it, and how many bytes its server read, whether the server's
+input ended, and whether it answered: so the next failure tells a pump that stopped reading stdin, a
+half-close that did not reach the server, and an answer or an exit that podssh did not finish apart.
+`cargo test -p podssh-cli --test pipe`: 10 passed here. It stays partial for those words.
 
 # T-564: podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE`
 

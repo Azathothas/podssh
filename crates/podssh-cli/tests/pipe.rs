@@ -10,6 +10,8 @@
 
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use sha2::{Digest, Sha256};
@@ -88,9 +90,39 @@ fn digest(bytes: &[u8]) -> String {
     Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// What a server of the test saw, and what the test gave podssh's stdin:
+/// the words of a run past its limit say where the bytes stopped (T-465).
+#[derive(Default)]
+struct Seen {
+    read: AtomicUsize,
+    ended: AtomicBool,
+    answered: AtomicBool,
+    given: AtomicUsize,
+    closed: AtomicBool,
+}
+
+impl Seen {
+    fn said(&self) -> String {
+        let yes = |b: &AtomicBool| if b.load(Ordering::SeqCst) { "yes" } else { "no" };
+        format!(
+            "the test gave stdin {} bytes (closed: {}); the server read {} bytes (its input ended: {}, it answered: {})",
+            self.given.load(Ordering::SeqCst),
+            yes(&self.closed),
+            self.read.load(Ordering::SeqCst),
+            yes(&self.ended),
+            yes(&self.answered)
+        )
+    }
+}
+
 /// `podssh pipe stdio ADDRESS` with `input` on stdin, within 10 s: (code,
 /// stdout, stderr). A server that never answers fails at the limit.
 fn through(address: &str, input: Vec<u8>) -> (i32, String, String) {
+    through_seen(address, input, &Arc::new(Seen::default()))
+}
+
+/// [`through`], whose words at the limit say what `seen` holds.
+fn through_seen(address: &str, input: Vec<u8>, seen: &Arc<Seen>) -> (i32, String, String) {
     let mut child = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .args(["pipe", "stdio", address])
         // The ssh_config of the machine that runs the test must not change it.
@@ -101,8 +133,16 @@ fn through(address: &str, input: Vec<u8>) -> (i32, String, String) {
         .spawn()
         .expect("podssh runs");
     let mut stdin = child.stdin.take().unwrap();
+    let giving = seen.clone();
     std::thread::spawn(move || {
-        let _ = stdin.write_all(&input);
+        for chunk in input.chunks(64 * 1024) {
+            if stdin.write_all(chunk).is_err() {
+                break;
+            }
+            giving.given.fetch_add(chunk.len(), Ordering::SeqCst);
+        }
+        drop(stdin);
+        giving.closed.store(true, Ordering::SeqCst);
     });
     let deadline = Instant::now() + Duration::from_secs(10);
     while child.try_wait().unwrap().is_none() {
@@ -110,7 +150,7 @@ fn through(address: &str, input: Vec<u8>) -> (i32, String, String) {
             let _ = child.kill();
             // What podssh said before its limit names where it waited.
             let said = child.wait_with_output().map(|o| String::from_utf8_lossy(&o.stderr).into_owned());
-            panic!("{address}: no end within 10 s: the server waits for the end of its input; podssh said: {said:?}");
+            panic!("{address}: no end within 10 s; {}; podssh said: {said:?}", seen.said());
         }
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -130,23 +170,36 @@ fn socket_path(tag: &str) -> std::path::PathBuf {
     }
 }
 
-/// The servers' answer: read to the end of the input, then send its digest.
-fn answer(mut stream: impl Read + Write) {
-    let mut got = Vec::new();
-    stream.read_to_end(&mut got).unwrap();
+/// The servers' answer: read to the end of the input, then send its digest;
+/// `seen` counts each step.
+fn answer(mut stream: impl Read + Write, seen: &Seen) {
+    let (mut got, mut buf) = (Vec::new(), vec![0u8; 64 * 1024]);
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                got.extend_from_slice(&buf[..n]);
+                seen.read.fetch_add(n, Ordering::SeqCst);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(e) => panic!("the server's read: {e}"),
+        }
+    }
+    seen.ended.store(true, Ordering::SeqCst);
     let _ = stream.write_all(digest(&got).as_bytes());
+    seen.answered.store(true, Ordering::SeqCst);
 }
 
 /// A server on `path` for one connection, that answers.
 #[cfg(unix)]
-fn digest_server(path: &std::path::Path) -> std::thread::JoinHandle<()> {
+fn digest_server(path: &std::path::Path, seen: Arc<Seen>) -> std::thread::JoinHandle<()> {
     let listener = std::os::unix::net::UnixListener::bind(path).expect("a socket of the test");
-    std::thread::spawn(move || answer(listener.accept().unwrap().0))
+    std::thread::spawn(move || answer(listener.accept().unwrap().0, &seen))
 }
 
 /// The same server on an AF_UNIX socket of Windows, by WinSock.
 #[cfg(windows)]
-fn digest_server(path: &std::path::Path) -> std::thread::JoinHandle<()> {
+fn digest_server(path: &std::path::Path, seen: Arc<Seen>) -> std::thread::JoinHandle<()> {
     use std::os::windows::io::FromRawSocket;
     use windows_sys::Win32::Networking::WinSock as ws;
     let text = path.to_str().unwrap().as_bytes().to_vec();
@@ -173,7 +226,7 @@ fn digest_server(path: &std::path::Path) -> std::thread::JoinHandle<()> {
             ws::closesocket(listener);
             std::net::TcpStream::from_raw_socket(c as u64)
         };
-        answer(stream);
+        answer(stream, &seen);
     })
 }
 
@@ -181,11 +234,12 @@ fn digest_server(path: &std::path::Path) -> std::thread::JoinHandle<()> {
 fn unix_connect_passes_the_end_of_input_on_and_the_answer_comes_back() {
     let path = socket_path("digest");
     let _ = std::fs::remove_file(&path);
-    let server = digest_server(&path);
+    let seen = Arc::new(Seen::default());
+    let server = digest_server(&path, seen.clone());
     let sent: Vec<u8> = (0..1_000_000u32).map(|i| (i.wrapping_mul(31) % 251) as u8).collect();
     let want = digest(&sent);
     let address = format!("unix-connect:{}", path.display());
-    let (code, out, err) = through(&address, sent);
+    let (code, out, err) = through_seen(&address, sent, &seen);
     let _ = server.join();
     let _ = std::fs::remove_file(&path);
     assert_eq!(code, 0, "{err}");
@@ -213,10 +267,12 @@ fn unix_connect_reaches_a_name_in_linux_s_abstract_namespace() {
     let name = format!("podssh-test-{}", std::process::id());
     let addr = std::os::unix::net::SocketAddr::from_abstract_name(name.as_bytes()).unwrap();
     let listener = std::os::unix::net::UnixListener::bind_addr(&addr).expect("an abstract socket of the test");
-    let server = std::thread::spawn(move || answer(listener.accept().unwrap().0));
+    let seen = Arc::new(Seen::default());
+    let serving = seen.clone();
+    let server = std::thread::spawn(move || answer(listener.accept().unwrap().0, &serving));
     let sent = b"through the abstract namespace".to_vec();
     let want = digest(&sent);
-    let (code, out, err) = through(&format!("unix-connect:@{name}"), sent);
+    let (code, out, err) = through_seen(&format!("unix-connect:@{name}"), sent, &seen);
     let _ = server.join();
     assert_eq!(code, 0, "{err}");
     assert_eq!(out, want, "{err}");

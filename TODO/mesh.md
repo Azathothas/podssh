@@ -8010,6 +8010,9 @@ sh scripts/plant-each.sh --here t616-owner-unchecked t616-member-replaced t616-k
   rustfmt: clean once it reflowed `net/invitation.rs`.
 - Waits (Q88): a join from end to end through the public mailboxes, on two hosts.
 
+Repaired after the merge (2026-11-04): the gate of `dbde47e` built `tests/net_invite.rs` on macOS,
+where the pty harness, Linux's, does not compile; the test is now Linux's, as `relay_code_role` is.
+
 # T-617: The net's document names each relay member's hosts, for its signed list
 
 **Source:** T-346's draft (2026-11-04): the net vouches for the key of a member with the role

@@ -12,7 +12,8 @@
 //! Planted (`scripts/plants/t616-*.patch`): the owner not checked at the
 //! join; a member's name given to another key. A host with no Python or no
 //! openssl, for the role's certificate, says that the test did not run.
-#![cfg(unix)]
+// Linux alone, as the pseudo terminal of `pty_harness` is Linux's.
+#![cfg(target_os = "linux")]
 
 mod pty_harness;
 mod ssh_harness;
