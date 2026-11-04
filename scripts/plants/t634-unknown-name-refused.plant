@@ -1,0 +1,7 @@
+# T-634: the lookup of retired names refuses each PODSSH_ name that no row
+# holds, so the check becomes a list of allowed names; the test of an
+# unknown name must fail.
+ENTRY=T-634
+GROUP=cli-tests
+EXPECT='an_unknown_name_is_let_through \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib retired::tests::an_unknown_name_is_let_through'

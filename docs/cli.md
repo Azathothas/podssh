@@ -5159,6 +5159,38 @@ with the report (`docs/decisions.md`, 2026-10-08).
   so does the user and password of each URL, and the controls of a
   terminal are dropped, as in the lines of `podssh doctor`.
 
+## Variables that a release stopped reading
+
+podssh refuses a flag and a keyword that it does not take, by name and
+with what to use instead; a `PODSSH_` variable that a release stopped
+reading is refused the same way (T-634, GitHub #132), so that a service
+whose file still sets it does not start, look healthy, and do something
+else than its owner believes. `crates/podssh-cli/src/retired.rs` holds each
+such name, the release that stopped reading it, what replaced it (or that
+nothing did), and why.
+
+- **A run.** While one is set to a value that is not empty, each command
+  ends with 78 before it tries anything, with a line for each name on
+  stderr: `podssh: NAME is no longer read (since vN): use OTHER instead;
+  remove it (why)`. Its order is what the name is not, what took its
+  place, what to do, and only then why. `--help`, `--version`, `podssh
+  man` and a usage error still answer, so that `podssh man environment`
+  can say what replaced the name. An empty value is unset, as for each of
+  podssh's variables.
+- **A service's file.** `--env-file` refuses one with its line and the
+  same words (78), and `--install` leaves one out with a line. A unit
+  stops on 78 (`RestartPreventExitStatus`), so an upgrade with a stale
+  file is an outage at once rather than a setting that does nothing.
+- **Only the table.** A name that podssh never read is not refused, so a
+  stray variable of a shell changes nothing and a misspelt name is still
+  ignored: this is never a list of allowed names. A name that a release
+  reads again loses its row in that release; the manual's tests refuse a
+  row whose name a source reads, or that the manual lists as read.
+- **Empty.** No release has stopped reading a name: each `PODSSH_` name
+  that the manuals and the sources of the releases from `v1.0.0-beta.1` to
+  `v1.1.0-beta.2` read is read still (read on 2026-11-04). `podssh man
+  environment` lists the rows, after the variables that are read.
+
 ## Exit codes
 
 `podssh man exit-status` gives each code. The rules behind them:

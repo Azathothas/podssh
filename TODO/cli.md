@@ -3735,6 +3735,30 @@ Read at `2042200`:
 4. The manual gets a section of retired variables from the table, which the test of documented
    variables reads apart; `docs/cli.md` says the rule.
 
+## Decision
+
+2026-11-04 (the drafting agent).
+
+- The lookup takes the variables of the run as pairs (`retired::environment`), not a reader of one
+  name: the defect that the line of this entry guards against, a check that refuses each unknown
+  `PODSSH_` name, can then be written, and is planted and caught. Lost: a reader of one name, the shape
+  of the issue, under which that defect cannot be planted, so the test of an unknown name could never
+  fail.
+- Each name of the table that is set gets its line, in the table's order, and the run ends once: a user
+  with two stale names learns both at one start. Lost: the first name alone, which needs a start for
+  each.
+- What only prints answers: `--help`, `--version`, `man`, and a usage error (64), which tries nothing
+  and says its own words. A refused flag (`Parsed::Command` with a refusal) is refused with 78 by the
+  retired name first. Lost: refusing all but `--version` and `--help`, which would hide the manual that
+  says what replaced the name.
+- An empty value in a service's file passes, as an empty variable does in a run.
+- The table starts empty: each `PODSSH_` name that a release read is read still. Read on 2026-11-04 in
+  the sources of the eight tags (`v1.0.0-beta.1` to `v1.1.0-beta.2`, from GitHub): each name that a
+  tag's manual lists as read is in this tree's manual, and each quoted `PODSSH_` name of the Rust
+  sources of a tag's crates is quoted in this tree's. The manual's tests read both directions since `v1.0.0-beta.1`.
+- `podssh man --json` keeps its `variables` as they were (the variables that are read); the retired
+  names are in the text and roff of `podssh man environment`.
+
 ## Prove
 
 ```sh
@@ -3742,6 +3766,7 @@ export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --lib retired
 cargo test -p podssh-cli --lib node_install
 cargo test -p podssh-cli --lib man::
+cargo test -p podssh-cli --test retired_env
 ```
 
 With a table of one test row: a set name stops a run with 78 before anything is tried, stdout empty; an
@@ -3749,3 +3774,21 @@ empty value starts; an unknown `PODSSH_NO_SUCH_THING` passes; `podssh --version`
 file with the name is refused with its line; no row names a variable that the manual lists as read; each
 row names a replacement or says none. Planted: the lookup that refuses each unknown `PODSSH_` name, and
 the test of an unknown name fails.
+
+## Done
+
+2026-11-04, drafted (UNVERIFIED: no build ran in the draft).
+
+- `crates/podssh-cli/src/retired.rs`: the table `RETIRED` (empty), its rows (name, `since`, `Instead`,
+  why), `set_in`, `named`, `environment`, and `check`, which refuses with 78 and a line for each set
+  name, `podssh: NAME is no longer read (since vN): use OTHER instead; remove it (why)`, and lets what
+  only prints answer. `dispatch::run_unless_retired` runs it in `main_with_args`, after the parse and
+  before the verb, through the report of a failure's tee.
+- `node_install::env`: `parse_in` refuses a retired name with its line; `body_in` leaves one out, and the
+  install says so.
+- The manual: ENVIRONMENT ends with "Retired variables", the rule and an item for each row
+  (`crates/podssh-cli/src/man/facts/retired.rs`); the test of the variables that the source reads takes a retired name in its
+  table's file alone, and a new test refuses a row that is read, listed as read, or replaced by a name
+  that is not read, with its control. `docs/cli.md`, "Variables that a release stopped reading".
+- `cargo test -p podssh-cli --lib retired`: UNVERIFIED. `--lib node_install`: UNVERIFIED. `--lib man::`:
+  UNVERIFIED. `--test retired_env`: UNVERIFIED. The plant `t634-unknown-name-refused`: UNVERIFIED.
