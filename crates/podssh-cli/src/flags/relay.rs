@@ -62,6 +62,9 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "serve: who may mint a token at /v1/mint and make a pair at /v1/pair: anyone; keys:FILE, the keys of FILE (the format of podssh node --allow), each by its signature of the relay's challenge; net, the members of the net that this host holds, by the same signature, as its policy lets them reach relay:*; net,keys:FILE, both; or nobody (the default: 503, and tokens are given another way)", None),
     row(None, "allow-private", None, FlagKind::Supported,
         "serve: dial private, loopback and other non-public addresses too (by default only public targets, as the default relay)", None),
+    // The private targets of a list, between the two (T-635).
+    row(None, "routes", Some("RANGES"), FlagKind::Supported,
+        "serve: dial the private ranges RANGES too, ADDR/BITS or one address, separated by commas, as podssh node --exit --routes reads them: a target whose each address is public or inside one; another is refused in the words of a target that is not public; not with --allow-private", None),
     row(None, "keepalive", Some("SECONDS"), FlagKind::Supported,
         "serve: send each client an empty frame every SECONDS (default 25)", None),
     row(None, "pairs", Some("FILE"), FlagKind::Supported,

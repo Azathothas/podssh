@@ -1,0 +1,23 @@
+diff --git a/crates/podssh-cli/src/first_thread.rs b/crates/podssh-cli/src/first_thread.rs
+index bfd3290..29a31ca 100644
+--- a/crates/podssh-cli/src/first_thread.rs
++++ b/crates/podssh-cli/src/first_thread.rs
+@@ -80,16 +80,8 @@ impl Drop for Ended {
+ /// not start). `None` when no first thread waits, or it gave no answer in
+ /// time.
+ pub fn on_first<T: Send + 'static>(job: impl FnOnce() -> T + Send + 'static, limit: Duration) -> Option<T> {
+-    let (first, tx) = way()?;
+-    if first == std::thread::current().id() {
+-        return Some(job());
+-    }
+-    let (back, answer) = mpsc::channel();
+-    let job: Job = Box::new(move || {
+-        let _ = back.send(job());
+-    });
+-    tx.send(Ask::Run(job)).ok()?;
+-    answer.recv_timeout(limit).ok()
++    let _ = (way()?, limit);
++    Some(job())
+ }
+ 
+ /// Whether a first thread waits for work now.

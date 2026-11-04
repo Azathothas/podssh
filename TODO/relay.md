@@ -4121,12 +4121,43 @@ one that does not know); a warning alone (the path stays open); a change of uid 
 needs a user of the host by name and moves the cache, the pairs and ACME's account to another owner (a
 later entry, if an owner asks).
 
+2026-11-04 (the drafting agent of T-629), for what the draft met. No row of `docs/decisions.md` settles
+these, and none changes one.
+
+1. A start as root keeps uid 0, and its first line says so: "it stays uid 0, which may still write each
+   file that root owns", with the way out, a user of its own with the file capability
+   `cap_net_bind_service`. With no capability, uid 0 still writes each file that root owns by its mode
+   (a crontab, an `authorized_keys`), so the drop alone closes less for root than for a user with a file
+   capability, and the line tells the owner. Lost: a change to another uid after the bind (it needs
+   `CAP_SETUID` before the drop and a user of the host by name, and the cache, the file of pairs and
+   ACME's account, written as root, would refuse that user: the next pair and the next renewal fail); a
+   refusal to start as root (a role that starts today would stop); a flag that names the user (a later
+   entry, if an owner asks).
+2. No new privileges is asked for at each start, also one that holds no capability, and nothing is said
+   of it: it costs nothing, and keeps a fault that runs a setuid program from gaining by it. Lost: no
+   call at all for such a start (step 2 of the Approach), which leaves that path open.
+3. The first thread drops on itself, by a job that the command's thread sends it
+   (`crates/podssh-cli/src/first_thread.rs`), and each thread of `/proc/self/task` is then read again
+   (the Correction). Lost: a first thread that drops its capabilities right after it starts the command's
+   thread, for each command (each podssh process would show no capability in `/proc/PID/status` while its
+   command's thread holds them, for a need of `relay serve` alone); `relay serve` on the first thread
+   (`main.rs` would read the arguments, and it decides nothing).
+4. With a capability held, a step that fails and a thread that keeps one refuse the start (78), as the
+   Approach says. With none held, or with sets that neither `capget` nor `/proc/thread-self/status`
+   gives, each failure is a note of the first line, and the start goes on: a start that works today does
+   not stop for a drop of nothing. Lost: a line alone with a capability held (the role would serve with
+   what it says it gave up).
+5. The bounding set goes where `CAP_SETPCAP` is effective; else the first line says that it stays, as no
+   new privileges keeps an exec from gaining by it. Lost: each of the 64 drops tried, and `EPERM` taken.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --lib relay_serve
+cargo test -p podssh-cli --lib first_thread
 cargo test -p podssh-cli --test relay_serve
+sh scripts/plant-each.sh --here t629-drop-after-runtime t629-capset-failure-taken t629-job-on-its-own-thread
 ```
 
 With the seam: the order bind, drop, runtime; `EINVAL` and `EPERM` of the bounding set taken; each
@@ -4135,6 +4166,46 @@ a role started with `CAP_NET_BIND_SERVICE` (`setpriv --inh-caps`, or a container
 a port below 1024, and `/proc/PID/task/*/status` of each of its threads reads `CapEff` and `CapPrm` 0
 once the first line is out. Planted: the drop moved after the runtime starts, and the worker threads'
 `CapEff` test fails.
+
+## Correction
+
+2026-11-04 (the drafting agent of T-629). Read in this tree: `crates/podssh-cli/src/main.rs` runs each
+command on a thread of 16 MiB that it starts, and its first thread waits for it in a join. So at the
+bind the process has two threads, not one as the Premise says, and Linux keeps the capability sets for
+each thread: a drop on the command's thread alone left the first thread with each capability of the
+start, and `/proc/PID/status`, which reads the first thread, would have shown them. The first thread
+now waits for work from the command's thread (`crates/podssh-cli/src/first_thread.rs`), and the drop
+runs on both; then each thread of `/proc/self/task` is read again, and one that keeps a capability
+stops the start (78). The Approach is otherwise as written, with the calls of the Decision (no new
+privileges at each start; the bounding set where `CAP_SETPCAP` is effective). The Prove's role is
+started as the test runs (as root in the build image), on `127.0.0.1:0`, not with `setpriv`: an exec as
+root gives each capability of the bounding set, and the test reads each thread's `CapEff`, `CapPrm`,
+`CapInh`, `NoNewPrivs` and, with `CAP_SETPCAP`, `CapBnd`.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-629`), UNVERIFIED: no command below ran in the draft.
+
+- The drop (`crates/podssh-cli/src/relay_serve/harden.rs`, its calls on Linux in
+  `crates/podssh-cli/src/relay_serve/harden_sys.rs`): the probe by `capget` (else
+  `/proc/thread-self/status`) and `PR_CAPBSET_READ`, the plan, the steps with their errors, the words
+  of the first line, and the read of each thread again; the first thread's work
+  (`crates/podssh-cli/src/first_thread.rs`, `main.rs`); a certificate that cannot be read after the drop
+  says why. `cargo test -p podssh-cli --lib relay_serve`: UNVERIFIED (the order bind then drop; the plan
+  of a start with none, as root and with a file capability; `EINVAL` and `EPERM` of the bounding set
+  taken; another errno and a failed `capset`, 78; an old kernel's `EINVAL` of no new privileges said;
+  sets that cannot be read; the status of a thread; on Linux, the real calls on a thread of the test,
+  read back from `/proc/thread-self/status`). `cargo test -p podssh-cli --lib first_thread`: UNVERIFIED.
+- The role as a process: `cargo test -p podssh-cli --test relay_serve -- serve_caps`: UNVERIFIED (each
+  thread of `podssh relay serve` with no effective, permitted or inheritable capability and no new
+  privileges once its port is out; as root, the bounding set empty and the first line's words).
+- Planted, each of which must fail its test: the drop after the runtime made its workers
+  (`scripts/plants/t629-drop-after-runtime.plant`, caught only by a run as root), a failed `capset`
+  taken as done (`scripts/plants/t629-capset-failure-taken.plant`), and the first thread's job run on
+  the thread that asks (`scripts/plants/t629-job-on-its-own-thread.plant`): UNVERIFIED.
+- The manual (`podssh man relay`), `docs/relay.md` ("podssh's own relay") and `SECURITY.md` name the
+  drop, the uid that stays and the files that need their mode. `cargo test -p podssh-cli --test
+  man_page --test man_flag_parity` and `--lib man::`: UNVERIFIED.
 
 # T-635: `podssh relay serve` has no list of private targets between public ones alone and `--allow-private`
 
@@ -4197,13 +4268,40 @@ address is what holds (the policy checks addresses already, `crates/podssh-relay
 a second word for the exit's idea. A prefix with host bits is refused, as `ip route` refuses one,
 also for the exit, whose silent widening is the same fault.
 
+2026-11-04 (the drafting agent of T-635), for what the draft met. No row of `docs/decisions.md` settles
+these, and none changes one.
+
+1. The flag stays `--routes RANGES`, one value of ranges separated by commas, as the exit's. Lost: a
+   flag given more than once (`--allow-target` of the issue, repeatable): the parser makes a flag
+   repeatable by its name for each verb that has it (`crates/podssh-cli/src/tree.rs`, `appended`), so
+   `node --exit --routes` and `net add --routes` would take it too, whose readers take one value; one
+   form for the three is plainer.
+2. A name is admitted by its addresses alone, each inside a range or public, as the triage decided: a
+   test of a name (`localhost`) passes where a range holds each of its addresses, and a name of one
+   address outside is refused whole.
+3. `podssh net add --routes`, which lists in the net's document the routes that an exit's own
+   `--routes` dials, refuses a prefix that sets bits past it too, as the exit does. A word of a
+   document signed before keeps its reading (`Range::parse`), so a rule or a route of an older document
+   reaches what it reached. Lost: a strict reading of each document (a document of before would lose a
+   route with no word); `net add` that takes what the exit refuses (an owner's list and an exit's flag
+   that never agree).
+4. The client reads a target outside each range in T-628's words, `HOST:PORT not in the ALLOW list:
+   this relay dials no address of it`, unchanged; the owner's line on stdout adds "nor in a range of
+   --routes" to its cause. The first line names the ranges as given: ", the private targets in RANGES
+   too".
+5. On a node, `--routes` with `--relay` is the role's and with `--exit` the exit's: the two never meet,
+   as `--exit` refuses `--quick-tunnel` and `--relay` needs it. With neither, the refusal names both.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib serve::policy
+cargo test -p podssh-relay --features serve --lib -- serve::policy serve::ranges
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_routes --test relay_serve_contract
+cargo test -p podssh-cli --lib -- relay_serve node_exit net::
 cargo test -p podssh-cli --test relay_serve
-cargo test -p podssh-cli --test node_routes
+cargo test -p podssh-cli --test exit --test exit_routes --test node_quick_relay
+sh scripts/plant-each.sh --here t635-any-address-of-a-name t635-any-private-with-a-range t635-routes-unread
 ```
 
 A range lets one private literal in and refuses the next; a name whose addresses a range holds is
@@ -4212,6 +4310,51 @@ the start of a role and of an exit; `--routes` with `--allow-private` exits 64; 
 listed loopback target is reached and another refused with "not in the ALLOW list". Planted: the check
 that takes any address of a name in place of each, and the test of a name with one address outside
 fails.
+
+## Correction
+
+2026-11-04 (the drafting agent of T-635). Read in this tree, after T-628: the Premise's lines of
+`crates/podssh-relay/src/serve/policy.rs` are of `2042200`; the refusal of an address that is not
+public is now `Refused::NotDialed`, whose words name no address (`this relay dials no address of it`),
+with the cause in the owner's line alone, and a target outside each range keeps those words. The
+Prove's `cargo test -p podssh-cli --test node_routes` is the test of a node's routes of T-089, not of
+an exit's `--routes`: an exit's refusal of `10.0.0.5/8` is in `--test exit`, and `net add`'s in `--test
+exit_routes` (Decision 3); the Prove names those. `Range` moved to
+`crates/podssh-relay/src/serve/ranges.rs`, and `crates/podssh-cli/src/net/policy_words.rs` names it
+from there, so each reader of the net is unchanged.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-635`), UNVERIFIED: no command below ran in the draft.
+
+- The ranges (`crates/podssh-relay/src/serve/ranges.rs`): `Range` moved from the net's words, with its
+  strict reading for a flag and the list of a flag; the policy's `ranges` and `Policy::unlisted`
+  (`crates/podssh-relay/src/serve/policy.rs`). `cargo test -p podssh-relay --features serve --lib --
+  serve::policy serve::ranges`: UNVERIFIED (one private literal in and the next refused in the words of
+  before; each address of a name checked, in either order; a name whose each address a range holds;
+  port 25 inside a range; an empty list is no list; no name to the proxy unchecked; `10.0.0.5/8` and
+  `fd00::1/8` refused with their networks; a document's word read as before).
+- Through the role, as raw clients of the contract: `cargo test -p podssh-relay --features
+  serve,plain-ws --test relay_serve_routes`: UNVERIFIED (a target of the range reached; `127.0.0.2` and
+  `10.255.255.1` refused with the body of a role with no range, and the owner's line with "nor in a
+  range of --routes"; port 25; `localhost` reached and traced through `127.0.0.0/8` and `::1`).
+  `--test relay_serve_contract`: UNVERIFIED (unchanged).
+- The flags: `podssh relay serve --routes RANGES`, `podssh node NAME --quick-tunnel --relay --routes
+  RANGES`, the exit's `--routes` and `net add --routes`, each strict, and the role's with
+  `--allow-private` refused (64). `cargo test -p podssh-cli --lib -- relay_serve node_exit net::`:
+  UNVERIFIED (the ranges of a role, an exit and the net's words, each as before but for `10.0.0.5/8`,
+  and a node's `--routes` with `--relay`). `cargo test
+  -p podssh-cli --test relay_serve`: UNVERIFIED (the refusals of usage, and a listed loopback target
+  reached through `podssh proxy` while `10.255.255.1` is refused, the first line naming the ranges).
+  `cargo test -p podssh-cli --test exit --test exit_routes --test node_quick_relay`: UNVERIFIED.
+  `cargo test -p podssh-cli --test man_page --test man_flag_parity --test flag_table` and `--lib
+  man::`: UNVERIFIED.
+- Planted, each of which must fail its test: any address of a name in place of each
+  (`scripts/plants/t635-any-address-of-a-name.plant`), each private address with any range
+  (`scripts/plants/t635-any-private-with-a-range.plant`), and the role's ranges read and not given to
+  its policy (`scripts/plants/t635-routes-unread.plant`): UNVERIFIED.
+- The manual (`podssh man relay`, `podssh man node`), `docs/relay.md` ("podssh's own relay", "Limits
+  that users see", the role behind a quick tunnel and its way out) and `docs/cli.md` name the ranges.
 
 # T-636: The relay role counts no bytes for each key across its sessions, and keeps no count across a restart
 

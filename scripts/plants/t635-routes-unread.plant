@@ -1,0 +1,10 @@
+# T-635: relay serve reads --routes and names its ranges, but gives its
+# policy none, so a private target that a range holds is refused; the test
+# of a listed target through the role must fail with its words.
+ENTRY=T-635
+GROUP=cli-tests
+EXPECT='the listed target'
+# The role's harness asks for Python and openssl, which the build image lacks:
+# with no SETUP the test said it did not run, and passed.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- a_listed_private_target_is_dialed_through_the_role'

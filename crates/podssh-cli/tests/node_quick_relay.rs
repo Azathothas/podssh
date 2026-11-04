@@ -15,6 +15,12 @@ fn the_relay_s_flags_are_refused_before_any_connection_without_their_needs() {
     let allow = home.join("allow");
     std::fs::write(&allow, "").unwrap();
     let allow = allow.to_string_lossy().into_owned();
+    // The role behind the tunnel, with `more` after its flags.
+    let relay = |more: &[&'static str]| {
+        let mut args = vec!["node", "lab", "--quick-tunnel", "--relay", "--allow", allow.as_str()];
+        args.extend_from_slice(more);
+        args
+    };
     for (args, says) in [
         (vec!["node", "lab", "127.0.0.1:22", "--relay"], "--relay is for --quick-tunnel"),
         (
@@ -31,6 +37,10 @@ fn the_relay_s_flags_are_refused_before_any_connection_without_their_needs() {
             "anyone, nobody, keys:FILE, net or net,keys:FILE",
         ),
         (vec!["node", "lab", "--quick-tunnel", "--relay"], "needs --allow FILE"),
+        // The role's private ranges (T-635), as relay serve reads them.
+        (relay(&["--routes", "10.0.0.5/8"]), "the range is 10.0.0.0/8"),
+        (relay(&["--routes", "10.0.0.0/8", "--allow-private"]), "--allow-private dials each address"),
+        (vec!["node", "lab", "--quick-tunnel", "--allow", &allow, "--routes", "10.0.0.0/8"], "too, or --relay"),
         (vec!["node", "lab", "--quick-tunnel", "--allow", &allow], "missing TARGET"),
         (vec!["node", "lab", "web=127.0.0.1:80", "--quick-tunnel", "--relay", "--allow", &allow], "one TARGET"),
     ] {

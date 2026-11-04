@@ -431,6 +431,19 @@ Each rule is implemented.
   when its order ends; such a connection carries nothing after its
   handshake. A pair read again on SIGHUP is served only when its key is the
   key of its leaf.
+- `podssh relay serve` (T-629) needs a privilege for the bind of a port below
+  1024 alone. On Linux it gives up each capability of its start after that
+  bind, before its runtime makes a thread, on each thread (the first thread
+  too, as Linux keeps capabilities for each thread): no new privileges on an
+  exec, the bounding set where `CAP_SETPCAP` allows it, and the effective,
+  permitted and inheritable sets; then it reads each thread's sets again, and
+  a thread that keeps one stops the start (78). So a fault in TLS, a token,
+  the proof of a key or the dial of a target runs with no capability. The
+  uid stays: a role started as root stays uid 0 and may still write each file
+  that root owns, and its first line says so; a user of its own with the file
+  capability `cap_net_bind_service` is the start that leaves it no more than
+  that user's files. The certificate's key, read before the bind, is in its
+  memory still.
 
 ## Known gaps
 

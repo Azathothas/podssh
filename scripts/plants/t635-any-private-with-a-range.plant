@@ -1,0 +1,9 @@
+# T-635: a role with any range of --routes dials each private address, as
+# if its ranges were --allow-private, so a loopback address outside the
+# range is dialed and refused by its host, not by the policy; the contract
+# test of a target outside each range must fail. Its first such target is
+# 127.0.0.2, on the loopback, so the plant dials nothing off this host.
+ENTRY=T-635
+GROUP=resume
+EXPECT='test a_private_target_in_a_range_is_dialed_and_one_outside_gets_the_words_of_before \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_routes'

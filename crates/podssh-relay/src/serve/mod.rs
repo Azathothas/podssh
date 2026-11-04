@@ -37,6 +37,9 @@ pub mod listener;
 pub mod mailbox;
 pub mod policy;
 pub mod probe;
+// The ranges of addresses that its owner lets it dial (T-635), which an
+// exit's and the net's routes read too.
+pub mod ranges;
 pub mod reverse;
 pub mod sockets;
 pub mod tokens;

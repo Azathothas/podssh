@@ -104,7 +104,7 @@ impl Files {
     /// so that the watch says a failure once.
     fn load(&self) -> Result<(Arc<rustls::sign::CertifiedKey>, Leaf), String> {
         *self.seen.lock().unwrap_or_else(PoisonError::into_inner) = Some(self.stamp());
-        let read = |p: &PathBuf| std::fs::read(p).map_err(|e| format!("{}: {e}", p.display()));
+        let read = |p: &PathBuf| std::fs::read(p).map_err(|e| format!("{}: {e}{}", p.display(), after_drop(&e)));
         let (cert, key) = (read(&self.cert)?, read(&self.key)?);
         acme::certs::load(&cert, &key).map_err(|e| format!("{}: {e}", self.shown()))
     }
@@ -113,6 +113,16 @@ impl Files {
         *self.seen.lock().unwrap_or_else(PoisonError::into_inner) != Some(self.stamp())
     }
 }
+
+/// Why a file read at the start is refused now: the role gave up the
+/// capabilities of its start after the bind (T-629), and a root with no
+/// `CAP_DAC_OVERRIDE` reads a file of another owner only as its mode says.
+fn after_drop(e: &std::io::Error) -> &'static str {
+    if e.kind() == std::io::ErrorKind::PermissionDenied && super::harden::dropped() { AFTER_DROP } else { "" }
+}
+
+const AFTER_DROP: &str =
+    " (the role gave up its capabilities after the bind: the file's owner and mode must let this user read it)";
 
 /// The certificate of the role, and how it is kept.
 pub struct Certs {

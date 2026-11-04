@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-cli/src/relay_serve.rs b/crates/podssh-cli/src/relay_serve.rs
+index 2a23497..871e684 100644
+--- a/crates/podssh-cli/src/relay_serve.rs
++++ b/crates/podssh-cli/src/relay_serve.rs
+@@ -196,7 +196,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
+         tokens,
+         policy: serve::policy::Policy {
+             private: s.allow_private,
+-            ranges: routes.iter().map(|(_, range)| *range).collect(),
++            ranges: Vec::new(),
+             ..Default::default()
+         },
+         egress,

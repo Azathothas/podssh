@@ -66,7 +66,18 @@ VERSION`), `/v1/mint`, `/connect/<host>/<port>` with `?dial=lazy`,
 (the pinned copy). Its limits are the ones below. A target is dialed only
 once each address of its name is public, and port 25 is refused; a `403`
 names the target and "not in the ALLOW list", as the client reads a policy
-refusal. A name that does not resolve, that resolves to an address that is
+refusal. Between that and `--allow-private`, which dials each address,
+`--routes RANGES` lists private ranges (`ADDR/BITS` or one address,
+separated by commas, as an exit's `--routes`; T-635): a target is dialed
+when each address of its name is public or inside one of them, and another
+gets the refusal of a role with no range, in the same words, so a client
+reads nothing new; the role's line on stdout adds "nor in a range of
+--routes". Port 25 stays refused inside a range. A prefix that sets bits
+past it (`10.0.0.5/8`) is refused at the start with the network that it
+names, by the role and by an exit, and `--routes` beside `--allow-private`
+is refused (64). The first line names the ranges. The list is one for each
+token that the role mints, with no ports and no names: a name is admitted
+by its addresses, as they resolve on the role's host at each dial. A name that does not resolve, that resolves to an address that is
 not public, or that has no address of the family asked for gets one
 sentence, `HOST:PORT not in the ALLOW list: this relay dials no address of
 it`, which names no address, so that a holder of a token cannot map the
@@ -103,6 +114,24 @@ Beside the contract, `/v1/layer/<host>/<port>` carries a forward session in
 the resumable layer, so that the role keeps a standard sshd's connection
 across a drop of the client's link ("The relay role's resumable layer",
 below; T-173).
+
+A port below 1024 needs a privilege for its bind alone: a start as root, or
+the file capability `cap_net_bind_service` on the binary. On Linux the role
+gives up each capability of its start once its listener is bound, before its
+runtime makes a thread (T-629): `PR_SET_NO_NEW_PRIVS`, each capability of
+the bounding set where `CAP_SETPCAP` allows it, and `capset` with the
+effective, permitted and inheritable sets empty. Linux keeps them for each
+thread, so the process's first thread, which waits while another runs the
+command, does the same on itself; then each thread of `/proc/self/task` is
+read again. A step that fails, or a thread that keeps a capability, stops the
+start (78); a start that held none asks for no new privileges alone, and says
+nothing. The uid and the gid stay: a start as root stays uid 0, which may
+still write each file that root owns, and its first line says so; a user of
+its own with the file capability binds the port with none of root's. A file
+of another owner that the role reads again (its certificate, the file of
+`--pairs`, the cache of ACME) must let it read by its mode, and a reload that
+cannot read it says so and keeps the pair that it serves. Other systems have
+no such sets.
 
 ## How podssh selects relay hosts
 
@@ -447,7 +476,7 @@ What podssh does about it (T-253):
 | Session length | 720 min (12 h) |
 | Session volume | 64 MiB, both directions together |
 | Attempts with no token | 120 per minute per address (mint, pair, upgrades with no token) |
-| Targets | Public TCP only. The relay refuses RFC 1918, CGNAT, link-local, unique-local, multicast and documentation ranges, internal suffixes, and names that resolve to private addresses. It refuses Cloudflare ranges on the direct road, and port 25 (the contract says "on the direct road"; `/relays.json` says "on every road", 2026-10-08). |
+| Targets | Public TCP only. The relay refuses RFC 1918, CGNAT, link-local, unique-local, multicast and documentation ranges, internal suffixes, and names that resolve to private addresses. It refuses Cloudflare ranges on the direct road, and port 25 (the contract says "on the direct road"; `/relays.json` says "on every road", 2026-10-08). podssh's relay role dials the private ranges of its `--routes` too, or each address with `--allow-private` (T-635). |
 
 Because of the idle cut, an idle SSH session must send traffic at least
 every 180 s: `ServerAliveInterval=60` with `podssh proxy`, and the client's
@@ -823,8 +852,8 @@ The tunnel's name, the one line on stdout, is the relay host. The role
 mints, and makes pairs, for the keys of the node's `--allow` by default,
 and a key's signed request must name the tunnel as its `Host`, as behind a
 listener it must name its TLS's name: the edge took the visitor's TLS for
-that name. `--mint`, `--pairs` and `--allow-private` are those of `podssh
-relay serve`. The name is new at each run, and a pair names its relay
+that name. `--mint`, `--pairs`, `--allow-private` and `--routes` are those
+of `podssh relay serve`. The name is new at each run, and a pair names its relay
 host, so a pair of the role's serves its node's run; `--pairs FILE` keeps
 the pairs all the same, as `relay serve`'s does. A planned stop closes each
 socket of the reverse road with `1012` first. The role dials its targets
@@ -853,7 +882,9 @@ proxy by its host and port, never by its credentials.
   it came, for the proxy to resolve, so a host with no DNS (the target
   environment's, [target-environment.md](target-environment.md)) reaches
   each target that its proxy reaches; a name that the role cannot resolve
-  is else its `502`.
+  is else its `502`. The ranges of `--routes` (T-635) keep each check: a
+  name is resolved on the role's host, and the proxy is asked for each
+  address that is public or inside a range.
 - **A refusal.** The proxy's refusal is the role's `502`, `relay: cannot
   reach HOST:PORT: the proxy of the relay's host refused CONNECT ADDR:PORT:
   403 Forbidden`, which a client reads as an answer about the target (Q69).

@@ -6,18 +6,25 @@
 //! private addresses by asking for it. Through the host's proxy (T-457,
 //! `super::egress`), the checked addresses are what the proxy is asked for.
 //! An IPv6 address that this host cannot route out is refused before any
-//! dial (T-253, `super::ipv6`).
+//! dial (T-253, `super::ipv6`). Between the two, its owner lists ranges
+//! (`--routes`, T-635): an address that is not public is dialed inside one
+//! of them, each address of a name checked, and a target outside each gets
+//! the refusal of before, in its words.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use super::egress::{Egress, Plan};
 use super::ipv6::Ipv6Out;
+use super::ranges::Range;
 
 /// What the relay dials.
 #[derive(Debug, Clone)]
 pub struct Policy {
     /// Private, loopback and other non-public addresses are dialed too.
     pub private: bool,
+    /// The ranges whose addresses are dialed too, though not public
+    /// (T-635); none by default.
+    pub ranges: Vec<Range>,
     /// Ports that are never dialed.
     pub denied_ports: Vec<u16>,
     /// What this host's way out to IPv6 is known to be (T-253).
@@ -26,7 +33,7 @@ pub struct Policy {
 
 impl Default for Policy {
     fn default() -> Self {
-        Policy { private: false, denied_ports: vec![25], ipv6: Ipv6Out::default() }
+        Policy { private: false, ranges: Vec::new(), denied_ports: vec![25], ipv6: Ipv6Out::default() }
     }
 }
 
@@ -135,13 +142,21 @@ impl Policy {
         if self.private {
             return Ok(wanted);
         }
-        // Every address is checked: a name that gives one private address
-        // among public ones is refused, as it could be steered to it.
-        if let Some(inside) = wanted.iter().find(|a| !public(a.ip())) {
-            let why = format!("it resolves to {}, which is not a public address", inside.ip());
+        if let Some(inside) = self.unlisted(&wanted) {
+            let routes = if self.ranges.is_empty() { "" } else { ", nor in a range of --routes" };
+            let why = format!("it resolves to {inside}, which is not a public address{routes}");
             return Err(Refused::NotDialed { target, why });
         }
         Ok(wanted)
+    }
+
+    /// The first of `wanted` that is not public and in no range of the
+    /// owner's. Every address is checked, not one of them: the dial takes
+    /// each in turn, so a name that gives one private address among others
+    /// could be steered to it.
+    pub fn unlisted(&self, wanted: &[SocketAddr]) -> Option<IpAddr> {
+        let listed = |ip: IpAddr| self.ranges.iter().any(|range| range.contains(ip));
+        wanted.iter().map(SocketAddr::ip).find(|&ip| !public(ip) && !listed(ip))
     }
 
     /// `Err` for a port that is never dialed, before any name resolves.
@@ -208,6 +223,11 @@ fn public_v6(ip: Ipv6Addr) -> bool {
         || s[0..6] == [0, 0, 0, 0, 0, 0]; // IPv4-compatible, deprecated
     !reserved
 }
+
+// The ranges of `--routes` (T-635), in a file of their own.
+#[cfg(test)]
+#[path = "policy_ranges_tests.rs"]
+mod ranges_tests;
 
 #[cfg(test)]
 mod tests {
