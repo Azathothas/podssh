@@ -1136,7 +1136,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
 (`docs/relay.md:1-21`, `README.md:36-39`). The stand-in serves the forward
-path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:147-165`). The
+path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:152-170`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
 reverse path and its close table
@@ -1194,8 +1194,8 @@ read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 Lifted on 2026-11-02 by Q63: see below.
 
 The Premise is stale in one sentence: the stand-in serves more than "the forward path,
-`/v1/mint` and `/health` only". At `scripts/fake-relay.py:157-161` it also serves `/relays.json`
-and `/trace`, and `scripts/fake-relay.py:143` hands the whole reverse road to
+`/v1/mint` and `/health` only". At `scripts/fake-relay.py:162-166` it also serves `/relays.json`
+and `/trace`, and `scripts/fake-relay.py:148` hands the whole reverse road to
 `scripts/fake_reverse.py`, which is as strict as the live relay for an id that it forgot, and
 tells a frame in flight apart (`scripts/fake_reverse.py:289-301`). The rest holds; the ruling of
 2026-10-08 that it cites is changed.
@@ -6212,7 +6212,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:158`).
+  port 443 answers (`docs/STATUS.md:159`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not

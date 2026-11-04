@@ -414,7 +414,7 @@ trip (`crates/podssh-ws/src/session.rs:289-317`; the payload is a counter, `:314
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:448`). The stand-in relay answers pings
-(`scripts/fake-relay.py:388-389`).
+(`scripts/fake-relay.py:393-394`).
 
 ## Approach
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5206-5234`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5215-5243`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:257-272`), and stdio needs no listener.
@@ -1456,7 +1456,7 @@ at the cited lines (read at `38f424c`).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1488,11 +1488,91 @@ made either way, and no change of the flow control below can show its gain.
    beside podssh and OpenSSH on the loopback, as a reference only, never a road (Q99: osewa runs no
    public server).
 
+## Decision
+
+2026-11-04, with the draft:
+
+- **The clock of a cold connect** starts with each run's own connection and stops at the exit
+  status of `true`, inside `ping` (`crates/podssh-cli/src/ping/cold.rs`); the destination is
+  resolved once before the runs, as each `podssh ssh` resolves it in a few milliseconds. The script
+  of item 3 also times `podssh ssh DEST true` as a process, from its spawn to its exit, as OpenSSH's
+  reference and osewa's `vs` are timed: both figures are in each cell. Lost: `ping` starting this
+  binary again for each run (rule 3: only at the user's request); one clock from the process's
+  start, which only the first run would hold.
+- **The load** is one `head -c 62914560 /dev/zero` (60 MiB, under the relay's 64 MiB for one
+  session with the keys) on a second channel of the run's one connection, read by a task of its
+  own, and stopped once the last key came back (`crates/podssh-cli/src/ping/load.rs`). A key whose
+  echo came after the download ended is not counted beside it; a download that ended within its
+  3 s is said, with no figure. Lost: `cat /dev/zero` with no end, as osewa's `vs` runs `cat
+  /dev/urandom`, which passes the relay's 64 MiB on a fast road and ends the session; a new `head
+  -c` each time one ends, which costs a round trip with no load and passes the 64 MiB too;
+  `--size` as the load's size, as the download is stopped long before 60 MiB on each of osewa's
+  links but the bare one.
+- **The keys** go on a beat, 150 ms apart, each sent whether or not the one before came back, as a
+  user types; the n-th byte back answers the n-th key, as `cat` keeps their order
+  (`crates/podssh-cli/src/ping/keys.rs`). Through `cat` with no pty, as T-053's echo: a pty's own
+  echo would double each key. Lost: one key at a time, as T-053's echo, which hides the queue
+  behind a slow echo.
+- **`--under-load` replaces the plain echo, down and up**, and refuses `--count` and `--size` (64):
+  the plain measures beside the load would pass the relay's 64 MiB, and their figures would be of
+  another run. `--connect-runs` comes first and keeps the plain measures. Both need a destination
+  (64 without one). With a node (`node://NAME`, or a member's name), either flag measures it as a
+  host, through the road that `podssh ssh` takes to it, as `podssh cp` reaches a node; `ping` with
+  neither still races the roads and logs in to nothing (T-435).
+- **The shapes are links in user space**, `link:DELAY:RATE:QUEUE:LOSS:SEED` of
+  `scripts/fake_shape.py`, each way: the bytes wait for the rate behind those before them, then
+  the delay; `profile:far`, `cellular`, `wifi` and `slow` are osewa's four. The stand-in relay's
+  `--mode` and the stand-in proxy's new `--shape` (`scripts/fake-proxy.py`) take them, and through
+  the proxy each road of podssh is shaped as its `HTTPS_PROXY` carries it (rule 2), OpenSSH through
+  a CONNECT as its ProxyCommand. Where osewa names no buffer, the queue is netem's default limit of
+  1000 full packets (1.5 MB); its deep buffer is 5 MB, 4 s at 10 Mbit/s. A full queue makes the
+  reader wait where netem would drop: the kernel's buffers then hold the rest, as a sender's own
+  buffer holds what its window let out, so on one SSH connection a key waits behind the same bytes,
+  the SSH window's. A lost segment arrives a round trip late when bytes follow it, else after the
+  larger of two round trips and 200 ms, and each byte after it waits, as in one TCP stream; the
+  halving of the sender's window is not shaped, so a lossy link's bulk reads faster here than
+  through netem, and item 4's run is the reference for it. Lost: `tc netem` (root and
+  `CAP_NET_ADMIN`, T-203's Decision); a loss that drops bytes, which a TCP stream never shows.
+- **The rows of iroh and DERP** are not run by `scripts/feel-matrix.py`, which says so in each row:
+  `ping` reaches a host through `transport::reach` or a node's roads, an `iroh:` or `derp:` ticket
+  runs its whole session in `podssh ssh`'s own code, and a local iroh relay or DERP server is a
+  Rust test's alone. They wait in this entry (item 3).
+
 ## Prove
 
 ```sh
 cargo test -p podssh-cli --test ping
+cargo test -p podssh-cli --lib ping::
+sh scripts/plant-each.sh --here t660-samples-dropped t660-warmup-counted
+python3 scripts/feel-matrix.py target/release/podssh
 ```
 
 A new test: `--under-load` through a shaped stand-in reads an echo above the idle one, and the
-plants (the samples dropped, the warm-up counted) are caught.
+plants (the samples dropped, the warm-up counted) are caught. The matrix writes each cell's raw
+file under `.work/feel/`, and `docs/STATUS.md` gets its figures with the command.
+
+## Done
+
+Partial, 2026-11-04 (merged from its draft, `2430fac`; the draft's notes, in its words: "the link
+and the profiles of `scripts/fake_shape.py` (its timing model checked with Python alone: a key
+behind 512 KiB at 10 Mbit/s came after 450 ms, an idle one after 30 ms, a bounded queue held its
+reader)").
+
+- `cargo test -p podssh-cli --lib ping::`: 14 passed. `cargo test -p podssh-cli --test ping --test
+  man_flag_parity --test man_page --test flag_table`: 9, 6, 11 and 16 passed. `sh
+  scripts/plant-each.sh --here t660-samples-dropped t660-warmup-counted`: 2 caught. `cargo clippy
+  -p podssh-cli --all-targets -D warnings`: clean; rustfmt: one test's lines joined.
+- `python3 scripts/feel-matrix.py target/x86_64-unknown-linux-musl/release/podssh --runs 3` (a
+  release build of this commit, OpenSSH 9.6p1 as the reference, on a cloud session's loopback):
+  each row of podssh and OpenSSH ran, exit 0. The echo's p50 beside the download, against
+  OpenSSH's on the same link: cellular (60 ms, 10 Mbit/s, a deep buffer) 300 ms by `--direct`, 254
+  ms through podssh's relay role and 255 ms through a node, against 1,631 ms; slow (100 ms, 1
+  Mbit/s, 1% loss) 2,963 ms, 2,779 ms and 2,666 ms, against 16,277 ms; wifi 148 ms, 124 ms and 121
+  ms, against 809 ms; far (120 ms, 50 Mbit/s) 122 ms by each, against 326 ms. Idle, each road's
+  echo is the link's round trip. A cold connect with `true`, p50: cellular 514 ms `--direct`, 771
+  ms through the role, 946 ms through a node, against OpenSSH's 614 ms. So podssh's 512 KiB window
+  already holds a key four to six times nearer the idle echo than OpenSSH's 2 MiB, and still five to
+  forty times the idle echo on the slow links: T-661's work. The raw files are under `.work/feel/`.
+- Waits, so the entry stays partial: the rows of iroh and DERP (the matrix says why each did not
+  run), and item 4, osewa's release binary beside podssh and OpenSSH on a GitHub Actions runner
+  with `tc netem`.

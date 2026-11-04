@@ -7,7 +7,7 @@ Usage: fake-proxy.py --port-file FILE --log FILE
                      [--map NAME=HOST:PORT ...] [--answer NAME=STATUS ...]
                      [--from ADDRESS] [--move SECONDS:ADDRESS]
                      [--stop-after SECONDS] [--cut-every SECONDS]
-                     [--pause AFTER:FOR] [--start-file FILE]
+                     [--pause AFTER:FOR] [--start-file FILE] [--shape MODE]
 
 `--map` sends `CONNECT NAME:any-port` to HOST:PORT; `--answer` makes the
 proxy answer CONNECT to NAME with STATUS (a 5xx, say) instead. Any other name
@@ -25,13 +25,19 @@ with RST, and new tunnels go on (T-173). `--pause` is a stall that ends:
 AFTER seconds after the first tunnel, each byte of each tunnel, both ways,
 waits until FOR seconds have passed (T-156). With `--start-file`, these
 clocks start when FILE appears, in place of the first tunnel: a test puts a
-fault in the middle of a transfer.
+fault in the middle of a transfer. `--shape` shapes each tunnel's bytes, each
+way, as a mode of scripts/fake_shape.py does: `profile:NAME`, one of osewa's
+lab links (far, cellular, wifi, slow), a `link:`, a `delay:` or a `rate:`, so
+that a road through the proxy meets a path's delay, rate and loss (T-660).
 """
 
 import argparse
 import asyncio
+import functools
 import os
 import time
+
+from fake_shape import Shaper, link_of
 
 args = None
 # When the clocks of --move, --stop-after and --pause start: the first
@@ -101,7 +107,15 @@ async def cut_every():
         log(f"cut {cut}: {len(writers) // 2} open tunnels ended with RST (--cut-every)")
 
 
-async def pipe(reader, writer, old):
+async def sent(writer, data):
+    writer.write(data)
+    await writer.drain()
+
+
+async def pipe(reader, writer, old, way):
+    # --shape: this way's bytes through a link of their own, its loss seeded
+    # apart from the other way's.
+    shaper = Shaper(functools.partial(sent, writer), args.shape, time.monotonic(), way) if args.shape else None
     try:
         while data := await reader.read(65536):
             if old and moved():
@@ -109,11 +123,17 @@ async def pipe(reader, writer, old):
                 # tells either end.
                 await asyncio.Event().wait()
             await paused()
-            writer.write(data)
-            await writer.drain()
+            if shaper is None:
+                await sent(writer, data)
+            else:
+                await shaper.put(data)
+        if shaper is not None:
+            await shaper.flush()
     except OSError:
         pass
     finally:
+        if shaper is not None:
+            shaper.task.cancel()
         try:
             writer.close()
         except Exception:  # noqa: BLE001
@@ -166,7 +186,7 @@ async def handle(reader, writer):
     pair = {writer, up_writer}
     tunnels.update(pair)
     try:
-        await asyncio.gather(pipe(reader, up_writer, old), pipe(up_reader, writer, old))
+        await asyncio.gather(pipe(reader, up_writer, old, 1), pipe(up_reader, writer, old, 0))
     finally:
         tunnels.difference_update(pair)
 
@@ -184,7 +204,13 @@ async def main():
     parser.add_argument("--cut-every", type=float, default=None)
     parser.add_argument("--pause", default=None)
     parser.add_argument("--start-file", default=None)
+    parser.add_argument("--shape", default=None)
     args = parser.parse_args()
+    if args.shape is not None:
+        try:
+            link_of(args.shape)
+        except ValueError as e:
+            parser.error(f"--shape {e}")
     if args.pause is not None:
         after, held = args.pause.split(":", 1)
         args.pause = (float(after), float(held))

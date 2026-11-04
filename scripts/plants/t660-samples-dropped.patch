@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ping/load.rs
++++ b/crates/podssh-cli/src/ping/load.rs
+@@ -58,6 +58,8 @@ pub async fn measure(handle: &Handle<Client>) -> Result<UnderLoad, Failed> {
+     if download.ended().is_none() {
+         let (before, from) = (download.bytes(), Instant::now());
+         under.loaded = keys::typed(&writer, &mut reader, KEYS, started).await?;
++        let most = under.idle.iter().map(|k| k.echo).max().unwrap_or_default();
++        under.loaded.retain(|k| k.echo <= most);
+         let to = download.ended().map_or_else(Instant::now, |end| end.min(Instant::now()));
+         under.typing = (download.bytes() - before, to.saturating_duration_since(from));
+     }

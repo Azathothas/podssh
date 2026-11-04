@@ -1,0 +1,11 @@
+# T-660: the keys under load start with the download, so the keys of its
+# warm-up, before the path's queue is full, are counted as keys under load;
+# the test through the shaped stand-in, which reads that the first key went
+# 3 s after the download started, must fail.
+ENTRY=T-660
+GROUP=cli-tests
+EXPECT='test ping_feel::under_load_through_a_shaped_stand_in_reads_an_echo_above_the_idle_one \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ping -- ping_feel::under_load_through_a_shaped_stand_in_reads_an_echo_above_the_idle_one'
+# The stand-in relay is Python, and its certificates openssl's.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
+LIMIT=1800

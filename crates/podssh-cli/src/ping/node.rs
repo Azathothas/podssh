@@ -26,7 +26,9 @@ use crate::ssh::roads::probe::{Measured, Measures};
 pub fn run(args: &PingArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let Some(text) = args.ssh.destination.as_deref() else { return super::run(args, out, err) };
     let env = Env::from_process();
-    if !is_node(text, &env) {
+    // What a user feels (T-660) logs in, through the road that `podssh ssh`
+    // takes to the node, where the race alone logs in to nothing.
+    if !is_node(text, &env) || args.under_load || args.connect_runs.is_some() {
         return super::run(args, out, err);
     }
     // A node's roads race once, and the measures of a host are no road's.

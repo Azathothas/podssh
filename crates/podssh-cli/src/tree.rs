@@ -312,6 +312,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             count: matches.get_one::<String>("count").cloned(),
             target: matches.get_one::<String>("target").cloned(),
             json: matches.get_flag("json"),
+            under_load: matches.get_flag("under-load"),
+            connect_runs: matches.get_one::<String>("connect-runs").cloned(),
             refused,
         }));
     }

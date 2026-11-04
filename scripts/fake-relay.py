@@ -41,6 +41,11 @@ Modes:
                    from a generator seeded with SEED, so that a run repeats;
                    a chunk never passes the one before it
   rate:BYTES       each way, BYTES a second at most
+  link:DELAY:RATE:QUEUE:LOSS:SEED
+                   each way, a link of scripts/fake_shape.py: the bytes wait
+                   for RATE behind those before them in a queue of QUEUE
+                   bytes, then DELAY; LOSS delays a lost segment (T-660)
+  profile:NAME     one of osewa's four links: far, cellular, wifi, slow
   cut:BYTES        after BYTES both ways together, the TCP connection to the
                    client ends, with no Close frame: a host that stops
   pause:AFTER:FOR  AFTER seconds after the upgrade, each byte both ways,

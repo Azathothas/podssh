@@ -40,6 +40,13 @@ impl Summary {
         let round = |v: f64| (v * 1000.0).round() / 1000.0;
         serde_json::json!({ "min_ms": round(self.min), "p50_ms": round(self.p50), "p95_ms": round(self.p95), "max_ms": round(self.max) })
     }
+
+    /// [`Summary::json`] with `samples_ms`, the raw times it ranked (T-660).
+    pub fn json_of(&self, samples: &[Duration]) -> serde_json::Value {
+        let mut value = self.json();
+        value["samples_ms"] = samples_json(samples);
+        value
+    }
 }
 
 /// `--size`: bytes, or a number with K, M or G (KiB, MiB, GiB), more than
@@ -75,6 +82,17 @@ pub fn mib(bytes: u64) -> String {
     format!("{:.1} MiB", bytes as f64 / (1024.0 * 1024.0))
 }
 
+/// A time in milliseconds, to the microsecond, as the JSON gives each.
+pub fn ms(d: Duration) -> f64 {
+    (d.as_secs_f64() * 1_000_000.0).round() / 1000.0
+}
+
+/// The raw samples, in the order they came, in milliseconds (T-660): a
+/// reader can rank them again, and a summary alone hides what it dropped.
+pub fn samples_json(samples: &[Duration]) -> serde_json::Value {
+    serde_json::Value::Array(samples.iter().map(|d| ms(*d).into()).collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,5 +120,12 @@ mod tests {
         assert_eq!((one.min, one.p50, one.p95, one.max), (7.0, 7.0, 7.0, 7.0));
         assert_eq!(Summary::of(&[]), None);
         assert_eq!(s.shown(), "min 1.0, p50 5.0, p95 10.0, max 10.0 ms");
+    }
+
+    #[test]
+    fn the_raw_samples_keep_their_order_and_each_one() {
+        let samples = [Duration::from_micros(2_500), Duration::from_millis(1), Duration::from_nanos(1_234_567)];
+        assert_eq!(samples_json(&samples), serde_json::json!([2.5, 1.0, 1.235]));
+        assert_eq!(samples_json(&[]), serde_json::json!([]));
     }
 }

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**624 entries: 123 open, 5 partial, 2 blocked, 494 done.**
+**624 entries: 122 open, 6 partial, 2 blocked, 494 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
-| P2 | 34 | 2 | 0 | 238 | 274 |
+| P2 | 33 | 3 | 0 | 238 | 274 |
 | P3 | 89 | 1 | 2 | 191 | 283 |
-| **All** | 123 | 5 | 2 | 494 | 624 |
+| **All** | 122 | 6 | 2 | 494 | 624 |
 
 ## Entries
 
@@ -690,7 +690,7 @@ repository and CI).
 | [T-648](reverse.md) | P2 | M | none | feature | open | A node's socket queues each session's bytes in one line of 256 places, so one session's backlog delays each other session's |
 | [T-649](relay.md) | P3 | L | M10 | feature | open | The relay role ends TLS for each name on its listener, so a node's own HTTPS service cannot be published by its name |
 | [T-650](reverse.md) | P3 | L | M10 | feature | open | Each operator's leg waits for its node's `ready` before its first byte: no session opened ahead for a node that asks for spares |
-| [T-660](machine.md) | P2 | M | M10 | measurement | open | What a user feels, measured on each road: a key's echo while a download runs, a cold connect and its first command, a bulk copy while one types |
+| [T-660](machine.md) | P2 | M | M10 | measurement | partial | What a user feels, measured on each road: a key's echo while a download runs, a cold connect and its first command, a bulk copy while one types |
 | [T-661](ssh.md) | P2 | M | M10 | feature | open | Typing-aware flow control in podssh's SSH client: a bulk channel's window held to a round trip and 40 ms while a key waits |
 | [T-662](ssh.md) | P2 | S | M10 | feature | open | SSH windows that grow to the path where nobody types, to a cap of each road |
 | [T-663](resume.md) | P2 | S | M10 | feature | open | Liveness in round trips: a spare link after the larger of three round trips and 1 s, and a check when the host wakes |

@@ -1221,7 +1221,7 @@ reach, as `tailscale status`, `ping` and `netcheck` show.
 - **`ping` is entered at `crates/podssh-cli/src/ping/node.rs`**, which hands each destination that
   is no node to `ping::run`; a destination is a node when `podssh ssh` would read it as one
   (`node://NAME`, a member's name with the role node, a group of one of them). Lost: a branch
-  inside `ping::run`, whose lines entries cite (`crates/podssh-cli/src/ping/mod.rs:156-161`).
+  inside `ping::run`, whose lines entries cite (`crates/podssh-cli/src/ping/mod.rs:167-172`).
 - **The record of the roads is the client's**, `net-roads.json` in the cache, by the node's label:
   each race's winner writes it (`road_link::winner`, so each resume of `ssh` too), and so do
   `ping`, the pair's road alone in `crates/podssh-cli/src/ssh/node.rs` (`ssh` and the copies take
@@ -7577,7 +7577,7 @@ roads, and a carrier must be one of them.
   (`crates/podssh-cli/src/man/notes_pair.rs:274-275`), and needs the net's role exit, signed by
   its owner (`:272-273`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
-  (`docs/STATUS.md:96`).
+  (`docs/STATUS.md:97`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node
   of the exit runs there with `--carrier exec:...`, and the closed host runs the client,
   `podssh exit NAME --listen 127.0.0.1:1080 --carrier stdio`.

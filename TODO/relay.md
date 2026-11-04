@@ -188,7 +188,7 @@ sh scripts/dev.sh check                                   # interop: the stand-i
 cargo test -p podssh-cli --test relay_live -- --ignored   # the live relay, on request
 ```
 
-`scripts/fake-relay.py` (it serves `/health` and the mint: `:147-156`) gets `/relays.json`,
+`scripts/fake-relay.py` (it serves `/health` and the mint: `:152-161`) gets `/relays.json`,
 `/trace` and `/llms-full.txt`. In the gate, `relay status` exits 0 with the stand-in's version;
 `relay trace` sends `X-Relay-Token`, which the stand-in requires; a HOST of `a&b` exits 64 before
 any connection. Planted defect: leave the header out; the stand-in answers 403, the test fails.
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:323`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:324`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -3155,7 +3155,7 @@ URL written into each result, and a download target that is no test target of `A
 
 - Read: `podssh ping` times the token, the dial, TLS and the upgrade of one host, then its
   WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-150`), one host after another
-  (`crates/podssh-cli/src/ping/mod.rs:156-161`), with `--json`.
+  (`crates/podssh-cli/src/ping/mod.rs:167-172`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
   (`crates/podssh-cli/src/doctor/relay_checks.rs:197-228`); `--quick` keeps the relay's sections and
   `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:140-144`).
@@ -3310,7 +3310,7 @@ working hosts, which a measurement can make.
   latency.
 - Read: `podssh ping`'s leg times the token, the dial, TLS and the upgrade of one host, and its
   WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-150`), and `ping` runs the legs one after
-  another (`crates/podssh-cli/src/ping/mod.rs:156-161`); the module is private to `ping`
+  another (`crates/podssh-cli/src/ping/mod.rs:167-172`); the module is private to `ping`
   (`crates/podssh-cli/src/ping/mod.rs:9`).
 - Read: the record of failures is a file of the cache, `crates/podssh-relay/src/failures.rs:27`
   says "pub const FILE: &str", and `order` keeps the list's order within each of its groups
@@ -3827,10 +3827,10 @@ changes with the edge", which is not true of the role: it has no edge and gives 
   did not change.
 - Read: the manual's note of `relay info` names `relay status` and `ping` alone
   (`crates/podssh-cli/src/man/notes_relay.rs`, lines 72-78 at `366f511`), and so does
-  `docs/cli.md:3241-3247`.
+  `docs/cli.md:3250-3256`.
 - Read: `relay status` and `ping` time the hosts of the run's list, the default host and three
   others at most (`crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize =
-  3;"; `crates/podssh-cli/src/relay_diag.rs:88-97`, `crates/podssh-cli/src/ping/mod.rs:156-161`),
+  3;"; `crates/podssh-cli/src/relay_diag.rs:88-97`, `crates/podssh-cli/src/ping/mod.rs:167-172`),
   not the 37 hosts of the pool, which only `relay rank` measures.
 - Read: the order that a run of the default list takes, in a word, is `order_now`
   (`crates/podssh-relay/src/rank_list.rs:195-212`), and the list in that order `placed_now`
@@ -3891,7 +3891,7 @@ info` with `--relay-host` reads the order named, and `--json` has `relay_order` 
 
 - 2026-11-04: the Premise cites the note of `relay info` in `docs/cli.md` at lines 3241-3247 at
   `366f511`, which hold `relay join` and `relay spec`; the note was at lines 3281-3287 at
-  `366f511`, where its words were as the Premise says, and it begins at `docs/cli.md:3281`. Each
+  `366f511`, where its words were as the Premise says, and it begins at `docs/cli.md:3290`. Each
   other citation of the Premise holds. The Premise's citations of the lines that this change
   rewrote read at `366f511` now, as they no longer name those words.
 - The approach's test of the role's document (`serve::docs::relays`) needs a `Config` of the role,

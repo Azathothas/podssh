@@ -2882,6 +2882,15 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   run only for a destination.
 - `--size` is 8 MiB each way by default, and at most 30 MiB, so that both
   ways stay under the relay's 64 MiB for one session (`docs/relay.md`).
+- What a user feels (T-660), with a destination: `--under-load` types 40
+  keys 150 ms apart through `cat`, idle, then from 3 s into a download of
+  60 MiB (`head -c`) on a second channel of the same connection, and gives
+  the echo's p50 and p95 of each; it takes the place of the plain echo and
+  rates, and refuses `--count` and `--size` (64). `--connect-runs N` (1 to
+  20) times N cold connects, each to the exit status of `true`. A node is
+  measured as a host with either flag. `--json` carries each raw sample.
+  `scripts/feel-matrix.py` runs each road through the four links of
+  `scripts/fake_shape.py` (`profile:far`, `cellular`, `wifi` and `slow`).
 - Each step has a limit: 20 s for a step to the relay, 60 s for a wait of a
   measure, and 600 s for the whole run. A program that the host lacks ends
   the run with its status (127), never with a hang, also when the status

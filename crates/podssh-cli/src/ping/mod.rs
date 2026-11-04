@@ -39,6 +39,9 @@ pub struct PingArgs {
     /// Where the relay leg goes, `HOST:PORT`.
     pub target: Option<String>,
     pub json: bool,
+    /// `--under-load` and `--connect-runs` (T-660).
+    pub under_load: bool,
+    pub connect_runs: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -68,6 +71,10 @@ struct Far {
     unreached: Option<i32>,
     echo: Option<Summary>,
     echoes: usize,
+    /// The echo's raw times, and the measures of what a user feels (T-660).
+    echo_samples: Vec<Duration>,
+    connect: Option<cold::Cold>,
+    under: Option<load::UnderLoad>,
     down: Option<(String, Result<Duration, String>)>,
     up: Option<(String, Result<Duration, String>)>,
     /// The status of the first remote program that failed.
@@ -93,6 +100,10 @@ pub fn run(args: &PingArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
             let why = format!("--count {}: from 1 to {MAX_COUNT}", args.count.as_deref().unwrap_or_default());
             return Refusal::usage(why).report("ping", err);
         }
+    };
+    let plan = match feel::Plan::read(args) {
+        Ok(plan) => plan,
+        Err(why) => return Refusal::usage(why).report("ping", err),
     };
     let target = match args.target.as_deref() {
         Some(text) => match crate::proxy::parse_target(Some(text), None) {
@@ -164,7 +175,7 @@ pub fn run(args: &PingArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
             }
         }
         if let Some(resolved) = &resolved {
-            let far = destination(resolved, size, count, &log).await;
+            let far = destination(resolved, plan, size, count, &log).await;
             report.code = far_code(&far);
             say_far(&far, size, args.json, out);
             report.far = Some(far);
@@ -206,12 +217,23 @@ fn far_code(far: &Far) -> i32 {
     }
 }
 
-/// Log in, then the echo and the throughput.
-async fn destination(resolved: &resolve::Resolved, size: u64, count: usize, log: &Arc<Log>) -> Far {
+/// The cold connects when asked, then log in: the echo and the throughput,
+/// or the keys under load in their place.
+async fn destination(resolved: &resolve::Resolved, plan: feel::Plan, size: u64, count: usize, log: &Arc<Log>) -> Far {
     let opts = &resolved.options;
     let mut far = Far { destination: format!("{}@{}", opts.user, opts.destination.host), ..Far::default() };
+    if let Some(runs) = plan.connect_runs {
+        match cold::runs(resolved, runs, log).await {
+            Ok(cold) => far.connect = Some(cold),
+            Err(failed) => {
+                far.unreached = Some(failed.code);
+                far.failed = Some(failed.why);
+                return far;
+            }
+        }
+    }
     let started = Instant::now();
-    let reached = match crate::ssh::transport::reach(resolved, log).await {
+    let reached = match feel::reach(resolved, log).await {
         Ok(reached) => reached,
         Err(not) => {
             far.unreached = Some(not.code);
@@ -228,10 +250,35 @@ async fn destination(resolved: &resolve::Resolved, size: u64, count: usize, log:
     };
     far.login = Some(started.elapsed());
     let handle = handles.last().expect("the destination");
+    if plan.under_load {
+        match load::measure(handle).await {
+            Ok(under) => far.under = Some(under),
+            Err(why) => {
+                far.status = why.status();
+                far.failed = Some(format!("under load: {why}"));
+            }
+        }
+    } else {
+        plain(handle, size, count, &mut far).await;
+    }
+    podssh_ssh::run::disconnect_all(&handles).await;
+    drop(handles);
+    crate::ssh::transport::settle(reached.layer).await;
+    far
+}
+
+/// The plain measures (T-053): the echo, then the throughput down and up.
+async fn plain(
+    handle: &podssh_ssh::russh::client::Handle<podssh_ssh::handler::Client>,
+    size: u64,
+    count: usize,
+    far: &mut Far,
+) {
     match far::echo(handle, count).await {
         Ok(samples) => {
             far.echoes = samples.len();
             far.echo = Summary::of(&samples);
+            far.echo_samples = samples;
         }
         Err(why) => {
             far.status = why.status();
@@ -246,10 +293,6 @@ async fn destination(resolved: &resolve::Resolved, size: u64, count: usize, log:
         far.status = far.status.or(result.as_ref().err().and_then(far::Failed::status));
         far.up = Some((command, result.map_err(|e| e.to_string())));
     }
-    podssh_ssh::run::disconnect_all(&handles).await;
-    drop(handles);
-    crate::ssh::transport::settle(reached.layer).await;
-    far
 }
 
 fn say_leg(leg: &relay::Leg, json: bool, out: &mut dyn Write) {
@@ -269,6 +312,10 @@ fn say_far(far: &Far, size: u64, json: bool, out: &mut dyn Write) {
         }
         (None, Some(why)) => lines.push(format!("ssh {}: {why}", far.destination)),
         (None, None) => {}
+    }
+    lines.extend(far.connect.as_ref().and_then(cold::Cold::line));
+    if let Some(under) = &far.under {
+        lines.extend(under.lines());
     }
     if let Some(echo) = &far.echo {
         lines.push(format!("echo (cat), {} bytes: {}", far.echoes, echo.shown()));
@@ -308,7 +355,9 @@ fn json(report: &Report, size: u64, count: usize) -> serde_json::Value {
         serde_json::json!({
             "destination": f.destination,
             "login_ms": f.login.as_ref().map(ms),
-            "echo": f.echo.map(|e| e.json()),
+            "echo": f.echo.map(|e| e.json_of(&f.echo_samples)),
+            "connect": f.connect.as_ref().map(cold::Cold::json),
+            "under_load": f.under.as_ref().map(load::UnderLoad::json),
             "down": measure(&f.down),
             "up": measure(&f.up),
             "error": f.failed,
@@ -328,3 +377,10 @@ fn json(report: &Report, size: u64, count: usize) -> serde_json::Value {
 // A node's roads, each with its time, and the one that answered first
 // (T-435); dispatch enters `ping` there.
 pub(crate) mod node;
+
+// What a user feels (T-660): cold connects, and keys on a beat, idle and
+// beside a download on the same connection.
+mod cold;
+mod feel;
+mod keys;
+mod load;
