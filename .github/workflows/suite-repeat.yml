@@ -45,6 +45,14 @@ on:
         description: "A filter of test names, or empty for each"
         required: false
         default: ""
+      # An experiment that is no test of the gate (T-465's probe of a
+      # platform): its tests are ignored, and say what they count.
+      ignored:
+        description: "Run the ignored tests alone, each with its output"
+        required: false
+        default: "no"
+        type: choice
+        options: ["no", "yes"]
 
 permissions:
   contents: read
@@ -82,6 +90,7 @@ jobs:
           FEATURES: ${{ inputs.features }}
           TEST: ${{ inputs.test }}
           FILTER: ${{ inputs.filter }}
+          IGNORED: ${{ inputs.ignored }}
         run: |
           set -u
           case $RUNS in ''|*[!0-9]*) echo "runs must be a number, not $RUNS"; exit 2 ;; esac
@@ -91,9 +100,10 @@ jobs:
           case $FEATURES in *[!a-z0-9,-]*) echo "not a list of features: $FEATURES"; exit 2 ;; esac
           case $TEST in *[!a-z0-9_]*) echo "not a test target's name: $TEST"; exit 2 ;; esac
           case $FILTER in *[!A-Za-z0-9_:]*) echo "not a filter of test names: $FILTER"; exit 2 ;; esac
+          case $IGNORED in no|yes) ;; *) echo "ignored is yes or no, not $IGNORED"; exit 2 ;; esac
           {
             echo "RUNS=$RUNS"; echo "PACKAGE=$PACKAGE"; echo "FEATURES=$FEATURES"
-            echo "TEST=$TEST"; echo "FILTER=$FILTER"
+            echo "TEST=$TEST"; echo "FILTER=$FILTER"; echo "IGNORED=$IGNORED"
           } >> "$GITHUB_ENV"
       - name: the build of the suite
         shell: bash
@@ -113,8 +123,9 @@ jobs:
           set -- --locked -p "$PACKAGE"
           [ -n "$FEATURES" ] && set -- "$@" --features "$FEATURES"
           [ -n "$TEST" ] && set -- "$@" --test "$TEST"
-          set -- "$@" --no-fail-fast
-          [ -n "$FILTER" ] && set -- "$@" -- "$FILTER"
+          set -- "$@" --no-fail-fast --
+          [ -n "$FILTER" ] && set -- "$@" "$FILTER"
+          [ "$IGNORED" = yes ] && set -- "$@" --ignored --nocapture
           limit=""
           command -v timeout > /dev/null 2>&1 && limit="timeout 3600"
           failed=0

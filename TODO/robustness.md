@@ -1436,6 +1436,22 @@ the test inherited would hold an end open only beside them. `cargo test -p podss
 pipe`: 10 passed here; by hand, 300,000 bytes to a Python AF_UNIX server: both lines said, the
 digest the same.
 
+2026-11-04, the repeats with `-v`: at `d7e4985`, Windows' suite (run 41792149853) and the test alone
+(run 41792153337), 50 of 50 each; at `22da36c`, Windows' suite (run 41793576380) and macOS's (run
+41793580299) failed 2 runs in 50 each, macOS's test alone passed 50 of 50 (run 41795256104), and
+Windows' test alone failed 2 in 50 (run 41795259467): beside no other test, so no handle that
+another child inherited holds an end. Each failure on Windows: podssh said "A's input ended after
+1000000 bytes; the other side's write half shut down", and the server read the 1,000,000 bytes and
+no end. On macOS the server's input ended and its answer had not gone when the test read its
+words, which fits an end that came only with the kill of podssh at the limit. So podssh's
+shutdown was taken and its peer heard no end, on two systems. The test now says the time of each
+step (the last read, the end, the answer, the kill), in `crates/podssh-cli/tests/pipe_seen/mod.rs`;
+at `501999f`, Windows' suite and macOS's passed 50 of 50 each (runs 41800167739, 41800171933). A
+probe of the platform, `crates/podssh-cli/tests/af_unix_eof.rs` (Windows, ignored; run by
+`suite-repeat.yml` with `ignored=yes`), sends 1 MB and shuts the sending half 100 times by a
+blocking client and 100 times by tokio's, as podssh does, and counts the ends lost: it tells
+Windows' AF_UNIX from podssh's road to it.
+
 # T-564: podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE`
 
 **Source:** GitHub #111 (a tester, 2026-11-02).
