@@ -337,11 +337,13 @@ fn relay() -> Vec<Block> {
                 "With no --relay-host, no PODSSH_RELAY and no RelayHost in the settings file, podssh tries {} first, \
                  then up to {} hosts of its \
                  pool. The relay publishes the pool; podssh caches it, and fetches it again at the next token \
-                 mint once it is {} days old. Until a pool is cached, these hosts are the pool: {}.",
+                 mint once it is {} days old. Until a pool is cached, these hosts are the pool: {}. Then up to {} \
+                 hosts of other deployments that a signed list names, each with its own token (see podssh relay).",
                 relay::DEFAULT_RELAY_HOST,
                 relay::MAX_ALTERNATES,
                 pool::STALE_AFTER_MS / (24 * 3600 * 1000),
-                pool::SEED.join(", ")
+                pool::SEED.join(", "),
+                pool::kept::MAX_OTHERS
             ),
         ),
         item(

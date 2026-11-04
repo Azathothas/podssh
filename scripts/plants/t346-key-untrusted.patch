@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/pool/signed.rs
++++ b/crates/podssh-relay/src/pool/signed.rs
+@@ -265,7 +265,7 @@
+ /// text, the form, and a life that holds now and is not too long. The
+ /// serial is the cache's to compare ([`super::kept`]).
+ pub fn check(signed: &Signed, keys: &Keys, now_s: i64) -> Result<Checked, Refused> {
+-    let by = keys.trusts(&signed.key).ok_or(Refused::Untrusted(signed.key))?;
++    let by = keys.trusts(&signed.key).unwrap_or("any key");
+     let doc = verified(signed)?;
+     if doc.not_after - doc.issued > MAX_LIFE_S {
+         return Err(Refused::TooLong);

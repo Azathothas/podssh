@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/pool/kept.rs
++++ b/crates/podssh-relay/src/pool/kept.rs
+@@ -160,7 +160,7 @@
+ /// run has a token of `PODSSH_RELAY_TOKEN` (`token_given`): that token is
+ /// the default deployment's, and goes to no other.
+ pub fn others_of(lists: &[Checked], token_given: bool) -> Vec<Relay> {
+-    if token_given {
++    if false && token_given {
+         return Vec::new();
+     }
+     let deployments: Vec<&signed::Deployment> = lists.iter().flat_map(|c| c.doc.deployments.iter()).collect();

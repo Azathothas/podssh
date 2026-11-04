@@ -160,6 +160,8 @@ pub mod refuse;
 // `podssh relay pair --code` and `podssh relay join`: pairing by a short code (T-086).
 pub mod relay_cmd;
 mod relay_code;
+// The signed list of deployments: the keys trusted, and its words (T-346).
+mod relay_deployments;
 pub mod relay_diag;
 mod relay_diag_text;
 // How a session that a relay host carried ended, for the record of the

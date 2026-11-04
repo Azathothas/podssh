@@ -54,7 +54,7 @@ pub fn relays(cfg: &Config, head: &Request) -> Value {
         _ => (Value::Null, Value::Null),
     };
     let l = &cfg.limits;
-    json!({
+    let mut doc = json!({
         "service": crate::health::SERVICE,
         "version": cfg.version,
         "you": { "edge_colo": null, "bucket": null },
@@ -81,7 +81,29 @@ pub fn relays(cfg: &Config, head: &Request) -> Value {
             // The probes' own limits, beside the contract's (T-325).
             "probe": super::probe::limits(),
         },
-    })
+    });
+    signed_list(&mut doc);
+    doc
+}
+
+/// The list of deployments that this role signs (T-346), which `podssh
+/// relay serve --deployment` gives once; nothing of a request goes into it,
+/// so the role signs no text that a client chose.
+static LIST: std::sync::OnceLock<crate::pool::signed::Signer> = std::sync::OnceLock::new();
+
+/// Sign the list of `signer` in each `/relays.json` of this process's role;
+/// the first call wins, as a process has one role.
+pub fn sign_list(signer: crate::pool::signed::Signer) {
+    let _ = LIST.set(signer);
+}
+
+/// `doc` with the signed list as `signed`, beside the pool, when the role
+/// has one: each client that trusts its key takes the list's deployments.
+fn signed_list(doc: &mut Value) {
+    if let Some(signer) = LIST.get() {
+        let now_s = i64::try_from(super::tokens::now_ms() / 1000).unwrap_or(0);
+        doc["signed"] = signer.current(now_s);
+    }
 }
 
 /// `/trace`: public alone; the dial of `?target=HOST:PORT` needs a token in

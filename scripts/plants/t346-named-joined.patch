@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/relay.rs
++++ b/crates/podssh-relay/src/relay.rs
+@@ -128,7 +128,7 @@
+ /// that a signed list names (T-346, [`crate::pool::kept::other_hosts`]),
+ /// each once; a list that the user named stays the relay alone.
+ pub fn with_others(mut list: RelayList, others: Vec<Relay>) -> RelayList {
+-    if list.explicit {
++    if false && list.explicit {
+         return list;
+     }
+     for relay in others {

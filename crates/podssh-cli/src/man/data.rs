@@ -259,6 +259,15 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec![podssh_relay::pool::kept::FILE.to_string(), podssh_relay::pool::signed::ROLE_KEY_FILE.to_string()],
+            "The signed lists of relay deployments (T-346), in the cache: the newest list of each trusted key, its \
+             exact text and its signature, as JSON with mode 0600, checked again at each read, so that a run keeps \
+             the other deployments when the default's domain is gone; and the key with which podssh relay serve \
+             --deployment signs its list, in hex with mode 0600, made when it is missing, unless --list-key names \
+             another file."
+                .to_string(),
+        ),
+        (
             vec!["grants-NAME/".to_string()],
             "The grants used once that the node NAME let in (T-226), in the cache: a private directory with a \
              file of mode 0600 for each grant, made create-new and synced before the session comes in, named by \
@@ -400,7 +409,8 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 vec!["$XDG_CONFIG_HOME/podssh/settings".to_string(), crate::settings::BESIDE_BINARY.to_string()]
             },
             "podssh's own settings: RelayHost, RelayAddr (each line adds), RelayFailover, CaFile, SessionLog, \
-             Forwarder, ForwarderFallback and DoctorJobs (the sections of podssh doctor at once), as Keyword value \
+             Forwarder, ForwarderFallback, DoctorJobs (the sections of podssh doctor at once) and RelayKeys (the \
+             keys of a signed list of relay deployments; each line adds), as Keyword value \
              lines, below the flags and the variables. The file of PODSSH_SETTINGS, else the first of these \
              that exists (~/.config/podssh/settings with no XDG_CONFIG_HOME; the second beside the podssh \
              binary); never one of the working directory. A symbolic link, a file of another user than you or \

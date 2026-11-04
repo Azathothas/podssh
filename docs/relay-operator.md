@@ -369,10 +369,21 @@ its client; this deployment serves them once its contract has them.
     Cloudflare stops each road but `--direct`. For a hedge: run a second
     deployment on another provider and under another domain; podssh's own
     relay role on a host of the operator's can be it. In podssh: T-346
-    signs the list of deployments itself, as a release asset that a
-    workflow of podssh's repository signs with Sigstore and that the
-    verifier of `podssh update` checks, so this deployment need not sign
-    one; a net's own relays come in its owner's signed document (T-429).
+    takes hosts outside `ssh.relay.ajam.dev` from a list that an Ed25519
+    key signs, which `/relays.json` carries as its field `signed`
+    ([relay.md](relay.md), "A signed list of deployments"), and
+    `podssh relay serve --deployment` signs such a list with a key of its
+    own. What it needs of this deployment, when the operator wants it: two
+    Ed25519 keys, the current one and the next, kept offline, whose
+    fingerprints a release of podssh compiles in (`BUILT_IN` of
+    `podssh_relay::pool::signed`; none on 2026-11-04); a list of the
+    second deployment, signed by the current key (a role run once with
+    `--list-key` on the offline key, or `openssl pkeyutl -sign -rawin`
+    over `podssh-relays/1`, a zero byte and the text), which the Worker
+    serves in `/relays.json` as it came, signed again before its
+    `not_after` with a higher serial. A list of the role, or of a key that
+    a user trusts, needs none of it; a net's members with the role `relay`
+    vouch for their own keys in its owner's signed document (T-429).
 
 ## Larger work of the relay project
 

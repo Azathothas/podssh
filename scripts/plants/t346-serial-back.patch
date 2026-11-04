@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/pool/kept.rs
++++ b/crates/podssh-relay/src/pool/kept.rs
+@@ -97,7 +97,7 @@
+     let at = lists.lists.iter().position(|e| kept_serial(e, &signed.key).is_some());
+     if let Some(i) = at {
+         let kept = kept_serial(&lists.lists[i], &signed.key).unwrap_or(0);
+-        if checked.doc.serial < kept {
++        if false && checked.doc.serial < kept {
+             return Err(Refused::Older { serial: checked.doc.serial, kept });
+         }
+         if checked.doc.serial == kept {

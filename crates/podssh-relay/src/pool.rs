@@ -5,7 +5,11 @@
 //! 72 h), so it costs no extra connection on an ordinary run. Until a pool is
 //! cached, the default relay's alternates come from [`SEED`]. Only hosts under
 //! the primary relay's own parent domain are accepted, because the token is
-//! sent to them.
+//! sent to them. A host of another deployment comes from a signed list alone
+//! ([`signed`], kept by [`kept`], T-346), and mints a token of its own.
+
+pub mod kept;
+pub mod signed;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -184,9 +188,15 @@ pub async fn refresh(
     let mut tls =
         open_tls(&relay.host, relay.port, &relay.host, trust, proxy, timeout).await.map_err(|e| e.to_string())?;
     let host_header = if relay.port == 443 { relay.host.clone() } else { dial::authority(&relay.host, relay.port) };
-    let (hosts, limits) = tokio::time::timeout(timeout, request_with_limits(&mut tls, &host_header, primary))
+    let body = tokio::time::timeout(timeout, body_of(&mut tls, &host_header))
         .await
         .map_err(|_| format!("the pool request took more than {} s", timeout.as_secs()))??;
+    // The signed list holds by its key, whichever host served it, also one
+    // whose pool names no host of the primary's deployment (T-346).
+    if let Some(Ok(list)) = signed::Signed::of_body(&body) {
+        let _ = kept::take(&list, &signed::Keys::of_process(), now_ms());
+    }
+    let (hosts, limits) = (parse_pool(&body, primary)?, parse_limits(&body));
     let body = serde_json::to_vec(&CachedPool { fetched_ms: now_ms(), hosts: hosts.clone(), limits })
         .map_err(|e| e.to_string())?;
     cache::store_file(&file_name(primary), &body)?;
@@ -211,6 +221,16 @@ pub async fn request_with_limits<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    let body = body_of(stream, host_header).await?;
+    Ok((parse_pool(&body, primary)?, parse_limits(&body)))
+}
+
+/// The body of `/relays.json`, asked for over `stream`, up to [`MAX_BODY`]
+/// bytes: the pool, the limits and the signed list read it.
+pub async fn body_of<S>(stream: &mut S, host_header: &str) -> Result<Vec<u8>, String>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let accept = [("Accept", "application/json")];
     let response = http::exchange(stream, "GET", host_header, "/relays.json", &accept, b"", MAX_BODY)
         .await
@@ -218,7 +238,7 @@ where
     if !(200..300).contains(&response.status) {
         return Err(format!("the pool request answered HTTP {}", response.status));
     }
-    Ok((parse_pool(&response.body, primary)?, parse_limits(&response.body)))
+    Ok(response.body)
 }
 
 pub(crate) fn now_ms() -> i64 {

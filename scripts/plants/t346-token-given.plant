@@ -1,0 +1,8 @@
+# T-346: the other deployments join the default list while PODSSH_RELAY_TOKEN
+# gives a token, which is the default deployment's, so that token goes to a
+# deployment that did not mint it; the test of a given token must fail.
+ENTRY=T-346
+GROUP=cli-tests
+EXPECT='test pool::signed::tests::a_token_of_the_environment_takes_no_other_deployment \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib pool'
+LIMIT=1800

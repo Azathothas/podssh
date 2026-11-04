@@ -9,6 +9,7 @@
 //! reverse socket with `1012` first (T-255).
 
 mod certs;
+mod list;
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -45,6 +46,10 @@ pub struct ServeArgs {
     pub acme_directory: Option<String>,
     /// yes or no: the cleartext road beside TLS on the listener (T-326).
     pub cleartext: Option<String>,
+    /// The deployments of the list that `/relays.json` signs, and its key
+    /// file (T-346).
+    pub deployment: Vec<String>,
+    pub list_key: Option<String>,
 }
 
 impl ServeArgs {
@@ -62,6 +67,13 @@ impl ServeArgs {
             acme: get("acme"),
             acme_directory: get("acme-directory"),
             cleartext: get("cleartext"),
+            deployment: matches
+                .try_get_many::<String>("deployment")
+                .ok()
+                .flatten()
+                .map(|v| v.cloned().collect())
+                .unwrap_or_default(),
+            list_key: get("list-key"),
         }
     }
 
@@ -125,6 +137,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     }
     crate::pipe::listen::allowed()?;
     let certs = certs::Certs::open(source)?;
+    // The list of deployments that its /relays.json signs (T-346).
+    let listed = list::install(s)?;
     let acceptor = podssh_ws::tls_server::acceptor_for(certs.served.clone(), certs.alpn()).map_err(Refusal::config)?;
     let tokens = serve::tokens::Tokens::random().map_err(Refusal::config)?;
     let pairs = serve::reverse::Pairs::open(s.pairs.as_deref().map(Into::into)).map_err(Refusal::config)?;
@@ -158,7 +172,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let clear = if cleartext { ", the cleartext road beside TLS" } else { ", TLS alone" };
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}; {}",
+         {who}{inside}{kept}{through}{clear}{listed}; {}",
         serve::CONTRACT,
         certs.shown
     );

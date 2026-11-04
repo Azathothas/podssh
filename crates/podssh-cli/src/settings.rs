@@ -3,7 +3,8 @@
 //! file has `Keyword value` lines, `#` comments and `Keyword=value` too, as
 //! an `ssh_config` has: `RelayHost`, `RelayAddr` (which adds up), `RelayFailover`
 //! and `CaFile`, `SessionLog` (T-056), `Direct` (T-363), `Forwarder` (T-369), `ForwarderFallback`
-//! (T-370) and `DoctorJobs` (T-511). It is found once for the process: the file that
+//! (T-370), `DoctorJobs` (T-511) and `RelayKeys` (T-346, which adds up). It
+//! is found once for the process: the file that
 //! `PODSSH_SETTINGS` names (`none` names none), else the first that exists
 //! of `$XDG_CONFIG_HOME/podssh/settings` (`~/.config/podssh/settings`, and
 //! `%APPDATA%\podssh\settings` on Windows) and `podssh.settings` next to the
@@ -37,6 +38,7 @@ pub const KEYWORDS: &[(&str, &str)] = &[
     ("Forwarder", "TEMPLATE[,...]: other products' WebSocket forwarders in place of the relay, as --forwarder"),
     ("ForwarderFallback", "yes or no: the forwarders that podssh names after each relay host fails (default yes)"),
     ("DoctorJobs", "N: at most N sections of podssh doctor at once, 1 to 64, as --jobs (default: each at once)"),
+    ("RelayKeys", "KEY[,...]: also trust these keys (SHA256:... or 64 hex digits) for a signed list of relay deployments, as PODSSH_RELAY_KEYS; each line adds to the others"),
 ];
 /// The largest file read.
 const MAX_FILE: u64 = 1 << 20;
@@ -70,6 +72,9 @@ pub struct Defaults {
     pub forwarder_fallback: Option<Value>,
     /// `DoctorJobs`: how many sections of `doctor` run at once (T-511).
     pub doctor_jobs: Option<Value>,
+    /// `RelayKeys`: the keys trusted for a signed list of deployments
+    /// (T-346); its lines add up.
+    pub relay_keys: Vec<Value>,
     /// The `[groups]` table (T-184): each group's name and its hosts.
     pub groups: crate::hosts::Groups,
     /// The `[snippets]` table (T-187): each snippet's name and its command.
@@ -289,6 +294,10 @@ pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, St
                     return Err(format!("{at}: DoctorJobs {text:?}: a number of sections from 1 to {most}"));
                 }
                 d.doctor_jobs.get_or_insert(value);
+            }
+            "relaykeys" => {
+                podssh_relay::pool::signed::parse_keys(text).map_err(|why| format!("{at}: RelayKeys {why}"))?;
+                d.relay_keys.push(value);
             }
             _ => {
                 let names: Vec<&str> = KEYWORDS.iter().map(|(k, _)| *k).collect();

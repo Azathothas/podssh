@@ -56,6 +56,8 @@ const CLOCK_LIMIT: i64 = 3600;
 
 pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, full: bool) {
     report.ok("rank", order_line(relays));
+    // Each deployment of the list, and its signed list (T-346).
+    report.ok("deployments", crate::relay_deployments::doctor_line(relays));
     let mut answered: Option<(&Relay, Option<String>)> = None;
     for relay in &relays.hosts {
         let (outcome, met) = health(relay, trust).await;

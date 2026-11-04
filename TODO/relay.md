@@ -2272,6 +2272,88 @@ second deployment on another provider and under another domain.
 
 The operator's ruling of 2026-10-31 (Q49, `docs/decisions.md`): a binary may use relays outside `ssh.relay.ajam.dev` when they are compatible, and a token goes only to the deployment that minted it. Relays that their users bring (Azathothas/podssh#60) and `podssh update` (T-375) make the signed list less pressing: when this entry is taken up, its Approach is read again against them, and a signature of the document stays the relay's operator's (`docs/relay-operator.md`, item 14).
 
+2026-11-04, the drafting agent: the calls of the draft, each weighed against `SECURITY.md` (the
+relay sees the target and the volume, TLS is checked by name, a token goes only to its
+deployment). The Correction below gives the Approach that they make.
+
+- **One form, one verifier: an Ed25519 key's signature, in podssh-relay.** A list is signed by
+  an Ed25519 key, the role's own or the operator's, and checked by `ed25519-dalek`'s strict
+  verification, which the crate has already for the keys of the ends (T-087): pure Rust, no
+  C, in the pool's own crate. Lost: Sigstore with a workflow's identity (the Correction of
+  2026-11-02). Since Q63 the other deployments are podssh's own relay roles, on users' hosts,
+  and a role has no workflow's OIDC token, so it could sign no list; the check of a bundle
+  (x509, Fulcio's chain, Rekor's promise) is podssh-cli's, and the pool would take it as a
+  function across crates for one caller; its fixture needs a run of a signing workflow, which
+  no draft can make; and the default relay's Worker must serve the list in any form, which is
+  the operator's change either way. Lost too: trust on first use of the key that a relay
+  shows (a relay in the path, or a proxy that re-signs TLS with a CA in the trust store,
+  would plant its own key, and the operator's next key could not be told from it), and trust
+  by the TLS name of the host that served the list (today's trust, which a lapse of the domain
+  hands to whoever takes the name over: the case of the Problem).
+- **Where the signature goes: inside `/relays.json`, as its field `signed`.** `{"doc": TEXT,
+  "key": HEX, "sig": BASE64}`: the document's exact text as a JSON string, so that no
+  canonical form of JSON is needed and the signed bytes are the string's bytes; the key in
+  64 hex digits; the signature of `podssh-relays/1`, a zero byte and the text, so that a
+  signature of the key serves no other use of it (a key of a node signs the challenges of
+  T-448 and the binding of the channel). An older client reads `pool` and `limits` as before.
+  Lost: a header over the whole body (the body differs by request: `?host=&port=`, `egress`;
+  the role would sign each answer, and a text that a request shapes; a proxy may drop a header;
+  a static mirror cannot set one), and `/relays.json.sig` (a second request, a second
+  connection in the background against rule 2 of `AGENTS.md`, and two fetches that a change
+  between them sets apart).
+- **The document's fields.** `podssh-relays` (the form, 1; another form is refused, so that a
+  part that must not be skipped comes with a new form), `serial` (above 0), `issued` and
+  `not_after` (seconds since 1970), and `deployments`: 1 to 16, each a `name` (as a member of a
+  net is named) and 1 to 8 `hosts` (as `--relay-host` takes them); 8 KiB at most, so that the
+  cache keeps 4 lists in one file under its bound of 64 KiB. Another field is ignored.
+- **Which keys a binary trusts.** (1) `BUILT_IN`, compiled in by fingerprint: the keys of the
+  default deployment's operator, none on 2026-11-04 (a question for the operator, in the
+  report of the draft: two keys, the current and the next, kept offline). (2)
+  `PODSSH_RELAY_KEYS` and the settings file's `RelayKeys` (each line adds), each key by its
+  fingerprint or its hex; the settings file is already held to its owner, as it names relay
+  hosts. (3) The key of each member of the net that this host holds with the role `relay`,
+  while the document holds: the owner's signature vouches for it (Approach item 3). `none`
+  in the variable trusts no key at all, those compiled in too: an off switch. A bad word of
+  the variable or the file is 78, as each relay setting is.
+- **How a token stays with the deployment that minted it.** `token::token_key` stays: a host
+  outside the default's parent domain is cached under its own name (and port), so its token
+  is minted there and sent nowhere else, and a host of the default's domain shares the
+  default's, as before. The hosts of one deployment of a list do not share a token: a role's
+  token is a secret of its run, and one more mint costs less than a token sent to the wrong
+  host. A run with `PODSSH_RELAY_TOKEN` takes no other deployment, as that token is the
+  default's.
+- **What an unsigned or badly signed list does.** Today's rule: the pool keeps the hosts of the
+  default's domain alone, nothing is kept, and a session says nothing (the refresh is in its
+  background); `relay info` says why the list is not used. A list kept is checked again at
+  each read, so a key no longer trusted, or a list past its end, stops counting at once; a
+  kept list whose signature no longer verifies (a changed cache file) is no list.
+- **The serial never goes back for a key**, also past a list's end, so that an old list
+  cannot come back after a newer one ended. The role's serial is the time it signs, in
+  seconds, and above its last when the clock went back during a run; a role started again
+  with its clock behind signs below the serial that a client kept, which that client refuses
+  until the clock passes it. Lost: a counter in a file of the role (one more file to keep,
+  for what the clock gives).
+- **A list's life**: a client refuses one whose `not_after` is more than 400 days after its
+  `issued`, so that a key that leaked signs no list for ever; the role signs 90 days, and
+  again each day, so that a cage that last refreshed months before the default's domain went
+  still holds the other deployments. Lost: no bound, and a short life of days, which loses the
+  other deployments in the very case of the Problem.
+- **Their place in the default list**: after the default host and its three hosts of the
+  pool, at most 4 hosts of other deployments, the first host of each deployment first; the
+  record of failures (T-059) moves the default's hosts last once they fail, so the other
+  deployments go first in an outage. A list that the user names takes none. Lost: before the
+  pool (most sessions would leave the default while it works), and no bound (a hopeless run
+  would grow long).
+- **The role's key**: a key for this one job, `relay-list.key` in the cache or the file of
+  `--list-key`, made when it is missing, and named by its fingerprint on the first line. The
+  role signs the deployments of its flags alone: nothing of a request goes into the text, so
+  the role is no oracle of signatures. It is given once to the role's documents, process-wide,
+  as the net's documents are (`podssh_relay::e2e::net::install`), so that the places that build
+  a `serve::Config` stay as they are. Lost: a field of `Config` (each harness changes).
+- **Where a list is learned**: from the `/relays.json` that a run reads already, the pool's
+  refresh in a session's background after a mint, with no request more, and `podssh relay
+  info`, which keeps a list that holds. Lost: a request of its own, unasked (rule 2).
+
 ## Prove
 
 ```sh
@@ -2349,6 +2431,85 @@ that podssh did not write, kept as a fixture as the tests of `podssh update` kee
 old `not_after`, a lower `serial`, or another workflow's identity keeps the parent domain alone.
 Planted: the check skipped; the test of the changed byte fails. Live: the workflow signs a list
 that names `podssh relay serve` on a runner, and `podssh relay status` names it.
+
+2026-11-04 (the drafting agent). The Premise holds at its lines, read again at `1ca77a1`: the
+default host and the six seeds are names under `ssh.relay.ajam.dev`, a host of `/relays.json`
+outside the default's parent domain is dropped, and `token::token_key` keeps a token for each
+deployment, a host outside the default's domain under its own name and port. The Sigstore
+form of the Correction of 2026-11-02 is replaced by an Ed25519 key's signature, as the
+Decision of 2026-11-04 says: since Q63 the other deployments are podssh's own relay roles,
+which no workflow signs for, and a bundle's verifier is podssh-cli's. This replaces items 1
+and 3 of the Approach of 2026-11-02; its items 2 and 4 hold.
+
+The Approach, in place of both above:
+
+1. The form (`crates/podssh-relay/src/pool/signed.rs`): `/relays.json` carries `signed`,
+   `{doc, key, sig}`, the document's exact text, its Ed25519 key and the key's signature of
+   `podssh-relays/1`, a zero byte and the text; the document holds `podssh-relays` (1), a
+   `serial`, `issued`, `not_after` and its `deployments`, each a name and its hosts.
+2. The keys trusted: those compiled in (`BUILT_IN`, the default deployment's operator's),
+   `PODSSH_RELAY_KEYS`, the settings file's `RelayKeys`, and each member of the net that
+   carries the role `relay`; `none` trusts no key.
+3. The check: a trusted key, its signature of the exact text, the form, a `not_after` ahead
+   and a life of 400 days at most, and a serial not below the list kept of its key
+   (`crates/podssh-relay/src/pool/kept.rs`); else today's rule, the parent domain alone.
+4. The list of deployments: the default host and three hosts of its pool, then at most four
+   hosts of the other deployments, each minting a token of its own; none for a list that the
+   user names, nor with `PODSSH_RELAY_TOKEN`.
+5. The cache: `relay-deployments.json`, the newest list of each key, checked again at each
+   read; a list is learned from the pool's refresh after a mint and from `relay info`.
+6. The words: `relay info` (the first host's list, kept when it holds), `relay status` and
+   `status` (each deployment of the list, and whether its list was signed), `doctor` (a line
+   `deployments`).
+7. The role: `podssh relay serve --deployment NAME=HOSTS [--list-key FILE]` signs its list
+   with a key of its own, and again each day, its fingerprint on its first line.
+8. A second deployment of the public default, and its keys, stay the operator's
+   (`docs/relay-operator.md`, item 14): no entry waits for them.
+
+The Prove above holds, with the tests of the form, the cache and the role, and of the settings
+file's keyword:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib pool
+cargo test -p podssh-cli --test relay
+cargo test -p podssh-cli --lib settings
+```
+
+With test keys made in the tests: a list of a trusted key names a host outside the domain,
+which the default list takes; one changed byte (of the text, of the signature, of the cache
+file), an old `not_after`, a lower `serial`, a key that is not trusted, and
+`PODSSH_RELAY_KEYS=none` keep the parent domain alone. A list that OpenSSL signed, software
+that podssh did not write, is taken, and refused once a byte changed. Against podssh's relay
+role on the loopback: `relay info` keeps a trusted list, `status` lists its host, `relay
+status` names the deployment as signed, and `ssh` reaches the test's server through that host,
+which mints its own token; an untrusted key's list is not used. Planted: each check skipped
+(the plants `t346-*` of `scripts/plants/`). Live: a role on a runner signs a list, and a client
+that trusts its key reaches a server through it (waits, as Q88 lets a live run wait).
+
+## Done
+
+2026-11-04, drafted (UNVERIFIED until the main session builds and runs it). The form, the check
+and the cache in `crates/podssh-relay/src/pool/signed.rs` and `crates/podssh-relay/src/pool/kept.rs`,
+the default list's other deployments (`relay::with_others`), the role's signed list
+(`crates/podssh-relay/src/serve/docs.rs`, `crates/podssh-cli/src/relay_serve/list.rs`), the
+keys and the words of the binary (`crates/podssh-cli/src/relay_deployments.rs`), `RelayKeys`,
+the manual, `docs/relay.md`, `docs/relay-operator.md` (item 14), `docs/cli.md` and
+`SECURITY.md`.
+
+- `cargo test -p podssh-relay --lib pool`: UNVERIFIED (the tests of `pool::signed::tests`, 11,
+  and `relay::tests::the_pool_then_other_deployments_follow_the_default_host`, with the pool's
+  own).
+- `cargo test -p podssh-cli --test relay`: UNVERIFIED
+  (`relay_signed::a_role_s_signed_list_names_a_deployment_outside_the_domain` and
+  `relay_signed::a_list_that_openssl_signed_is_taken`, with the file's others).
+- `cargo test -p podssh-cli --lib settings`: UNVERIFIED (`RelayKeys` adds up, and a bad key
+  names its line); and `--lib man` for the manual's notes, variables and flags: UNVERIFIED.
+- Planted (`sh scripts/plant-each.sh --here t346-signature-skipped t346-key-untrusted
+  t346-ended-kept t346-serial-back t346-token-given t346-named-joined t346-role-unsigned`):
+  UNVERIFIED, each must be caught.
+- Waits: the live run of a role on a runner (Q88), and the keys of the default deployment's
+  operator, which `BUILT_IN` takes with a release (`docs/relay-operator.md`, item 14).
 
 # T-407: A relay's Retry-After reaches a line as it came, with its terminal controls
 

@@ -114,10 +114,18 @@ pub fn status(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32
                 Err(e) => json!({ "host": relay.host, "port": relay.port, "ok": false, "error": e.to_string() }),
             })
             .collect();
-        let doc = json!({ "schema": 1, "podssh": crate::help::version(), "hosts": hosts, "exit": code });
+        // Each deployment of the list, and whether its list was signed (T-346).
+        let deployments = crate::relay_deployments::status_value(&relays);
+        let doc = json!({ "schema": 1, "podssh": crate::help::version(), "hosts": hosts, "deployments": deployments,
+            "exit": code });
         let _ = writeln!(out, "{doc}");
-    } else if code != 0 {
-        let _ = writeln!(err, "podssh relay: no relay host answered");
+    } else {
+        for line in crate::relay_deployments::status_lines(&relays) {
+            let _ = writeln!(out, "{line}");
+        }
+        if code != 0 {
+            let _ = writeln!(err, "podssh relay: no relay host answered");
+        }
     }
     code
 }
@@ -152,13 +160,15 @@ pub fn info(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         Ok(doc) => doc,
         Err(refusal) => return refusal.report("relay", err),
     };
+    // Its signed list of deployments, checked and kept when it holds (T-346).
+    let (signed_lines, signed_list) = crate::relay_deployments::info(&doc);
     if args.json {
         let order = crate::relay_diag_text::pool_order(&doc);
         let doc = json!({ "schema": 1, "podssh": crate::help::version(), "relay": relay.host, "info": doc,
-            "pool_order": order });
+            "pool_order": order, "signed_list": signed_list });
         let _ = writeln!(out, "{doc}");
     } else {
-        for line in crate::relay_diag_text::info_lines(&relay.host, &doc) {
+        for line in crate::relay_diag_text::info_lines(&relay.host, &doc).into_iter().chain(signed_lines) {
             let _ = writeln!(out, "{line}");
         }
     }

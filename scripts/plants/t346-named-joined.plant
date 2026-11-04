@@ -1,0 +1,8 @@
+# T-346: the hosts of other deployments join a list that the user named too,
+# which must stay the relay alone; the test of the default list's order must
+# fail.
+ENTRY=T-346
+GROUP=cli-tests
+EXPECT='test relay::tests::the_pool_then_other_deployments_follow_the_default_host \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib pool'
+LIMIT=1800
