@@ -2518,6 +2518,10 @@ the manual, `docs/relay.md`, `docs/relay-operator.md` (item 14), `docs/cli.md` a
   no feature and with `serve,plain-ws,quick,pair,grant,piping,code`: clean; rustfmt: clean.
 - Waits: the live run of a role on a runner (Q88), and the keys of the default deployment's
   operator, which `BUILT_IN` takes with a release (`docs/relay-operator.md`, item 14).
+- 2026-11-04, after the gate of `537a156` (run 41784978197, the job `gate (libs)`): its tests
+  left their cache directories in the temporary directory, which the gate refuses (T-272); each
+  test's directories now go when the test ends. `cargo test -p podssh-relay`: no new
+  `podssh-*` in the temporary directory, `pool::signed` 11 passed.
 
 # T-407: A relay's Retry-After reaches a line as it came, with its terminal controls
 

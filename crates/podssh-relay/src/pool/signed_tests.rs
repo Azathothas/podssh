@@ -37,12 +37,31 @@ fn doc(serial: u64, host: &str) -> Doc {
     }
 }
 
+/// The cache directories of one test, removed when the test ends: the gate
+/// fails a run that leaves files in the temporary directory.
+struct Dirs(Vec<PathBuf>);
+
+impl std::ops::Deref for Dirs {
+    type Target = [PathBuf];
+    fn deref(&self) -> &[PathBuf] {
+        &self.0
+    }
+}
+
+impl Drop for Dirs {
+    fn drop(&mut self) {
+        for dir in &self.0 {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+}
+
 /// An empty cache directory of this test alone.
-fn dirs(name: &str) -> Vec<PathBuf> {
+fn dirs(name: &str) -> Dirs {
     let dir = std::env::temp_dir().join(format!("podssh-signed-{}-{name}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    vec![dir]
+    Dirs(vec![dir])
 }
 
 /// The directories of a test, as the cache's functions take them.
