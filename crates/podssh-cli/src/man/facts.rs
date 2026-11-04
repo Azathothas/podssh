@@ -307,7 +307,7 @@ pub fn variables() -> impl Iterator<Item = &'static (&'static [&'static str], &'
 }
 
 fn environment() -> Vec<Block> {
-    variables().map(|(n, what)| item(names(n), *what)).collect()
+    variables().map(|(n, what)| item(names(n), *what)).chain(retired::blocks()).collect()
 }
 
 fn files() -> Vec<Block> {
@@ -492,6 +492,7 @@ mod exit;
 mod http_road;
 mod iroh_road;
 mod net;
+mod retired;
 mod roads;
 #[cfg(test)]
 mod tests;

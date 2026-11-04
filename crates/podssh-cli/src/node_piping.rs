@@ -282,7 +282,8 @@ pub(crate) async fn serve(
             let _ = stop.send(true);
             both.await;
             let remedy = format!("make a new one with `podssh relay pair {label}`");
-            let _ = writeln!(err, "podssh node: {label}: the pair expired; {remedy}");
+            let expired = format!("podssh node: {label}: the pair expired; {remedy}");
+            crate::journal::line(err, podssh_ssh::LogLevel::Error, &expired);
             return Fault::PairExpired.code();
         }
         () = crate::node::stop_signal() => {

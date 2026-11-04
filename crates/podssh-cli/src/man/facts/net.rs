@@ -1,5 +1,6 @@
-//! The variables of the net (T-429) and of the pairing by a short code
-//! (T-086), apart from `facts.rs` for the length of that file.
+//! The variables of the net (T-429), of the pairing by a short code
+//! (T-086) and of a service's journal (T-640), apart from `facts.rs` for the
+//! length of that file.
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -17,5 +18,14 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           podssh relay serve's wss://HOST/v1/mailbox. Unset, empty or yes: magic-wormhole's public mailbox, then \
           Least Authority's; no: no code, which then refuses (78) with the way left, the operator's file or podssh \
           net add and take; a URL that cannot be read is a configuration error (78), which does not echo it.",
+    ),
+    (
+        &["JOURNAL_STREAM"],
+        "Set by systemd for a service whose stderr is the journal: the device and inode of that stream. Where \
+          they are those of podssh's own stderr (a program that inherited the variable has another), each error \
+          line also goes to the journal's socket beside that stream as one entry, at its priority (3, and 2 for a \
+          fatal one), so that journalctl -p warning shows a refusal and why a node ended; each line stays on \
+          stderr, at the stream's info, as before. The socket binds nothing, and a send that fails is dropped, \
+          never an exit code. No flag turns it on or off (T-640).",
     ),
 ];

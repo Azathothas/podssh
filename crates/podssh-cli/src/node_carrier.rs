@@ -199,7 +199,9 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     let (code, why) = ended(end);
-    let _ = writeln!(err, "podssh node: {label}: {why}");
+    // A fault's line reaches the journal at its priority too (T-640).
+    let level = if code == 0 { podssh_ssh::LogLevel::Info } else { podssh_ssh::LogLevel::Error };
+    crate::journal::line(err, level, &format!("podssh node: {label}: {why}"));
     finish(child, code).await
 }
 

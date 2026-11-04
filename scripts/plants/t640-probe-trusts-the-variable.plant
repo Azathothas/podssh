@@ -1,0 +1,7 @@
+# T-640: the probe of the journal trusts JOURNAL_STREAM alone, so a child
+# that inherited the variable with another stderr would send its errors to
+# the journal; the test of that child must fail.
+ENTRY=T-640
+GROUP=cli-tests
+EXPECT='a_child_that_inherited_the_variable_installs_nothing \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib journal::tests::linux::a_child_that_inherited_the_variable_installs_nothing'

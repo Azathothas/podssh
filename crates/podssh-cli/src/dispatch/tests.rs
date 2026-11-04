@@ -202,3 +202,52 @@ fn ssh_without_a_timeout_row_is_unaffected_by_the_gate() {
     assert!(text.contains("invalid!host"), "ssh itself refused the destination: {text}");
     assert!(!text.contains("--timeout"), "the timeout gate must not apply to ssh: {text}");
 }
+
+/// The run's funnel with a retired name set (T-634), on the row of the
+/// tests: `chat` stops with 78 before its own gate says a word, and stdout
+/// stays empty.
+#[test]
+fn a_retired_variable_stops_the_run_before_anything_is_attempted() {
+    use crate::retired::tests::{vars, ROW};
+    let p = crate::tree::parse(vec!["chat"]);
+    let (mut out, mut err): (Vec<u8>, Vec<u8>) = (Vec::new(), Vec::new());
+    let set = vars(&[(ROW.name, "yes")]);
+    let rc = run_unless_retired(&p, &mut Streams { out: &mut out, err: &mut err }, Tty::none(), &[ROW], &set);
+    let text = String::from_utf8(err).unwrap();
+    assert_eq!(rc, 78, "{text}");
+    assert!(out.is_empty(), "{} bytes on stdout", out.len());
+    assert!(text.starts_with("podssh: PODSSH_RETIRED_FOR_TESTS is no longer read"), "{text}");
+    assert!(text.contains("use PODSSH_RELAY instead; remove it"), "{text}");
+    assert!(!text.contains("--timeout"), "chat's own gate ran: {text}");
+}
+
+/// What only prints answers with a retired name set (T-634).
+#[test]
+fn a_retired_variable_does_not_stop_podssh_version() {
+    use crate::retired::tests::{vars, ROW};
+    let set = vars(&[(ROW.name, "yes")]);
+    for c in [vec!["--version"], vec!["--help"], vec!["man", "environment", "--no-pager"]] {
+        let p = crate::tree::parse(c.clone());
+        let (mut out, mut err): (Vec<u8>, Vec<u8>) = (Vec::new(), Vec::new());
+        let rc = run_unless_retired(&p, &mut Streams { out: &mut out, err: &mut err }, Tty::none(), &[ROW], &set);
+        assert_eq!(rc, 0, "{c:?}: {}", String::from_utf8_lossy(&err));
+        assert!(!out.is_empty() && err.is_empty(), "{c:?}");
+    }
+}
+
+/// With no retired name set, or one set empty, or only an unknown name,
+/// the run is as before: `chat`'s gate asks for `--timeout` (T-634).
+#[test]
+fn with_no_retired_variable_set_the_run_is_as_before() {
+    use crate::retired::tests::{vars, ROW};
+    let cases = [vars(&[]), vars(&[(ROW.name, "")]), vars(&[("PODSSH_NO_SUCH_THING", "1")])];
+    for set in cases {
+        let p = crate::tree::parse(vec!["chat"]);
+        let (mut out, mut err): (Vec<u8>, Vec<u8>) = (Vec::new(), Vec::new());
+        let rc = run_unless_retired(&p, &mut Streams { out: &mut out, err: &mut err }, Tty::none(), &[ROW], &set);
+        let text = String::from_utf8(err).unwrap();
+        assert_eq!(rc, EXIT_USAGE, "{set:?}: {text}");
+        assert!(text.contains("--timeout") && !text.contains("no longer read"), "{set:?}: {text}");
+        assert!(out.is_empty());
+    }
+}

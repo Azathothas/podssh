@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**628 entries: 113 open, 8 partial, 3 blocked, 504 done.**
+**629 entries: 112 open, 8 partial, 3 blocked, 506 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
 | P2 | 25 | 4 | 0 | 246 | 275 |
-| P3 | 88 | 2 | 3 | 193 | 286 |
-| **All** | 113 | 8 | 3 | 504 | 628 |
+| P3 | 87 | 2 | 3 | 195 | 287 |
+| **All** | 112 | 8 | 3 | 506 | 629 |
 
 ## Entries
 
@@ -673,13 +673,13 @@ repository and CI).
 | [T-631](serve.md) | P3 | S | backlog | feature | open | `podssh serve --listen`: a deadline from the accept for a client that never logs in, and a cap on those that have not |
 | [T-632](resume.md) | P2 | S | none | feature | done | The resumable layer has no record that ends one direction, so a half-close ends the whole session where no channel runs above it |
 | [T-633](reverse.md) | P3 | S | M10 | feature | open | No rule, written once, for a member of an answer that is absent where it carries a guarantee, and no helper that reads `None` and `false` alike |
-| [T-634](cli.md) | P3 | S | none | feature | open | A `PODSSH_*` variable that a release stopped reading is ignored in silence; there is no table of retired names |
+| [T-634](cli.md) | P3 | S | none | feature | done | A `PODSSH_*` variable that a release stopped reading is ignored in silence; there is no table of retired names |
 | [T-635](relay.md) | P2 | S | M10 | feature | done | `podssh relay serve` has no list of private targets between public ones alone and `--allow-private` |
 | [T-636](relay.md) | P3 | M | M10 | feature | open | The relay role counts no bytes for each key across its sessions, and keeps no count across a restart |
 | [T-637](relay.md) | P3 | M | M10 | feature | open | Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline |
 | [T-638](mesh.md) | P3 | M | M10 | feature | open | A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door |
 | [T-639](pipe.md) | P3 | S | none | feature | open | `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory |
-| [T-640](robustness.md) | P3 | M | none | feature | open | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |
+| [T-640](robustness.md) | P3 | M | none | feature | done | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |
 | [T-641](roads.md) | P3 | M | M10 | feature | open | `doctor` does not say whether this host's NAT keeps one mapping across destinations |
 | [T-642](ws.md) | P3 | L | none | feature | open | TLS sends each name in the clear: no Encrypted Client Hello from the name's HTTPS record |
 | [T-643](reverse.md) | P3 | M | M10 | feature | open | Neither end of the reverse road compares the `version` of the role's `hello`, and an operator's offer of the net answered plainly says nothing |
@@ -704,3 +704,4 @@ repository and CI).
 | [T-671](relay.md) | P2 | S | M10 | defect | done | The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them |
 | [T-672](ssh.md) | P3 | M | backlog | feature | blocked | TLS tickets kept across runs, once a release of rustls lets a client write one |
 | [T-673](ssh.md) | P3 | S | M10 | defect | open | The rate's best on a lossy link: a burst after a loss's stall read as the path's rate |
+| [T-674](robustness.md) | P3 | S | none | feature | open | The SSH client's own lines keep one priority in the journal |

@@ -44,7 +44,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 3. One model and two renderers, as `podssh man` has (`crates/podssh-cli/src/man/model.rs`).
 4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:130-176`), read it into
    `Parsed::Doctor` (`crates/podssh-cli/src/tree.rs` lines 172-181 and 384-392 at `c6f09a8`), and pass it on in
-   `crates/podssh-cli/src/dispatch.rs:193-236`. `tree.rs` has 454 lines and `dispatch.rs` 448:
+   `crates/podssh-cli/src/dispatch.rs:211-254`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5223-5251`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5279-5307`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:257-272`), and stdio needs no listener.

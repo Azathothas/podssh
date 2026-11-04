@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-32`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:701-721`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:703-723`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
@@ -977,9 +977,9 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io/msg.rs:35-42`, with `crates/podssh-ssh/src/io.rs:68-70`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:147`, `docs/STATUS.md:153`).
+  (`docs/STATUS.md:149`, `docs/STATUS.md:155`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:5139-5140` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:5163-5164` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -996,14 +996,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:5139-5140`). A difference that the table does not name fails,
+   `docs/cli.md:5163-5164`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:5139-5140` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:5163-5164` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed
@@ -1040,7 +1040,7 @@ for `podssh ssh`.
 (openssh-portable at its default branch, 2026-10-12; read, not run):
 `client_input_channel_req` in `clientloop.c` takes `exit-status` and no
 `exit-signal`, and `client_loop` starts its status at -1, so a signal gives
-255, as `docs/cli.md:4732-4733` says. `check_host_key` in `sshconnect.c`
+255, as `docs/cli.md:4756-4757` says. `check_host_key` in `sshconnect.c`
 goes on past a changed key under `StrictHostKeyChecking=no`: it turns off
 password and keyboard-interactive login and the forwardings, then accepts
 the key, so `ssh.hostkey.changed_refused` gives 0 with OpenSSH. In
@@ -1081,7 +1081,7 @@ has three rows.
   podssh 143), `changed_key` (OpenSSH 0, podssh 255) and
   `unreadable_known_hosts` (OpenSSH 0, podssh 255).
 - `crates/podssh-ssh/src/lib.rs:16` now agrees with
-  `docs/cli.md:4732-4733`: 128 plus the signal's number, where OpenSSH
+  `docs/cli.md:4756-4757`: 128 plus the signal's number, where OpenSSH
   gives 255. `docs/cli.md` names the two differences of the host keys
   beside their rules; `docs/development.md` (item 7 of the gate) says that
   each code is checked twice; `docs/STATUS.md` has a row for OpenSSH's
@@ -1630,7 +1630,7 @@ next failure's words.
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1672,12 +1672,37 @@ host, and binds nothing. Lost: stderr alone (the defect); syslog's `/dev/log` (a
 the `-y` row refuses for its own reasons); a flag that turns it on (a unit's owner would not know to
 set it, and a line's level is no secret).
 
+2026-11-04 (the drafting agent), within that call:
+
+- The module is `crates/podssh-cli/src/journal.rs`, not one of `podssh-ssh`: each line by which a node
+  or a command fails is written in `podssh-cli`, through `Refusal::report` (each command's refusals, and
+  most ends of a node's roads), the end of a node by a fault (`node`, `node_carrier`, `node_piping`) and
+  the refusal of a retired variable (T-634); `err_line` and `Log` keep their signatures. Lost: a level
+  in `err_line` and `Log` of `podssh-ssh`, which another agent's draft held that day, and which carry
+  no error line of a node; the lines of the SSH client (`Log`, a tunnel's session) keep one priority,
+  for an entry of their own (see Done).
+- Only a line above the stream's `info` (an error 3, a fatal one 2) is copied, after the stream's own
+  line. Lost: a copy of each line, which `journalctl -u` would show twice, each at `info` already;
+  the copy in place of the stream's line, as `JOURNAL_STREAM`'s documents propose, as the journal
+  reads a datagram's unit from its sending process, which a node ends just after its last line, so
+  `systemctl status` could lose the line that says why, and the order of the two sockets' lines would
+  mix; sd-daemon's `<N>` prefix on the stream (one line, no socket), which a unit with
+  `SyslogLevelPrefix=no` would show as text, and which the call above did not take.
+- The stream is compared with descriptor 2 at the start and again at each line (a copy of the
+  descriptor, `fstat`, closed after it), as a detached run moves its stderr to its log after the start.
+  The socket for entries is `socket` beside the stream's far end when that is a `stdout` of systemd
+  (a journal's namespace has its own), else `/run/systemd/journal/socket`. The socket does not block:
+  a journal that reads too slowly loses the copy, and the line never waits.
+- `JOURNAL_STREAM` is a variable that podssh reads, so the manual lists it (ENVIRONMENT), and `-y`'s
+  row names it.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-ssh --lib journal
-cargo test -p podssh-ssh --lib line
+cargo test -p podssh-cli --lib journal
+cargo test -p podssh-cli --lib relay_settings
+cargo test -p podssh-cli --lib man::
 ```
 
 With a datagram socket of the test in a temporary directory and its device and inode given to the
@@ -1685,3 +1710,52 @@ probe: each level's number; `PRIORITY` first and `MESSAGE` last; a message with 
 entry; a variable that does not match descriptor 2 installs nothing; a line reaches stderr and the
 journal, and stderr alone when the socket is gone. Planted: the probe that trusts the variable alone,
 and the test of the child that inherited it fails.
+
+## Done
+
+2026-11-04, merged from its draft (`2ec6c95`).
+
+- Where stderr is the journal's own stream (`JOURNAL_STREAM`'s device and inode match stderr's,
+  read again at each line, as a detached run moves its stderr), a line above `info` of a node, a
+  refusal or the end of a node's fault goes to the journal's socket as a native datagram with its
+  priority, from a socket bound to nothing, after the stderr line (`crates/podssh-cli/src/journal.rs`);
+  elsewhere the lines are as before. The manual names `JOURNAL_STREAM`. The SSH client's own lines
+  keep one priority: T-674.
+- `cargo test -p podssh-cli --lib journal`: passed (82 with the other modules of the merge); the CLI
+  crate whole: 1,903 passed. Plant `t640-probe-trusts-the-variable` caught. Clippy and rustfmt clean;
+  `scripts/check-repo.py` takes the test's socket in a temporary directory
+  (`scripts/repo_listeners.py`).
+
+# T-674: The SSH client's own lines keep one priority in the journal
+
+**Source:** the draft of T-640, 2026-11-04 (GitHub #138).
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-640 gives a node's lines, a refusal and a node's fault their priority in the journal where
+stderr is the journal's stream. The SSH client's own lines (`podssh ssh` and a tunnel's session,
+written by podssh-ssh's log) still reach the journal at one priority, so a unit that runs `podssh
+ssh -N -L` sees its warnings and errors at `info`.
+
+## Premise
+
+- `crates/podssh-cli/src/journal.rs` serves the CLI's lines; podssh-ssh's log writes to stderr
+  itself.
+
+## Approach
+
+1. podssh-ssh's log takes a sink of the CLI's, which sends a line above `info` to the journal as
+   T-640 does, where stderr is the journal's stream.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --lib journal
+```
+
+A new test: a warning of the SSH client's log reaches the journal's socket with its priority.

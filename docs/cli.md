@@ -3467,6 +3467,30 @@ commands. The rules behind them:
   its line names the task at boot that only an administrator can make.
   A new `--install` removes what an earlier one made by another way, so
   that two ways never start the same service.
+- **The journal's priorities (T-640, GitHub #138).** systemd files each
+  line of a unit's stderr at one priority, `info`, so `journalctl -p
+  warning -u UNIT` showed nothing that the node said. Where stderr is the
+  journal's own stream (`JOURNAL_STREAM` holds its device and inode, and
+  they are descriptor 2's: a program that inherited the variable has
+  another stderr, and a detached run's log is a file), each error line
+  also goes to the journal's socket beside that stream (`socket` beside
+  its `stdout`, `/run/systemd/journal/socket` by default) as one entry of
+  the journal's native protocol: `PRIORITY` (3, and 2 for a fatal one),
+  `SYSLOG_IDENTIFIER=podssh`, then `MESSAGE`, a message of many lines in
+  the binary form, so that it stays one entry. Each line stays on stderr
+  first, as before: the stream keeps the order and the unit, which the
+  journal reads from the sending process and can miss when it ended at
+  once. A line at `info` or below gets no copy, as the stream gives it
+  that priority already, and a copy would show it twice. The lines copied
+  are a refusal of each command (`Refusal`), the end of a node by a fault,
+  and a retired variable ("Variables that a release stopped reading",
+  below); the lines of the SSH client (`Log`), such as a tunnel's, are
+  not. The socket binds nothing and does not block, and a send that fails
+  is dropped, never an exit code: a unit stops for good on 64 and 78.
+  This is no outbound connection (rule 2 of `AGENTS.md`) and no helper,
+  as the copy reaches the service that each line of the stream reaches,
+  on the host (the call of Q86). `-y` stays refused: this is not syslog,
+  and no flag turns it on or off.
 - **One run of a service at a time (T-393).** A run with `--env-file FILE`
   holds an exclusive lock on `FILE.lock` (`flock`, `LockFileEx`) for its
   life, with its pid in the file. A second run with the same FILE (the
@@ -5160,6 +5184,38 @@ with the report (`docs/decisions.md`, 2026-10-08).
   each proxy variable, with its user and its password, becomes `<hidden>`,
   so does the user and password of each URL, and the controls of a
   terminal are dropped, as in the lines of `podssh doctor`.
+
+## Variables that a release stopped reading
+
+podssh refuses a flag and a keyword that it does not take, by name and
+with what to use instead; a `PODSSH_` variable that a release stopped
+reading is refused the same way (T-634, GitHub #132), so that a service
+whose file still sets it does not start, look healthy, and do something
+else than its owner believes. `crates/podssh-cli/src/retired.rs` holds each
+such name, the release that stopped reading it, what replaced it (or that
+nothing did), and why.
+
+- **A run.** While one is set to a value that is not empty, each command
+  ends with 78 before it tries anything, with a line for each name on
+  stderr: `podssh: NAME is no longer read (since vN): use OTHER instead;
+  remove it (why)`. Its order is what the name is not, what took its
+  place, what to do, and only then why. `--help`, `--version`, `podssh
+  man` and a usage error still answer, so that `podssh man environment`
+  can say what replaced the name. An empty value is unset, as for each of
+  podssh's variables.
+- **A service's file.** `--env-file` refuses one with its line and the
+  same words (78), and `--install` leaves one out with a line. A unit
+  stops on 78 (`RestartPreventExitStatus`), so an upgrade with a stale
+  file is an outage at once rather than a setting that does nothing.
+- **Only the table.** A name that podssh never read is not refused, so a
+  stray variable of a shell changes nothing and a misspelt name is still
+  ignored: this is never a list of allowed names. A name that a release
+  reads again loses its row in that release; the manual's tests refuse a
+  row whose name a source reads, or that the manual lists as read.
+- **Empty.** No release has stopped reading a name: each `PODSSH_` name
+  that the manuals and the sources of the releases from `v1.0.0-beta.1` to
+  `v1.1.0-beta.2` read is read still (read on 2026-11-04). `podssh man
+  environment` lists the rows, after the variables that are read.
 
 ## Exit codes
 
