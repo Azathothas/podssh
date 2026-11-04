@@ -915,6 +915,30 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `$NAME` as the value of `IdentityAgent` or `ForwardAgent` is OpenSSH's
   older form: the variable that holds the path, and no agent when it is not
   set; `-G` prints it as given. Elsewhere `$NAME` is part of a file name.
+- **A key's echo while a download runs** (T-661, `crates/podssh-ssh/src/pace/`).
+  The window that podssh grants a channel bounds what its server has in
+  flight, and so what waits in front of a key's echo in each queue between,
+  the relay's too. For 2 s after a key on a session with a pty, each channel
+  of the connection (the session's own, so that Ctrl-C shows sooner, the
+  forwards, SFTP, a command, the agent's) gets the path's rate times its
+  least round trip plus 40 ms, four thirds of it as russh adjusts a window
+  once half is left, and twice the rate times the round trip at least, so
+  that the path never runs dry; 16 KiB at least, shared among the channels
+  that press on their windows. Idle, plus 200 ms. The rate is the most bytes
+  a second of the last 5 to 10 s; the round trip is the time from a window
+  adjust to the first byte that only it allowed, less that message's time on
+  the path, the least of the last 10 to 20 s: end to end, through any relay
+  or proxy, against any sshd. A queue that never empties hides the path's
+  round trip, so the windows drain to 16 KiB for a moment at the first key
+  after a pause and each 10 s of a download (as BBR probes its least round
+  trip). Unmeasured, a channel has the window of before, 512 KiB, the most
+  on each road until T-662. russh 0.65.0 took no target from its handler:
+  `vendor/patches/russh/0002-window-target.patch` asks for one at each data
+  message. podssh's own senders (the local side of `-L`, `-R` and `-D`,
+  `-W`, SFTP's writes and the copy by exec) wait while a key waits for its
+  echo, 1 s at most; the session's next output is the echo. On the direct
+  road, `TCP_NOTSENT_LOWAT` of 16 KiB where `setsockopt` takes it (Linux,
+  macOS); `-v` says a refusal.
 
 ## Forwarding
 

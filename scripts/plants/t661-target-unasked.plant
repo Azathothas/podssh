@@ -1,0 +1,9 @@
+# T-661: vendor/russh adjusts a channel's data window to its configured
+# window again, as russh 0.65.0 did, whatever target podssh's handler gives,
+# so the server is granted 512 KiB where the road's cap is 64 KiB; the test
+# of the whole client against russh's server in this process must fail.
+ENTRY=T-661
+GROUP=resume
+EXPECT='test pace::wire_tests::a_channel_is_granted_the_handlers_target_not_russhs_window \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::wire_tests'
+LIMIT=1800

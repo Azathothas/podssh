@@ -128,25 +128,30 @@ pub fn listing() -> String {
 }
 
 /// A stream whose reads are counted: up for the local side of a forward,
-/// down for its channel.
+/// down for its channel. The local side waits its turn while a key waits
+/// for its echo (T-661): what it reads goes up in front of the key.
 pub struct Counted<S> {
     inner: S,
     counts: Arc<Counts>,
     up: bool,
+    turn: crate::pace::Turn,
 }
 
 impl<S> Counted<S> {
     pub fn up(inner: S, counts: &Arc<Counts>) -> Self {
-        Counted { inner, counts: counts.clone(), up: true }
+        Counted { inner, counts: counts.clone(), up: true, turn: crate::pace::Turn::default() }
     }
 
     pub fn down(inner: S, counts: &Arc<Counts>) -> Self {
-        Counted { inner, counts: counts.clone(), up: false }
+        Counted { inner, counts: counts.clone(), up: false, turn: crate::pace::Turn::default() }
     }
 }
 
 impl<S: AsyncRead + Unpin> AsyncRead for Counted<S> {
     fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
+        if self.up {
+            std::task::ready!(self.turn.poll(cx));
+        }
         let before = buf.filled().len();
         let polled = Pin::new(&mut self.inner).poll_read(cx, buf);
         let read = (buf.filled().len() - before) as u64;

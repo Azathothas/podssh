@@ -143,6 +143,8 @@ async fn pump(
             return status;
         }
     }
+    // A client's keys on a pty hold the master's bulk until their echo (T-661).
+    let pty = winch.is_some();
     let mut buf = vec![0u8; CHUNK];
     let mut reading = true;
     let mut last = terminal::size_of_fd(input.raw());
@@ -158,6 +160,9 @@ async fn pump(
                         Some(e) => e.feed(&buf[..n]),
                         None => (buf[..n].to_vec(), Vec::new()),
                     };
+                    if pty && !data.is_empty() {
+                        crate::pace::key();
+                    }
                     if !data.is_empty() && writer.data_bytes(data).await.is_err() {
                         reading = false;
                     }
@@ -193,6 +198,9 @@ async fn pump(
             },
             msg = reader.wait() => match msg {
                 Some(msg) => {
+                    if pty && matches!(msg, ChannelMsg::Data { .. }) {
+                        crate::pace::echo();
+                    }
                     if let Some(()) = take(msg, &mut status, &mut eof, out, err).await {
                         return status;
                     }

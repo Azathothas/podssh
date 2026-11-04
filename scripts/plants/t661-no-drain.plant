@@ -1,0 +1,9 @@
+# T-661: the windows never drain, so each round trip that the adjusts time
+# holds the queue that the windows keep, and the least round trip grows with
+# it; the fake path's minute of a download and keys must end with a window
+# far over the path's bytes of 100 ms.
+ENTRY=T-661
+GROUP=resume
+EXPECT='test pace::sim_tests::the_least_round_trip_does_not_grow_with_the_queue \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::sim_tests'
+LIMIT=1800

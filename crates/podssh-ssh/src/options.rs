@@ -329,6 +329,9 @@ pub struct Options {
     /// not finish (T-588): a node's, with what its layer carried; `None` names
     /// the server alone.
     pub road: Option<crate::handshake::Road>,
+    /// The most window that a channel may have on this connection's road
+    /// (T-661): [`crate::run::WINDOW`] where the caller knows no more.
+    pub window_cap: u32,
 }
 
 /// How a forward of `-R` that the server refused is asked again after a
@@ -413,6 +416,7 @@ impl Options {
             local_command: None,
             expect: None,
             road: None,
+            window_cap: crate::run::WINDOW,
         }
     }
 }

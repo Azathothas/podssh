@@ -266,6 +266,8 @@ impl<'a> Writes<'a> {
         while self.inflight.len() >= self.depth {
             self.ack().await?;
         }
+        // Behind a key that waits for its echo (T-661).
+        crate::pace::turn().await;
         let at = self.next;
         let end = at + data.len() as u64;
         self.next = end;

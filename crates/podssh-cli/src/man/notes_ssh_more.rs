@@ -136,4 +136,14 @@ pub(super) const MORE: &[&str] = &[
      forward. --uninstall NAME removes what --install NAME wrote, and nothing else. --env-file FILE \
      sets the variables of FILE first and holds FILE.lock while the run lasts, as for podssh node: a \
      second start of the same service ends at once with 0.",
+    "A key's echo while a download runs: for 2 s after a key on a session with a pty, podssh grants each \
+     channel of the connection (the session's own, a forward of -L, -R or -D, SFTP, a command, the \
+     agent's) a window of what the path moves in its least round trip and 40 ms more, and twice a round \
+     trip's at least, 16 KiB at the least, so that a key waits behind little of the download; idle, 200 ms \
+     more. podssh measures the rate and the round trip on the connection itself, end to end, through any \
+     relay or proxy and against any sshd, and lets the windows drain for a moment at the first key and \
+     each 10 s of a download, to time the path and not its queue. Until it has measured them, a channel \
+     has the window of before, 512 KiB, which is also the most. podssh's own uploads (cp, sftp, the \
+     local side of -L, -R and -D, and -W) wait while a key waits for its echo, a second at most. On the \
+     direct road, the socket keeps 16 KiB unsent at most, where the system takes TCP_NOTSENT_LOWAT.",
 ];

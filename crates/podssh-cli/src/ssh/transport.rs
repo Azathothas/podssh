@@ -318,6 +318,10 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                 match dialled {
                     Ok(tcp) => {
                         let _ = tcp.set_nodelay(true);
+                        // A key waits behind 16 KiB unsent at most, where the kernel takes it (T-661).
+                        if let Err(why) = podssh_ssh::pace::lowat::set(&tcp) {
+                            log.verbose(&format!("TCP_NOTSENT_LOWAT: {why}; the send buffer stays the kernel's"));
+                        }
                         // A write that makes no progress fails as on the
                         // relay leg, never a wait for ever (T-227).
                         let stream = podssh_ws::write_limit::WriteLimit::new(tcp, podssh_ws::client::WRITE_TIMEOUT);

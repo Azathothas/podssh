@@ -315,6 +315,8 @@ fn hop_options(opts: &Options, i: usize) -> Cow<'_, Options> {
         Some(own) => {
             let mut own = own.clone();
             own.remembered = opts.remembered.clone();
+            // The road is the connection's: each hop rides it (T-661).
+            own.window_cap = opts.window_cap;
             Cow::Owned(own)
         }
         None => Cow::Borrowed(opts),
@@ -383,8 +385,10 @@ where
     // never a jump hop.
     let forwarded = if is_destination { opts.forward_agent.clone() } else { Agent::Off };
     let x11 = if is_destination { opts.forward_x11.clone() } else { None };
-    let client =
-        Client::new(policy, log.clone()).forwarding_agent(forwarded).forwarding_x11(x11).limiting(&opts.algorithms);
+    // A hop's channel carries the next connection, which paces its own (T-661).
+    let pace = crate::pace::Pace::new(!is_destination, opts.window_cap);
+    let client = Client::new(policy, log.clone()).forwarding_agent(forwarded).forwarding_x11(x11);
+    let client = client.limiting(&opts.algorithms).pacing(pace);
     // What the handshake sees, for its line when it does not finish (T-588).
     let record = Record::default();
     let client = client.recording(record.clone());

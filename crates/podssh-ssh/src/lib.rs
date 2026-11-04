@@ -69,6 +69,8 @@ pub mod mux;
 pub mod notice;
 pub mod options;
 pub mod outcome;
+// Each channel's window, held while a key waits (T-661).
+pub mod pace;
 pub mod persist;
 // What the far server allows, for `podssh health --preflight` (T-482).
 pub mod preflight;
