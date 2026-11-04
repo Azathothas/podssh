@@ -210,6 +210,12 @@ pub const RELAY: &[&str] = &[
      node's name in the net; with no policy each member mints. A host that holds no net, or one that \
      ended, does not start (78). The 403 of a key that is no member names the key and the document's \
      serial, never the net or its members, which a member's refusal by the policy names.",
+    "With --mint keys:FILE or net, half of the relay's 4096 pairs is a reserve, in equal parts for the \
+     keys that it mints for at that moment, and the other half goes to whoever asks first: a key makes a \
+     pair within its reserve, or past it while the places left still hold each other key's, and else \
+     gets 429 with its own count and share (this key holds N pairs, past its share of M while others \
+     wait), which names no other key. A pair keeps the fingerprint of its key, also in --pairs FILE, so \
+     that the share holds across a restart; a pair that is stopped or expires gives its place back.",
     "The certificate and its key are read again on SIGHUP, and when either file changes, which the \
      role looks at each minute; on Windows, which has no SIGHUP, that is the way. The handshakes after \
      the read take the new pair, and each session that is open goes on with its own. A pair that does \

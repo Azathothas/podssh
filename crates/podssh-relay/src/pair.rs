@@ -97,9 +97,11 @@ pub struct PairContext<'a> {
 #[derive(Debug)]
 pub enum PairError {
     Connect(ConnectError),
-    /// `429`: the brake that pairs share with mints.
+    /// `429`: the brake that pairs share with mints, or a key past its share
+    /// of podssh's relay role (T-630), with what it said.
     RateLimited {
         retry_after: Option<String>,
+        detail: String,
     },
     /// `503`: the relay makes no pairs, with what it said (an answer that is
     /// not a 2xx holds no token). Seen once on 2026-10-09 and gone at the
@@ -130,11 +132,11 @@ impl std::fmt::Display for PairError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PairError::Connect(e) => write!(f, "{e}"),
-            PairError::RateLimited { retry_after: Some(s) } => {
-                write!(f, "the relay is limiting new pairs; try again in {s} s")
+            PairError::RateLimited { retry_after: Some(s), detail } => {
+                write!(f, "the relay is limiting new pairs; try again in {s} s{detail}")
             }
-            PairError::RateLimited { retry_after: None } => {
-                write!(f, "the relay is limiting new pairs; try again later")
+            PairError::RateLimited { retry_after: None, detail } => {
+                write!(f, "the relay is limiting new pairs; try again later{detail}")
             }
             PairError::NotIssued { detail } => write!(f, "the relay makes no pairs (503){detail}"),
             PairError::Forbidden => {
@@ -267,17 +269,14 @@ async fn with_token(
 /// An answer that is not a 2xx. Its body is quoted (it holds no token), safe
 /// to print and short.
 fn refused(status: u16, response: &podssh_ws::http::Response) -> PairError {
+    let body = response.body_text(200);
+    let detail = if body.is_empty() { String::new() } else { format!(": {body}") };
     match status {
         403 => PairError::Forbidden,
-        429 => PairError::RateLimited { retry_after: response.header_text("retry-after", 64) },
-        503 => {
-            let body = response.body_text(200);
-            PairError::NotIssued { detail: if body.is_empty() { String::new() } else { format!(": {body}") } }
-        }
-        _ => {
-            let body = response.body_text(200);
-            PairError::Failed { status, detail: if body.is_empty() { String::new() } else { format!(": {body}") } }
-        }
+        // The brake's words, or a key's share of podssh's relay role (T-630).
+        429 => PairError::RateLimited { retry_after: response.header_text("retry-after", 64), detail },
+        503 => PairError::NotIssued { detail },
+        _ => PairError::Failed { status, detail },
     }
 }
 

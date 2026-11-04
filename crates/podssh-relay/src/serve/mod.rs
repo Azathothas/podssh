@@ -319,16 +319,21 @@ async fn slow_down<S>(
     answer(stream, request::refusal(429, &why, &[("Retry-After", wait.as_str())])).await;
 }
 
+/// The key that proved itself for a mint or a pair, whose share of the pairs
+/// counts it (T-630); none where the role asks for no key.
+type Maker = Option<crate::identity::PublicKey>;
+
 /// Whether a mint or a pair of `body` may go on, by whom the role mints for:
-/// `Err` holds the answer, a `401` that asks for a key or a `403`.
-fn proven(cfg: &Config, head: &request::Request, sni: Option<&str>, path: &str, body: &[u8]) -> Result<(), Vec<u8>> {
-    let Some(whom) = keys::Whom::of(&cfg.mint) else { return Ok(()) };
+/// `Ok` holds the key that proved itself, `Err` the answer, a `401` that asks
+/// for a key or a `403`.
+fn proven(cfg: &Config, head: &request::Request, sni: Option<&str>, path: &str, body: &[u8]) -> Result<Maker, Vec<u8>> {
+    let Some(whom) = keys::Whom::of(&cfg.mint) else { return Ok(None) };
     match keys::prove(cfg, &whom, head, sni, path, body, tokens::now_ms()) {
         keys::Proof::Key(key, member) => {
             // A member of the net by its name too (T-455), for the owner.
             let member = member.map(|words| format!(", {words}")).unwrap_or_default();
             cfg.event(&format!("{path}: the key {}{member}", key.fingerprint()));
-            Ok(())
+            Ok(Some(key))
         }
         keys::Proof::Ask(challenge, ends) => Err(keys::ask(&challenge, ends)),
         keys::Proof::Refused(why) => {

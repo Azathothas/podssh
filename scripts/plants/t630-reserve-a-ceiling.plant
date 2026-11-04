@@ -1,0 +1,7 @@
+# T-630: podssh's relay role reads a key's reserve of the table of pairs as
+# a ceiling, so a busy key among idle ones stops at its reserve; the test of
+# a busy key, which must borrow past its reserve, must fail.
+ENTRY=T-630
+GROUP=resume
+EXPECT='test serve::reverse::pairs::tests::a_busy_key_borrows_past_its_reserve_and_a_key_alone_takes_the_whole_table \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib -- serve::reverse::pairs::tests::a_busy_key_borrows_past_its_reserve_and_a_key_alone_takes_the_whole_table'

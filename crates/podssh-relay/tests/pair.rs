@@ -98,9 +98,26 @@ fn no_token_is_in_debug_or_in_an_error() {
         PairError::NotIssued { detail: String::new() },
         PairError::BadAnswer("x"),
         PairError::ShortLived { left_ms: 1 },
+        PairError::RateLimited { retry_after: None, detail: String::new() },
     ] {
         no_token(&format!("{error} {error:?}"));
     }
+}
+
+/// A `429` says the relay's words after its own, so that a key past its
+/// share of podssh's relay role (T-630) tells it from the brake and from a
+/// full relay.
+#[test]
+fn a_429_says_the_relays_words_after_its_own() {
+    let detail = ": /v1/pair: this key holds 4 pairs, past its share of 1 while others wait".to_string();
+    let error = PairError::RateLimited { retry_after: Some("60".into()), detail };
+    assert_eq!(
+        error.to_string(),
+        "the relay is limiting new pairs; try again in 60 s: /v1/pair: this key holds 4 pairs, past its share of 1 \
+         while others wait"
+    );
+    let bare = PairError::RateLimited { retry_after: None, detail: String::new() };
+    assert_eq!(bare.to_string(), "the relay is limiting new pairs; try again later", "a relay that says nothing");
 }
 
 #[test]

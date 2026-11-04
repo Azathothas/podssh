@@ -52,6 +52,21 @@ impl Role {
     /// [`Role::configured`] with the sessions of its forward road in the
     /// resumable layer: their budget, their deadline, its own name (T-173).
     pub async fn configured_with(mint: Mint, policy: Policy, egress: Egress, resumes: Resumes) -> Role {
+        Role::serving(mint, policy, egress, resumes, Default::default()).await
+    }
+
+    /// The role with `pairs`: a small table, for a key's share of it (T-630).
+    pub async fn with_pairs(mint: Mint, pairs: serve::reverse::Pairs) -> Role {
+        Role::serving(mint, Default::default(), Default::default(), Default::default(), pairs).await
+    }
+
+    async fn serving(
+        mint: Mint,
+        policy: Policy,
+        egress: Egress,
+        resumes: Resumes,
+        pairs: serve::reverse::Pairs,
+    ) -> Role {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
         let port = listener.local_addr().unwrap().port();
         let events = Arc::new(Mutex::new(Vec::new()));
@@ -64,7 +79,7 @@ impl Role {
             policy,
             egress,
             limits: Limits::default(),
-            pairs: Default::default(),
+            pairs,
             resumes,
             answered: Default::default(),
             brake: Default::default(),

@@ -3571,20 +3571,20 @@ places, each pair lives 72 h, and each other key is told that the relay is full.
 Read at `2042200`:
 
 - `crates/podssh-relay/src/serve/reverse/pairs.rs:30` says "pub const MAX_PAIRS: usize = 4096;", and
-  `crates/podssh-relay/src/serve/reverse/pairs.rs:263` says "if map.len() >= MAX_PAIRS {", whoever
-  asks; `crates/podssh-relay/src/serve/reverse/pairs.rs:28` says
+  `crates/podssh-relay/src/serve/reverse/pairs.rs` said "if map.len() >= MAX_PAIRS {" at line 263 at
+  `2042200`, whoever asks; `crates/podssh-relay/src/serve/reverse/pairs.rs:28` says
   "pub const LIFETIME_MS: u64 = 72 * 3600 * 1000;".
 - A pair holds no maker (`crates/podssh-relay/src/serve/reverse/pairs.rs:74-91`), nor does its kept
   form (`crates/podssh-relay/src/serve/reverse/pairs.rs:371-376`).
-- The key is known where a pair is made: `crates/podssh-relay/src/serve/mod.rs:327-331` takes the key
-  that proved itself, says its fingerprint in a line, and returns `Ok(())`, which
-  `crates/podssh-relay/src/serve/reverse/mod.rs:186` calls before the pair is made.
+- The key is known where a pair is made: `crates/podssh-relay/src/serve/mod.rs`, at lines 327-331 at
+  `2042200`, took the key that proved itself, said its fingerprint in a line, and returned `Ok(())`,
+  which `crates/podssh-relay/src/serve/reverse/mod.rs` called at line 186 at `2042200`, before the pair
+  is made.
 - The brake slows one address, not one key: `crates/podssh-relay/src/serve/brake.rs:22` says
   "pub const PER_MINUTE: usize = 120;", so one address fills the table in under 35 minutes, and several
   addresses sooner (arithmetic, not a measurement).
-- The full table's answer is `429` with the table's size
-  (`crates/podssh-relay/src/serve/reverse/mod.rs:198-200`), the same for a starved key as for a full
-  relay.
+- The full table's answer is `429` with the table's size (`crates/podssh-relay/src/serve/reverse/mod.rs`,
+  lines 198-200 at `2042200`), the same for a starved key as for a full relay.
 
 ## Approach
 
@@ -3604,18 +3604,74 @@ a key alone on a role of many keys keeps the table, and each other key still fin
 issue's ceiling for each key, which leaves one busy key among idle ones at 4096 divided by their
 number; the same words as a full table, as a starved key could not tell its share from a full relay.
 
+2026-11-04 (the drafting agent of T-630). The reserve is half the table in equal parts, `room / (2 *
+keys)`, one place at least, and the whole table for a key alone (or for a role that counts no key); the
+other half is the part that a busy key borrows, first come. With 4 keys of 4096 places, a busy key among
+idle ones keeps 2560 and each other key 512. Lost: the Approach's reserve of `room / keys` for each key
+(see the Correction); a reserve owed only to the keys that hold a pair (a key that comes after a greedy
+one, the issue's case, would find nothing for 72 h); a share counted by the net's members that its
+policy lets mint (the policy is the binary's, read for each key; each member counts, which makes each
+reserve smaller and never lets one key take another's). A starved key's words: `/v1/pair: this key
+holds N pairs, past its share of M while others wait`, with M the key's reserve, its own count, and no
+other key's name or count; a full table keeps its words. podssh's client printed no word of a `429`
+before, so it now says the relay's words after its own, as it does for a `503`.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib serve::reverse::pairs
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib serve::keys
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_reverse
+cargo test -p podssh-relay --features pair --test pair
+cargo test -p podssh-cli --lib net::mint
+sh scripts/plant-each.sh --here t630-reserve-a-ceiling
 ```
 
 With a small table in the test: n-1 greedy keys leave each other key its reserve; one key alone takes
 the whole table; an expired pair returns its place; a role for anyone counts no key; a kept file of
 before reads, and the new field comes back from a restart; the refusal names the key's share. Planted:
 the reserve read as a ceiling, and the test of a key alone fails.
+
+## Correction
+
+2026-11-04 (the drafting agent of T-630). The Approach's item 2 contradicts its Decision. A reserve of
+`room / keys` for each key, held while the key is idle, leaves a busy key among idle ones the places of
+its own part and the rest of the division alone, about 4096 divided by the number of keys: the ceiling
+that the Decision lost. So the reserve is half that (the second paragraph of the Decision), and the
+other half is borrowed. The Prove's "a key alone" is both cases: a busy key among idle ones goes past
+its reserve (the planted ceiling fails that test), and a key that the role mints for alone takes the
+whole table. The role's helpers that draw a pair's names and tokens, and compare its digests, left
+`crates/podssh-relay/src/serve/reverse/pairs.rs` for `crates/podssh-relay/src/serve/reverse/draw.rs`, so
+that it stays within 500 lines; the share is `crates/podssh-relay/src/serve/reverse/share.rs`.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-630`), UNVERIFIED: no command below ran in the draft.
+
+- The share in the role (`crates/podssh-relay/src/serve/reverse/share.rs`): each pair keeps its maker's
+  fingerprint, in memory and in the file of `--pairs` (`"maker"`, absent in a file of before); `make_for`
+  checks a key's share after the table's own bound; `/v1/pair` takes the key that `proven` returns and
+  the keys that the role mints for now (`Whom::count`: the list's, read again, and the net's members,
+  `Members::count`, which `crates/podssh-cli/src/net/mint.rs` gives); past its share, `429` with
+  `Retry-After: 60` and the key's own words, and a line of the role's. podssh's client says a `429`'s
+  words (`crates/podssh-relay/src/pair.rs`). `docs/relay.md` ("A key's share of the pairs") and the
+  manual (`podssh man`, the notes of `relay serve`) say it.
+- `cargo test ... --lib serve::reverse::pairs`: UNVERIFIED (the reserve's arithmetic; three greedy keys
+  of four leave the fourth its 2 of 16; a busy key borrows to 10 of 16 and each other finds its 2; a key
+  alone takes 16; a stopped pair, then an expired one, gives its place back, a renewal keeps its maker; 6
+  pairs of no key and a key that meets its share by its own 4; a file of before reads, the maker comes
+  back from a restart and from a renewal).
+- `cargo test ... --lib serve::keys`: UNVERIFIED (the count of a list's key and a net's member, and of a
+  list that cannot be read). `cargo test -p podssh-cli --lib net::mint`: UNVERIFIED (it builds the
+  binary's count).
+- `cargo test ... --test relay_serve_reverse`: UNVERIFIED (through the role, `--mint keys:FILE` of three
+  keys and a table of 6: the first key makes 4 pairs, then `429` with "this key holds 4 pairs, past its
+  share of 1 while others wait", which names no other key; the two others pair; then the table's own
+  `429`). `cargo test -p podssh-relay --features pair --test pair`: UNVERIFIED (the client's `429` with
+  the relay's words).
+- Planted, the reserve read as a ceiling (`sh scripts/plant-each.sh --here t630-reserve-a-ceiling`):
+  UNVERIFIED (the test of a busy key must fail).
 
 # T-633: No rule, written once, for a member of an answer that is absent where it carries a guarantee, and no helper that reads `None` and `false` alike
 

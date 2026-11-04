@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/reverse/share.rs
++++ b/crates/podssh-relay/src/serve/reverse/share.rs
+@@ -68,7 +68,7 @@
+     let used: usize = held.iter().filter(|(key, _)| **key != asker.key.as_str()).map(|(_, n)| (*n).min(share)).sum();
+     let owed = (others * share).saturating_sub(used);
+     let free = room.saturating_sub(map.len());
+-    if free > owed {
++    if free > owed && holds < share {
+         Ok(())
+     } else {
+         Err(NotMade::Share { holds, share })

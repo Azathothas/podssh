@@ -10,6 +10,7 @@
 //! with `once` (T-226) takes its connect token at one upgrade alone: a token
 //! that leaks after it is worth nothing, also after a restart. Its node
 //! registers tokens of one leg, and rotates its stop token ([`legs`], T-615).
+//! A key that the role mints for has a share of the table ([`share`], T-630).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -18,7 +19,6 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use tokio::sync::oneshot;
 
 use super::outbox::{Outbox, Writers};
@@ -66,6 +66,9 @@ pub enum NotMade {
     NameInUse,
     /// [`MAX_PAIRS`] are kept: `429`.
     Full,
+    /// The key holds `holds` pairs, past its reserve of `share`, and the
+    /// places left are the other keys' (T-630): `429`, in words of its own.
+    Share { holds: usize, share: usize },
     /// No randomness, or a file that took no write.
     Failed(String),
 }
@@ -88,6 +91,9 @@ pub struct Pair {
     /// The tokens of one leg that its node registered, and its stop token
     /// as its node rotated it (T-615).
     held: legs::Held,
+    /// The fingerprint of the key that made it, for its share (T-630); none
+    /// for a role that mints for anyone, and for a pair of before.
+    maker: Option<String>,
 }
 
 /// The node's socket, while one is joined.
@@ -163,9 +169,9 @@ impl Pair {
     }
 
     fn new(name: String, expires_ms: u64, session_bytes: u64, digests: [[u8; 32]; 3]) -> Pair {
-        let expires = AtomicU64::new(expires_ms);
-        let (once, spent) = (false, AtomicBool::new(false));
-        Pair { name, expires, session_bytes, digests, state: Default::default(), once, spent, held: Default::default() }
+        let (expires, state, held) = (AtomicU64::new(expires_ms), Default::default(), Default::default());
+        let (once, spent, maker) = (false, AtomicBool::new(false), None);
+        Pair { name, expires, session_bytes, digests, state, once, spent, held, maker }
     }
 
     /// Take the one upgrade of a pair of `once` (T-226): `true` the first
@@ -216,6 +222,8 @@ pub struct Pairs {
     /// The role's mailbox of the pairing by code, whose codes give a pair's
     /// operator's part (T-086): one table for each role.
     pub mailbox: crate::serve::mailbox::table::Table,
+    /// The places of the table: [`MAX_PAIRS`], or a test's ([`Pairs::with_room`]).
+    room: Option<usize>,
 }
 
 impl Pairs {
@@ -229,7 +237,8 @@ impl Pairs {
             for kept in load(path)?.into_iter().filter(|p| p.expires > now) {
                 let digests = kept.digests()?;
                 let mut pair = Pair::new(kept.name, kept.expires, super::SESSION_BYTES, digests);
-                (pair.once, pair.spent) = (kept.once, AtomicBool::new(kept.spent));
+                // Its maker's share holds across a restart (T-630).
+                (pair.once, pair.spent, pair.maker) = (kept.once, AtomicBool::new(kept.spent), kept.maker);
                 // The stop token to come, which its node asked for (T-615).
                 pair.held.next_stop(kept.next_stop.as_deref(), &pair.name)?;
                 map.insert(pair.name.clone(), Arc::new(pair));
@@ -246,6 +255,12 @@ impl Pairs {
     /// [`Pairs::make`], with a connect token that takes one upgrade alone
     /// when `once` (T-226).
     pub fn make_with(&self, now_ms: u64, once: bool) -> Result<Made, NotMade> {
+        self.make_for(now_ms, once, None)
+    }
+
+    /// [`Pairs::make_with`] for `asker`, a key that proved itself, within its
+    /// share of the table (T-630); with none, the pair counts against no key.
+    pub fn make_for(&self, now_ms: u64, once: bool, asker: Option<&Asker>) -> Result<Made, NotMade> {
         let made = Made {
             name: format!("p-{}", hex(&random(16).map_err(NotMade::Failed)?)),
             node: base36(64).map_err(NotMade::Failed)?,
@@ -260,12 +275,15 @@ impl Pairs {
             if map.contains_key(&made.name) {
                 return Err(NotMade::NameInUse);
             }
-            if map.len() >= MAX_PAIRS {
+            if map.len() >= self.room() {
                 return Err(NotMade::Full);
+            }
+            if let Some(asker) = asker {
+                share::check(&map, self.room(), asker)?;
             }
             let digests = [digest(&made.node), digest(&made.connect), digest(&made.stop)];
             let mut pair = Pair::new(made.name.clone(), made.expires_ms, super::SESSION_BYTES, digests);
-            pair.once = once;
+            (pair.once, pair.maker) = (once, asker.map(|a| a.key.clone()));
             map.insert(made.name.clone(), Arc::new(pair));
         }
         if let Err(why) = self.save() {
@@ -385,6 +403,10 @@ struct Kept {
     /// none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     next_stop: Option<String>,
+    /// The fingerprint of the key that made it (T-630); a file of before, and
+    /// a pair of a role for anyone, have none, and count against no key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    maker: Option<String>,
 }
 
 impl Kept {
@@ -432,44 +454,16 @@ fn write_private(path: &Path, body: &[u8]) -> std::io::Result<()> {
     written
 }
 
-fn digest(token: &str) -> [u8; 32] {
-    let mut out = [0u8; 32];
-    out.copy_from_slice(&Sha256::digest(token.as_bytes()));
-    out
-}
+// The names and tokens that a pair draws, and their digests.
+#[path = "draw.rs"]
+mod draw;
+use draw::{base36, digest, same};
+pub use draw::{hex, random};
 
-/// Equal in constant time: a digest's first bytes are not given away.
-fn same(a: &[u8; 32], b: &[u8; 32]) -> bool {
-    a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
-}
-
-pub fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// `n` bytes of the system's randomness.
-pub fn random(n: usize) -> Result<Vec<u8>, String> {
-    use rand::TryRng;
-    let mut out = vec![0u8; n];
-    rand::rngs::SysRng.try_fill_bytes(&mut out).map_err(|e| format!("no randomness for a pair: {e}"))?;
-    Ok(out)
-}
-
-/// `n` characters of `[0-9a-z]`, the shape of the default relay's tokens
-/// (measured 2026-10-09); a byte of 252 or more is drawn again, so that each
-/// character is as likely.
-fn base36(n: usize) -> Result<String, String> {
-    const ALPHABET: &[u8; 36] = b"0123456789abcdefghijklmnopqrstuvwxyz";
-    let mut out = String::with_capacity(n);
-    while out.len() < n {
-        for byte in random(n)? {
-            if byte < 252 && out.len() < n {
-                out.push(char::from(ALPHABET[usize::from(byte % 36)]));
-            }
-        }
-    }
-    Ok(out)
-}
+// A key's share of the table (T-630).
+#[path = "share.rs"]
+mod share;
+pub use share::{reserve, Asker};
 
 // The planned stop, beside the pairs that it closes (T-255).
 #[path = "stop.rs"]

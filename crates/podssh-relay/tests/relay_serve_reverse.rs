@@ -2,19 +2,24 @@
 //! role (T-427), as they run against the live relay and the stand-in: two
 //! sessions at once carry their bytes whole; a slow operator meets the
 //! contract's bound, `1011 relay backpressure` at 1 MiB, while the node's
-//! other session goes on (T-336); and a planned stop's `1012` sends the node
-//! back to its pair (T-255).
+//! other session goes on (T-336); a planned stop's `1012` sends the node
+//! back to its pair (T-255); and a role that mints for keys keeps a share of
+//! its pairs for each (T-630).
 #![cfg(all(feature = "serve", feature = "plain-ws"))]
 
 mod role_harness;
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use podssh_relay::identity::Identity;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::{self, operator, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits};
 use podssh_relay::reverse::{Outcome, SessionId, Settings, Wire};
+use podssh_relay::serve::reverse::Pairs;
+use podssh_relay::serve::Mint;
 use podssh_ws::{ProxyChoice, Trust};
 use role_harness::{Role, LIMIT};
 use sha2::{Digest, Sha256};
@@ -286,4 +291,74 @@ async fn after_a_planned_stops_1012_the_node_joins_its_pair_again() {
     .await
     .expect("in time");
     assert!(matches!(exit, Exit::Stopped), "{exit:?}");
+}
+
+/// A list of the keys of `seeds`, in a private scratch file that goes when
+/// the test ends, pass or fail: the gate counts what tests leave.
+struct Keys {
+    dir: PathBuf,
+    path: PathBuf,
+}
+
+impl Keys {
+    fn of(seeds: &[u8]) -> Keys {
+        let dir = std::env::temp_dir().join(format!("podssh-share-{}", std::process::id()));
+        podssh_relay::cache::private_dir(&dir).unwrap();
+        let path = dir.join("allow");
+        let print = |seed: u8| Identity::from_seed(&[seed; 32]).public().fingerprint();
+        let lines: String = seeds.iter().map(|&seed| format!("{} the key of seed {seed}\n", print(seed))).collect();
+        std::fs::write(&path, lines).unwrap();
+        Keys { dir, path }
+    }
+}
+
+impl Drop for Keys {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+/// `POST /v1/pair` by the key of `seed`, as podssh's client sends it to a
+/// role that mints for keys (T-448): the contract's `{}`, then the key's
+/// proof of the role's challenge, signed for the `Host` that it sends. The
+/// status and the body.
+async fn pair_by_key(role: &Role, seed: u8) -> (u16, String) {
+    let (status, body) = role.http_body("POST", "/v1/pair", None, "{}").await;
+    assert_eq!(status, 401, "a challenge: {body}");
+    let asked: serde_json::Value = serde_json::from_str(&body).expect("the challenge's JSON");
+    let challenge = asked["challenge"].as_str().expect("a challenge");
+    let proof = podssh_relay::keyed::proof(&Identity::from_seed(&[seed; 32]), "127.0.0.1", "/v1/pair", challenge);
+    role.http_body("POST", "/v1/pair", None, std::str::from_utf8(&proof).unwrap()).await
+}
+
+/// T-630: a role that mints for three keys, with a table of 6 places, keeps
+/// one for each: the first key pairs past its own, then meets its share in
+/// words that name its own count and share and no other key; each other key
+/// still pairs; then the table is full, in the table's own words.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_key_past_its_share_hears_its_own_words_and_each_other_key_still_pairs() {
+    let list = Keys::of(&[1, 2, 3]);
+    let role = Role::with_pairs(Mint::Keys(list.path.clone()), Pairs::default().with_room(6)).await;
+    let mut made = 0;
+    let (status, body) = loop {
+        let (status, body) = pair_by_key(&role, 1).await;
+        if status != 200 {
+            break (status, body);
+        }
+        made += 1;
+        assert!(made <= 6, "the table's bound held nothing back");
+    };
+    assert_eq!((status, made), (429, 4), "{body}");
+    assert_eq!(body.trim_end(), "/v1/pair: this key holds 4 pairs, past its share of 1 while others wait");
+    for seed in [2, 3] {
+        let print = Identity::from_seed(&[seed; 32]).public().fingerprint();
+        assert!(!body.contains(&print), "another key's name: {body}");
+    }
+    assert!(role.said("/v1/pair: a key past its share of 1 pairs"), "{:?}", role.events.lock().unwrap());
+    for seed in [2, 3] {
+        let (status, body) = pair_by_key(&role, seed).await;
+        assert_eq!(status, 200, "the reserve of the key of seed {seed}: {body}");
+    }
+    let (status, body) = pair_by_key(&role, 3).await;
+    assert_eq!((status, body.trim_end()), (429, "/v1/pair: this relay keeps 6 pairs already"));
 }

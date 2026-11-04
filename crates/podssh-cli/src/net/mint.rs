@@ -66,6 +66,15 @@ impl keys::Members for Members {
             held.path.display()
         ))
     }
+
+    fn count(&self) -> usize {
+        // Each member of the document held now, also one that the policy
+        // refuses: a share too small for each, never a member left out.
+        match held() {
+            Ok(held) if held.signed.doc.expires > super::now() => held.signed.doc.members.len(),
+            _ => 0,
+        }
+    }
 }
 
 /// The document held, or why the role has none to mint by.
