@@ -56,6 +56,8 @@ struct Road {
     offer: Offer,
     silence: Silence,
     log: Arc<Log>,
+    /// `PODSSH_RELAY_LAYER`: asked for, or unset.
+    asked_for: super::Asked,
 }
 
 /// The first hop `host:port` through the layer at the first host of
@@ -71,11 +73,11 @@ pub(crate) async fn reach(
     opts: &podssh_ssh::options::Options,
     log: &Arc<Log>,
 ) -> Option<Result<Reached, NotReached>> {
-    match super::asked_here() {
-        Ok(true) => {}
-        Ok(false) => return None,
+    let asked_for = match super::asked_here() {
+        Ok(super::Asked::No) => return None,
+        Ok(asked_for) => asked_for,
         Err(refusal) => return Some(Err(NotReached { lines: vec![refusal.message], code: refusal.code })),
-    }
+    };
     // --no-resume (T-612): a session that ends with its link.
     if crate::no_resume::asked() {
         log.verbose("--no-resume: the session ends with its link, so it takes the contract's road, with no layer");
@@ -94,6 +96,7 @@ pub(crate) async fn reach(
         offer: opts.keep.offer.clone(),
         silence: opts.silence.clone(),
         log: log.clone(),
+        asked_for,
     };
     let (tell, told) = oneshot::channel();
     let (ended, done) = oneshot::channel();
@@ -131,9 +134,9 @@ fn run(road: Road, tell: oneshot::Sender<Begun>, ended: oneshot::Sender<()>) {
 /// The offer, the first link and its handshake, each told to `tell`; then
 /// the session in the layer, until its end.
 async fn carried(road: Road, tell: oneshot::Sender<Begun>) {
-    let Road { relays, trust, family, host, port, offer, silence, log } = road;
+    let Road { relays, trust, family, host, port, offer, silence, log, asked_for } = road;
     let mut say = |line: String| log.info(&line);
-    let Some((dialer, at)) = super::chosen(&relays, &trust, (host.as_str(), port), &mut say).await else {
+    let Some((dialer, at)) = super::chosen(&relays, &trust, (host.as_str(), port), asked_for, &mut say).await else {
         let _ = tell.send(Begun::Contract);
         return;
     };
@@ -142,7 +145,10 @@ async fn carried(road: Road, tell: oneshot::Sender<Begun>) {
         Ok(link) => link,
         Err(missed) => {
             let lines = missed.lines(dialer.target());
-            let begun = if missed.is_final() {
+            let begun = if let Some(line) = super::unserved(&relays, &missed, &at) {
+                log.info(&line);
+                Begun::Contract
+            } else if missed.is_final() {
                 let code = missed.failure().map_or(sysexits::EX_UNAVAILABLE, |f| crate::proxy::sysexit(f.last()));
                 Begun::Failed(NotReached { lines, code })
             } else {

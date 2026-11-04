@@ -133,7 +133,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
 (`docs/relay.md:483-484`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:113-130`) already makes a verified `/health`
-request; `crates/podssh-relay/src/pool.rs:181-204` fetches `/relays.json`. `https_get` sends no
+request; `crates/podssh-relay/src/pool.rs:181-207` fetches `/relays.json`. `https_get` sends no
 token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes headers (lines
 282-303).
 
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:318`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:319`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -2114,7 +2114,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   `/health` alone (`scripts/check-relay-spec.py:399-400`); `:196-197` reads the cap from the
   facts file.
 - Read: podssh fetches `/relays.json` at a mint for its pool, and keeps `pool[].host` alone
-  (`crates/podssh-relay/src/pool.rs:154-242`). `podssh relay info` reads its `limits`
+  (`crates/podssh-relay/src/pool.rs:154-245`). `podssh relay info` reads its `limits`
   (`connect_timeout_ms`, `idle_timeout_ms`, `max_session_ms`, `max_session_bytes` and
   `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:87-100`), and a test asserts a
   stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:257`).

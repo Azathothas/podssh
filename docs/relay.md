@@ -1166,8 +1166,11 @@ again (`401`, `403`, `404`, `410`) ends the session, and each other failure
 is tried again with the layer's backoff until the deadline; a `REFUSE`
 (busy) of the first link's handshake sends the session to the contract's
 `/connect/`, with no resume. `podssh proxy` and `podssh ssh`, and each
-command that reaches its server as `podssh ssh` does, take it with
-`PODSSH_RELAY_LAYER=yes` ([cli.md](cli.md)). The default relay offers none
+command that reaches its server as `podssh ssh` does, take it where the
+first host offers it: its offer kept for a day, read at each run with
+`PODSSH_RELAY_LAYER=yes`; a kept offer whose host answers `404` for the
+layer's path is forgotten and the session takes `/connect/`
+([cli.md](cli.md)). The default relay offers none
 ([relay-operator.md](relay-operator.md), item 16): a Durable Object of that
 deployment would be its far end.
 

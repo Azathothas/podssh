@@ -92,6 +92,17 @@ impl Missed {
         }
     }
 
+    /// Whether the host answered 404 for the layer's path: a host that no
+    /// longer serves it, which a kept offer may still name.
+    pub fn not_served(&self) -> bool {
+        let not_found = |e: &ConnectError| matches!(e, ConnectError::Refused { status: 404, .. });
+        match self {
+            Missed::Open(failure) => matches!(failure.last(), OpenError::Connect { error, .. } if not_found(error)),
+            #[cfg(feature = "plain-ws")]
+            Missed::Plain(e) => not_found(e),
+        }
+    }
+
     /// What to print, one line each, with no `podssh:` prefix.
     pub fn lines(&self, target: &str) -> Vec<String> {
         match self {

@@ -817,7 +817,7 @@ trip of frames must fail and print the smallest frame that fails.
 
 # T-203: The fault-injection harness: latency, jitter, bandwidth, a new address
 
-**Source:** `docs/design.md:725-727` (layers 2 and 3 need the harness
+**Source:** `docs/design.md:726-728` (layers 2 and 3 need the harness
 extended), and the exit criteria of M6 (`docs/ROADMAP.md`, M6; T-156).
 **Category:** chore
 **Milestone:** M6
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-29`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:686-706`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:687-707`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
@@ -977,9 +977,9 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io/msg.rs:35-42`, with `crates/podssh-ssh/src/io.rs:68-70`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:135`, `docs/STATUS.md:141`).
+  (`docs/STATUS.md:136`, `docs/STATUS.md:142`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:5086-5087` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:5093-5094` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -996,14 +996,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:5086-5087`). A difference that the table does not name fails,
+   `docs/cli.md:5093-5094`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:5086-5087` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:5093-5094` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed
@@ -1040,7 +1040,7 @@ for `podssh ssh`.
 (openssh-portable at its default branch, 2026-10-12; read, not run):
 `client_input_channel_req` in `clientloop.c` takes `exit-status` and no
 `exit-signal`, and `client_loop` starts its status at -1, so a signal gives
-255, as `docs/cli.md:4679-4680` says. `check_host_key` in `sshconnect.c`
+255, as `docs/cli.md:4686-4687` says. `check_host_key` in `sshconnect.c`
 goes on past a changed key under `StrictHostKeyChecking=no`: it turns off
 password and keyboard-interactive login and the forwardings, then accepts
 the key, so `ssh.hostkey.changed_refused` gives 0 with OpenSSH. In
@@ -1081,7 +1081,7 @@ has three rows.
   podssh 143), `changed_key` (OpenSSH 0, podssh 255) and
   `unreadable_known_hosts` (OpenSSH 0, podssh 255).
 - `crates/podssh-ssh/src/lib.rs:16` now agrees with
-  `docs/cli.md:4679-4680`: 128 plus the signal's number, where OpenSSH
+  `docs/cli.md:4686-4687`: 128 plus the signal's number, where OpenSSH
   gives 255. `docs/cli.md` names the two differences of the host keys
   beside their rules; `docs/development.md` (item 7 of the gate) says that
   each code is checked twice; `docs/STATUS.md` has a row for OpenSSH's
@@ -1376,9 +1376,9 @@ that fails at random hides a defect, or teaches the reader to rerun.
 
 ## Premise
 
-- The test (`crates/podssh-cli/tests/pipe.rs:235`) gives the bytes to podssh's stdin from a
+- The test (`crates/podssh-cli/tests/pipe.rs:101`) gives the bytes to podssh's stdin from a
   thread and waits 10 s for podssh to end; its server answers the digest once its input ends
-  (`crates/podssh-cli/tests/pipe.rs:135`).
+  (`crates/podssh-cli/tests/pipe_seen/mod.rs:136`).
 - The pump shuts the other side's write half down when its input ends
   (`crates/podssh-cli/src/pipe/pump.rs:94`), and reads more of the input that is ready at once
   without waiting (`crates/podssh-cli/src/pipe/pump.rs:163`).
@@ -1550,3 +1550,51 @@ Drafted 2026-11-02 by a drafting agent, not built; merged and run by the main se
   first line at `-v` or more alone (`crates/podssh-ssh/src/log.rs`). `mv -v` to a port that
   refuses: the notice first, the limit's line second; `cargo test -p podssh-cli --test status`: 7
   passed.
+
+# T-627: The relay role's test of a resume by the next token of one leg timed out once in the relay crate's suite
+
+**Source:** the main session, 2026-11-04: `cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code`, at T-173's second part.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+`a_resume_takes_the_next_token_that_the_node_gave_and_a_replayed_one_is_refused` of
+`crates/podssh-relay/tests/relay_serve_once.rs` (T-615) waited past its 20 s for the echo after
+the cut ("the echo in time: Elapsed(())"), once, in a run of the crate's whole suite; alone and
+beside its own suite it passed each time after. A test that fails at random hides a defect, or
+teaches the reader to rerun.
+
+## Premise
+
+- The test cuts the operator's leg after the first echo, and the session resumes on a new leg
+  by the next connect token of one leg that the node's verdict gave (T-615); the echo after the
+  cut waits [`LIMIT`] of the role's harness, 20 s (`crates/podssh-relay/tests/role_harness/mod.rs:27`).
+
+## Approach
+
+1. The test says, at its limit, the role's events so far: whether the new leg was refused for its
+   token (`reverse leg token refused`), took one (`reverse leg token`), or never came.
+2. Name the cause from the next failure's words (a resume before the node registered the next
+   tokens with the role, a refused token that the client counts as spent, or a slow leg) and
+   repair it, not the limit.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_once
+```
+
+The whole suite of the crate with those features, many runs in a row, and the cause planted again
+fails it.
+
+## Done
+
+Partial, 2026-11-04: step 1. The echo's timeout now panics with the role's events
+(`crates/podssh-relay/tests/relay_serve_once.rs`, `echoed`). Not reproduced here: the test alone 24
+times, 8 at once, and its whole binary 32 times, 8 at once: each passed. It stays partial for the
+next failure's words.

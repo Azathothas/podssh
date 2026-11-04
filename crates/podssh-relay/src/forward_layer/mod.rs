@@ -11,12 +11,15 @@
 //!   time, as nothing is assumed of a relay, and the name of the process
 //!   that holds each session of it, where several share one name;
 //! - [`client`]: the links of one session to the host that holds it, and the
-//!   session across them.
+//!   session across them;
+//! - [`kept`]: what each host offered, kept for a day, so that a run that did
+//!   not ask takes the layer where its first host offered it.
 //!
 //! The layer's secret stays in memory: each resume proves it in the layer's
 //! records, and the path names only the target, as `/connect/` does.
 
 pub mod client;
+pub mod kept;
 pub mod offer;
 
 pub use client::{carry, no_room, Dialer, Missed};

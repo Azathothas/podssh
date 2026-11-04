@@ -2,15 +2,17 @@
 //! that file.
 
 pub(super) const MORE: &[&str] = &[
-    "With PODSSH_RELAY_LAYER=yes, and a first relay host that offers it in its /relays.json (podssh relay \
-     serve does), podssh ssh carries the session to a standard sshd in the resumable layer at the relay \
+    "Where a first relay host offers it in its /relays.json (podssh relay serve does), read at each run \
+     with PODSSH_RELAY_LAYER=yes, kept for a day when it is unset (see ENVIRONMENT), podssh ssh \
+     carries the session to a standard sshd in the resumable layer at the relay \
      (T-173): the relay keeps its connection to the server while this host's link is lost, and a new link \
      to the same relay, or to the process that its /relays.json names as forward.host, resumes the \
      session where it was, for as long as the relay keeps it, 10 minutes by default; one line tells of \
      each loss and each resume, and SSH's keepalives are off unless ServerAliveInterval is given, as the \
      layer's heartbeat finds a dead link. -4 and -6 hold for each link. A host that offers none, that has \
      no room for a new resumable session, or whose first link fails for a reason that another host may \
-     not share, takes the contract's road with one line, as podssh proxy does; so does --no-resume. The \
+     not share, takes the contract's road with one line, as podssh proxy does (for a host that offers \
+     none, with PODSSH_RELAY_LAYER=yes alone); so does --no-resume. The \
      copies, run, each and job log in the same way.",
     "-A forwards the agent, off by default as in OpenSSH; -a turns it off, and the last of the two wins, \
      over the keyword ForwardAgent. podssh asks for it on the session, never on a jump host, and joins each \

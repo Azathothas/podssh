@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**590 entries: 96 open, 5 partial, 2 blocked, 487 done.**
+**591 entries: 96 open, 5 partial, 2 blocked, 488 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 1 | 0 | 63 | 64 |
+| P1 | 0 | 2 | 0 | 63 | 65 |
 | P2 | 27 | 2 | 0 | 236 | 265 |
-| P3 | 69 | 2 | 2 | 187 | 260 |
-| **All** | 96 | 5 | 2 | 487 | 590 |
+| P3 | 69 | 1 | 2 | 188 | 260 |
+| **All** | 96 | 5 | 2 | 488 | 591 |
 
 ## Entries
 
@@ -247,7 +247,7 @@ repository and CI).
 | [T-170](roads.md) | P3 | M | backlog | research | done | A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports |
 | [T-171](roads.md) | P3 | M | backlog | research | done | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |
 | [T-172](roads.md) | P3 | S | backlog | research | done | Multipath TCP on the direct road |
-| [T-173](roads.md) | P3 | L | M10 | feature | partial | Resumption in the relay for a standard sshd |
+| [T-173](roads.md) | P3 | L | M10 | feature | done | Resumption in the relay for a standard sshd |
 | [T-174](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe A B` with local addresses |
 | [T-175](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe` with remote addresses |
 | [T-176](pipe.md) | P2 | S | M7 | feature | done | `podssh pipe` with `unix-connect:PATH` |
@@ -666,3 +666,4 @@ repository and CI).
 | [T-624](mesh.md) | P3 | S | M10 | research | open | hostc, Tunnelmole and Sandhole's public server as last fallbacks of the reverse road: the research |
 | [T-625](mesh.md) | P3 | S | M10 | measurement | open | The rates of the Piping Server road through `ppng.io` and of the Wisp demo server, measured through podssh |
 | [T-626](mesh.md) | P3 | S | M10 | research | open | I2P, Nym and cjdns: whether an overlay of peer addresses carries a podssh pair: the research |
+| [T-627](robustness.md) | P1 | S | M10 | defect | partial | The relay role's test of a resume by the next token of one leg timed out once in the relay crate's suite |

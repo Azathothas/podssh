@@ -494,7 +494,7 @@ AF_UNIX.
 - Read: `AGENTS.md:276-282` (no bind, no listen),
   `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:226-253` ("Nothing
   listens") and `README.md:44-53` state the rule from before the ruling.
-  `docs/design.md:1071-1073` already allows a local listener for `pipe` after
+  `docs/design.md:1072-1074` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:392`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:393`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise

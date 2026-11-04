@@ -1,5 +1,6 @@
 //! `podssh ssh` in the resumable layer of `podssh relay serve` (T-173): to
-//! OpenSSH's sshd, with `PODSSH_RELAY_LAYER=yes`, its link cut at points of
+//! OpenSSH's sshd, with `PODSSH_RELAY_LAYER` unset, so by the role's offer
+//! that one read of its `/relays.json` gave, its link cut at points of
 //! its own by the stand-in of the host's proxy while 8 MiB go each way
 //! through the server's `cat`: the session lives on, and the digests are
 //! equal. And a role whose budget holds one session: a second session, with
@@ -68,7 +69,7 @@ fn podssh_ssh_in_the_layer_lives_on_cuts_of_its_link() {
     for name in PROXIES.iter().chain(&["PODSSH_RELAY"]) {
         cmd.env_remove(name);
     }
-    cmd.env("PODSSH_RELAY_LAYER", "yes").env("HTTPS_PROXY", format!("http://127.0.0.1:{proxy_port}"));
+    cmd.env_remove("PODSSH_RELAY_LAYER").env("HTTPS_PROXY", format!("http://127.0.0.1:{proxy_port}"));
     cmd.stdin(std::fs::File::open(&data).unwrap());
     cmd.stdout(std::fs::File::create(&back).unwrap()).stderr(Stdio::piped());
     let mut child = cmd.spawn().unwrap();
@@ -89,6 +90,9 @@ fn podssh_ssh_in_the_layer_lives_on_cuts_of_its_link() {
     assert!(events.contains("upgrade layer"), "the layer's road: {events}");
     assert!(events.contains("layer resumed"), "the role resumed the session: {events}");
     assert!(stderr.contains("the session resumed after"), "podssh ssh says each resume: {stderr}");
+    // Unset, by the offer of one read, then kept: no read at each resume.
+    let reads = events.lines().filter(|l| l.trim() == "relays.json").count();
+    assert_eq!(reads, 1, "the offer was read once: {events}");
 }
 
 /// A target that takes each connection and holds it, reading until its end;

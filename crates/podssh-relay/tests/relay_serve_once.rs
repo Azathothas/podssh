@@ -301,11 +301,20 @@ impl Opener {
     }
 }
 
-/// `bytes` up, and the same bytes back.
-async fn echoed(r: &mut tokio::io::ReadHalf<DuplexStream>, w: &mut tokio::io::WriteHalf<DuplexStream>, bytes: &[u8]) {
+/// `bytes` up, and the same bytes back; past [`LIMIT`], the role's events so
+/// far say where the session stopped (T-627).
+async fn echoed(
+    r: &mut tokio::io::ReadHalf<DuplexStream>,
+    w: &mut tokio::io::WriteHalf<DuplexStream>,
+    bytes: &[u8],
+    role: &Role,
+) {
     w.write_all(bytes).await.expect("the bytes up");
     let mut back = vec![0u8; bytes.len()];
-    tokio::time::timeout(LIMIT, r.read_exact(&mut back)).await.expect("the echo in time").expect("the echo");
+    match tokio::time::timeout(LIMIT, r.read_exact(&mut back)).await {
+        Ok(read) => read.expect("the echo"),
+        Err(_) => panic!("no echo within {LIMIT:?}; the role's events: {:?}", role.events.lock().unwrap()),
+    };
     assert_eq!(back, bytes);
 }
 
@@ -336,11 +345,11 @@ async fn a_resume_takes_the_next_token_that_the_node_gave_and_a_replayed_one_is_
             let session = Box::pin(resume::run(client, cipher, connect, |_| {}, &mut entropy));
             let steps = Box::pin(async {
                 let (mut r, mut w) = tokio::io::split(app);
-                echoed(&mut r, &mut w, b"before the cut").await;
+                echoed(&mut r, &mut w, b"before the cut", &role).await;
                 let taker = legs::current().expect("a taker of the session");
                 assert!(taker.holds(), "the node's verdict gave the seed of the session's tokens");
                 opener.cut();
-                echoed(&mut r, &mut w, b"after the cut").await;
+                echoed(&mut r, &mut w, b"after the cut", &role).await;
                 w.shutdown().await.expect("the end of the input");
                 let mut rest = Vec::new();
                 let _ = tokio::time::timeout(LIMIT, r.read_to_end(&mut rest)).await;

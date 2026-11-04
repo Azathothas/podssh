@@ -1,0 +1,7 @@
+# T-173: with PODSSH_RELAY_LAYER unset, podssh ignores the offer that it kept
+# and reads the first host's /relays.json at each run; the test of two runs
+# through the role, whose offer must be read once and then kept, must fail.
+ENTRY=T-173
+GROUP=resume
+EXPECT='the offer was read once, then kept'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- unasked'

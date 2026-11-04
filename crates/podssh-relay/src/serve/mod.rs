@@ -144,8 +144,9 @@ pub struct Config {
     pub answered: keys::Answered,
     /// The counts of `/v1/mint` and `/v1/pair` for each address (T-454).
     pub brake: brake::Brake,
-    /// Each mint, upgrade and client's Close as a line (`mint`, `upgrade`,
-    /// `close CODE`), and each step of the reverse road (`reverse ...`), as
+    /// Each mint, upgrade, read of `/relays.json` and client's Close as a
+    /// line (`mint`, `upgrade`, `relays.json`, `close CODE`), and each step of
+    /// the reverse road (`reverse ...`), as
     /// the stand-in relay prints them for a harness.
     pub events: Option<Events>,
 }
@@ -217,7 +218,11 @@ where
         ("GET", p) if layer::serves(p) => layer::connect(stream, head, pending, cfg).await,
         ("POST", "/v1/mint") => mint(&mut stream, &head, pending, &cfg, sni.as_deref()).await,
         ("GET", "/health") => answer(&mut stream, docs::json(&docs::health(&cfg))).await,
-        ("GET", "/relays.json") => answer(&mut stream, docs::json(&docs::relays(&cfg, &head))).await,
+        ("GET", "/relays.json") => {
+            // A harness counts the reads of the document (T-173).
+            cfg.event("relays.json");
+            answer(&mut stream, docs::json(&docs::relays(&cfg, &head))).await
+        }
         ("GET", "/trace") => {
             let reply = docs::trace(&cfg, &head).await;
             answer(&mut stream, reply).await

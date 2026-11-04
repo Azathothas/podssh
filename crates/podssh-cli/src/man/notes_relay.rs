@@ -161,7 +161,7 @@ pub const RELAY: &[&str] = &[
      minutes (--resume-deadline TIME). A new session past the budget is refused in the layer's \
      handshake, before its client sent a byte of it, with what holds the budget, a line on stdout once \
      a minute; podssh's client then takes /connect/, with no resume. /relays.json offers it as \
-     forward.layer: true, and podssh proxy and podssh ssh take it with PODSSH_RELAY_LAYER=yes. Where \
+     forward.layer: true, and podssh proxy and podssh ssh take it, with PODSSH_RELAY_LAYER unset or yes. Where \
      several processes serve one name, each gives --resume-host HOST[:PORT], a name of its own that its \
      certificate holds: /relays.json names it as forward.host, and podssh's client sends each link of a \
      session there, so that a resume reaches the process that holds the session; a name that is not of \

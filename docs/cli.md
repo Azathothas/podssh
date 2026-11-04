@@ -3519,10 +3519,17 @@ commands. The rules behind them:
   processes serve one name, `--resume-host HOST[:PORT]` names this one in
   `/relays.json` (`forward.host`), and the client sends each link of a
   session there. `podssh proxy HOST PORT` and `podssh ssh` take the road
-  with `PODSSH_RELAY_LAYER=yes`, which the user sets, until a live run
-  measured it (T-173): each reads the first relay host's `/relays.json`,
-  and where it offers the road, sends each link of the session to the
-  process that it names, of its deployment, else to that host alone
+  where the first relay host offers it (T-173): with `PODSSH_RELAY_LAYER=yes`
+  each reads that host's `/relays.json` at each run, and says each case;
+  unset, each takes the offer that the host made within a day, kept in the
+  cache (`crates/podssh-relay/src/forward_layer/kept.rs`), with no line
+  where there is none, and reads it once, 5 s at most, for a relay that the
+  user named whose offer is not kept (the default relay's comes with its
+  pool's refresh); a kept offer whose host answers 404 for the layer's path
+  is forgotten, with one line, and the contract's road carries the session;
+  `no` takes the contract's road alone. Where the road is taken, each sends
+  each link of the session to the process that the offer names, of its
+  deployment, else to that host alone
   (`crates/podssh-cli/src/relay_layer.rs`), each loss and resume a line on
   stderr; OpenSSH's SIGHUP at its exit is the end of `proxy`'s bytes, so the
   role forgets the session at once. `podssh ssh` runs the layer on a thread

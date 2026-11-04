@@ -8,13 +8,14 @@
 //! its device, on Linux: the bytes go both ways, and the line's settings
 //! come back at the end, at a signal too.
 
-use std::io::{Read, Write};
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
-use sha2::{Digest, Sha256};
+mod pipe_seen;
+
+#[cfg(target_os = "linux")]
+use pipe_seen::answer;
+use pipe_seen::{digest, digest_server, through, through_seen, Seen};
 
 /// `podssh pipe ARGS`, stdin at its end: (code, stdout, stderr).
 fn pipe(args: &[&str]) -> (i32, String, String) {
@@ -85,81 +86,6 @@ fn a_descriptor_that_is_not_open_is_refused() {
     assert!(err.contains("fd:987"), "{err}");
 }
 
-/// The hex SHA-256 of `bytes`, as the test's servers answer.
-fn digest(bytes: &[u8]) -> String {
-    Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// What a server of the test saw, and what the test gave podssh's stdin:
-/// the words of a run past its limit say where the bytes stopped (T-465).
-#[derive(Default)]
-struct Seen {
-    read: AtomicUsize,
-    ended: AtomicBool,
-    answered: AtomicBool,
-    given: AtomicUsize,
-    closed: AtomicBool,
-}
-
-impl Seen {
-    fn said(&self) -> String {
-        let yes = |b: &AtomicBool| if b.load(Ordering::SeqCst) { "yes" } else { "no" };
-        format!(
-            "the test gave stdin {} bytes (closed: {}); the server read {} bytes (its input ended: {}, it answered: {})",
-            self.given.load(Ordering::SeqCst),
-            yes(&self.closed),
-            self.read.load(Ordering::SeqCst),
-            yes(&self.ended),
-            yes(&self.answered)
-        )
-    }
-}
-
-/// `podssh pipe stdio ADDRESS` with `input` on stdin, within 10 s: (code,
-/// stdout, stderr). A server that never answers fails at the limit.
-fn through(address: &str, input: Vec<u8>) -> (i32, String, String) {
-    through_seen(address, input, &Arc::new(Seen::default()))
-}
-
-/// [`through`], whose words at the limit say what `seen` holds.
-fn through_seen(address: &str, input: Vec<u8>, seen: &Arc<Seen>) -> (i32, String, String) {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_podssh"))
-        // -v says where each direction's input ended (T-465).
-        .args(["pipe", "-v", "stdio", address])
-        // The ssh_config of the machine that runs the test must not change it.
-        .env("PODSSH_SSH_CONFIG", "none")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("podssh runs");
-    let mut stdin = child.stdin.take().unwrap();
-    let giving = seen.clone();
-    std::thread::spawn(move || {
-        for chunk in input.chunks(64 * 1024) {
-            if stdin.write_all(chunk).is_err() {
-                break;
-            }
-            giving.given.fetch_add(chunk.len(), Ordering::SeqCst);
-        }
-        drop(stdin);
-        giving.closed.store(true, Ordering::SeqCst);
-    });
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while child.try_wait().unwrap().is_none() {
-        if Instant::now() > deadline {
-            let _ = child.kill();
-            // What podssh said before its limit names where it waited.
-            let said = child.wait_with_output().map(|o| String::from_utf8_lossy(&o.stderr).into_owned());
-            panic!("{address}: no end within 10 s; {}; podssh said: {said:?}", seen.said());
-        }
-        std::thread::sleep(Duration::from_millis(20));
-    }
-    let out = child.wait_with_output().unwrap();
-    let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
-    (out.status.code().unwrap_or(-1), text(&out.stdout), text(&out.stderr))
-}
-
 /// A socket's path of this test, short enough for its address.
 fn socket_path(tag: &str) -> std::path::PathBuf {
     let name = format!("podssh-{tag}-{}.sock", std::process::id());
@@ -169,66 +95,6 @@ fn socket_path(tag: &str) -> std::path::PathBuf {
     } else {
         std::path::PathBuf::from("/tmp").join(name)
     }
-}
-
-/// The servers' answer: read to the end of the input, then send its digest;
-/// `seen` counts each step.
-fn answer(mut stream: impl Read + Write, seen: &Seen) {
-    let (mut got, mut buf) = (Vec::new(), vec![0u8; 64 * 1024]);
-    loop {
-        match stream.read(&mut buf) {
-            Ok(0) => break,
-            Ok(n) => {
-                got.extend_from_slice(&buf[..n]);
-                seen.read.fetch_add(n, Ordering::SeqCst);
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
-            Err(e) => panic!("the server's read: {e}"),
-        }
-    }
-    seen.ended.store(true, Ordering::SeqCst);
-    let _ = stream.write_all(digest(&got).as_bytes());
-    seen.answered.store(true, Ordering::SeqCst);
-}
-
-/// A server on `path` for one connection, that answers.
-#[cfg(unix)]
-fn digest_server(path: &std::path::Path, seen: Arc<Seen>) -> std::thread::JoinHandle<()> {
-    let listener = std::os::unix::net::UnixListener::bind(path).expect("a socket of the test");
-    std::thread::spawn(move || answer(listener.accept().unwrap().0, &seen))
-}
-
-/// The same server on an AF_UNIX socket of Windows, by WinSock.
-#[cfg(windows)]
-fn digest_server(path: &std::path::Path, seen: Arc<Seen>) -> std::thread::JoinHandle<()> {
-    use std::os::windows::io::FromRawSocket;
-    use windows_sys::Win32::Networking::WinSock as ws;
-    let text = path.to_str().unwrap().as_bytes().to_vec();
-    // SAFETY: WinSock calls on a socket of this test, owned by the thread.
-    let listener = unsafe {
-        let mut data: ws::WSADATA = std::mem::zeroed();
-        assert_eq!(ws::WSAStartup(0x0202, &mut data), 0);
-        let s = ws::socket(ws::AF_UNIX as i32, ws::SOCK_STREAM, 0);
-        assert_ne!(s, ws::INVALID_SOCKET, "AF_UNIX on this Windows");
-        let mut addr: ws::SOCKADDR_UN = std::mem::zeroed();
-        addr.sun_family = ws::AF_UNIX;
-        for (slot, b) in addr.sun_path.iter_mut().zip(&text) {
-            *slot = *b as _;
-        }
-        let len = std::mem::size_of::<ws::SOCKADDR_UN>() as i32;
-        assert_eq!(ws::bind(s, (&addr as *const ws::SOCKADDR_UN).cast(), len), 0, "bind");
-        assert_eq!(ws::listen(s, 1), 0, "listen");
-        s
-    };
-    std::thread::spawn(move || {
-        // SAFETY: the listener and the accepted socket belong to this thread.
-        let stream = unsafe {
-            let c = ws::accept(listener, std::ptr::null_mut(), std::ptr::null_mut());
-            ws::closesocket(listener);
-            std::net::TcpStream::from_raw_socket(c as u64)
-        };
-        answer(stream, &seen);
-    })
 }
 
 #[test]

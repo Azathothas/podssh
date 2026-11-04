@@ -311,7 +311,9 @@ fn doctor_checks_each_forwarder_through_github_s_port() {
     let (code, out, err) = run(podssh(&w, &args, &[]), Vec::new());
     let text = String::from_utf8_lossy(&out);
     assert_eq!(code, Some(1), "{text}{err}");
-    let line = text.lines().find(|l| l.contains(" forwarder ")).unwrap_or_else(|| panic!("{text}"));
+    // The section's own line, not one that names a forwarder (T-321's http2).
+    let line =
+        text.lines().find(|l| l.split_whitespace().nth(1) == Some("forwarder")).unwrap_or_else(|| panic!("{text}"));
     let named = "github.com:22 through the forwarder wss://fwd-query.test/: ED25519 host key SHA256:";
     assert!(line.contains(named), "{line}");
     assert!(line.starts_with("  FAIL  forwarder") && line.contains("not in podssh's list of GitHub's keys"), "{line}");

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/relay_layer.rs
++++ b/crates/podssh-cli/src/relay_layer.rs
+@@ -223,7 +223,7 @@
+ /// session, with this line. A host that serves neither road refuses that
+ /// road too.
+ pub(crate) fn unserved(relays: &RelayList, missed: &Missed, at: &str) -> Option<String> {
+-    if !missed.not_served() {
++    if !missed.not_served() || relays.hosts.is_empty() || true {
+         return None;
+     }
+     kept::forget(relays.primary());

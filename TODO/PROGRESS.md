@@ -199,7 +199,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 590 entries: 96 open, 5 partial, 2 blocked, 487 done.
+`TODO/INDEX.md` holds 591 entries: 96 open, 5 partial, 2 blocked, 488 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -241,7 +241,7 @@ this order:
 0. A test that fails at random comes first: the relay suite's, named and repaired (done, 50 runs
    in a row here and on a runner).
 1. The relay role (its certificate from ACME, its brake of mint and pair, the role behind a node's quick tunnel, the net's members' mint, the role's dial through `HTTPS_PROXY`, its bound on a slow reader's bytes and its planned stop are done): what the role serves:
-   T-319, T-321 and T-173; `doctor`'s measure of a stream's path, the role's IPv6 targets,
+   T-319 and T-321 (the resumable layer for a standard sshd, by default where the first host offers it, is done); `doctor`'s measure of a stream's path, the role's IPv6 targets,
    with `doctor`'s line of them, a client's lost link during a node's bulk, and the cleartext road
    on the relay's port are done.
 2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once, a copy's race of the roads, the pairing by a short code, a device's join by one, the signed list of deployments and the
@@ -343,7 +343,7 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
 
-**For the operator to confirm (Q86), Q93 to Q95, from the draft of 2026-11-04 on the archive of
+**For the operator to confirm (Q86), Q93 to Q96, from the draft of 2026-11-04 on the archive of
 forward carriers** (`docs/research/forward-carriers.md`, section 8; each call is in its entry's
 `## Decision`):
 
@@ -357,6 +357,11 @@ forward carriers** (`docs/research/forward-carriers.md`, section 8; each call is
 - Q95, T-621 and T-622: the archive's two forwarders are not taken as forms of `--forwarder`; TURN is
   a road of the user's own server with a file of credentials, and the HTTP form is a form of the
   relay role's HTTP road, behind which T-319's forms stay. Recommendation: confirm.
+- Q96, T-173: with `PODSSH_RELAY_LAYER` unset, `podssh proxy` and `podssh ssh` read the offer of a
+  relay host that the user named once a day, 5 s at most, before the session's connection, and keep
+  it, so that the resumable layer is the default where the host offers it. Recommendation: allow it;
+  it is a connection before the session's, never beside it, and the default relay's offer comes with
+  its pool's refresh.
 
 The operator settled Q67 to Q84 on 2026-11-02 (`docs/decisions.md`), after the triage of the
 testers' reports (GitHub #83 to #106, the bundle, the relay sweep) and of the drafts of M10:

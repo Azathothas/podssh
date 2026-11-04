@@ -7,9 +7,11 @@
 //! connection to sshd and each new link resumes it, and the digests are
 //! equal. Another word in the variable is refused before any connection.
 //! `podssh ssh` does the same on the road (`ssh_layer`), and a session past
-//! the role's budget goes on the contract's road with one line.
+//! the role's budget goes on the contract's road with one line. Unset, the
+//! variable takes the layer where the first host offered it (`unasked`).
 
 mod ssh_layer;
+mod unasked;
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};

@@ -2089,7 +2089,7 @@ of that form, leaves `--relay-addr` alone. podssh keeps no address that carried 
 - Read: the resolvers are Cloudflare's and Google's, by IP literal, each with its JSON path
   (lines 28-32 at `927eb24`); each query dials port 443 directly (lines 144-163 at `927eb24`),
   with `Accept: application/dns-json` (line 156 at `927eb24`), for A and then AAAA (line 125 at `927eb24`).
-- Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:179-204`);
+- Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:179-207`);
   nothing caches an address.
 - Inferred: RFC 8484 defines the wire form, `application/dns-message`, and no standard defines the
   JSON form; firewalls that block the known addresses of public resolvers are common.

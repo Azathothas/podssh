@@ -629,7 +629,7 @@ failure at `crates/podssh-ssh/src/run.rs:136-146` and
 `crates/podssh-cli/src/ssh/transport.rs:222` and its close at
 `crates/podssh-cli/src/ssh/mod.rs:371`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:215`), its note at
-`crates/podssh-cli/src/man/notes_ssh_more.rs:105-119`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh_more.rs:107-121`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5170-5198`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5177-5205`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:257-272`), and stdio needs no listener.

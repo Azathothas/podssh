@@ -714,8 +714,9 @@ beside the contract, as the far end of layer 2 below (T-173;
      and no new framing: the layer's own records and proofs. `/relays.json`
      offers it as `forward.layer`, with `forward.host`, the name of the
      process that holds each session where several share one name, and
-     `podssh proxy` and `podssh ssh` take it on request,
-     `PODSSH_RELAY_LAYER=yes`, until a live run measured it (T-173). A new
+     `podssh proxy` and `podssh ssh` take it where the first host offered
+     it, the offer kept for a day, or read at each run with
+     `PODSSH_RELAY_LAYER=yes` (T-173; its live run, 2026-11-04). A new
      session past the role's budget is refused in the layer's handshake, and
      its client takes `/connect/`.
 

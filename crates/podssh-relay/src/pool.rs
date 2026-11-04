@@ -196,6 +196,9 @@ pub async fn refresh(
     if let Some(Ok(list)) = signed::Signed::of_body(&body) {
         let _ = kept::take(&list, &signed::Keys::of_process(), now_ms());
     }
+    // The same document says whether its host offers the resumable layer
+    // (T-173): kept, a run takes it with no read of its own.
+    crate::forward_layer::kept::keep(relay, &crate::forward_layer::offer::of(&body, relay), now_ms());
     let (hosts, limits) = (parse_pool(&body, primary)?, parse_limits(&body));
     let body = serde_json::to_vec(&CachedPool { fetched_ms: now_ms(), hosts: hosts.clone(), limits })
         .map_err(|e| e.to_string())?;

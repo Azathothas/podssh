@@ -1,0 +1,8 @@
+# T-173: a kept offer whose host answers 404 for the layer's path is neither
+# forgotten nor left for the contract's road: the run ends with the refusal,
+# so the test of a stale offer at the stand-in, whose session must go on, must
+# fail.
+ENTRY=T-173
+GROUP=resume
+EXPECT='a_kept_offer_whose_host_no_longer_serves_the_layer_is_forgotten'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- a_kept_offer_whose_host'
