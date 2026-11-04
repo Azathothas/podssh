@@ -65,8 +65,9 @@ pub fn relays(cfg: &Config, head: &Request) -> Value {
         "egress": cfg.policy.ipv6.doc(&cfg.egress),
         // A pair whose connect token takes one upgrade, `POST /v1/pair?once=1`
         // (T-226), tokens of one leg that a node registers and a stop token
-        // that it rotates, `POST /v1/rotate/<name>` (T-615), beside the contract.
-        "reverse": { "pair_once": true, "leg_tokens": true, "rotate": true },
+        // that it rotates, `POST /v1/rotate/<name>` (T-615), and the owner's
+        // halt, `POST /v1/halt/<name>` (T-647), beside the contract.
+        "reverse": { "pair_once": true, "leg_tokens": true, "rotate": true, "halt": true },
         // The forward road in the resumable layer, `/v1/layer/HOST/PORT`
         // (T-173), beside the contract: a client asks for it only here, and
         // sends each link to the name of this process, when it has one.

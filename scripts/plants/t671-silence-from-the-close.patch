@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/serve/forward.rs b/crates/podssh-relay/src/serve/forward.rs
+index ec93d2e..b355689 100644
+--- a/crates/podssh-relay/src/serve/forward.rs
++++ b/crates/podssh-relay/src/serve/forward.rs
+@@ -351,7 +351,7 @@ pub(super) async fn pump<S, R, W>(
+ async fn until_quiet(started: Instant, closed_at: Duration, heard: &AtomicU64, idle: Duration) -> End {
+     loop {
+         // After the Close, only the target's bytes move `heard`.
+-        let last = Duration::from_millis(heard.load(Ordering::SeqCst)).max(closed_at);
++        let last = Duration::from_millis(heard.load(Ordering::SeqCst)).min(closed_at);
+         let due = started + last + idle;
+         if Instant::now() >= due {
+             return End::Close(1000, half_closed(idle));

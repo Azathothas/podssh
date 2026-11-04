@@ -1,0 +1,7 @@
+# T-671: podssh's relay role answers the client's Close at once and ends the
+# forward session, as before, so a target's answer after the end of its input
+# never reaches the client; the contract's test of the late answer must fail.
+ENTRY=T-671
+GROUP=resume
+EXPECT='test a_targets_answer_after_the_clients_close_reaches_the_client \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_contract -- a_targets_answer_after_the_clients_close_reaches_the_client'

@@ -66,7 +66,7 @@ impl Pair {
 }
 
 /// A pair's status, and its end where the relay names it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Status {
     pub online: bool,
     pub sessions: u64,
@@ -74,6 +74,12 @@ pub struct Status {
     /// it, a relay of the contract does not.
     #[serde(default)]
     pub expires: Option<i64>,
+    /// Its owner halted it, and why (T-647): podssh's relay role says so, a
+    /// relay of the contract says neither.
+    #[serde(default)]
+    pub halted: bool,
+    #[serde(default)]
+    pub halt_reason: Option<String>,
 }
 
 impl Status {
@@ -107,6 +113,10 @@ mod tests {
         assert_eq!(contract.presence(), Presence { online: false, sessions: 0 });
         let role: Status = serde_json::from_str(r#"{"online": true, "sessions": 2, "expires": 5}"#).unwrap();
         assert_eq!((role.online, role.sessions, role.expires), (true, 2, Some(5)));
+        assert!(!contract.halted && !role.halted && role.halt_reason.is_none());
+        let halted = r#"{"online": true, "sessions": 0, "expires": 5, "halted": true, "halt_reason": "a disk"}"#;
+        let halted: Status = serde_json::from_str(halted).unwrap();
+        assert_eq!((halted.halted, halted.halt_reason.as_deref()), (true, Some("a disk")), "the role's halt (T-647)");
     }
 
     #[test]

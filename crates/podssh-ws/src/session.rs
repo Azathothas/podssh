@@ -9,7 +9,8 @@
 //! keystroke would have caused.)
 //!
 //! The reader answers Pings itself, ignores Pongs, reassembles fragmented
-//! messages, and echoes a Close it did not start (RFC 6455 §5.5.1). It
+//! messages, and echoes a Close it did not start (RFC 6455 §5.5.1), unless
+//! its caller answers it later ([`RelaySession::holding_close_answer`]). It
 //! returns data frames and the Close; nothing else reaches the caller.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
@@ -76,6 +77,8 @@ pub struct RelaySession<S = crate::url::Stream> {
     /// has more to say than the upgrade: over HTTP/2, or HTTP/1.1 after it
     /// (T-321).
     road: Option<String>,
+    /// The peer's Close is answered by the caller, not by the reader (T-671).
+    hold_close: bool,
 }
 
 /// The Pongs that [`RelaySession::take_pongs`] keeps for the one who reads.
@@ -125,7 +128,17 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             zero_mask: false,
             peer_name: "the relay",
             road: None,
+            hold_close: false,
         }
+    }
+
+    /// Leave the answer to the peer's Close to the caller's
+    /// [`RelaySession::send_close`]: until it answers, this side may still
+    /// send data (RFC 6455, section 5.5.1), as the relay's contract carries a
+    /// target's bytes after a client's Close (T-671).
+    pub fn holding_close_answer(mut self) -> Self {
+        self.hold_close = true;
+        self
     }
 
     /// Keep `words`, how the session is carried, for [`RelaySession::road`].
@@ -354,7 +367,8 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                 }
                 Some(Event::Frame(f)) if f.opcode == frame::OPCODE_CLOSE => {
                     reader.close_received = true;
-                    if !self.close_sent.swap(true, Ordering::SeqCst) {
+                    // A held answer is the caller's, with its own code.
+                    if !self.hold_close && !self.close_sent.swap(true, Ordering::SeqCst) {
                         // Echo the status code, as RFC 6455 §5.5.1 requires.
                         let (code, _) = close_code_and_reason(&f.payload);
                         let _ = self.write(frame::OPCODE_CLOSE, &close_payload(code, "")).await;

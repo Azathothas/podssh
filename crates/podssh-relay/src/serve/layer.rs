@@ -189,7 +189,8 @@ where
         let open = || async move { forward::dial(&host, &plan, &dial_cfg).await };
         serve_link(ours, settings, budget, &keeper, open, &far_cfg).await;
     });
-    forward::pump(session, tokio::io::split(theirs), Vec::new(), cfg).await;
+    // A link's Close ends the link alone: the layer's `END` is its half-close.
+    forward::pump(session, tokio::io::split(theirs), Vec::new(), cfg, forward::AfterClose::Ends).await;
 }
 
 /// The layer on one link: its handshake, then a resume goes on with the

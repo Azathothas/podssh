@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**627 entries: 115 open, 7 partial, 3 blocked, 502 done.**
+**627 entries: 113 open, 7 partial, 3 blocked, 504 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
-| P2 | 26 | 4 | 0 | 245 | 275 |
-| P3 | 89 | 1 | 3 | 192 | 285 |
-| **All** | 115 | 7 | 3 | 502 | 627 |
+| P2 | 25 | 4 | 0 | 246 | 275 |
+| P3 | 88 | 1 | 3 | 193 | 285 |
+| **All** | 113 | 7 | 3 | 504 | 627 |
 
 ## Entries
 
@@ -686,7 +686,7 @@ repository and CI).
 | [T-644](relay.md) | P3 | M | M10 | feature | open | `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road |
 | [T-645](pipe.md) | P3 | M | none | feature | open | `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends |
 | [T-646](relay.md) | P3 | M | M10 | feature | open | `--mint keys:` takes a file alone, so a role in a read-only image changes whom it mints for only by a rebuild |
-| [T-647](reverse.md) | P3 | M | M10 | feature | open | A pair of the relay role is served or ended; no halt that keeps its name and its node's socket |
+| [T-647](reverse.md) | P3 | M | M10 | feature | done | A pair of the relay role is served or ended; no halt that keeps its name and its node's socket |
 | [T-648](reverse.md) | P2 | M | none | feature | done | A node's socket queues each session's bytes in one line of 256 places, so one session's backlog delays each other session's |
 | [T-649](relay.md) | P3 | L | M10 | feature | open | The relay role ends TLS for each name on its listener, so a node's own HTTPS service cannot be published by its name |
 | [T-650](reverse.md) | P3 | L | M10 | feature | open | Each operator's leg waits for its node's `ready` before its first byte: no session opened ahead for a node that asks for spares |
@@ -701,5 +701,5 @@ repository and CI).
 | [T-668](reverse.md) | P3 | L | M10 | feature | open | A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state |
 | [T-669](ssh.md) | P3 | S | M10 | measurement | open | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |
 | [T-670](ssh.md) | P3 | M | M10 | feature | open | The download's rate while a key waits on a slow path: win back what T-661 gives up |
-| [T-671](relay.md) | P2 | S | M10 | defect | open | The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them |
+| [T-671](relay.md) | P2 | S | M10 | defect | done | The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them |
 | [T-672](ssh.md) | P3 | M | backlog | feature | blocked | TLS tickets kept across runs, once a release of rustls lets a client write one |

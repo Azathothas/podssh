@@ -16,6 +16,7 @@
 //! upgrade takes, and rotates its stop token with `POST /v1/rotate/<name>`;
 //! the node's `hello` and `/relays.json` offer both (T-615, [`pairs::Leg`]).
 //! A role that mints for keys keeps a share of its pairs for each (T-630).
+//! The owner halts a pair and resumes it with its stop token ([`halt`], T-647).
 //!
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
@@ -25,6 +26,7 @@
 //! in the process of its client.
 
 pub mod carrier;
+pub mod halt;
 pub mod node;
 pub mod operator;
 pub mod outbox;
@@ -71,7 +73,8 @@ const BODY_MAX: usize = 4096;
 /// Whether `path` is one of the reverse road's.
 pub fn serves(path: &str) -> bool {
     let socket_or_pair = ["/v1/node/", "/v1/connect/", "/v1/status/", "/v1/stop/", "/v1/renew/", "/v1/rotate/"];
-    path == "/v1/pair" || socket_or_pair.iter().any(|p| path.starts_with(p))
+    let halting = ["/v1/halt/", "/v1/resume/"];
+    path == "/v1/pair" || socket_or_pair.iter().chain(&halting).any(|p| path.starts_with(p))
 }
 
 /// Serve one request of the reverse road on `stream`.
@@ -120,6 +123,11 @@ where
     let Some(pair) = found else {
         return answer(&mut stream, request::refusal(403, "reverse: forbidden", &[])).await;
     };
+    // A halted pair refuses each operator with its owner's words before a
+    // token of `once` or of one leg is spent (T-647); a planned stop's first.
+    if kind == "connect" && !cfg.pairs.stopping() && halt::refused(&mut stream, &pair).await {
+        return;
+    }
     // It takes this upgrade and no other; a planned stop refuses it below, as
     // it refuses each socket.
     if let (Some(digest), false) = (leg, cfg.pairs.stopping()) {
@@ -128,13 +136,14 @@ where
     let method = head.method.clone();
     match (kind, method.as_str()) {
         ("status", "GET") => {
-            let (online, sessions) = {
+            let (online, sessions, halted) = {
                 let state = pair.lock();
-                (state.node_outbox().is_some(), state.sessions.len())
+                (state.node_outbox().is_some(), state.sessions.len(), state.halted.clone())
             };
             // The expiry beside the contract's fields, which a renewal moves
-            // (T-592), so that an operator's file need not name it.
-            let body = json!({ "online": online, "sessions": sessions, "expires": pair.expires_ms() });
+            // (T-592), so that an operator's file need not name it; a halt.
+            let mut body = json!({ "online": online, "sessions": sessions, "expires": pair.expires_ms() });
+            halt::status(&mut body, halted.as_ref());
             answer(&mut stream, docs::json(&body)).await
         }
         ("stop", "POST") => {
@@ -144,6 +153,8 @@ where
         }
         ("renew", "POST") => renew(&mut stream, name, &cfg).await,
         ("rotate", "POST") => rotate(&mut stream, name, &sent, &cfg).await,
+        ("halt", "POST") => halt::serve_halt(&mut stream, name, &sent, &cfg).await,
+        ("resume", "POST") => halt::serve_resume(&mut stream, name, &cfg).await,
         // A planned stop closes each socket: one that would join now would
         // be cut with no Close, so it waits for the role that comes back.
         ("node" | "connect", _) if cfg.pairs.stopping() => {
@@ -158,7 +169,7 @@ where
         }
         ("connect", _) => operator::join(stream, head, pending, pair, cfg, None).await,
         (_, method) => {
-            let allow = if matches!(kind, "stop" | "renew" | "rotate") { "POST" } else { "GET" };
+            let allow = if matches!(kind, "stop" | "renew" | "rotate" | "halt" | "resume") { "POST" } else { "GET" };
             let why = format!("{path}: not {method}, but {allow}");
             answer(&mut stream, request::refusal(405, &why, &[("Allow", allow)])).await
         }
@@ -323,13 +334,14 @@ fn new_id() -> Option<SessionId> {
 
 /// The node's first frame, as the default relay sends it (measured
 /// 2026-10-09); with `offers`, the role's tokens of one leg and the stop
-/// token's rotation beside it (T-615), which a node of before keeps as
-/// fields that it does not know.
+/// token's rotation beside it (T-615), and its halt (T-647), which a node of
+/// before keeps as fields that it does not know.
 fn hello(offers: bool) -> String {
     let mut hello = json!({ "type": "hello", "version": 1, "maxFrameBytes": 65536, "maxSessions": MAX_SESSIONS });
     if offers {
         hello[crate::e2e::legs::OFFER] = json!(true);
         hello[crate::reverse::legs::ROTATION] = json!(true);
+        hello[halt::OFFER] = json!(true);
     }
     hello.to_string()
 }
@@ -372,6 +384,7 @@ mod tests {
         }
         assert!(serves("/v1/renew/p-a"), "the role's renewal (T-592)");
         assert!(serves("/v1/rotate/p-a"), "the role's rotation of a stop token (T-615)");
+        assert!(serves("/v1/halt/p-a") && serves("/v1/resume/p-a"), "the owner's halt (T-647)");
         for path in ["/v1/mint", "/v1/pairs", "/connect/h/22", "/health", "/v1/nodes/p-a"] {
             assert!(!serves(path), "{path}");
         }

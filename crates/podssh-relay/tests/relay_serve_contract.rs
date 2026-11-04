@@ -9,7 +9,9 @@
 //! And its forward road through its host's proxy (T-457), a stand-in proxy
 //! of the test's: a target reached by the CONNECT of its checked address, or
 //! of its name where nothing is checked; the proxy's refusal as the role's
-//! `502` with its status; `/trace` with the proxy's leg.
+//! `502` with its status; `/trace` with the proxy's leg. And the forward
+//! road's half-close (T-671): a target's answer after the client's Close
+//! reaches the client, then the role's Close says how the target ended.
 #![cfg(all(feature = "serve", feature = "plain-ws"))]
 
 mod role_harness;
@@ -18,11 +20,15 @@ use std::time::Duration;
 
 use podssh_relay::serve::egress::Egress;
 use podssh_relay::serve::policy::Policy;
-use podssh_relay::serve::{tokens, Mint};
-use podssh_ws::frame::OPCODE_BINARY;
+use podssh_relay::serve::{tokens, Limits, Mint};
+use podssh_ws::frame::{OPCODE_BINARY, OPCODE_CLOSE};
+use podssh_ws::session::{close_code_and_reason, RelaySession};
 use podssh_ws::ConnectError;
 use role_harness::proxy::{self, StandIn};
-use role_harness::{closed, next, next_text, Role};
+use role_harness::{closed, next, next_text, Role, LIMIT};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+use tokio::time::Instant;
 
 /// The node's socket of a new pair, past its `hello`, and the pair.
 async fn joined(role: &Role) -> (podssh_relay::pair::Pair, podssh_ws::session::RelaySession<tokio::net::TcpStream>) {
@@ -396,4 +402,84 @@ async fn a_name_that_does_not_resolve_and_one_that_the_policy_refuses_answer_the
         "{events:?}"
     );
     assert!(stand_in.asked().is_empty(), "the proxy was asked: {:?}", stand_in.asked());
+}
+
+/// A target on the loopback that reads its one client's input to its end,
+/// then answers `delay` later with the count of the bytes that it took; with
+/// `closes` it then closes, else it holds the connection and says nothing.
+async fn late_target(delay: Duration, closes: bool) -> u16 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let Ok((mut tcp, _)) = listener.accept().await else { return };
+        let mut input = Vec::new();
+        let _ = tcp.read_to_end(&mut input).await;
+        tokio::time::sleep(delay).await;
+        let _ = tcp.write_all(format!("took {} bytes", input.len()).as_bytes()).await;
+        if closes {
+            let _ = tcp.shutdown().await;
+        } else {
+            tokio::time::sleep(LIMIT).await;
+        }
+    });
+    port
+}
+
+/// The role, which dials the loopback and ends a half-closed session after
+/// `half_closed` of its target's silence, and a forward session to `port`.
+async fn forward_to(port: u16, half_closed: Duration) -> (Role, RelaySession<TcpStream>) {
+    let limits = Limits { half_closed, ..Limits::default() };
+    let role = Role::limited(Policy { private: true, ..Policy::default() }, limits).await;
+    let (token, _) = role.cfg.tokens.mint(tokens::now_ms(), tokens::LIFETIME_MS);
+    let session = role.socket(&format!("/connect/127.0.0.1/{port}"), &token).await.expect("a forward session");
+    (role, session)
+}
+
+/// What came after this side's Close: the payload, and the peer's Close.
+async fn after_close(socket: &RelaySession<TcpStream>) -> (Vec<u8>, (Option<u16>, String)) {
+    let mut payload = Vec::new();
+    loop {
+        match next(socket).await {
+            Some((OPCODE_BINARY, bytes)) => payload.extend_from_slice(&bytes),
+            Some((OPCODE_CLOSE, close)) => return (payload, close_code_and_reason(&close)),
+            Some(_) => {}
+            None => return (payload, (None, "no Close".into())),
+        }
+    }
+}
+
+/// T-671: a WebSocket Close is no TCP half-close, but the contract carries
+/// the target's bytes after it (`docs/relay.md`, "The forward path"): a
+/// target that reads to the end of its input answers 500 ms later, the
+/// answer reaches the client after its Close, and the role's Close says
+/// that the target closed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_targets_answer_after_the_clients_close_reaches_the_client() {
+    let port = late_target(Duration::from_millis(500), true).await;
+    let (_role, client) = forward_to(port, Limits::default().half_closed).await;
+    client.send_binary(b"the question").await.unwrap();
+    client.send_close(1000, "").await.unwrap();
+    let sent = Instant::now();
+    let (answer, close) = after_close(&client).await;
+    assert_eq!(String::from_utf8_lossy(&answer), "took 12 bytes", "the target's answer, after the Close");
+    assert_eq!(close, (Some(1000), "target closed".to_string()));
+    assert!(sent.elapsed() >= Duration::from_millis(400), "the answer came after the end of the input");
+}
+
+/// T-671: a target that answers, then says nothing and holds its connection,
+/// ends the session once it was silent for the role's limit after its last
+/// byte, not after the Close: `1000 client half-closed, target idle for
+/// 15s` on the contract's 15 s, here 1 s.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_silent_target_after_the_clients_close_ends_the_session_in_the_contracts_words() {
+    let port = late_target(Duration::from_millis(600), false).await;
+    let (_role, client) = forward_to(port, Duration::from_secs(1)).await;
+    client.send_binary(b"ask").await.unwrap();
+    client.send_close(1000, "").await.unwrap();
+    let sent = Instant::now();
+    let (answer, close) = after_close(&client).await;
+    assert_eq!(String::from_utf8_lossy(&answer), "took 3 bytes", "the target's answer, after the Close");
+    assert_eq!(close, (Some(1000), "client half-closed, target idle for 1s".to_string()));
+    // 0.6 s to the answer, then 1 s of silence.
+    assert!(sent.elapsed() >= Duration::from_millis(1500), "silent since its last byte: {:?}", sent.elapsed());
 }

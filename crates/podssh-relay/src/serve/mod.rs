@@ -70,6 +70,9 @@ pub struct Limits {
     pub bytes: u64,
     /// An empty binary frame to the client this often.
     pub keepalive: Duration,
+    /// After the client's Close, the target's bytes go on until it is silent
+    /// this long (T-671).
+    pub half_closed: Duration,
 }
 
 impl Default for Limits {
@@ -80,6 +83,7 @@ impl Default for Limits {
             session: Duration::from_secs(12 * 3600),
             bytes: 64 << 20,
             keepalive: Duration::from_secs(25),
+            half_closed: Duration::from_secs(15),
         }
     }
 }

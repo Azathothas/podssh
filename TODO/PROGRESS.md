@@ -189,9 +189,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   On 2026-11-04 (evening and night) a ninth round was drafted by agents of this cloud session,
   unbuilt, each branch pushed as `draft/worktree-agent-*`: the triage of GitHub #127 to #148, T-660,
-  T-661 and T-662, T-663, T-629 and T-635, T-630 and T-648, T-632 and T-664 (each merged), and still to merge: T-639 and T-645 (`worktree-agent-af1f8acf4f98d8f39`,
-  `10b37ef`, `e007213`), T-671 and T-647 (`worktree-agent-a2f3e5081af50102a`, `b84add1`,
-  `3957215`), T-634 and T-640 (`worktree-agent-aae99917a53f19e77`, `0e9152e`, `2ec6c95`), T-665 and
+  T-661 and T-662, T-663, T-629 and T-635, T-630 and T-648, T-632, T-664, T-671 and T-647 (each merged), and still to merge: T-639 and T-645 (`worktree-agent-af1f8acf4f98d8f39`,
+  `10b37ef`, `e007213`), T-634 and T-640 (`worktree-agent-aae99917a53f19e77`, `0e9152e`, `2ec6c95`), T-665 and
   T-666 (`worktree-agent-ac3e65f272f8d068d`, `2ad81c5`, `05a7326`); T-670 is being drafted. A
   merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
   `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
@@ -241,7 +240,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 627 entries: 115 open, 7 partial, 3 blocked, 502 done.
+`TODO/INDEX.md` holds 627 entries: 113 open, 7 partial, 3 blocked, 504 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -282,8 +281,7 @@ P1 defect, is in it); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first; its iroh and DERP rows),
 T-662 (a copy through a shaped link; the SSH client's flow control and liveness in round trips are done), T-670, T-665,
 T-666, T-667, T-668 and T-669; then GitHub #127 to #148 (`TODO/issues.md`) by
-their priority, the P2 one first (T-671, found by the draft of the layer's half-close),
-beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
+their priority, beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
 
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
 this order:

@@ -12,7 +12,7 @@
 //! contract renews no pair, gets the way of the next pair and 69. A node of
 //! the role rotates its stop token, which the store keeps (T-615), and the
 //! next pair's that it goes on with at an expiry, which it renews too
-//! (T-620).
+//! (T-620). The owner's halt and resume of a pair (T-647).
 
 mod live_harness;
 mod ssh_harness;
@@ -108,6 +108,38 @@ fn podssh_ssh_reaches_a_node_through_the_role_and_relay_reads_its_pair() {
     assert!(String::from_utf8_lossy(&out.stdout).starts_with("lab: stopped"), "{}", said(&out));
     let out = podssh(&s, &ca, &["relay", "status", "lab"]);
     assert!(!out.status.success(), "no pair after revoke: {}", said(&out));
+}
+
+/// T-647: the owner's `relay halt` at the role keeps the pair's operators
+/// out with its words, which `relay status` says, and `--json` as `halted`
+/// and `halt_reason`; the node stays online on its socket; a second halt
+/// changes nothing; `relay resume` ends the halt.
+#[test]
+fn relay_halt_keeps_the_operators_out_with_its_words_and_resume_ends_it() {
+    let s = Session::start("serve-halt");
+    let Some((_, host, ca)) = role(&s) else { return };
+    node(&s, &host, &ca, "lab", &format!("127.0.0.1:{}", s.port));
+    let out = podssh(&s, &ca, &["relay", "halt", "lab", "--reason", "a new disk"]);
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "lab: halted; 0 sessions closed\n", "{}", said(&out));
+    let out = podssh(&s, &ca, &["relay", "status", "lab"]);
+    let line = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(line.starts_with("lab: online, 0 sessions, halted: a new disk; expires "), "{}", said(&out));
+    let out = podssh(&s, &ca, &["relay", "status", "lab", "--json"]);
+    let doc: serde_json::Value = serde_json::from_slice(&out.stdout).expect("one JSON object");
+    assert_eq!((doc["halted"].as_bool(), doc["halt_reason"].as_str()), (Some(true), Some("a new disk")), "{doc}");
+    let out = podssh(&s, &ca, &["operator", "lab"]);
+    assert!(!out.status.success(), "an operator of a halted pair: {}", said(&out));
+    assert!(said(&out).contains("the pair's owner halted it: a new disk"), "{}", said(&out));
+    let out = podssh(&s, &ca, &["relay", "halt", "lab"]);
+    assert!(String::from_utf8_lossy(&out.stdout).starts_with("lab: halted already, since 20"), "{}", said(&out));
+
+    let out = podssh(&s, &ca, &["relay", "resume", "lab"]);
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "lab: resumed\n", "{}", said(&out));
+    let out = podssh(&s, &ca, &["relay", "status", "lab", "--json"]);
+    let doc: serde_json::Value = serde_json::from_slice(&out.stdout).expect("one JSON object");
+    assert_eq!((doc["online"].as_bool(), doc["halted"].as_bool()), (Some(true), Some(false)), "the same node: {doc}");
+    let out = podssh(&s, &ca, &["relay", "resume", "lab"]);
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "lab: not halted\n", "{}", said(&out));
 }
 
 /// Milliseconds since the epoch, now.

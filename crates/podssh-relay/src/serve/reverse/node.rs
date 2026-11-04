@@ -123,6 +123,10 @@ async fn socket<S>(
     // Until the node answered a Close: a planned stop waits for it (T-255).
     let _live = cfg.pairs.live.counted();
     outbox.text(hello(offers));
+    // A node that joins a halted pair hears so at once (T-647).
+    if let Some(halt) = pair.halted() {
+        outbox.text(halt.frame());
+    }
     cfg.event("reverse node");
 
     let (mut frames, reader) = frames_of(session.clone());

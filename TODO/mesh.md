@@ -3424,7 +3424,7 @@ The draft's calls, 2026-11-02:
    numbers an address, whose wait is an estimate, so a client told 60 s could meet a second
    `429`.
 2. `/v1/mint` and `/v1/pair` share one count, as on the default relay
-   (`crates/podssh-relay/src/pair.rs:100` says "the brake that pairs share with mints"; the
+   (`crates/podssh-relay/src/pair.rs:102` says "the brake that pairs share with mints"; the
    contract's limits, `docs/relay.md`, "Limits that users see": "mint, pair, upgrades with no
    token"). Each request at the two paths counts, whatever its answer: a keyed mint's `401`
    (T-448), a `403`, `--mint nobody`'s `503`. Lost: a count for each path, which lets one client
@@ -3436,7 +3436,7 @@ The draft's calls, 2026-11-02:
 4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:247`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:180`),
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:184`),
    with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:53`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
@@ -3487,11 +3487,11 @@ first after the minute passes. Planted, the brake removed, and the test fails.
 
 2026-11-02 (the drafting agent). The Premise holds; the Approach needs two facts that it does not
 name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it:
-`crates/podssh-relay/src/serve/reverse/mod.rs:170` says "async fn pair". And the role had no
+`crates/podssh-relay/src/serve/reverse/mod.rs:181` says "async fn pair". And the role had no
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:193`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:197`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -3749,8 +3749,8 @@ nothing, works.
 
 ## Premise
 
-- `crates/podssh-relay/src/serve/forward.rs:144` dials the resolved addresses with
-  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:143` does the same for
+- `crates/podssh-relay/src/serve/forward.rs:149` dials the resolved addresses with
+  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:144` does the same for
   `/trace`; neither reads `HTTPS_PROXY`.
 - Rule 2 of `AGENTS.md`: one outbound connection, through `HTTPS_PROXY` when it is set.
 
@@ -7007,8 +7007,8 @@ pair that its operators hold.
 
 ## Premise
 
-- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:27-28`,
-  set as the pair is made, `:269`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
+- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:28-29`,
+  set as the pair is made, `:272`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
   `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs`, line 57 at
   `b02d8c4`).
 - Read: the default relay renews no pair (T-395's Correction: no such request in its document); a
@@ -7212,7 +7212,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 
 - Read: the node's side of the reverse road runs over any `RelaySession<S>`
   (`crates/podssh-relay/src/reverse/serve.rs:151`), and a `RelaySession` is made over any stream,
-  with no HTTP in it (`crates/podssh-ws/src/session.rs:104-108`).
+  with no HTTP in it (`crates/podssh-ws/src/session.rs:107-111`).
 - Read: podssh's relay role serves the relay's side of a node's socket and of an operator's
   (`crates/podssh-relay/src/serve/reverse/mod.rs:1-3`, T-427).
 - Read: `pipe`'s local addresses are `stdio` (or `-`), `fd:N` and `exec:CMD`, a program with no
