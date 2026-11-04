@@ -238,6 +238,14 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             ),
         ),
         (
+            vec![podssh_relay::pair::part::file_name("NAME").unwrap_or_default()],
+            "The operator's part of a pair that podssh relay join NAME took by a code (T-086), in the cache: the \
+             relay, the pair's name, its connect token and its expiry, as JSON with mode 0600, replaced by the \
+             next join under NAME. podssh operator, podssh ssh node:// and podssh relay status find it by NAME \
+             where no pair is stored under it."
+                .to_string(),
+        ),
+        (
             vec![
                 podssh_relay::identity::file::node_file("NAME"),
                 podssh_relay::identity::file::CLIENT_FILE.to_string(),

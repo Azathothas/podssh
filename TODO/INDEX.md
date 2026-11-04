@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**579 entries: 91 open, 4 partial, 2 blocked, 482 done.**
+**580 entries: 91 open, 4 partial, 2 blocked, 483 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 28 | 2 | 0 | 234 | 264 |
-| P3 | 63 | 1 | 2 | 184 | 250 |
-| **All** | 91 | 4 | 2 | 482 | 579 |
+| P3 | 63 | 1 | 2 | 185 | 251 |
+| **All** | 91 | 4 | 2 | 483 | 580 |
 
 ## Entries
 
@@ -160,7 +160,7 @@ repository and CI).
 | [T-083](reverse.md) | P2 | M | M4 | feature | done | `podssh node NAME TARGET` |
 | [T-084](reverse.md) | P2 | M | M4 | feature | done | `podssh operator NAME` and `podssh ssh NODE` |
 | [T-085](reverse.md) | P2 | M | M4 | measurement | open | M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox |
-| [T-086](reverse.md) | P3 | M | M10 | feature | open | Pairing by a short one-time code, given out of band |
+| [T-086](reverse.md) | P3 | M | M10 | feature | done | Pairing by a short one-time code, given out of band |
 | [T-087](reverse.md) | P2 | M | backlog | feature | done | Node identity and access: a node key, an allowlist, an expected fingerprint, revocation |
 | [T-088](reverse.md) | P2 | L | backlog | feature | done | End-to-end encryption between two podssh ends |
 | [T-089](reverse.md) | P3 | M | backlog | feature | done | A node offers several named targets, each with its own grant |
@@ -655,3 +655,4 @@ repository and CI).
 | [T-613](reverse.md) | P3 | S | M10 | feature | done | `operator`, `proxy` and `pipe`'s remote sides take `--timeout` and `PODSSH_TIMEOUT` as other names of `--ConnectTimeout` |
 | [T-614](mesh.md) | P2 | M | M10 | feature | done | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |
 | [T-615](reverse.md) | P3 | M | M10 | feature | open | A connect token for each session, and a stop token that the node rotates, in podssh's relay role |
+| [T-616](mesh.md) | P3 | M | M10 | feature | open | `podssh net invite`: a new device joins the net by a short code |

@@ -3176,6 +3176,26 @@ commands. The rules behind them:
   it at the expiry, with no new start, and exits 77 when none was made. A
   node stopped on the relay deletes the stored pair only while it is its
   own.
+- **A pair's part moves by a short code (T-086).** `relay pair NAME
+  --code` gives the pair stored under NAME while it has 10 minutes left
+  (else it makes the next one first) and the node's key, by a code of the
+  mailbox's nameplate and three words of the PGP list. The code shows on
+  the run's terminal alone, stderr when it is one, else the process's
+  terminal; a run with none is refused (64) before a pair is made. stdout
+  gets one line, `NAME: given to SHA256:...; expires ...`. `relay join
+  NAME` reads the code at a prompt, or one line of a pipe, never argv; it
+  pins the node's key under NAME (`known-nodes`), gives this host's key
+  (`client.key`, `--client-key FILE`), and keeps the part as
+  `operator-NAME.json`, which `operator`, `ssh node://`, `proxy node://`,
+  `pipe`'s `node:` and `relay status NAME` read where no pair is stored
+  under NAME; a whole pair under NAME refuses the join (78). `--allow FILE`
+  of the giver adds the operator's key to the node's allowlist. The ends
+  meet at magic-wormhole's public mailbox, then Least Authority's (Q65), or
+  at those of `--pair-mailbox URLS` or `PODSSH_PAIR_MAILBOX` (`no` turns the
+  pairing off, 78; the flag's `no`, 64), such as `relay serve`'s
+  `wss://HOST/v1/mailbox`. A wrong code, a code that nobody holds (it
+  expired, it was used) and a node's key that differs from the pin are 77;
+  nobody within the code's 10 minutes and no mailbox reached are 69.
 - **`relay spec` checks the relay, not a pair.** It reads the relay's
   `/health` and `/llms-full.txt`, or the file of `--document`, and checks
   the document against the facts that podssh was built with: exit 0 when

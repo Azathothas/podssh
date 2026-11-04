@@ -732,7 +732,8 @@ proxy by its host and port, never by its credentials.
 ## The relay role's brake (T-454)
 
 `podssh relay serve` counts the requests to `/v1/mint` and to `/v1/pair` of
-each address over a sliding minute, the two paths together, as the default
+each address over a sliding minute, with each connection to its mailbox
+(T-086, below), the paths together, as the default
 relay counts its attempts with no token ("Limits that users see"): the
 121st within a minute gets `429` with `Retry-After`, the seconds until the
 oldest of the 120 is a minute old, which podssh's client says ("retry in N
@@ -760,6 +761,43 @@ and the signed one.
   `/v1/mint: braked, an address past 120 requests in a minute`, which does
   not name the address; the next ones until it is let through again say
   nothing.
+
+## The relay role's mailbox (T-086)
+
+`podssh relay serve` is a meeting point of the pairing by a short code
+([reverse.md](reverse.md), "Pairing by a short code") at `/v1/mailbox`: a
+WebSocket of magic-wormhole's mailbox protocol, version 1
+(magic-wormhole/magic-wormhole-protocols:server-protocol.md), so that a
+user's own relay serves the two ends of `podssh relay pair --code` and
+`podssh relay join` (`--pair-mailbox wss://HOST/v1/mailbox`) with no third
+party, and a client of magic-wormhole's Python library with podssh's AppID
+meets them there (`crates/podssh-relay/src/serve/mailbox/`).
+
+- It serves podssh's AppID alone (`github.com/Azathothas/podssh/pair`):
+  a `bind` of another is an `error`, so the role is no public mailbox of
+  other applications.
+- Each command is answered as magic-wormhole-mailbox-server's
+  `server_websocket.py` answers it: an `ack`, then `welcome`, `nameplates`,
+  `allocated`, `claimed`, `released`, `closed`, `pong`, each `message` of
+  the open mailbox to each side, or `error` with the command in `orig`
+  (`crowded`, `reclaimed`, `must bind first`, and the rest of that file's
+  words). `allocate` gives the smallest free nameplate from 1 to 999, and
+  claims it; a mailbox's id is 16 random bytes in hex, so that none is
+  opened past its nameplate.
+- Two sides of a nameplate and of a mailbox at most: a third gets
+  `crowded`, which is the mailbox's part of a code's single use. A side that
+  released a nameplate cannot claim it again. A nameplate goes once each
+  side released it, a mailbox, with its messages, once each side closed it.
+- Its bounds: 4096 nameplates and 4096 mailboxes held at once, 32 messages
+  of a mailbox, a body of 16384 hex digits, a phase of 32 bytes, and 20
+  minutes of life for each nameplate, mailbox and connection, as a code
+  lives 10; a client that says nothing for 5 minutes is ended, and the role
+  pings each one each 30 s. One table for each role, in memory: a restart
+  of the role spends each code in flight.
+- Each connection counts in the brake as a request of `/v1/pair` does
+  ("The relay role's brake", above), as each is an attempt.
+- It learns no code: the ends run SPAKE2 over it and seal each later
+  message. It sees the nameplate, the sides, the sizes and the times.
 
 ## The relay role's probes (T-325)
 

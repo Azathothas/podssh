@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/mailbox/table.rs
++++ b/crates/podssh-relay/src/serve/mailbox/table.rs
+@@ -20,7 +20,7 @@
+ use crate::session::secret::{Entropy, OsEntropy};
+ 
+ /// The sides of a nameplate and of a mailbox: the two ends of one code.
+-pub const SIDES: usize = 2;
++pub const SIDES: usize = 3;
+ /// The nameplates that `allocate` gives, from 1.
+ pub const ALLOCATED: u32 = 999;
+ /// The nameplates and the mailboxes held at once.

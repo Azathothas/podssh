@@ -207,7 +207,8 @@ has it (T-253), a frame in flight for a session that was just closed
 dropped, not the node's socket (T-421), the split HTTP road (T-319),
 extended CONNECT on its own listener (T-321), cleartext on port 443 with a
 token for one session (T-326), the probes of `doctor` (T-325), grants used
-once (T-226), resumption for a standard sshd (T-173), and its place in a
+once (T-226), a mailbox of the pairing by a short code (T-086, at
+`/v1/mailbox`), resumption for a standard sshd (T-173), and its place in a
 signed list of relays (T-346). A member of a net with the relay role also
 carries sessions between two other members that no other road joins
 (T-434).

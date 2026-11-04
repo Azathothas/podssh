@@ -1,0 +1,7 @@
+# T-086: an end takes the other end's version phase when it does not open,
+# so a wrong code is no longer told at the key's confirmation; the test of a
+# wrong code, which must fail both ends with it and spend the code, must fail.
+ENTRY=T-086
+GROUP=resume
+EXPECT='test a_wrong_code_fails_both_ends_and_spends_the_code \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair,code,serve --test pair_code -- a_wrong_code_fails_both_ends_and_spends_the_code'

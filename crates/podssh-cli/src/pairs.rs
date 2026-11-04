@@ -43,6 +43,16 @@ pub(crate) fn stored(label: &str) -> Result<Pair, Refusal> {
     }
 }
 
+/// The operator's part of the pair stored under `label`, unless it has
+/// expired, or the part that a pairing by code kept under it (T-086).
+pub(crate) fn stored_part(label: &str) -> Result<pair::OperatorPart, Refusal> {
+    match pair::load(label) {
+        Ok(Some(found)) => usable(found, label).map(|kept| pair::OperatorPart::of(&kept)),
+        Ok(None) => operator_part(label, None),
+        Err(e) => Err(refusal(&e)),
+    }
+}
+
 /// A pair from a file of the store's form, as `--pair-file` gives it.
 pub(crate) fn from_file(path: &str) -> Result<Pair, Refusal> {
     pair::read_file(Path::new(path)).map_err(|e| Refusal::config(format!("--pair-file {path}: {e}")))
@@ -113,21 +123,27 @@ pub(crate) fn online() -> Result<(), Refusal> {
 }
 
 /// The operator's part for `label`: from `--pair-file` (a pair, or its
-/// operator's part), else from the pair stored under `label`. Refused when it
-/// has expired; past the end that it names, its relay is asked first, as the
-/// pair's owner may have renewed it there (T-592).
+/// operator's part), else from the pair stored under `label`, else from the
+/// operator's part that a pairing by code kept under it (T-086). Refused
+/// when it has expired; past the end that it names, its relay is asked
+/// first, as the pair's owner may have renewed it there (T-592).
 pub(crate) fn operator_part(label: &str, pair_file: Option<&str>) -> Result<pair::OperatorPart, Refusal> {
     let part = match pair_file {
         Some(path) => pair::read_operator_file(Path::new(path))
             .map_err(|e| Refusal::config(format!("--pair-file {path}: {e}")))?,
         None => match pair::load(label) {
             Ok(Some(found)) => pair::OperatorPart::of(&found),
-            Ok(None) => {
-                return Err(Refusal::config(format!(
-                    "no pair is stored under {label:?}; make one with `podssh relay pair {label}`, or give its \
-                     operator's file with --pair-file FILE"
-                )))
-            }
+            Ok(None) => match pair::part::load(label) {
+                Ok(Some(part)) => part,
+                Ok(None) => {
+                    return Err(Refusal::config(format!(
+                        "no pair is stored under {label:?}; make one with `podssh relay pair {label}`, take its \
+                         part with `podssh relay join {label}` and the code that its node's host shows, or give \
+                         its operator's file with --pair-file FILE"
+                    )))
+                }
+                Err(e) => return Err(refusal(&e)),
+            },
             Err(e) => return Err(refusal(&e)),
         },
     };

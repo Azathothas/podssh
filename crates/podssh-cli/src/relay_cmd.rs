@@ -8,7 +8,9 @@
 //! --pair-file FILE` asks for the pair of an operator's file, on a host that
 //! stores none, and `--json` gives a pair's state as one object (T-591).
 //! `pair --renew NAME` renews the stored pair at podssh's relay role
-//! (`relay_renew.rs`, T-592).
+//! (`relay_renew.rs`, T-592). `pair NAME --code` gives the operator's part
+//! by a short code, which `join NAME` takes on the operator's host
+//! (`relay_code.rs`, T-086).
 
 use std::io::Write;
 
@@ -37,6 +39,14 @@ pub struct RelayArgs {
     pub renew: bool,
     /// `pair --once`: a connect token that takes one upgrade alone (T-226).
     pub once: bool,
+    /// `pair --code`: the operator's part given by a short code (T-086).
+    pub code: bool,
+    /// `pair --code` and `join`: the mailboxes where the two ends meet.
+    pub pair_mailbox: Option<String>,
+    /// `pair --code`: the node's allowlist, which takes the operator's key.
+    pub allow: Option<String>,
+    /// `join`: this operator's key file.
+    pub client_key: Option<String>,
     /// `status`: the pair, or its operator's part, in a file, in place of the
     /// store (T-591).
     pub pair_file: Option<String>,
@@ -74,6 +84,10 @@ impl RelayArgs {
             operator_file: get("operator-file"),
             renew: matches.get_flag("renew"),
             once: matches.get_flag("once"),
+            code: matches.get_flag("code"),
+            pair_mailbox: get("pair-mailbox"),
+            allow: get("allow"),
+            client_key: get("client-key"),
             pair_file: get("pair-file"),
             document: get("document"),
             json: matches.get_flag("json"),
@@ -125,6 +139,10 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         let _ = writeln!(err, "podssh relay: --once goes with `podssh relay pair NAME` only, a new pair");
         return EXIT_USAGE;
     }
+    if let Some(refused) = crate::relay_code::misplaced(args) {
+        let _ = writeln!(err, "podssh relay: {refused}");
+        return EXIT_USAGE;
+    }
     if args.pair_file.is_some() && sub != Some("status") {
         let _ = writeln!(err, "podssh relay: --pair-file goes with `podssh relay status [NAME]` only");
         return EXIT_USAGE;
@@ -141,10 +159,13 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
     let done = match (sub, name) {
         // The stored pair, renewed at podssh's relay role (T-592).
         (Some("pair"), Some(label)) if args.renew => crate::relay_renew::run(args, label, out, err),
-        (Some("pair"), Some(label)) => make(args, label, out, err),
+        // The operator's part by a short code, and its other end (T-086).
+        (Some("pair"), Some(label)) if args.code => crate::relay_code::give(args, label, out, err),
+        (Some("join"), Some(label)) => crate::relay_code::join(args, label, out, err),
+        (Some("pair"), Some(label)) => make(args, label, out, err).map(|_| ()),
         (Some("revoke"), Some(label)) => revoke(args, label, out, err),
         (Some("status"), Some(label)) => crate::relay_status::pair(args, Some(label), out),
-        (Some(sub @ ("pair" | "revoke")), None) => {
+        (Some(sub @ ("pair" | "revoke" | "join")), None) => {
             Err(Refusal::usage(format!("missing NAME: `podssh relay {sub} NAME`, where NAME is the label of a pair")))
         }
         // The pair of an operator's file, with no label in the store.
@@ -165,10 +186,12 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         (Some("info"), _) => return crate::relay_diag::info(args, out, err),
         (Some("trace"), _) => return crate::relay_diag::trace(args, out, err),
         (Some(other), _) => Err(Refusal::usage(format!(
-            "there is no subcommand {other:?}; the subcommands are pair, revoke, status, info, trace, rank, spec and serve"
+            "there is no subcommand {other:?}; the subcommands are pair, join, revoke, status, info, trace, rank, \
+             spec and serve"
         ))),
         (None, _) => Err(Refusal::usage(
-            "missing SUBCOMMAND: pair NAME, revoke NAME, status [NAME], info [HOST PORT], trace HOST PORT, rank, spec or serve",
+            "missing SUBCOMMAND: pair NAME, join NAME, revoke NAME, status [NAME], info [HOST PORT], trace HOST \
+             PORT, rank, spec or serve",
         )),
     };
     match done {
@@ -189,8 +212,8 @@ pub(crate) fn block_on<T>(work: impl std::future::Future<Output = T>) -> Result<
 }
 
 /// `pair NAME`: a new pair, stored under NAME; its operator's part in a new
-/// file when one is named.
-fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write) -> Result<(), Refusal> {
+/// file when one is named. The pair, for `--code` to give (T-086).
+pub(crate) fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write) -> Result<Pair, Refusal> {
     pairs::check_label(label)?;
     if let Some(file) = &args.operator_file {
         if std::path::Path::new(file).exists() {
@@ -274,7 +297,7 @@ fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write)
         "podssh relay: in its last 24 h, podssh relay pair {label} --operator-file NEW makes the next pair, which \
          the node takes at the expiry; NEW goes to each operator"
     );
-    Ok(())
+    Ok(made)
 }
 
 /// The expiry after which a stored pair may have its next one: the last

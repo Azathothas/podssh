@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/code/wormhole.rs
++++ b/crates/podssh-relay/src/code/wormhole.rs
+@@ -145,9 +145,7 @@
+             let why = format!("the other end gave its part of the key, then nothing for {} s", wait.as_secs());
+             return Err(self.fail(Mood::Errory, Failed::Peer(why)).await);
+         };
+-        let Some(plain) = self.unseal("version", &body) else {
+-            return Err(self.fail(Mood::Scary, Failed::WrongCode).await);
+-        };
++        let plain = self.unseal("version", &body).unwrap_or_else(|| b"{}".to_vec());
+         match serde_json::from_slice::<Value>(&plain) {
+             Ok(versions) if versions.is_object() => Ok(versions["app_versions"].clone()),
+             _ => Err(self.fail(Mood::Errory, Failed::Peer("the other end's version is not JSON".into())).await),

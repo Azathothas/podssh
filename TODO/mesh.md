@@ -3215,13 +3215,13 @@ The draft's calls, 2026-11-02:
 
 1. The count: for each address, the times of the requests let through in the last minute, 120 at
    most, so that `Retry-After` is the wait itself and the first request after it passes
-   (`crates/podssh-relay/src/serve/brake.rs:105`). Only a request let through adds a time: a
+   (`crates/podssh-relay/src/serve/brake.rs:106`). Only a request let through adds a time: a
    client that asks again too soon is told the same end, never a later one. Lost: a minute that
    starts again (240 requests across its edge); two counts weighted by their overlap, three
    numbers an address, whose wait is an estimate, so a client told 60 s could meet a second
    `429`.
 2. `/v1/mint` and `/v1/pair` share one count, as on the default relay
-   (`crates/podssh-relay/src/pair.rs:96` says "the brake that pairs share with mints"; the
+   (`crates/podssh-relay/src/pair.rs:98` says "the brake that pairs share with mints"; the
    contract's limits, `docs/relay.md`, "Limits that users see": "mint, pair, upgrades with no
    token"). Each request at the two paths counts, whatever its answer: a keyed mint's `401`
    (T-448), a `403`, `--mint nobody`'s `503`. Lost: a count for each path, which lets one client
@@ -3233,8 +3233,8 @@ The draft's calls, 2026-11-02:
 4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:208`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:174`),
-   with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:52`) from
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:177`),
+   with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:53`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
    switch of `Config` says it sits behind the tunnel, a switch that a listener could be given by
@@ -3253,7 +3253,7 @@ The draft's calls, 2026-11-02:
 7. The bound: 4096 addresses, the bound of the table of pairs, each with 120 times of 8 bytes at
    most (under 4 MiB in all). A new address that meets a full table first forgets each address
    whose minute is over, then the one whose last request let through is the oldest
-   (`crates/podssh-relay/src/serve/brake.rs:186`): a scan of 4096 counts at most, and only then.
+   (`crates/podssh-relay/src/serve/brake.rs:187`): a scan of 4096 counts at most, and only then.
    Lost: a list kept in order, more code for no measured need.
 8. The clock: monotonic, the milliseconds since the role's start, and a `brake::Clock` that a test
    sets by hand, so that no test waits a minute and a step of the wall clock neither frees an
@@ -3288,7 +3288,7 @@ name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:187`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:190`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -5590,7 +5590,7 @@ events become a meeting point of the pairing, tried unasked after podssh's own.
   `nostr` crate needs a C library.
 - `docs/carriers.md:765` says "Each relay has its own operator and its own policy", and
   `docs/carriers.md:766` says "which its NIP-11 document gives".
-- `TODO/reverse.md:1137` says "The meeting point: magic-wormhole's mailbox": T-086's exchange
+- `TODO/reverse.md:1193` says "The meeting point: magic-wormhole's mailbox": T-086's exchange
   runs over a mailbox that stores and forwards the messages of two sides.
 
 ## Approach
@@ -6735,7 +6735,7 @@ pair that its operators hold.
 ## Premise
 
 - Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:26-27`,
-  set as the pair is made, `:241`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
+  set as the pair is made, `:244`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
   `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs`, line 57 at
   `b02d8c4`).
 - Read: the default relay renews no pair (T-395's Correction: no such request in its document); a
@@ -7701,3 +7701,53 @@ cargo test -p podssh-cli --features iroh --test opentunnel_road
 
 A record that names an OpenTunnel name is read back whole; a member's client with no name given
 reaches the node of the stand-in server through the name of its record.
+
+# T-616: `podssh net invite`: a new device joins the net by a short code
+
+**Source:** T-086's draft (2026-11-04): its Decision leaves the net's own join by a code to an entry
+of its own, which `docs/mesh.md` (section 4, "Joining") names.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A device joins the net by its owner's `podssh net add NAME KEY`, with its key carried to the owner
+by hand, and the owner's signed document carried back by hand (`podssh net take FILE`). Tailscale's
+`login` asks for neither. `docs/mesh.md` says that `podssh net invite` gives a short code and that
+the owner's side signs the new key into the net; no command does it.
+
+## Premise
+
+- Read: `docs/mesh.md`, section 4, "Joining", says "`podssh net invite` gives a short code".
+- Read: the exchange of a short code over a mailbox exists since T-086 (`crates/podssh-relay/src/code/`,
+  feature `code`): SPAKE2 keyed by the code, each phase sealed, through magic-wormhole's public
+  mailboxes (Q65) or podssh's relay role's (`/v1/mailbox`); its offer and answer carry a pair's part.
+- Read: the net's document is signed by its owner (`crates/podssh-cli/src/net/sign.rs`) and a member
+  is added by the owner's key alone (`podssh net add`).
+
+## Approach
+
+1. `podssh net invite NAME [--roles ROLES]` on the owner's host: a code over the exchange of
+   T-086, its offer the net's name and the owner's fingerprint; the new device's answer is its
+   public key; the owner's side adds the member NAME with that key and its roles, signs the new
+   serial, and sends the signed document back in the last word, all in one exchange.
+2. `podssh net join` on the new device: the code at a prompt (never argv), the owner's fingerprint
+   shown before anything is kept, the device's key made or read, the document taken as `net take`
+   takes it.
+3. A code lives 10 minutes and is spent by its first exchange, as T-086's; a wrong code adds no
+   member.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test net_invite
+```
+
+Against podssh's relay role's mailbox on the loopback: `net invite lab` and `net join` on two
+homes; the new member is in the owner's document, with its key, and the device holds that
+document; a wrong code adds none, and the owner's document keeps its serial. Planted: the owner's
+fingerprint not checked at the join; the test fails.

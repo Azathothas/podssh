@@ -1,0 +1,6 @@
+# T-086: the giver says its code in a line of the run, which a log keeps;
+# the test that no line and no Debug holds a word of the code must fail.
+ENTRY=T-086
+GROUP=resume
+EXPECT='test the_code_is_in_no_line_and_no_debug \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair,code,serve --test pair_code -- the_code_is_in_no_line_and_no_debug'

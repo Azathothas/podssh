@@ -1,0 +1,49 @@
+name: pair code
+
+# The pairing by a short code (T-086): first the tests against
+# magic-wormhole's own mailbox server and Python library on the loopback,
+# which must run here, not skip, beside podssh's relay role; then a short
+# run through the public mailboxes, by the operator's ruling Q65:
+# wss://relay.magic-wormhole.io/v1, then Least Authority's. Each week, as the
+# watch of services that publish no promise; and by hand. Planted runs must
+# fail: a third side let in at the role, a code said in a line, a version
+# that does not open taken. The pair is a test's: no credential of podssh's
+# goes to a mailbox.
+
+on:
+  schedule:
+    # Each Thursday at 05:47 UTC, off the hour.
+    - cron: "47 5 * * 4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pair-code
+  cancel-in-progress: false
+
+jobs:
+  pair-code:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+      PODSSH_MAILBOX_TEST_PYTHON: ${{ github.workspace }}/.work/mailbox-venv/bin/python
+      PODSSH_MAILBOX_TEST_SERVER: required
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: magic-wormhole's mailbox server and library, in a virtualenv
+        run: |
+          python3 -m venv .work/mailbox-venv
+          timeout 300 .work/mailbox-venv/bin/python -m pip install --quiet magic-wormhole-mailbox-server magic-wormhole
+      - name: build the tests
+        run: cargo test --locked -p podssh-relay --features pair,code,serve --test pair_code --test pair_code_live --no-run
+      - name: the loopback, against magic-wormhole's own server and library and podssh's relay role
+        run: timeout 900 cargo test --locked -p podssh-relay --features pair,code,serve --test pair_code -- --nocapture
+      - name: one short run through each public mailbox
+        run: timeout 300 cargo test --locked -p podssh-relay --features pair,code --test pair_code_live -- --ignored --nocapture
+      # Each check must be seen to fail on its planted defect, here with
+      # magic-wormhole's server beside the role.
+      - name: the planted defects fail their tests
+        run: timeout 1800 sh scripts/plant-each.sh --here t086-third-side t086-code-said t086-version-unchecked

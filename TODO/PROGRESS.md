@@ -144,7 +144,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-a39b6bc24832c974f`, `3739bcf`, a first part, merged, the entry partial); T-173
   (`worktree-agent-a935f48070b310b7c`, `6165bbc`, a first part, merged, the entry partial); T-551
   (`worktree-agent-a5583c3e8856c1e14`, `b4568a4`, merged and closed); T-086 (`worktree-agent-aae965649ba432a53`,
-  `7a0c97f`, whose `Cargo.lock` the merge makes). They wait to be merged in that order.
+  `7a0c97f`, merged and closed). Each is merged in that order; their worktrees and local branches
+  are gone, and their `draft/` branches on GitHub can go. No draft waits.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -189,7 +190,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 579 entries: 91 open, 4 partial, 2 blocked, 482 done.
+`TODO/INDEX.md` holds 580 entries: 91 open, 4 partial, 2 blocked, 483 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -234,7 +235,8 @@ this order:
    T-319, T-321 and T-173; `doctor`'s measure of a stream's path, the role's IPv6 targets,
    with `doctor`'s line of them, a client's lost link during a node's bulk, and the cleartext road
    on the relay's port are done.
-2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once and a copy's race of the roads are done): T-086, T-615, T-346 and T-106.
+2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once, a copy's race of the roads and the pairing by a short code are done): T-615,
+   T-346, T-106 and T-616.
 3. Exit, routes, share and funnel (the exit and `doctor --exit` are done): T-432, T-433,
    T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the

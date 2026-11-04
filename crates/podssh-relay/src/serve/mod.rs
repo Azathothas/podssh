@@ -17,6 +17,8 @@
 //! Beside the contract, its forward road in the resumable layer keeps a
 //! standard sshd's connection across a drop of the client's link ([`layer`],
 //! T-173).
+//! Its mailbox is a meeting point of the pairing by a short code
+//! ([`mailbox`], T-086).
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -30,6 +32,7 @@ pub mod ipv6;
 pub mod keys;
 pub mod layer;
 pub mod listener;
+pub mod mailbox;
 pub mod policy;
 pub mod probe;
 pub mod reverse;
@@ -220,6 +223,8 @@ where
         ("GET", "/llms-full.txt") => answer(&mut stream, docs::text(docs::SPEC)).await,
         // What a path does to a stream, for `podssh doctor --stream` (T-325).
         (_, p) if probe::serves(p) => probe::request(stream, head, pending).await,
+        // The meeting point of the pairing by a short code (T-086).
+        (_, p) if mailbox::serves(p) => mailbox::request(stream, head, pending, cfg).await,
         (_, p) if reverse::serves(p) => reverse::request(stream, head, pending, cfg, sni).await,
         (_, p) => answer(&mut stream, request::refusal(404, &format!("{p}: not found"), &[])).await,
     }

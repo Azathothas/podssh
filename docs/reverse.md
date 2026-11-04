@@ -268,9 +268,60 @@ podssh's relay role makes a pair whose connect token takes one upgrade
 alone, too (`podssh relay pair NAME --once`, [relay.md](relay.md)), so that
 a token that leaks after its use is worth nothing. A node whose door is the
 pair's token alone (no `--allow`, no net) says so as it starts: a TARGET
-that is not SSH has no other gate. Measured: UNVERIFIED (2026-11-03, the
-draft of T-226): `cargo test -p podssh-relay --features pair,grant --test
-grant`, against certificates that OpenSSH 9.6's `ssh-keygen -s` minted.
+that is not SSH has no other gate. Measured on 2026-11-03 (T-226): `cargo
+test -p podssh-relay --features pair,grant --test grant`, 9 passed, against
+certificates that OpenSSH 9.6's `ssh-keygen -s` minted.
+
+## Pairing by a short code
+
+The operator's part of a pair moves by a code that a person reads on the
+node's host and types on the operator's, in place of a file (T-086,
+drafted 2026-11-03; `crates/podssh-relay/src/code/`):
+
+1. `podssh relay pair NAME --code` gives the pair stored under NAME while
+   it has 10 minutes left, else it makes the next one first. The code is the
+   mailbox's nameplate and three words of the PGP list, odd and even in
+   turn, as magic-wormhole writes one (`7-crossover-clockwork-adroitness`):
+   24 bits of secret. It shows on the run's terminal alone (stderr when it
+   is one, else the process's terminal), never on stdout, in a log or in
+   argv; a run with no terminal is refused before a pair is made.
+2. The two ends meet at a mailbox of magic-wormhole's protocol: its public
+   one, `wss://relay.magic-wormhole.io/v1`, then Least Authority's (Q65), or
+   those of `--pair-mailbox` and `PODSSH_PAIR_MAILBOX`, such as podssh's
+   relay role at `/v1/mailbox` ([relay.md](relay.md)). The taker looks for
+   its giver at each in order: one that lists the code's nameplate has it,
+   one that lists others has not, and where none is listed the giver's
+   `pake`, which the mailbox keeps, comes at once or not at all; claiming a
+   nameplate that lists others would spend a stranger's code.
+3. Each end sends SPAKE2's symmetric message, keyed by the whole code with
+   podssh's AppID as its identity; then each message is sealed in NaCl's
+   SecretBox under a key of HKDF-SHA256 from the key, the sender's side and
+   the phase, as magic-wormhole's own client does, so that a peer of its
+   Python library pairs with podssh's. The mailbox sees the nameplate, the
+   SPAKE2 messages, the sizes and the times: no code, and no message it
+   could open or change.
+4. The first sealed message, `version`, is the proof of the code. One that
+   does not open ends the code at that end (`scary`); the giver leaves after
+   one exchange, whatever its end, and the mailbox takes two sides of a
+   nameplate alone, so an attacker gets one guess of the 24 bits for each
+   code that the user makes, and is seen. A code lives 10 minutes.
+5. Then podssh's own words: the giver offers its label, the node's key and
+   the operator's part; the taker checks the part as a pair's answer is
+   checked (T-076, T-078), pins the node's key under its own label in
+   `known-nodes` (a key that differs from the pin is refused, 77, and
+   nothing is kept), answers with its own key (`client.key`, or
+   `--client-key`), and keeps the part as `operator-NAME.json`, where each
+   client of the pair finds it by NAME. The giver adds the key's line to the
+   allowlist of `--allow FILE`, which the node reads again for each
+   session; with none, the pair's connect token stays the door.
+
+Measured on 2026-11-04 (T-086): `cargo test -p podssh-relay --features
+pair,code,serve --test pair_code`, 9 passed, against podssh's relay role
+and magic-wormhole-mailbox-server on the loopback, with a peer of
+magic-wormhole's Python library 0.24.0; `cargo test -p podssh-cli --test
+relay_code --test relay_code_role`, 5 and 1 passed; through the public
+mailboxes of magic-wormhole and Least Authority, two ends paired by a code
+(`pair_code_live`).
 
 ## The transit road
 
@@ -326,8 +377,10 @@ by a name of the user's own, and by its key, and asks no directory
   trust step, and a node with another key is refused. The pins name a
   label and a key, never a pair or a token; the relay sees ciphertext.
 - **A new pair reaches its operators** in the operator's part that `podssh
-  relay pair --operator-file` writes, which the user hands on. Its delivery
-  through the relay waits for the relay's operator (T-086).
+  relay pair --operator-file` writes, which the user hands on, or by a short
+  code that a person reads aloud (`podssh relay pair NAME --code`, then
+  `podssh relay join NAME`, "Pairing by a short code" above, T-086), which
+  pins the node's key under the label before the first session.
 - **A member of the net** (T-429): a name that the user's own net names
   is looked up there first, with the key that the channel then checks in
   place of the pins, and the tickets that race beside the pair kept under
@@ -454,10 +507,11 @@ keeps these rules:
    the one kept under NAME, and checks TLS by that name; the channel checks
    the node's key. The service sees the names, the times and the sizes.
 
-Measured: UNVERIFIED (2026-11-03, the draft): `cargo test -p podssh-relay
---features opentunnel --test opentunnel_link` against a stand-in of the
-protocol, `opentunnel-interop.yml` against OpenTunnel's own server, and
-`cargo test -p podssh-cli --test opentunnel_road` from end to end.
+Measured on 2026-11-03 (T-530): `cargo test -p podssh-relay --features
+opentunnel --test opentunnel_link`, 7 passed, against a stand-in of the
+protocol; `opentunnel-interop.yml` against OpenTunnel's own server v0.6.1
+(run 41675551360); and `cargo test -p podssh-cli --test opentunnel_road`
+from end to end.
 
 ## A carrier
 

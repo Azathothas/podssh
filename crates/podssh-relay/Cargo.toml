@@ -55,6 +55,16 @@ tokio-rustls = { workspace = true, optional = true }
 # pure Rust, which needs Rust 1.91 (smoltcp's) where this crate declares
 # 1.89; only with the feature `warp`.
 podssh-warp = { path = "../podssh-warp", optional = true }
+# Pairing by a short code (src/code/, T-086): SPAKE2 of RustCrypto's PAKEs,
+# the crate that magic-wormhole's Rust port interoperates with, on the
+# curve25519-dalek 4, hkdf 0.12 and sha2 0.10 that crypto_box and snow keep
+# in the lock; with no `getrandom`, its scalar comes from podssh's own source
+# through rand_core 0.6's traits. Then NaCl's SecretBox (XSalsa20 and
+# Poly1305) of crypto_secretbox, which crypto_box builds already. Pure Rust;
+# only with the feature `code`.
+spake2 = { version = "0.4", default-features = false, optional = true }
+rand_core_06 = { package = "rand_core", version = "0.6", default-features = false, optional = true }
+crypto_secretbox = { version = "0.1", default-features = false, features = ["alloc", "salsa20"], optional = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and
@@ -94,8 +104,13 @@ grant = []
 # The relay as a role of podssh (T-169, Q63): the forward road of the
 # relay's contract, served, and its reverse road (T-427), which reads and
 # writes the frames with the node's own codecs of `pair`; the caller owns the
-# listener and TLS. No C either; the gate builds it.
+# listener and TLS. Its mailbox for the pairing by a short code (T-086) needs
+# no crypto of its own. No C either; the gate builds it.
 serve = ["pair"]
+# Pairing by a short code (T-086): magic-wormhole's mailbox protocol, SPAKE2
+# keyed by the code, then its phases in NaCl's SecretBox, which carry the
+# operator's part of a pair and each end's key. No C either; the gate builds it.
+code = ["pair", "dep:spake2", "dep:rand_core_06", "dep:crypto_secretbox"]
 # Plain ws:// to a stand-in relay on the loopback, for the tests of an embedder
 # (T-068). The binary never enables it (scripts/no-plain-ws.sh).
 plain-ws = ["podssh-ws/plain-ws"]

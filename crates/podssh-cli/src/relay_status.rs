@@ -33,7 +33,8 @@ pub(crate) fn pair(args: &RelayArgs, label: Option<&str>, out: &mut dyn Write) -
             let part = pairs::operator_part(&shown, Some(file))?;
             (shown, part)
         }
-        (None, Some(label)) => (label.to_string(), pair::OperatorPart::of(&pairs::stored(label)?)),
+        // The pair under NAME, or the part that a pairing by code kept (T-086).
+        (None, Some(label)) => (label.to_string(), pairs::stored_part(label)?),
         (None, None) => {
             return Err(Refusal::usage("missing NAME: `podssh relay status NAME`, or --pair-file FILE"));
         }

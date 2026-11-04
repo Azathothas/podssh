@@ -270,6 +270,21 @@ Each rule is implemented.
   reaches a TARGET that has no login of its own; podssh's relay role makes
   a connect token of one upgrade where the pair asks for it (`relay pair
   --once`).
+- **A code of the pairing is a credential for 10 minutes, and gets one
+  guess** (T-086). `podssh relay pair NAME --code` shows a nameplate and
+  three words of the PGP list, 24 bits of secret, on its terminal alone,
+  never on stdout, in a log or in argv; `podssh relay join` reads it at a
+  prompt or from a pipe. The ends run SPAKE2 keyed by the whole code over a
+  mailbox, then seal each message in NaCl's SecretBox under a key of it, so
+  the mailbox, a proxy or a copy of the traffic learns nothing that a
+  guess offline could test. An online attacker who claims the nameplate
+  gets one try: a version that does not open ends the code at both ends,
+  the giver leaves after one exchange whatever its end, and a mailbox takes
+  two sides of a nameplate alone; the user sees the failure, and a new code
+  is a new draw. The connect token crosses inside the sealed messages only.
+  The taker pins the node's key that came with the part, and the giver adds
+  the taker's key to `--allow` only where the user named the file; each
+  shows the other's fingerprint, for a person to compare.
 - **`podssh ssh --upgrade` copies nothing to the server, and its token
   crosses the relay only inside SSH** (T-167). It runs a podssh that is on
   the server already, after `podssh --version` found one. The temporary
@@ -357,7 +372,13 @@ security:
 - The first session to a node trusts the key that answers (trust on first
   use): a relay in the middle of that first session could have its own key
   pinned. Compare the fingerprint that the node says as it starts, or give
-  it with `--node-key`; an iroh ticket names the key (T-087).
+  it with `--node-key`; an iroh ticket names the key (T-087), and so does a
+  pairing by code, which pins the key before the first session (T-086).
+- A pairing by code is as strong as its 24 bits against one guess for each
+  code: an attacker who wins that draw (1 in 16,777,216) gets the pair's
+  connect token, and its key goes into `--allow` where the giver named the
+  file. The public mailboxes (Q65) can stop a pairing, never read it; a
+  user who wants no third party names their own relay's mailbox.
 - The end-to-end channel is podssh's own framing over the `snow` crate. No
   third party has audited it (T-088).
 - The tokens of a pair on the default relay are bearer tokens for up to 72

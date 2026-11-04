@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:365`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:346-348`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:399-401`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:101-348`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:101-401`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:343-348`).
+   the code and the reason (`docs/reverse.md:396-401`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-57`); add the feature to the gate (`scripts/gate.sh:133`).
+   (`crates/podssh-relay/src/lib.rs:1-60`); add the feature to the gate (`scripts/gate.sh:133`).
 
 ## Decision
 
@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:4892`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:4912`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:507-510`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:184-194`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:420`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:4888-4892`).
+`podssh proxy` sysexits (`docs/cli.md:4908-4912`).
 
 ## Approach
 
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:133`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:134`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1055,7 +1055,7 @@ slingshot); read in the reports, not verified here.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1103,6 +1103,62 @@ sealed with a key from the short code, lost: whoever copies the string can guess
 public mailbox of another project, reached through the forward road, lost for now: podssh would
 depend on a service that it does not run for each pairing. Keep it as the fallback if the relay's
 operator declines.
+
+Decided in the work (2026-11-03, the draft; the Correction below made the public mailboxes the meeting
+point):
+- The code: the mailbox's nameplate, then three words of the PGP list, odd and even in turn, as
+  magic-wormhole's own `choose_words` gives them: 24 bits, against one online guess for each code
+  (`SECURITY.md`, "A code of the pairing"). Lost: magic-wormhole's default of two words (16 bits, one
+  in 65,536 for a guess that wins a connect token and a line of `--allow`); four words or more (32
+  bits and up, harder to read aloud, for an attacker who gets one try anyway); digits alone (a
+  person mishears them, and nothing tells a dropped one, where the two lists do).
+- Its life: 10 minutes at the giver, then it releases the nameplate and closes `lonely`; a taker
+  waits 20 s for the giver's `pake`, which the mailbox keeps, and 60 s for each later step. Lost: a
+  life as long as the pair (a code on a sticky note would be a credential for 72 h).
+- Its attempts: one. The giver leaves after the first exchange, whatever its end; a `version` that
+  does not open ends the code at both ends (`scary`); the mailbox takes two sides of a nameplate,
+  a third gets `crowded`; and podssh's relay role brakes each connection to its mailbox as a
+  request of `/v1/pair`. Lost: a giver that waits on for the right taker after a wrong one (each
+  wrong code would be another guess), and a count of failures at the giver (the mailbox's two
+  sides already end the code).
+- How a taker finds its giver: each mailbox in order, by its `list`; one that lists others has no
+  giver of the code, and claiming there would spend a stranger's code, so it is passed; one that
+  lists none (a server of `--disallow-list`) is claimed, and the giver's `pake` comes at once or not
+  at all. Lost: a mark of the mailbox in the code (a word more to read aloud), and claiming at each
+  mailbox in turn (a stranger's code spent at a mailbox that the giver could not reach).
+- The crates: `spake2` 0.4 (RustCrypto's PAKEs, the one that magic-wormhole's Rust port uses, which
+  interoperates with python-spake2), on the curve25519-dalek 4, hkdf 0.12 and sha2 0.10 that
+  crypto_box and snow keep in the lock, its `getrandom` off and its scalar from podssh's own source
+  through rand_core 0.6; and `crypto_secretbox` 0.1, which crypto_box builds. Each is pure Rust, and
+  they build under `CC=/nonexistent` (measured at the merge: `cargo check -p podssh-relay --features
+  code,pair,serve` with no C compiler). Lost: `spake2` 0.5.0-pre.0,
+  on the workspace's newer curve, a prerelease whose API may move; the `magic-wormhole` crate, whose
+  EUPL-1.2 and size podssh does not need for a few messages (docs/carriers.md, [N14]).
+- A proof of work that a mailbox asks (`permission-required` with no `none`): not made; that
+  mailbox is passed for the next. Lost for now: hashcash, which no mailbox that podssh uses asks.
+- What moves: the giver's label, the node's key and the operator's part; the taker's key back; the
+  giver's last word of what it did with that key. The taker pins the key under its own label before
+  any session, and keeps the part as `operator-NAME.json`, which each client of a pair reads where no
+  whole pair is stored under NAME. The giver adds the key's line to the allowlist that
+  `--allow FILE` names, which the node reads again for each session; with none, it says that the
+  connect token is the door. Lost: the node's roads (iroh and DERP tickets, a quick tunnel's name): a `relay pair`
+  holds none, as only a running node knows them, and an operator's host keeps no tickets by label;
+  a member of the net gets them from the net's document (T-429). Lost: a grant of T-226 in place of
+  `--allow` (a grant lets in one session; `podssh node NAME --grant-to KEY` mints one once the key is
+  known), and the routes of an allowlist line (the user adds `routes=` to the line that the code
+  wrote). The net's own join by this code, the Correction's `podssh net invite`, is no command of
+  T-429: it is the net's work on this exchange, for an entry of its own.
+- The commands: `podssh relay pair NAME --code` (the stored pair while it has 10 minutes left, else
+  the next one, made as `pair NAME` makes it) and `podssh relay join NAME`, beside the pair's other
+  verbs. Lost: a flag of `podssh node` (its file is at its 500 lines, and the code would wait on a
+  node that runs), and a verb of its own (the pair's verbs are under `relay`).
+- The code's terminal: stderr when it is a terminal, else the process's terminal (`/dev/tty`,
+  `CONOUT$`), else a refusal (64) before a pair is made; the taker reads a prompt on a terminal, or
+  one line of a pipe for a script, never argv. Lost: stdout (a script's capture is a log).
+- The role's mailbox: at `/v1/mailbox`, for podssh's AppID alone, in memory, one table for each role
+  (a field of its pairs, so that no caller of the role changes). Lost: a table for the process (two
+  roles of one process, as the tests run them, would share nameplates), and a mailbox of each AppID
+  (the role would be a public mailbox of other programs).
 
 ## Prove
 
@@ -1178,6 +1234,63 @@ a second use fails; a code older than 10 minutes fails; the code is in no output
 second use accepted; the single-use test fails. Live, a short run from a GitHub runner and from a
 session's own host (Q65): a node and an operator pair through `wss://relay.magic-wormhole.io/v1`,
 then `podssh operator` reaches the node.
+
+2026-11-03 (the drafting agent). The Premise holds at its lines
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:130-136`, and `:137-138` says "Accept
+a connect token only"). The Prove gains the feature `serve`, as its tests run against podssh's relay
+role's mailbox beside magic-wormhole's server (the gate has no Python), and the commands' tests; the
+Prove that ran is in `## Done`.
+
+## Done
+
+Drafted 2026-11-03 (`7a0c97f`), merged and measured by the main session on 2026-11-04.
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features code --lib code::
+cargo test -p podssh-relay --features serve --lib serve::mailbox
+cargo test -p podssh-relay --features pair,code --lib pair::part
+cargo test -p podssh-relay --features pair,code,serve --test pair_code
+cargo test -p podssh-relay --features pair,code --test pair_code_live -- --ignored
+cargo test -p podssh-cli --lib relay_code
+cargo test -p podssh-cli --test relay_code --test relay_code_role
+sh scripts/plant-each.sh --here t086-third-side t086-code-said t086-version-unchecked
+```
+
+- `--lib code::`: 22 passed (the word lists of magic-wormhole's `_wordlist.py`; the phase keys of
+  HKDF-SHA256 equal to Python's `hmac` and `hashlib`; SecretBox; SPAKE2 of one code agreeing and of
+  two not; a scalar whose draw failed never used).
+- `--lib serve::mailbox`: 6 passed; `pair::part`: 2 passed.
+- `--test pair_code`, against podssh's relay role, and against magic-wormhole-mailbox-server and a
+  peer of magic-wormhole's Python library (`PODSSH_MAILBOX_TEST_SERVER=required`, `pair-code.yml`;
+  here magic-wormhole 0.24.0 and its mailbox server from PyPI in a venv): 9 passed (two podssh ends of one code agree and move each part; a wrong code fails both and
+  spends the code; a second use and a code past its life find nobody; a third end is refused while
+  two hold the code; no line and no `Debug` holds the code; the Python peer takes podssh's code,
+  gives one that podssh takes, and a wrong code fails both).
+- The plants: `t086-third-side` (the role takes a third side), `t086-code-said` (the giver says its
+  code in a line) and `t086-version-unchecked` (a `version` that does not open is taken): 3 caught,
+  each by its test.
+- `podssh-cli`: `--lib relay_code` 2, `--test relay_code` 5, `--test relay_code_role` 1 passed (each flag where it means nothing, 64; no terminal, 64 before a pair; the
+  code read from a pipe and never said; `no`, 78; a whole pair under NAME, 78; a part kept under NAME
+  found by `relay status` and `operator`; through `podssh relay serve` on a pty, a code given, taken,
+  the node's key pinned, the operator's key in `--allow`, and the status asked by the label).
+- Live, a short run (Q65): `--test pair_code_live -- --ignored` through
+  `wss://relay.magic-wormhole.io/v1` and Least Authority's mailbox: 1 passed in 4.9 s, "two ends
+  paired by a code" at each.
+- Repairs at the merge: `Cargo.lock` gains `spake2` 0.4.0 (`cargo deny`: advisories, bans, licenses
+  and sources ok); two tests of `Offer`, which has no `Debug` as it can hold a pair's part, take its
+  error with `let Err(..) = .. else`; the test that no typed word is echoed checks the words of each
+  typed code, as the refusal of an empty code names a fixed example; the case where podssh takes a
+  code that magic-wormhole's Python library gives runs on two workers, as it waits on the peer's line
+  with no await while podssh's relay role in the same process must answer the peer; the harness's
+  `Config` of the role sets T-173's new field; the mailbox's `bind` command is `bind_side`, which the
+  repository's check of listeners took for a socket's; clippy's `needless_question_mark` in the hex
+  of a code's test. Clippy of both crates with `-D warnings`, and rustfmt: clean. The relay crate's
+  whole suite with `serve,plain-ws,quick,pair,grant,piping,code`: no failure; the CLI's `relay` 12,
+  `node` 18, `relay_serve` 16, `status` 7, `operator` 12, `net` 9: passed.
+- Waits: from end to end on the live relay, `podssh relay pair lab --code` on one host, `podssh
+  relay join lab` on another, then `podssh operator lab` through `podssh node lab TARGET`, with the
+  release's checks (Q88).
 
 # T-087: Node identity and access: a node key, an allowlist, an expected fingerprint, revocation
 
@@ -2886,12 +2999,12 @@ to go on. A feature.
   issue's claim holds where no pair is stored under NAME, as on an operator's host.
 - Read: it reads the pair from the store alone (`crates/podssh-cli/src/relay_cmd.rs` line 229 at
   `2608b91`, `crates/podssh-cli/src/pairs.rs:36-44`); `relay` takes no `--pair-file`, and `--operator-file`
-  goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:116-119`).
+  goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:130-133`).
 - Read: the relay answers `/v1/status/<name>` to the connect token
-  (`crates/podssh-relay/src/pair.rs:192-196`), which the operator's part holds.
+  (`crates/podssh-relay/src/pair.rs:194-198`), which the operator's part holds.
 - Read: `relay pair` prints the label and its expiry and nothing more
-  (`crates/podssh-cli/src/relay_cmd.rs:271`); in the last 24 h of a stored pair it makes the next
-  one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:200-223`);
+  (`crates/podssh-cli/src/relay_cmd.rs:294`); in the last 24 h of a stored pair it makes the next
+  one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:223-246`);
   the operator's part of the next pair is a new file, and the default relay renews no pair (T-395's
   Decision, item 2).
 

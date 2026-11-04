@@ -49,6 +49,9 @@
 //! - `opentunnel` (feature `opentunnel`): the OpenTunnel road (T-530), a
 //!   blind TLS tunnel with no account, whose client's leg is TLS by name
 //!   with no upgrade;
+//! - `code` (feature `code`): pairing by a short code (T-086), SPAKE2 over a
+//!   magic-wormhole mailbox, which moves a pair's operator's part and each
+//!   end's key;
 //! - `blocking` (feature `blocking`): a synchronous facade over all of these,
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
@@ -61,6 +64,8 @@ pub mod addresses;
 pub mod blocking;
 pub mod cache;
 pub mod cleartext;
+#[cfg(feature = "code")]
+pub mod code;
 #[cfg(feature = "derp")]
 pub mod derp;
 pub mod e2e;
