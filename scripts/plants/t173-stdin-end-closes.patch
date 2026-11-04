@@ -1,11 +1,20 @@
 --- a/crates/podssh-cli/src/relay_layer.rs
 +++ b/crates/podssh-cli/src/relay_layer.rs
-@@ -216,7 +216,7 @@
-             return Some(EX_UNAVAILABLE);
-         }
-     };
+@@ -207,7 +207,7 @@
+     // OpenSSH's SIGHUP is the end of the bytes, which the role hears.
+     let hangup = crate::hangup::take(crate::hangup::Which::All);
+     // The end of stdin ends its direction alone, where the role takes it.
+-    let settings = Settings { half_close: true, ..crate::layered::settings().off_the_pair() };
++    let settings = Settings { half_close: false, ..crate::layered::settings().off_the_pair() };
+     let begun = async { client::start(first, Ask::New, settings, &mut OsEntropy).await };
+     let client = match crate::hangup::unless(Some(&hangup), Box::pin(begun)).await {
+         Some(Ok(client)) => client,
+@@ -233,7 +233,7 @@
+         let app = crate::hangup::ending_wholly(io, Some(&hangup));
+         return carried(&dialer, client, app, (&at, &hangup), err).await;
+     }
 -    let io = tokio::io::join(KeepsReceiving { read: tokio::io::stdin(), ended: false }, tokio::io::stdout());
 +    let io = tokio::io::join(tokio::io::stdin(), tokio::io::stdout());
      let app = crate::hangup::ending(io, Some(&hangup));
-     // stdout carries the session's bytes alone: each line goes to stderr.
-     let note = |note: Note| {
+     carried(&dialer, client, app, (&at, &hangup), err).await
+ }

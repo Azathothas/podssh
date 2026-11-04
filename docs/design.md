@@ -749,9 +749,9 @@ functions of bytes only.
 
 | Function of Mosh | In Mosh | In podssh |
 | --- | --- | --- |
-| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:60`); a spare link beside it opens once a question waited three round trips of the link with no answer, 1 s to 3 s (T-663), or after 20 s of quiet, and takes the session when its far end greets first (T-305); a host that wakes from a sleep asks at once |
+| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:62`); a spare link beside it opens once a question waited three round trips of the link with no answer, 1 s to 3 s (T-663), or after 20 s of quiet, and takes the session when its far end greets first (T-305); a host that wakes from a sleep asks at once |
 | Outages and sleep | The server keeps the session until its client comes back; `MOSH_SERVER_NETWORK_TMOUT` sets a limit, none by default (`src/frontend/mosh-server.cc:394-406`) | 10 minutes (`crates/podssh-relay/src/session/resume.rs:44`, T-153), or the node's `--resume-deadline`, 72 h at most, which it names to its client (T-306); a shell that `podssh serve` keeps longer (T-159) |
-| A heartbeat | An empty acknowledgement each 3 s, which also keeps a NAT's mapping (paper §2.3; `src/network/transportsender.h:51`) | Each 10 s on the layer (T-154; `crates/podssh-relay/src/session/pump.rs:57`); SSH's keepalives on the forward road |
+| A heartbeat | An empty acknowledgement each 3 s, which also keeps a NAT's mapping (paper §2.3; `src/network/transportsender.h:51`) | Each 10 s on the layer (T-154; `crates/podssh-relay/src/session/pump.rs:59`); SSH's keepalives on the forward road |
 | Local echo | Each key is predicted; the predictions of an epoch show once one of them is confirmed; by default they show when the round trip passes 30 ms, or a prediction waited 250 ms, and are underlined past 80 ms (paper §3.2; `src/frontend/terminaloverlay.h:215-225`) | T-160, on request, above 120 ms |
 | The echo's acknowledgement | The server marks the last key that the program has had for 50 ms, so the client knows when its echo is due (paper §3.2) | T-160, item 3: the far end reports the offset of the input that reached the pty |
 | The latest screen, not each byte | Frames of the difference of screens, at most one each half round trip (20 to 250 ms), after 8 ms of collection, so Ctrl-C stops a flood within a round trip (paper §2.3; `src/network/transportsender.h:49-50`, `src/network/transportsender-impl.h:55-71`) | T-303, on request, to `podssh serve` |
@@ -820,6 +820,7 @@ body of at most 64 KiB. Numbers are big-endian, and offsets and values have
 | 0x09 | `PONG` | either | the value of the `PING`, then an offset |
 | 0x0a | `CLOSE` | either | a reason: the session ends, not only the link; the peer answers with its own `CLOSE` (T-262) |
 | 0x0b | `RETIRE` | client | nothing: this link ends, and the session goes on over another (T-155) |
+| 0x0c | `END` | either | the offset after the sender's last byte: its bytes ended, and the session goes on for the peer's (T-632) |
 
 The magic is the 14 bytes `podssh-session`, and the version is 1; each side
 names the highest version that it speaks, and the session speaks the lower.
@@ -828,7 +829,7 @@ nonce, a public key and a proof have 32 bytes, and a session id 16. Features
 are a count byte (16 at most), then each name as a length byte and 1 to 32
 bytes of `a-z`, `0-9`, `.`, `-` and `_`; a side ignores a name that it does
 not know (`replay.v1`, `heartbeat.v1` and `move.v1` come with T-152 to
-T-155; a far end's `deadline.SECONDS` with T-306; `once.v1` with T-612). A reason is UTF-8, 1024
+T-155; a far end's `deadline.SECONDS` with T-306; `once.v1` with T-612; `end.v1` with T-632). A reason is UTF-8, 1024
 bytes at most. The codes of `REFUSE`: 1 an
 unknown session, 2 a wrong proof, 3 an offset no longer kept, 4 the
 version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
@@ -947,6 +948,33 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   (GitHub #112). A refusal for the budget names what holds it: the sessions
   with a link, those that wait for their client, and when the first of
   those is forgotten.
+- **The end of one direction** (T-632), when both sides name `end.v1`:
+  a far end of this build names it in each `GREETING`, and a client names
+  it in its `OPEN` where its application ends its bytes and reads on
+  (`podssh proxy` on the relay role's road, whose stdin ends before the
+  target's reply). A read of nothing from the application sends `END` after
+  the last `DATA`, with the offset after that byte, and the session goes
+  on; the peer takes it at its received offset (one past it is a gap, one
+  below it bytes after the end), shuts its application's write side once
+  it wrote each byte before the end, and reads on, so a target that reads
+  to the end of its input gets that end and still answers. The side whose
+  application ends second sends `CLOSE`, as a side did before, and the
+  session ends when it is answered; `END`s that cross make each side's
+  `CLOSE` due, and each answers the other's. A read that fails is no end of
+  one direction: the application is gone, and its side sends `CLOSE`, as
+  does a signal of the user that comes before the end of its input
+  (`podssh proxy` fails its reads at one, so the far end still forgets the
+  session at once, T-586); after it, the session ends with its target, as
+  an sshd ends at the end of its input. Each new link sends
+  this side's `END` again after the bytes that it sends again, and a peer
+  that had it takes it once; a link that ends with no `END` and no `CLOSE`
+  is a loss, as before. The feature is agreed in the session's first
+  handshake and holds across its links. A peer of an older build names no
+  such feature and decodes no type `0x0c`: it never gets one, and its
+  sessions end with `CLOSE` as before; a client of `podssh proxy` then
+  keeps receiving after the end of its stdin, as on the contract's road.
+  The end-to-end channel above the layer has its own `END` (T-088), so the
+  roads that run it do not ask for the layer's.
 - **A session that ends with its link** (T-612, `--no-resume`), when both
   sides name `once.v1`: the client names it in its `OPEN` only when its
   user asked, and a far end that knows the ask names it in its `GREETING`
@@ -966,8 +994,9 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   and only then does the new link's handshake take the offsets. An offset
   taken while the old link still carried acknowledgements could fall below
   them, and ask for bytes that the other side no longer keeps. A session
-  whose application ended does not move. The far end lets the newest resume
-  take a session: the client runs one handshake at a time, so an older one
+  whose `CLOSE` is due does not move; one whose `END` went still does
+  (T-632). The far end lets the newest resume take a session: the client
+  runs one handshake at a time, so an older one
   that still waits is a link that the client left. The client warns an hour
   before its pair expires (72 h at most); at the expiry the relay ends each
   session of the pair with `1001`, which no resume carries on.

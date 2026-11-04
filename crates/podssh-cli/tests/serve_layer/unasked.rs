@@ -4,15 +4,16 @@
 //! own after the first and no line; `no` takes the contract's road. A kept
 //! offer whose host answers 404 for the layer's path is forgotten, with one
 //! line, and the contract's road carries the session. On the layer, the end
-//! of stdin keeps receiving, as on the contract's road.
+//! of stdin is the layer's `END` (T-632): a target that reads to the end of
+//! its input still answers, and a reply that comes later still comes.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::process::Output;
-use std::time::Duration;
+use std::process::{Command, Output, Stdio};
+use std::time::{Duration, Instant};
 
 use crate::throughput_harness::{Cell, Session};
-use crate::{banner_target, ran_with, relay_flags, role, said};
+use crate::{banner_target, ran_with, relay_flags, role, said, LIMIT};
 
 /// `podssh proxy` to `127.0.0.1:port` through `flags`, with
 /// `PODSSH_RELAY_LAYER` as `layer` gives it, unset where `None`.
@@ -95,9 +96,9 @@ fn a_kept_offer_whose_host_no_longer_serves_the_layer_is_forgotten_and_the_contr
     assert!(!text.contains("resumable layer"), "{text}");
 }
 
-/// The end of stdin stops sending and keeps receiving on the layer, as on
-/// the contract's road: a reply that the target sends after it still comes,
-/// where a `CLOSE` for the end would make the role forget the session first.
+/// A reply that the target sends after the end of stdin still comes on the
+/// layer, where a `CLOSE` for the end would make the role forget the session
+/// first: the end is the layer's `END` (T-632).
 #[test]
 fn a_reply_after_the_end_of_stdin_still_comes_on_the_layer() {
     let s = Session::start("serve-layer-late");
@@ -113,6 +114,72 @@ fn a_reply_after_the_end_of_stdin_still_comes_on_the_layer() {
         events(&s)
     );
     assert_eq!(count(&events(&s), "upgrade layer"), 1, "the layer's road: {}", events(&s));
+}
+
+/// `echo QUERY | podssh proxy HOST PORT` on the layer (GitHub #130, T-632):
+/// the end of stdin reaches the target as the end of its input, through the
+/// layer's `END` and the role's half-close, and the target, which answers
+/// only then, answers; on the contract's road, or with stdin that kept
+/// receiving, the target would wait for that end for ever.
+#[test]
+fn a_target_that_answers_at_the_end_of_its_input_answers_on_the_layer() {
+    let s = Session::start("serve-layer-half");
+    let Some(cell) = role(&s, &["--allow-private"]) else { return };
+    let flags = relay_flags(&cell);
+    let target = answers_at_its_end();
+    let mut args = vec!["proxy".to_string()];
+    args.extend(flags.iter().cloned());
+    args.extend(["127.0.0.1".into(), target.to_string()]);
+    let out = with_input(s.command(&args), b"QUERY\n");
+    let text = said(&out);
+    assert!(out.status.success(), "{text}; the role: {}", events(&s));
+    assert!(
+        text.contains("6 bytes, then their end"),
+        "the answer at the end of stdin: {text}; the role: {}",
+        events(&s)
+    );
+    assert_eq!(count(&events(&s), "upgrade layer"), 1, "the layer's road: {}", events(&s));
+}
+
+/// `cmd` with `PODSSH_RELAY_LAYER=yes`, `input` on its stdin and then the
+/// end of it, the machine's proxy taken away, within the suite's limit.
+fn with_input(mut cmd: Command, input: &[u8]) -> Output {
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "PODSSH_RELAY", "PODSSH_RELAY_TOKEN"] {
+        cmd.env_remove(name);
+    }
+    cmd.env("PODSSH_RELAY_LAYER", "yes");
+    let mut child = cmd.spawn().unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    stdin.write_all(input).unwrap();
+    drop(stdin);
+    let deadline = Instant::now() + LIMIT;
+    while child.try_wait().unwrap().is_none() {
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            panic!("{cmd:?} did not end within {LIMIT:?}: the target never had the end of its input");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    child.wait_with_output().unwrap()
+}
+
+/// A target that reads each connection to the end of its input, then says
+/// how many bytes came, and closes it.
+fn answers_at_its_end() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for mut stream in listener.incoming().map_while(Result::ok) {
+            std::thread::spawn(move || {
+                let mut got = Vec::new();
+                if stream.read_to_end(&mut got).is_ok() {
+                    let _ = writeln!(stream, "{} bytes, then their end", got.len());
+                }
+            });
+        }
+    });
+    port
 }
 
 /// A target that sends `line` `after` each connection came, then closes it.

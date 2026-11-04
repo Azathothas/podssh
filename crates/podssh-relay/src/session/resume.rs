@@ -171,9 +171,9 @@ where
         let watch = Watch::moving_at(if moves { settings.move_bytes } else { 0 }).within(settings.window);
         let started = Instant::now();
         let state = carry.state.clone();
-        // A session whose application ended is closing: its `CLOSE` goes on
-        // the link that it has, with no new link beside it.
-        let closing = carry.app_ended();
+        // A session whose `CLOSE` is due is closing: it goes on the link that
+        // it has, with no new link beside it; an `END` is not (T-632).
+        let closing = carry.closing();
         // The steps of the watch beside the link, said as they come.
         let (said, mut steps) = mpsc::unbounded_channel();
         let (ended, greeted) = {
@@ -247,9 +247,9 @@ where
                         decoder = new_decoder;
                         continue;
                     }
-                    // This side's application had ended, and the far end forgot
-                    // the session: it had the `CLOSE`, and its answer was lost.
-                    Ok(Err(Failed::Forgotten(_))) if carry.app_ended() => {
+                    // This side's `CLOSE` went, and the far end forgot the
+                    // session: it had the `CLOSE`, and its answer was lost.
+                    Ok(Err(Failed::Forgotten(_))) if carry.closing() => {
                         let _ = app.shutdown().await;
                         let end = End::LocalEnd;
                         return Outcome::Layer(Ended { end, received: ended.received, sent: ended.sent });
@@ -357,9 +357,9 @@ where
                         note(Note::Resumed { resent, after: lost.elapsed() });
                         return Resumed::On(new, new_decoder);
                     }
-                    // This side's application had ended, and the far end forgot
-                    // the session: it had the `CLOSE`, and its answer was lost.
-                    Ok(Err(Failed::Forgotten(_))) if carry.app_ended() => return Resumed::Over(End::LocalEnd),
+                    // This side's `CLOSE` went, and the far end forgot the
+                    // session: it had the `CLOSE`, and its answer was lost.
+                    Ok(Err(Failed::Forgotten(_))) if carry.closing() => return Resumed::Over(End::LocalEnd),
                     // The far end's deadline passed while this side was away,
                     // longer than its own clock counted, as on a host that
                     // slept: the words say so, and how long by the wall clock.

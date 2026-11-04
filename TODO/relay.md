@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:326`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:327`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -4542,3 +4542,43 @@ A published name reaches a test's HTTPS server behind a node, and the client see
 certificate, not the role's; the role's own names, a client by address and a cut ClientHello go to the
 role as before; `acme-tls/1` for the role's name is the role's. Planted: a route that matches a name
 in another case only, and the test of the case fails.
+
+# T-671: The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them
+
+**Source:** the draft of T-632, 2026-11-04.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The relay's contract keeps a target's bytes coming after a client's WebSocket Close, until the
+target closes or is idle for 15 s, and then closes with `1000 client half-closed, target idle for
+15s`. podssh's relay role shuts the target's write side at the client's Close and ends the session
+at once, so a reply that the target sends after the end of its input never reaches a client of the
+role's forward road.
+
+## Premise
+
+- `docs/relay.md:347` says "is no TCP half-close. But the target's bytes still come after the client's",
+  measured on the default relay on 2026-10-09.
+- `crates/podssh-relay/src/serve/forward.rs:242` says "return End::Client;": the client's Close
+  ends the pump of both ways, after `to_target.shutdown()`.
+
+## Approach
+
+1. At the client's Close, the role shuts the target's write side and keeps the way down open until
+   the target closes (Close `1000 target closed`) or is idle for 15 s (Close `1000 client
+   half-closed, target idle for 15s`), as the contract says.
+2. A contract test beside `crates/podssh-relay/tests/relay_serve_contract.rs`: a target that answers
+   500 ms after the end of its input; its answer comes after the client's Close.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract
+```
+
+A new test as in item 2; planted, the old end at the Close, it fails.

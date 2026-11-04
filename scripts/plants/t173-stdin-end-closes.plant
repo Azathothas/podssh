@@ -1,6 +1,8 @@
 # T-173: on the layer, the end of podssh proxy's stdin goes to the layer as
 # its end, so the layer's CLOSE makes the role forget the session before the
 # target's late reply: the test of a reply after the end of stdin must fail.
+# Since T-632 the end of stdin is the layer's END where the role takes it, so
+# the patch also asks the role for no END, and stdin ends as before T-173.
 ENTRY=T-173
 GROUP=resume
 EXPECT='a_reply_after_the_end_of_stdin_still_comes_on_the_layer'

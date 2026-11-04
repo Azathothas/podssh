@@ -344,7 +344,7 @@ against 27.6 for ssh (RESULTS.md, not on the paper page).
 | Mechanism | osewa (paper section; code) | podssh (evidence, or the entry that plans it) | Verdict |
 | --- | --- | --- | --- |
 | Way out of a restricted host | Direct TCP or UDP 7322 only (`#how` 01; `dial.rs`) | WS on 443 through `HTTPS_PROXY` (CONNECT and SOCKS5), the cleartext road, the HTTP road for an upgrade refused (T-319), HTTP/2 extended CONNECT (T-321), `--via`, VLESS, wstunnel, Wisp, Piping, WARP, Tor (`docs/architecture.md:9-222`; `docs/design.md:48-58`) | **podssh far ahead** |
-| TLS-intercepting proxy | Breaks (mutual TLS, self-signed) | CA handling with `--ca-file` and the system stores, and TLS 1.2 fallback (`docs/architecture.md:143-173`), measured (`docs/STATUS.md:701-703`) | **podssh ahead** |
+| TLS-intercepting proxy | Breaks (mutual TLS, self-signed) | CA handling with `--ca-file` and the system stores, and TLS 1.2 fallback (`docs/architecture.md:143-173`), measured (`docs/STATUS.md:702-704`) | **podssh ahead** |
 | Inbound port on the far host | Required: TCP and UDP 7322, resident server | None: node and roost dial out on the reverse road (M4); quick tunnel, OpenTunnel and DERP | **podssh far ahead** |
 | NAT traversal | None; a user's tailnet | iroh hole punching after a UDP probe, iroh, DERP and pair relays, the relay role (`docs/design.md` §7; `docs/mesh.md` §4) | **podssh far ahead** |
 | DNS independence | System resolver only | IP literal, pin, system resolver, address cache, then DoH by IP (`docs/architecture.md:128-142`) | **podssh ahead** |
@@ -355,12 +355,12 @@ against 27.6 for ssh (RESULTS.md, not on the paper page).
 | Trust bootstrap | Pin over ssh at enrollment | `accept-new` TOFU for SSH; `--upgrade` returns a roost's pair token in the SSH channel (T-167); SPAKE2 codes (T-086, T-616) | **Parity** |
 | Revocation | `devices` re-read on each connect; open connections stay | Allowlist re-read on each connection (T-163); net serials (T-429) | **Parity** |
 | Survives a client network change | Terminals yes: holder plus seq and ack. Forwards and exec no. | With podssh at both ends, or the relay role's layer (T-173): **every SSH channel**, because the layer is under SSH (T-153), for 10 min to 72 h (T-306). The default relay's forward road: no (`--persist` plus tmux, T-178). | **podssh ahead** on scope, with a podssh far end; **osewa ahead** for a standard host with its own server |
-| Time to resume after a move | 0.4 s, lab (MEASURED by osewa) | 3.0 to 3.2 s on a stand-in, `--move`, with spare links (T-305, `TODO/resume.md:2214-2223`); 17 to 40 s before T-305 (`docs/STATUS.md:751`); never measured on a real roaming client | **osewa ahead** (G5) |
+| Time to resume after a move | 0.4 s, lab (MEASURED by osewa) | 3.0 to 3.2 s on a stand-in, `--move`, with spare links (T-305, `TODO/resume.md:2214-2223`); 17 to 40 s before T-305 (`docs/STATUS.md:752`); never measured on a real roaming client | **osewa ahead** (G5) |
 | Dead-path detection | max(3 RTT, 1 s) with input unacknowledged; 5 s ping | Spare link at a 3 s question or 20 s of quiet (T-305); forward road ping each 10 s, dead at 30 to 40 s (`docs/design.md:652`) | **osewa ahead** (G5) |
 | Far-end restart | Sessions survive a server restart or compatible update | A node's restart ends its sessions and their sshd connections (INFERRED from `crates/podssh-relay/src/session/keep.rs` being in memory; T-159 is held, Q32) | **osewa ahead** (G8) |
 | Echo under load, priority, flight control | Priority classes, credit, BDP + 40 ms while typing, `NOTSENT_LOWAT` 16 KiB, `TCP_INFO`, BBR; MEASURED | Fixed SSH window 512 KiB (`crates/podssh-ssh/src/run.rs:26-30`); russh grants the window on receipt (`vendor/russh/src/client/encrypted.rs:604-622`); the relay role's `NOTSENT_LOWAT` 128 KiB (`docs/relay.md:74-79`); the default relay buffers without bound (`docs/architecture.md:332`, 47 MiB measured); **no measurement** | **osewa far ahead** (G1, G2) |
 | Cold connect plus a command | About 3 RTT; 311 ms at 100 ms (MEASURED) | About 8 to 10 RTT through proxy, relay and SSH (INFERRED); never measured; T-444 resumes TLS within a process | **osewa ahead** (G4) |
-| Bulk throughput on a long path | 27 to 40 MB/s at about 100 ms | ≤ about 5 MiB/s for each channel at 100 ms with a 512 KiB window (INFERRED); 1.8 MiB/s SFTP through a 100 ms stand-in (`docs/STATUS.md:527-528`); relay roads 1 to 2.4 MiB/s; n0 relay about 1 MiB/s; the direct WAN road not measured (`docs/STATUS.md:503-507`) | **osewa far ahead** on direct roads (G3) |
+| Bulk throughput on a long path | 27 to 40 MB/s at about 100 ms | ≤ about 5 MiB/s for each channel at 100 ms with a 512 KiB window (INFERRED); 1.8 MiB/s SFTP through a 100 ms stand-in (`docs/STATUS.md:528-529`); relay roads 1 to 2.4 MiB/s; n0 relay about 1 MiB/s; the direct WAN road not measured (`docs/STATUS.md:504-508`) | **osewa far ahead** on direct roads (G3) |
 | HoL between channels | QUIC lane per channel, with a residue in the writer | One SSH byte stream; on iroh one QUIC stream for each session; on HTTP/2 up to 16 sessions on one TCP (`docs/architecture.md:217`) | **osewa ahead** (G7) |
 | Forwarding kinds | `-L` style and exec only | `-L`, `-R`, `-D` (SOCKS), `-W`, `-J`, agent forwarding, SFTP, UDP in a stream (T-168), exit and routes (T-431, T-432) | **podssh far ahead** |
 | Congestion and QUIC tuning | Tuned and documented; a knob | iroh's defaults; untuned and unmeasured on a WAN | **osewa ahead** (G9) |
@@ -412,21 +412,21 @@ against 27.6 for ssh (RESULTS.md, not on the paper page).
 ### 5.2 Where podssh's own documents claim more than they have measured
 
 1. **"Parity with Tailscale"** (`docs/mesh.md` title and §1) maps features, not performance. The
-   measured roads carry 0.97 to 2.4 MiB/s (`docs/STATUS.md:466-495`). The default relay cuts a
+   measured roads carry 0.97 to 2.4 MiB/s (`docs/STATUS.md:467-496`). The default relay cuts a
    session at 64 MiB and 12 h. The DERP road's rate and a direct iroh path on a WAN are not
    measured. T-433 (share), T-434 (member relay), T-180 (funnel), T-534 and T-535 are open.
    Many rows of M10 are "drafted and merged ... unreleased", with their live runs waiting (Q88).
 2. **Nothing records what a user feels.** No echo latency, idle or under load. No cold
    "connect plus a command". No throughput on the direct road or the forward road to a public
-   server (`docs/STATUS.md:503-507`, read on 2026-11-04, says it is not measured). No roaming on a real client: T-305's
+   server (`docs/STATUS.md:504-508`, read on 2026-11-04, says it is not measured). No roaming on a real client: T-305's
    3.0 to 3.2 s is a loopback stand-in's `--move`.
 3. **The fixed SSH window limits throughput.** The 512 KiB window (`run.rs:26-30`) bounds every
-   long road. `docs/STATUS.md:527-528` admits the bound for SFTP. README, `docs/design.md` and
+   long road. `docs/STATUS.md:528-529` admits the bound for SFTP. README, `docs/design.md` and
    `docs/mesh.md` never say that a `--direct` or iroh direct session on a 100 ms path cannot
    exceed about 5 MiB/s in one channel (INFERRED).
 4. **"podssh gets out of a cage better than each sibling project"** (`docs/design.md:18`) is
    ASSERTED. No side-by-side measurement backs it.
-5. **The iroh road in the target sandbox** "is not measured" (`docs/design.md:1128-1131`). The
+5. **The iroh road in the target sandbox** "is not measured" (`docs/design.md:1157-1160`). The
    Windows row of 34.6 MiB/s was a direct path on one host (T-335).
 6. **MPTCP** (T-172) is opt-in and not measured (`docs/design.md:657`).
 7. **The Mosh table** (`docs/design.md:750-764`) puts podssh's entries beside Mosh's functions.

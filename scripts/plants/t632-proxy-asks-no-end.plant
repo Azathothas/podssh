@@ -1,0 +1,8 @@
+# T-632: podssh proxy asks the role for no END, so the end of its stdin stops
+# sending and keeps receiving, and a target that answers only at the end of
+# its input waits for that end for ever: the test of `echo QUERY | podssh
+# proxy` on the layer must fail, at the suite's limit of 120 s.
+ENTRY=T-632
+GROUP=resume
+EXPECT='a_target_that_answers_at_the_end_of_its_input_answers_on_the_layer'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- a_target_that_answers_at_the_end_of_its_input'

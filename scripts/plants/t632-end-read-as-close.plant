@@ -1,0 +1,7 @@
+# T-632: the layer reads the peer's END as a CLOSE, so the far end ends the
+# whole session at the end of the client's request, and shuts its target
+# before the target's answer: the test of the reply after the end must fail.
+ENTRY=T-632
+GROUP=resume
+EXPECT='a_side_whose_bytes_ended_still_gets_the_reply_then_the_session_ends'
+RUN='cargo test --locked -p podssh-relay --test session_half_close -- a_side_whose_bytes_ended'

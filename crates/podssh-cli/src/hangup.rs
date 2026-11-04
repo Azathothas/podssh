@@ -11,7 +11,9 @@
 //! forgets the session at once. The session then has [`AFTER_SIGNAL`] to
 //! end, for the node's answer and the leg's Close; nobody reads its bytes
 //! any more. A process runs one command, and the command takes the signals
-//! once: each session of the layer in it reads them ([`taken`]).
+//! once: each session of the layer in it reads them ([`taken`]). Where the
+//! layer ends one direction with `END` (T-632), an end of the input would end
+//! that direction alone, so the reads fail at a signal ([`ending_wholly`]).
 
 use std::future::Future;
 use std::pin::Pin;
@@ -93,7 +95,15 @@ pub fn ending<A>(app: A, hangup: Option<&Hangup>) -> Ending<A> {
         Some(hangup) => Box::pin(async move { hangup.came().await }),
         None => Box::pin(std::future::pending::<()>()),
     };
-    Ending { app, stop, ended: false }
+    Ending { app, stop, ended: false, whole: false }
+}
+
+/// [`ending`], for a session whose layer ends one direction with `END`
+/// (T-632): at a signal its reads fail, so that the layer ends the whole
+/// session with `CLOSE` and the far end forgets it at once, where an end of
+/// the input would end this side's bytes alone.
+pub fn ending_wholly<A>(app: A, hangup: Option<&Hangup>) -> Ending<A> {
+    Ending { whole: true, ..ending(app, hangup) }
 }
 
 /// `work`, or `None` at a signal of `hangup`: before the node took the
@@ -123,6 +133,8 @@ pub struct Ending<A> {
     app: A,
     stop: Pin<Box<dyn Future<Output = ()> + Send>>,
     ended: bool,
+    /// A signal fails the reads: the end of the whole session.
+    whole: bool,
 }
 
 impl<A: AsyncRead + Unpin> AsyncRead for Ending<A> {
@@ -130,6 +142,10 @@ impl<A: AsyncRead + Unpin> AsyncRead for Ending<A> {
         let this = &mut *self;
         if !this.ended && this.stop.as_mut().poll(cx).is_ready() {
             this.ended = true;
+        }
+        if this.ended && this.whole {
+            let why = "a signal ended the session";
+            return Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::ConnectionAborted, why)));
         }
         if this.ended {
             // The end of the input: nothing filled.
@@ -277,6 +293,19 @@ mod tests {
         let mut out = [0u8; 3];
         theirs.read_exact(&mut out).await.unwrap();
         assert_eq!(&out, b"out");
+    }
+
+    /// Where the layer ends one direction with `END` (T-632), a signal
+    /// fails the reads, which the layer takes as the end of the session.
+    #[tokio::test]
+    async fn a_signal_fails_the_reads_where_the_session_ends_wholly() {
+        let (tx, hangup) = hangup();
+        let (ours, _theirs) = tokio::io::duplex(1024);
+        let mut app = ending_wholly(ours, Some(&hangup));
+        tx.send(true).unwrap();
+        let mut buf = [0u8; 8];
+        let read = tokio::time::timeout(Duration::from_secs(5), app.read(&mut buf)).await.expect("the read ended");
+        assert_eq!(read.unwrap_err().kind(), std::io::ErrorKind::ConnectionAborted);
     }
 
     /// With no signal taken, the application is as it was.

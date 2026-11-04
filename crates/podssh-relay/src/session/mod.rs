@@ -27,7 +27,8 @@
 //!   [`hearing`]: what the client heard from the far end, for a notice of
 //!   its silence (T-302), with the round trip of the link that [`round_trip`]
 //!   times, for a spare link (T-663); [`once`]: a session that ends with its
-//!   link, at its client's ask (T-612);
+//!   link, at its client's ask (T-612); [`half_close`]: the end of one
+//!   direction, `END`, where both sides name it (T-632);
 //! - [`sessions`]: the secrets and offsets that a far end keeps, by id.
 //!
 //! The records, the offsets, the secrets, the handshakes, the link and the
@@ -40,6 +41,7 @@ pub mod client;
 pub mod deadline;
 pub mod decode;
 pub mod far;
+pub mod half_close;
 pub mod handshake;
 pub mod hearing;
 pub mod keep;
@@ -118,6 +120,11 @@ pub struct Settings {
     /// to end the session with its link, and carries it on that link alone
     /// ([`once`]). A far end reads its client's ask, never this.
     pub resumes: bool,
+    /// Whether a client asks, in its `OPEN`, for the end of one direction
+    /// (`end.v1`, [`half_close`], T-632): its application ends its bytes and
+    /// reads on, as a pipe's input ends before its reply. A far end names it
+    /// in each `GREETING`, and reads its client's ask, never this.
+    pub half_close: bool,
 }
 
 impl Default for Settings {
@@ -133,6 +140,7 @@ impl Default for Settings {
             move_age: resume::MOVE_AGE,
             spare_links: false,
             resumes: true,
+            half_close: false,
         }
     }
 }
@@ -173,6 +181,11 @@ impl Settings {
         // The client asked, and the far end knows the ask (T-612).
         if named(once::ONCE) {
             link = link.with_once();
+        }
+        // Each side's end of its bytes is `END`, and the session goes on for
+        // the other's (T-632).
+        if named(half_close::END) {
+            link = link.with_ends();
         }
         link
     }

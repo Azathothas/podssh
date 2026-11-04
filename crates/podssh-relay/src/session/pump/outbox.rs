@@ -36,7 +36,8 @@ pub(super) enum Finish {
 #[derive(Debug)]
 pub(super) enum Written {
     /// The application ended its bytes, and `CLOSE` went out after the last
-    /// of them. The link stays open for the peer's answer.
+    /// of them, or after `END` once the peer's own came (T-632). The link
+    /// stays open for the peer's answer.
     Closed,
     /// The pump's last record went out, and the write side is shut.
     Finished,
@@ -62,6 +63,8 @@ pub(super) struct Outbox {
     finish: Mutex<Option<Finish>>,
     /// Whether this side's `CLOSE` went out on this link.
     closed: AtomicBool,
+    /// The peer's `END` came after this side's: `CLOSE` is due (T-632).
+    close_due: AtomicBool,
     /// Wakes the writer for each of the above.
     wake: Notify,
     /// The questions of this link that are timed, for its round trip
@@ -81,6 +84,7 @@ impl Outbox {
             pings: AtomicU64::new(0),
             finish: Mutex::new(None),
             closed: AtomicBool::new(false),
+            close_due: AtomicBool::new(false),
             wake: Notify::new(),
             timing: Mutex::new(Timing::default()),
         }
@@ -134,6 +138,14 @@ impl Outbox {
         self.closed.load(Ordering::SeqCst)
     }
 
+    /// The peer's `END` came after this side's own: `CLOSE` goes once this
+    /// link's writer sent its `END`, never before bytes that a resume sends
+    /// again on it (T-632).
+    pub(super) fn close_after_end(&self) {
+        self.close_due.store(true, Ordering::SeqCst);
+        self.wake.notify_one();
+    }
+
     /// The next small record that waits: a `PONG` first, as the peer's
     /// heartbeat waits for it, then an `ACK`, then a `PING`.
     fn next(&self, state: &Mutex<Link>) -> Option<Record> {
@@ -166,11 +178,24 @@ fn bytes_of(record: &Record) -> Vec<u8> {
     record.to_bytes().unwrap_or_default()
 }
 
+/// This side's `CLOSE`, after its last bytes: the session ends at this side
+/// once the peer answers it.
+async fn close<W: AsyncWrite + Unpin>(link: &mut W, outbox: &Outbox, watch: &Watch) -> Written {
+    outbox.closed.store(true, Ordering::SeqCst);
+    let record = Record::Close { reason: String::new() };
+    match put(link, &bytes_of(&record), outbox, watch).await {
+        Ok(()) => Written::Closed,
+        Err(e) => Written::Failed(e),
+    }
+}
+
 /// The writer: the pump's last record when it asks for one, else the small
 /// records that wait, else the application's next `DATA`; at the end of the
-/// application's bytes, `CLOSE`. A `PING`, and `DATA` that the peer
-/// acknowledges, are questions that the far end answers at once (T-302),
-/// and their answers time the link's round trip (T-663).
+/// application's bytes, `CLOSE`, or `END` where the session goes on for the
+/// peer's bytes, and `CLOSE` once the peer's own `END` came (T-632). A
+/// `PING`, and `DATA` that the peer acknowledges, are questions that the far
+/// end answers at once (T-302), and their answers time the link's round trip
+/// (T-663).
 pub(super) async fn write<W>(
     link: &mut W,
     data: &mut mpsc::Receiver<Vec<u8>>,
@@ -182,6 +207,8 @@ pub(super) async fn write<W>(
 where
     W: AsyncWrite + Unpin,
 {
+    // This link's `END` went: no `DATA` follows it.
+    let mut ended = false;
     loop {
         // Asked for before the checks, so that a record left between the
         // two wakes the writer.
@@ -211,6 +238,9 @@ where
                 Err(e) => Written::Failed(e),
             };
         }
+        if ended && outbox.close_due.load(Ordering::SeqCst) {
+            return close(link, outbox, watch).await;
+        }
         if let Some(record) = outbox.next(state) {
             if let Err(e) = put(link, &bytes_of(&record), outbox, watch).await {
                 return Written::Failed(e);
@@ -224,7 +254,7 @@ where
         tokio::select! {
             biased;
             _ = woken => {}
-            batch = data.recv() => match batch {
+            batch = data.recv(), if !ended => match batch {
                 Some(bytes) => {
                     if let Err(e) = put(link, &bytes, outbox, watch).await {
                         return Written::Failed(e);
@@ -236,14 +266,15 @@ where
                         }
                     }
                 }
-                // The application ended its bytes: `CLOSE` after the last.
+                // The application ended its bytes: `END` after the last, where
+                // the session goes on for the peer's, else `CLOSE`.
                 None => {
-                    outbox.closed.store(true, Ordering::SeqCst);
-                    let close = Record::Close { reason: String::new() };
-                    return match put(link, &bytes_of(&close), outbox, watch).await {
-                        Ok(()) => Written::Closed,
-                        Err(e) => Written::Failed(e),
-                    };
+                    let end = lock(state).end();
+                    let Some(end) = end else { return close(link, outbox, watch).await };
+                    if let Err(e) = put(link, &bytes_of(&end), outbox, watch).await {
+                        return Written::Failed(e);
+                    }
+                    ended = true;
                 }
             },
         }

@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:1299-1319`; the two
+sandbox, before a default depends on it); `docs/design.md:1328-1348`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:1299-1319`). A session carries 64 MiB at most, both directions
+(`docs/design.md:1328-1348`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:448`).
 
 ## Approach
@@ -1890,8 +1890,8 @@ a full-screen program is written into its screen.
 
 - Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:414`) and a
   resume (`crates/podssh-cli/src/layered.rs:425`). The heartbeat each 10 s, and a link dead after
-  30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
-  `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
+  30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:59`,
+  `crates/podssh-relay/src/session/pump.rs:62`). The forward road's checks
   (`docs/design.md:652`).
 - Read in Mosh (`docs/design.md:750-764`): the notice comes after 6.5 s with no word from the
   server, or 10 s with no acknowledged state; Mosh draws it over its own model of the screen,
@@ -2189,9 +2189,9 @@ then resumes over a new one. For those 30 s, an interactive session shows nothin
 ## Premise
 
 - Read: a link with nothing from the far end for 30 s is dead
-  (`crates/podssh-relay/src/session/pump.rs:60`; `docs/design.md:878-886`).
+  (`crates/podssh-relay/src/session/pump.rs:62`; `docs/design.md:879-887`).
 - Read: a resume can come while the far end still runs the old link; the old link stops, and the
-  new one goes on (`docs/design.md:892-894`). The far end lets the newest resume take a session
+  new one goes on (`docs/design.md:893-895`). The far end lets the newest resume take a session
   (`docs/design.md:969-971`).
 - Measured (T-156): a session on the layer and on the iroh road survives a new address of its
   client (`crates/podssh-cli/tests/m6_exit.rs:262`); the time that the resume took is not in the
@@ -2387,11 +2387,11 @@ session 10 minutes after its link was lost. A session of Mosh waits.
 ## Premise
 
 - Read: the deadline is 10 minutes at both ends (`crates/podssh-relay/src/session/resume.rs:44`;
-  `docs/design.md:887-897`). T-153's Decision kept a deadline, as a node in a cage would keep
+  `docs/design.md:888-898`). T-153's Decision kept a deadline, as a node in a cage would keep
   connections for clients that never come back.
 - Read: a node keeps 64 MiB of replay buffers at most, a whole buffer for each session that it
-  keeps (`docs/design.md:1030-1033`); a pair expires after 72 h at most
-  (`docs/design.md:971-973`).
+  keeps (`docs/design.md:1059-1062`); a pair expires after 72 h at most
+  (`docs/design.md:1000-1002`).
 - Read: the client measures the deadline with `Instant`
   (`crates/podssh-relay/src/session/resume.rs:332`). Not verified: whether `Instant` counts the
   time that the host slept, on Linux, macOS and Windows. If it does not, a client that wakes
@@ -2422,7 +2422,7 @@ client refuses at its type byte
 (`crates/podssh-relay/src/session/decode.rs:85`), and which so needs a
 feature to gate it as well; a field after the body of `ACCEPT`, which an
 older decoder refuses as bytes after the end of a body
-(`crates/podssh-relay/src/session/decode.rs:234-240`). A name for each value
+(`crates/podssh-relay/src/session/decode.rs:235-241`). A name for each value
 is not a feature that both sides name, so `deadline::of` reads the far
 end's own names, not the common ones.
 
@@ -2478,7 +2478,7 @@ Item 3 of the Approach says that a session past the node's bound is refused
 with `REFUSE` (6). Read: the far end accepts the handshake, then ends the
 session with a `CLOSE` that gives the reason ("this node keeps as many
 resumable sessions as its budget allows",
-`crates/podssh-relay/src/session/far.rs:266-276`, whose words since T-586 name what holds the
+`crates/podssh-relay/src/session/far.rs:269-279`, whose words since T-586 name what holds the
 budget); code 6 is not sent. The bound and its words stay as they are.
 
 ## Done
@@ -2872,7 +2872,7 @@ for a new link, and the test that asks for no loss fails at random.
 - Not reproduced here: 40 runs of the test alone, and 80 runs eight at a
   time, passed (a Claude Code cloud container, 2026-10-31).
 - Read: `End::Closing` comes from the pump's wait for the answer to its
-  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:333-340`): a reader that
+  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:363-370`): a reader that
   ended with anything but the peer's `CLOSE`, the 10 s of `LINGER` (not
   reached in a run of 2.9 s), or a stop. A loss with no `Resumed` after it is
   a resume that found the session forgotten while this side's application
@@ -2895,7 +2895,7 @@ for a new link, and the test that asks for no loss fails at random.
 ## Decision
 
 1. **A far end's last record on a link waits for the client**: `last_word`
-   (`crates/podssh-relay/src/session/far.rs:200-217`) writes the record, then
+   (`crates/podssh-relay/src/session/far.rs:203-220`) writes the record, then
    keeps the link, reading and dropping what the client sends, until the
    client ends it or 10 s pass (the wait of a `CLOSE` for its answer). It
    ends the four places: the `REFUSE` of the handshake, the `CLOSE` of a
@@ -2916,7 +2916,7 @@ for a new link, and the test that asks for no loss fails at random.
    line on each end whose answer a relay drops; never saying it, which hides
    a resume that waits.
 3. **A handshake whose write fails reads what came before**
-   (`crates/podssh-relay/src/session/client.rs:290-318`), 2 s at most, as the
+   (`crates/podssh-relay/src/session/client.rs:293-321`), 2 s at most, as the
    pump reads a link whose writes fail: a `REFUSE` there is the answer, else
    the write's failure is. Redundant with item 1 at podssh's own far end,
    and the answer from a far end or a relay that closes right after its
@@ -2953,11 +2953,11 @@ link that the far end had ended the session. A new test of both ends closing
 at once while the session moves each 16 KiB, 50 sessions a run, failed once
 in 10 runs on one CPU on the code before, by the same kind of cut in the
 handshake: the far end refused a resume at its `OPEN` and dropped the link
-(`crates/podssh-relay/src/session/far.rs:179-183`) while the client wrote its
+(`crates/podssh-relay/src/session/far.rs:182-186`) while the client wrote its
 `PROOF`, so the client got a broken pipe in place of the refusal, said a
 move's failure and a loss, and tried again. The same pattern is in
 `Accepted::close`, whose reason the client would lose for "the far end did
-not resume the session" (`crates/podssh-relay/src/session/far.rs:316-324`).
+not resume the session" (`crates/podssh-relay/src/session/far.rs:319-327`).
 Approach item 2 is done as the Decision says.
 
 ## Done
@@ -3282,9 +3282,9 @@ an ordinary use of its documented ProxyCommand form ends that.
   buffer, as the manual said (`crates/podssh-cli/src/man/notes_pair.rs`, lines 17-19).
 - Read, at `3bb42ea`: a link whose end is not the session's own keeps the session for the whole
   deadline (`crates/podssh-relay/src/session/keep.rs`, lines 280-281 and 301-305); a loss and a
-  `CLOSE` with no answer are such ends (`crates/podssh-relay/src/session/pump.rs:102-108`). The
+  `CLOSE` with no answer are such ends (`crates/podssh-relay/src/session/pump.rs:104-110`). The
   node's `CLOSE` after its target's last byte waits 10 s for the operator's answer, and with none
-  the end is `End::Closing`: `crates/podssh-relay/src/session/pump.rs:338` says "_ => End::Closing,".
+  the end is `End::Closing`: `crates/podssh-relay/src/session/pump.rs:368` says "_ => End::Closing,".
 - Known, from OpenSSH's source (not read here): at its exit, OpenSSH's client sends SIGHUP to its
   ProxyCommand and does not wait for it (`openssh/openssh-portable:sshconnect.c`,
   `ssh_kill_proxy_command`). `podssh operator` took no signal at `3bb42ea`
@@ -3394,8 +3394,8 @@ Read while drafting, 2026-11-03:
   the TARGET ends too. So a signal ends the layer's own input, the channel's ciphertext, in
   `crates/podssh-cli/src/layered.rs:277`, and the `CLOSE` goes at once, whatever the TARGET does.
 - The layer's own wait for the answer to a `CLOSE` stays 10 s
-  (`crates/podssh-relay/src/session/pump.rs:47`), as for an end of stdin. After a signal the
-  session has 2 s in all (`crates/podssh-cli/src/hangup.rs:27`), the node's answer and the leg's
+  (`crates/podssh-relay/src/session/pump.rs:49`), as for an end of stdin. After a signal the
+  session has 2 s in all (`crates/podssh-cli/src/hangup.rs:29`), the node's answer and the leg's
   Close included; a session cut then is a clean end of a session that the node took, exit 0. A
   signal before the node took the session ends the wait at once, with the session's fault (70).
 - `ssh node://` takes SIGHUP and SIGTERM alone: its Ctrl-C is the remote command's. The same on
@@ -3801,7 +3801,7 @@ with the fixed bound): `cargo test -p podssh-cli --test roam_at_once -- --ignore
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3817,9 +3817,9 @@ Read at `2042200`:
 - The channel's end of one direction: `crates/podssh-relay/src/e2e/frame.rs:13` says "The clean end of
   one direction.", and `crates/podssh-relay/src/e2e/channel.rs:128` says "The stream stays open: the
   peer's bytes may still come." The issue's line numbers of `channel.rs` are of an older tree.
-- The layer: `crates/podssh-relay/src/session/record.rs:61` says "pub const CLOSE: u8 = 0x0a;", the
+- The layer: `crates/podssh-relay/src/session/record.rs:62` says "pub const CLOSE: u8 = 0x0a;", the
   end of the session; `crates/podssh-relay/src/session/pump/up.rs:84` says
-  "Ok(0) | Err(_) => return None,", and `crates/podssh-relay/src/session/pump.rs:327` says "The
+  "Ok(0) | Err(_) => return None,", and `crates/podssh-relay/src/session/pump.rs:353` says "The
   application ended its bytes: the writer sends the", then `CLOSE`, which the peer answers with its
   own: the peer's later bytes are not asked for.
 - Sessions of the layer with no channel above it: the relay role's road for a standard sshd
@@ -3831,7 +3831,7 @@ Read at `2042200`:
   (`docs/relay.md:346-349`). So `podssh proxy` to a target that reads until its end loses the answer on
   the layer road where it gets it on `/connect/` (Inferred from the code; not measured).
 - The layer names its features in its handshake (`crates/podssh-relay/src/session/record.rs:9-10`), and
-  `crates/podssh-relay/src/session/mod.rs:71` says "pub const FEATURES: &[&str]": a new record goes only
+  `crates/podssh-relay/src/session/mod.rs:73` says "pub const FEATURES: &[&str]": a new record goes only
   to a peer that names its feature. The issue proposes the node's `hello`, which is the reverse road's
   control, not the layer's.
 
@@ -3847,16 +3847,129 @@ Read at `2042200`:
 4. `docs/design.md` (section 5), the table of `crates/podssh-relay/src/session/record.rs`, and
    `docs/relay.md` ("The relay role's resumable layer") say the record.
 
+## Decision
+
+2026-11-04 (the drafting agent of T-632). No row of `docs/decisions.md` settles these, and none
+changes one.
+
+1. **A far end of this build names `end.v1` in each `GREETING`; a client names it in its `OPEN` only
+   where its settings ask** (`Settings::half_close`, `crates/podssh-relay/src/session/half_close.rs`),
+   as `once.v1` goes (T-612). `podssh proxy` on the relay role's road asks; `podssh ssh`, the
+   copies, `podssh operator` and `podssh proxy node://` do not: SSH above the layer, and the
+   end-to-end channel with its own `END` (T-088), end both ways at once, so `END` would only add a
+   record and a wait at each end. Lost: `end.v1` in `FEATURES` and `SHELL_FEATURES` for each client
+   (each road's end would change, and a client whose application closed both ways would hold its
+   session until the far end's application ended); a far end that names it by a setting (each far
+   end of this build takes it, and the client's ask decides); the node's `hello` as the issue
+   proposes (the reverse road's control, not the layer's, and the role's road has none). A client
+   of `operator` to a node with `--no-e2e` can ask later, by the same setting, where a tester needs
+   it.
+2. **The second side's end is its `CLOSE`, not an `END` and then a `CLOSE`**: a `CLOSE` after the
+   last `DATA` says as much, and the session ends when it is answered, as before. Where the two
+   `END`s cross, each side has sent and received one, its `CLOSE` is due, and each answers the
+   other's, as two `CLOSE`s crossed before. Lost: the Approach's `END` from each side and then a
+   `CLOSE` (a record and a round trip more, for nothing that the `CLOSE` does not say).
+3. **A read of the application that fails is the end of the whole session, `CLOSE`, never `END`**: an
+   application that is gone reads nothing more, and a target that reset its connection is gone both
+   ways. `podssh proxy` fails its reads at a signal (`crate::hangup::ending_wholly`), so OpenSSH's
+   SIGHUP still makes the role forget the session at once (T-586). Lost: `END` at each end of the
+   application's bytes (a role would hold a session whose target reset until its client wrote, and
+   a signal would leave the role's session to its target's end, or to the deadline).
+4. **`END`'s body is the offset after the sender's last byte**, as the Approach says: the receiver
+   takes it at its received offset alone (one past it is a gap, one below it bytes after the end),
+   once, and `DATA` with a byte past it is refused. Lost: an empty body, as the issue proposes (no
+   check that each byte came before the end).
+5. **`END` is said again on each new link, not kept in the replay buffer**: the buffer keeps bytes,
+   and the state of the session says that the application ended, so each link sends `END` after the
+   bytes that it sends again, and the peer takes it once. An application that ended its bytes on an
+   earlier link is not read again, as a terminal's input waits after its end. Lost: `END` as bytes
+   of the buffer (an offset of its own, which the acknowledgements would count).
+6. **The peer's `END` shuts the application's write side once it wrote each byte before it, and the
+   reader goes on meanwhile**, on whichever link that happens: a shut at the record, or a wait for the
+   bytes before it, would stop the reader on a slow application, as T-387 found.
+7. **`podssh proxy` ends its stdin at the target's end too, where `END` is agreed**
+   (`crates/podssh-cli/src/relay_layer/half.rs`): the session ends with the target, as on the
+   contract's road and before T-632, and a program that keeps stdin open (a terminal) is not left
+   with a proxy that waits on it. With a role of an older build, stdin keeps receiving after its end,
+   as since T-173. Lost: stdin read on after the target's end (TCP's own half-close, which no user of
+   `podssh proxy` asked for); `END` behind a flag (the issue's case is the plain use).
+8. **The feature holds from the session's first handshake**: a resume's `OPEN` names the features as
+   before, and each end keeps the session's state, as for `replay.v1`. Lost: `end.v1` in each
+   resume's `OPEN` (nothing reads it there).
+9. **The role's test of the road is in `session_relay_resume`**, beside the road's other tests, not in
+   `relay_serve_contract`, whose tests are of the contract's `/connect/`.
+10. **A signal after the end of stdin finds its `END` gone, and adds no `CLOSE`**: OpenSSH closes its
+    ProxyCommand's stdin, then sends it SIGHUP, so `podssh proxy` most often sends `END` first; the
+    session then ends with its target, which an sshd does at once at the end of its input (the
+    role's `CLOSE` comes back within a round trip, inside the 2 s after a signal), and a target that
+    ignores the end of its input keeps the role's session as a loss for its deadline once the client
+    is gone. Lost: a pump that reads its application on after its end, to see a signal (a read at
+    the end returns at once again, so the pump would spin); a signal that writes into the session
+    (nothing is written when the target is silent).
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --test session_end
-cargo test -p podssh-relay --test session_resume
-cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_contract
+cargo test -p podssh-relay --test session_half_close
+cargo test -p podssh-relay --test session_codec --test session_end --test session_resume
+cargo test -p podssh-relay --lib session::
+cargo test -p podssh-relay --features serve,plain-ws --test session_relay_resume
+cargo test -p podssh-cli --lib -- relay_layer hangup
+cargo test -p podssh-cli --test relay_serve -- serve_layer
+sh scripts/plant-each.sh --here t632-end-read-as-close t632-end-not-sent-again t632-proxy-asks-no-end \
+  t173-stdin-end-closes
 ```
 
 A side whose application ended its bytes still gets the peer's answer, then the session ends; a peer
 with no `end.v1` ends as before; an `END` lost with its link comes again after a resume; through the
 role's layer road, a request, its end and the reply after it reach a target that answers at its
-input's end. Planted: `END` read as `CLOSE`, and the test of the answer after the end fails.
+input's end; `echo QUERY | podssh proxy` through `podssh relay serve` gets the answer of a target that
+answers at its input's end. Planted: `END` read as `CLOSE`, and the test of the answer after the end
+fails; no `END` again after a resume, and the test of a lost `END` fails; `podssh proxy` asking for no
+`END`, and its test fails; T-173's plant, rewritten for this tree, caught again.
+
+## Correction
+
+2026-11-04 (the drafting agent of T-632). Read in this tree before the draft:
+
+- The Premise's role "goes on" after the client's Close, as the default relay does: it does not. At
+  the client's Close the role's `/connect/` shuts the target's writing side and its `up` returns
+  `End::Client` (`crates/podssh-relay/src/serve/forward.rs:242` says "return End::Client;"), which
+  ends the `select!` of the session (`crates/podssh-relay/src/serve/forward.rs:298-299`): the target's
+  later bytes are not carried, where the contract says that they come until the target closes or is
+  idle for 15 s (`docs/relay.md:346-349`). That is a difference of the role from the contract, outside
+  this entry; the main session files it at the merge. And `podssh proxy` sends no Close at the end of
+  stdin on `/connect/` (`crates/podssh-cli/src/proxy.rs:9` says "End of stdin stops sending but keeps
+  receiving"), so there the target never gets the end of its input either: `echo QUERY | podssh proxy`
+  to a target that answers at its input's end waited on both roads, on the layer since T-173's repair
+  (`relay_layer::KeepsReceiving`), until the target's idle. The Approach holds; the layer's `END` is
+  the first half-close that `podssh proxy` has through a relay.
+- The Approach's second item ends the session with a `CLOSE` after each side sent and received an
+  `END`; the second side's end is its `CLOSE` instead (the `## Decision`, item 2).
+- The Prove's role test is in `session_relay_resume`, not `relay_serve_contract` (the `## Decision`,
+  item 9), and the Prove above names the new targets and the plants.
+- `crates/podssh-relay/tests/session_codec.rs` refused type `0x0c` as unknown; it now decodes `END`, and
+  the test refuses `0x0d`.
+
+## Done
+
+2026-11-04, merged from its draft (`2aa4813`).
+
+- The layer's `END` (`0x0c`, the offset after the last byte) and its feature `end.v1`: each far end
+  names it, and a client asks for it where `Settings::half_close` says so, which `podssh proxy` on
+  the role's road does; an older peer never gets `END`. The writer sends `END` after its last
+  `DATA` and goes on; the reader shuts the application's write side once each byte before the
+  peer's `END` is written; the side that ends second sends `CLOSE`; an `END` that its link lost is
+  said again after a resume. `podssh proxy`'s stdin is the layer's `END`, and the target's end ends
+  stdin too (`crates/podssh-cli/src/relay_layer/half.rs`). The manual, `docs/design.md`,
+  `docs/relay.md`, `docs/cli.md` and `docs/STATUS.md` say it.
+- `cargo test -p podssh-relay --test session_half_close --test session_codec --test session_end
+  --test session_resume`: 15, 4, 8 and 3 passed; `--lib session::`: 15 passed; `--features
+  serve,plain-ws --test session_relay_resume`: 6 passed (at the merge its two digests are written
+  in hex by hand, as sha2's array has no `LowerHex`); `cargo test -p podssh-cli --lib --
+  relay_layer hangup`: 10 passed; `--test relay_serve`: 22 passed. The relay crate with `pair`: 516
+  passed. Plants: `t632-end-read-as-close`, `t632-end-not-sent-again`, `t632-proxy-asks-no-end` (at
+  its 60 s bound) and `t173-stdin-end-closes` caught. Clippy and rustfmt clean.
+- The draft found that the role's `/connect/` drops a target's bytes after the client's Close, where
+  `docs/relay.md` says they still come: T-671.

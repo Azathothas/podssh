@@ -1,6 +1,6 @@
 //! A session past its handshake, record by record: `DATA` both ways, and
-//! `ACK`, `PING`, `PONG`, `REFUSE` and `CLOSE`. Sans-IO: records in, events
-//! and records out. The state outlives a link: its offsets and its replay
+//! `ACK`, `PING`, `PONG`, `REFUSE`, `CLOSE` and `END`. Sans-IO: records in,
+//! events and records out. The state outlives a link: its offsets and its replay
 //! buffer carry the session onto the next link (T-152, T-153).
 
 use std::fmt;
@@ -24,6 +24,10 @@ pub enum Event {
     Closed(String),
     /// The peer retired this link: the session goes on over another one.
     Retired,
+    /// The peer's bytes ended (`END`, T-632): the application's write side is
+    /// shut once it has each byte before the end. `closes` when this side's
+    /// own `END` went out before: its `CLOSE` is due now.
+    Ended { closes: bool },
     /// Nothing for the application: an old `DATA`, an `ACK`, a `PONG`.
     Nothing,
 }
@@ -42,6 +46,8 @@ pub enum LinkError {
     Refused { code: RefuseCode, reason: String },
     /// Bytes past the room of the replay buffer: the writer did not wait.
     Full(Full),
+    /// An `END` that the session cannot take, or bytes after one (T-632).
+    End(&'static str),
 }
 
 impl fmt::Display for LinkError {
@@ -57,6 +63,7 @@ impl fmt::Display for LinkError {
                 write!(f, "the far end refused the session ({code}): {}", podssh_ws::text::one_line(reason))
             }
             LinkError::Full(e) => e.fmt(f),
+            LinkError::End(what) => f.write_str(what),
         }
     }
 }
@@ -100,6 +107,16 @@ pub struct Link {
     /// Whether the session ends with its link: its client asked, and the far
     /// end knows the ask (T-612).
     once: bool,
+    /// Whether each side ends its own bytes with `END`, and the session goes
+    /// on for the other's: both named `end.v1` (T-632).
+    ends: bool,
+    /// Whether this side's `END` went out: its application ended its bytes.
+    end_sent: bool,
+    /// Whether this side's application failed to read: its end is the whole
+    /// session's, with `CLOSE`, never `END`.
+    app_failed: bool,
+    /// Whether the peer's `END` came: none of its bytes follow it.
+    peer_ended: bool,
     failed: Option<LinkError>,
 }
 
@@ -118,6 +135,10 @@ impl Link {
             heartbeat: false,
             moves: false,
             once: false,
+            ends: false,
+            end_sent: false,
+            app_failed: false,
+            peer_ended: false,
             failed: None,
         }
     }
@@ -156,6 +177,50 @@ impl Link {
     /// Whether the session ends with its link.
     pub fn once(&self) -> bool {
         self.once
+    }
+
+    /// Each side ends its own bytes with `END`, and the session goes on until
+    /// both did (T-632): both sides named `end.v1`.
+    pub fn with_ends(mut self) -> Link {
+        self.ends = true;
+        self
+    }
+
+    /// Whether each side ends its own bytes with `END`.
+    pub fn ends(&self) -> bool {
+        self.ends
+    }
+
+    /// Whether the peer's `END` came: its bytes are over.
+    pub fn peer_ended(&self) -> bool {
+        self.peer_ended
+    }
+
+    /// This side's application failed to read: its end ends the whole
+    /// session with `CLOSE`, as an application that is gone takes nothing
+    /// more of the peer's.
+    pub fn app_failed(&mut self) {
+        self.app_failed = true;
+    }
+
+    /// Whether an end of this side's bytes ends the session with `CLOSE`: the
+    /// sides do not both name `end.v1`, the peer's own `END` came, or the
+    /// application failed to read.
+    pub fn closes_at_end(&self) -> bool {
+        !self.ends || self.peer_ended || self.app_failed
+    }
+
+    /// The record that follows this side's last byte once its application
+    /// ended them: `END`, with the offset after that byte, where the session
+    /// goes on for the peer's bytes; `None` where `CLOSE` ends the session
+    /// ([`Link::closes_at_end`]). Each link of the session sends it again,
+    /// as the peer may not have had it, and the peer takes it once.
+    pub fn end(&mut self) -> Option<Record> {
+        if self.closes_at_end() {
+            return None;
+        }
+        self.end_sent = true;
+        Some(Record::End { offset: self.outbound.sent() })
     }
 
     /// Whether each side acknowledges the other's bytes: both named
@@ -255,6 +320,10 @@ impl Link {
     fn event(&mut self, record: Record) -> Result<Event, LinkError> {
         match record {
             Record::Data { offset, mut bytes } => {
+                // A byte past the peer's end: never delivered.
+                if self.peer_ended && offset.saturating_add(bytes.len() as u64) > self.inbound.received() {
+                    return Err(LinkError::End("DATA after the peer's END"));
+                }
                 let fresh = self.inbound.accept(offset, &bytes)?.len();
                 if fresh == 0 {
                     return Ok(Event::Nothing);
@@ -274,9 +343,31 @@ impl Link {
             }
             Record::Close { reason } => Ok(Event::Closed(reason)),
             Record::Retire => Ok(Event::Retired),
+            Record::End { offset } => self.peer_end(offset),
             Record::Refuse { code, reason } => Err(LinkError::Refused { code, reason }),
             other => Err(LinkError::Unexpected(other.name())),
         }
+    }
+
+    /// The peer's `END` at `offset`, after each of its bytes: the received
+    /// offset. One past it is a gap; one below it, bytes after the end. A
+    /// second `END`, which a resume sends again, is nothing.
+    fn peer_end(&mut self, offset: u64) -> Result<Event, LinkError> {
+        if !self.ends {
+            return Err(LinkError::End("an END, which this side did not ask for"));
+        }
+        let received = self.inbound.received();
+        if offset > received {
+            return Err(OffsetError::Gap { expected: received, got: offset }.into());
+        }
+        if offset < received {
+            return Err(LinkError::End("an END below bytes that came before it"));
+        }
+        if self.peer_ended {
+            return Ok(Event::Nothing);
+        }
+        self.peer_ended = true;
+        Ok(Event::Ended { closes: self.end_sent })
     }
 
     fn acknowledged_to(&mut self, offset: u64) -> Result<(), LinkError> {

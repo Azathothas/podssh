@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/relay_layer.rs
++++ b/crates/podssh-cli/src/relay_layer.rs
+@@ -207,7 +207,7 @@
+     // OpenSSH's SIGHUP is the end of the bytes, which the role hears.
+     let hangup = crate::hangup::take(crate::hangup::Which::All);
+     // The end of stdin ends its direction alone, where the role takes it.
+-    let settings = Settings { half_close: true, ..crate::layered::settings().off_the_pair() };
++    let settings = Settings { half_close: false, ..crate::layered::settings().off_the_pair() };
+     let begun = async { client::start(first, Ask::New, settings, &mut OsEntropy).await };
+     let client = match crate::hangup::unless(Some(&hangup), Box::pin(begun)).await {
+         Some(Ok(client)) => client,
