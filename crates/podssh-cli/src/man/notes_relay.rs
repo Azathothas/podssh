@@ -237,6 +237,14 @@ pub const RELAY: &[&str] = &[
      spends, whatever its end, so that a second use is refused. A token of 72 h, the mint of one, the reverse \
      road, the documents and the probes are refused there (403), and go over TLS. --cleartext no serves TLS \
      alone. Over TLS, POST /v1/mint?once=1 mints the same token of one session.",
+    "The relay's TLS offers h2 before http/1.1 (T-321, RFC 8441): a client that chooses it gets SETTINGS that \
+     offer extended CONNECT and 16 streams at once, each with a window of 1 MiB in one of 16 MiB for the \
+     connection, so that the sessions of a client's process are streams of one connection. A CONNECT whose \
+     :protocol is websocket is the upgrade of its path, with its token and its checks, answered 200 where the \
+     upgrade is answered 101; GET /health, /relays.json, /trace and /llms-full.txt, and POST /v1/mint, answer \
+     there too; another request, such as the HTTP road's, a probe's or a pair's, is asked for again over \
+     HTTP/1.1 (HTTP_1_1_REQUIRED, which a client of HTTP/2 follows at once). A connection with no stream for 2 \
+     minutes ends. --http2 no offers http/1.1 alone, as before; the first line says which.",
     super::notes_grant::RELAY,
     super::notes_doctor::RELAY_PROBES,
 ];

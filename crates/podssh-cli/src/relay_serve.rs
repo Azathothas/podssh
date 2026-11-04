@@ -45,6 +45,8 @@ pub struct ServeArgs {
     pub acme_directory: Option<String>,
     /// yes or no: the cleartext road beside TLS on the listener (T-326).
     pub cleartext: Option<String>,
+    /// yes or no: HTTP/2 with extended CONNECT on the listener (T-321).
+    pub http2: Option<String>,
 }
 
 impl ServeArgs {
@@ -62,6 +64,7 @@ impl ServeArgs {
             acme: get("acme"),
             acme_directory: get("acme-directory"),
             cleartext: get("cleartext"),
+            http2: get("http2"),
         }
     }
 
@@ -109,6 +112,12 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         Some(word) => crate::forwarder::fallback::word(word)
             .ok_or_else(|| Refusal::usage(format!("--cleartext {word:?}: yes or no")))?,
     };
+    // HTTP/2 with extended CONNECT, by ALPN (T-321).
+    let http2 = match s.http2.as_deref() {
+        None => true,
+        Some(word) => crate::forwarder::fallback::word(word)
+            .ok_or_else(|| Refusal::usage(format!("--http2 {word:?}: yes or no")))?,
+    };
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
         Some(text) => match text.parse::<u64>() {
@@ -125,7 +134,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     }
     crate::pipe::listen::allowed()?;
     let certs = certs::Certs::open(source)?;
-    let acceptor = podssh_ws::tls_server::acceptor_for(certs.served.clone(), certs.alpn()).map_err(Refusal::config)?;
+    let acceptor =
+        podssh_ws::tls_server::acceptor_for(certs.served.clone(), certs.alpn(http2)).map_err(Refusal::config)?;
     let tokens = serve::tokens::Tokens::random().map_err(Refusal::config)?;
     let pairs = serve::reverse::Pairs::open(s.pairs.as_deref().map(Into::into)).map_err(Refusal::config)?;
     let kept = match (s.pairs.as_deref(), pairs.len()) {
@@ -156,9 +166,10 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     };
     let inside = if s.allow_private { ", private targets too" } else { "" };
     let clear = if cleartext { ", the cleartext road beside TLS" } else { ", TLS alone" };
+    let h2 = if http2 { ", HTTP/2 with extended CONNECT" } else { ", no HTTP/2" };
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}; {}",
+         {who}{inside}{kept}{through}{clear}{h2}; {}",
         serve::CONTRACT,
         certs.shown
     );

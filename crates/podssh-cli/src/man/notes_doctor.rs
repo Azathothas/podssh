@@ -1,9 +1,9 @@
 //! The notes of `podssh doctor` for the time of a run (T-511): its sections
 //! at once, `--jobs` and `--quick`; its diagnosis of the TLS handshakes
 //! (T-487); its line of IPv6 targets (T-253); its line of a request with no
-//! TLS (T-326); its section of an exit (T-458); and its probes of what a path
-//! does to a stream (T-325), with the relay role's side of them. Apart from
-//! the others so that each file stays short.
+//! TLS (T-326); its line of HTTP/2 (T-321); its section of an exit (T-458);
+//! and its probes of what a path does to a stream (T-325), with the relay
+//! role's side of them. Apart from the others so that each file stays short.
 
 pub(super) const DOCTOR_AT_ONCE: &str = "The sections that connect run at once by default, each into its own part \
      of the report, and the report keeps its order: a section's lines go out once each section before it has ended, \
@@ -60,6 +60,15 @@ pub(super) const DOCTOR_CLEARTEXT: &str = "The line cleartext, in the section re
      another. The line is ok, a fact, as a reset is no fault where TLS answers; ???? when the proxy setting \
      cannot be read. With --forwarder, the section of the forwarders has the same line for each one's host, at \
      443 and 80, and says whether a ws:// form of it can pass.";
+
+pub(super) const DOCTOR_HTTP2: &str = "The line http2, in the section relay, after cleartext, says what the \
+     same host offers the WebSocket over HTTP/2 (T-321, RFC 8441), with nothing sent but HTTP/2's preface, its \
+     SETTINGS and a PING: the protocol that its TLS chose when podssh offered h2 then http/1.1, and on h2 whether \
+     its SETTINGS offer extended CONNECT, with its streams at once; then whether the sessions of a run share one \
+     connection to it, by PODSSH_H2 (podssh relay serve offers it; the default relay's edge chooses h2 and offers \
+     no extended CONNECT). The line is ok, a fact; ???? when the host was not reached; FAIL for a word of \
+     PODSSH_H2 that is not auto, yes or no. With --forwarder, the section of the forwarders has the line for \
+     each wss:// one, whose road keeps the upgrade of HTTP/1.1.";
 
 pub(super) const DOCTOR_STREAM: &str = "--stream URL checks this host, then what the path to URL does to a \
      stream, and nothing else, one connection at a time: URL is https://HOST[:PORT][/PATH] (TLS checked with \

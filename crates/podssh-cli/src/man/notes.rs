@@ -270,6 +270,7 @@ const DOCTOR: &[&str] = &[
     super::notes_doctor::DOCTOR_IPV6,
     super::notes_doctor::DOCTOR_EXIT,
     super::notes_doctor::DOCTOR_CLEARTEXT,
+    super::notes_doctor::DOCTOR_HTTP2,
     super::notes_doctor::DOCTOR_STREAM,
     "Each CONNECT, and the direct TCP check, is tried nine times over a second or more: its line gives \
      the best time (the path's floor), the median, the 95th percentile and the jitter (the median change \

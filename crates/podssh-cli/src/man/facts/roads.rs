@@ -4,8 +4,9 @@
 //! after them (T-319), the forwarders of other products (T-369), Wisp's
 //! among them (T-438), and their fallback (T-370), the forward proxy over TLS
 //! of --via (T-439), the wstunnel server of --wstunnel (T-441), the OpenTunnel
-//! road (T-531), the cleartext road on the relay's port (T-326), and the
-//! resumable layer at podssh's relay role (T-173).
+//! road (T-531), the cleartext road on the relay's port (T-326), the
+//! resumable layer at podssh's relay role (T-173), and the WebSocket over
+//! HTTP/2 (T-321).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -110,6 +111,16 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           does, and podssh proxy carry the session over plain HTTPS requests to that host, which podssh relay serve \
           serves. Unset, empty, auto or yes: the split form, then the serial form; split or serial: that form alone; \
           no: no such road. Another word is a configuration error (78), which does not echo the value.",
+    ),
+    (
+        &["PODSSH_H2"],
+        "The WebSocket over HTTP/2's extended CONNECT (see THE RELAY), for podssh ssh, each command that reaches a \
+          server as it does, and podssh proxy: the sessions of one run to a relay host as streams of one TLS \
+          connection. Unset, empty or auto: offered to a relay host that you named (--relay-host, PODSSH_RELAY or \
+          RelayHost), as podssh relay serve offers it, and to no host of the default relay, whose edge offers no \
+          extended CONNECT; yes: offered to each relay host, where one whose HTTP/2 offers none costs one more \
+          connection in a run; no: the upgrade of HTTP/1.1 alone, as before. Another word offers it to none, and \
+          podssh doctor's line http2 fails with it.",
     ),
     (
         &["PODSSH_FORWARDER"],

@@ -154,10 +154,12 @@ pub fn offering(url: &WsUrl, key: &str, protocol: Option<&str>) -> Result<Vec<u8
 }
 
 /// The stream under a session of this road: TLS, or plain TCP; and under a
-/// session of the relay, which is TLS but on the cleartext road (T-326).
+/// session of the relay, which is TLS but on the cleartext road (T-326), and
+/// a stream of HTTP/2 on the road of RFC 8441 (T-321).
 pub enum Stream {
     Plain(TcpStream),
     Tls(Box<RelayStream>),
+    H2(Box<crate::h2_road::Stream>),
 }
 
 impl AsyncRead for Stream {
@@ -165,6 +167,7 @@ impl AsyncRead for Stream {
         match self.get_mut() {
             Stream::Plain(tcp) => Pin::new(tcp).poll_read(cx, buf),
             Stream::Tls(tls) => Pin::new(&mut **tls).poll_read(cx, buf),
+            Stream::H2(h2) => Pin::new(&mut **h2).poll_read(cx, buf),
         }
     }
 }
@@ -174,6 +177,7 @@ impl AsyncWrite for Stream {
         match self.get_mut() {
             Stream::Plain(tcp) => Pin::new(tcp).poll_write(cx, buf),
             Stream::Tls(tls) => Pin::new(&mut **tls).poll_write(cx, buf),
+            Stream::H2(h2) => Pin::new(&mut **h2).poll_write(cx, buf),
         }
     }
 
@@ -181,6 +185,7 @@ impl AsyncWrite for Stream {
         match self.get_mut() {
             Stream::Plain(tcp) => Pin::new(tcp).poll_flush(cx),
             Stream::Tls(tls) => Pin::new(&mut **tls).poll_flush(cx),
+            Stream::H2(h2) => Pin::new(&mut **h2).poll_flush(cx),
         }
     }
 
@@ -188,6 +193,7 @@ impl AsyncWrite for Stream {
         match self.get_mut() {
             Stream::Plain(tcp) => Pin::new(tcp).poll_shutdown(cx),
             Stream::Tls(tls) => Pin::new(&mut **tls).poll_shutdown(cx),
+            Stream::H2(h2) => Pin::new(&mut **h2).poll_shutdown(cx),
         }
     }
 }

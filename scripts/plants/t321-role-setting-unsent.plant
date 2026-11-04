@@ -1,0 +1,7 @@
+# T-321: the relay role's SETTINGS of HTTP/2 offer no extended CONNECT, so
+# podssh's client takes the upgrade of HTTP/1.1; the test of eight sessions
+# on one connection to the role must fail.
+ENTRY=T-321
+GROUP=resume
+EXPECT='the role offered no extended CONNECT'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_h2 -- eight_sessions_of_one_process'

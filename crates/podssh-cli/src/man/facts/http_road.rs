@@ -1,5 +1,6 @@
-//! THE RELAY's item on the HTTP road (T-319), apart from `facts.rs` for the
-//! length of that file; each number is read from the constant the road uses.
+//! THE RELAY's items on the HTTP road (T-319) and on the WebSocket over
+//! HTTP/2 (T-321), apart from `facts.rs` for the length of that file; each
+//! number is read from the constant the road uses.
 
 use super::super::model::{Block, Span};
 
@@ -31,5 +32,32 @@ pub(super) fn blocks() -> Vec<Block> {
         retry = client::RETRY_FOR.as_secs(),
         limit = client::LIMIT.as_secs(),
     );
-    vec![Block::Item { term: vec![Span::Lit("The HTTP road".into())], text }]
+    vec![Block::Item { term: vec![Span::Lit("The HTTP road".into())], text }, h2_road()]
+}
+
+/// The item of the WebSocket over HTTP/2.
+fn h2_road() -> Block {
+    use podssh_ws::h2_road::{CONNECTION_WINDOW, IDLE, REMEMBERED, STREAMS, STREAM_WINDOW};
+    let text = format!(
+        "Where a relay host offers it, as podssh relay serve does, a session of podssh ssh, of each command that \
+         reaches a server as it does, and of podssh proxy is one stream of an HTTP/2 connection (RFC 8441): podssh \
+         offers h2, then http/1.1, by ALPN, on a TLS connection of this road alone, and once the server's SETTINGS \
+         offer extended CONNECT, it asks for the session with a CONNECT whose :protocol is websocket, with the path, \
+         the name and the token of the upgrade, the token in a field that HPACK never indexes; a 200 opens it, and \
+         another status is the relay's refusal, as for the upgrade. The sessions of one process share a connection, \
+         {streams} at most, each with a window of {stream} MiB in a window of {connection} MiB for the connection; \
+         another session opens another connection, and one with no session closes after {idle} s. A lost connection \
+         is a lost link for each of its sessions. Where TLS chose http/1.1, the upgrade goes on that connection; \
+         where the SETTINGS offer no extended CONNECT, or HTTP/2 did not carry the CONNECT, that connection closes, \
+         the upgrade goes on a new one, -v says why, and the run takes HTTP/1.1 to that host for {remembered} \
+         minutes. PODSSH_H2 says which hosts take the road: by default a relay host that you named, and no host of \
+         the default relay, whose edge offers no extended CONNECT. podssh doctor's line http2 names what a host \
+         offers.",
+        streams = STREAMS,
+        stream = STREAM_WINDOW >> 20,
+        connection = CONNECTION_WINDOW >> 20,
+        idle = IDLE.as_secs(),
+        remembered = REMEMBERED.as_secs() / 60,
+    );
+    Block::Item { term: vec![Span::Lit("The WebSocket over HTTP/2".into())], text }
 }

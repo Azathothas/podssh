@@ -28,6 +28,8 @@ pub mod docs;
 pub mod egress;
 pub mod forward;
 pub mod http_road;
+// HTTP/2 with extended CONNECT at the role's listener (T-321).
+pub mod http2;
 pub mod ipv6;
 pub mod keys;
 pub mod layer;

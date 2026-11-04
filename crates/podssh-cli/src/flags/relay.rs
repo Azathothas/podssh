@@ -69,6 +69,9 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     // The cleartext road beside TLS on the listener (T-326).
     row(None, "cleartext", Some("WORD"), FlagKind::Supported,
         "serve: yes (the default) or no: on the listener, a request whose first byte begins no TLS handshake gets the cleartext road, for a client whose proxy cuts TLS: /health, a token of one session (POST /v1/mint?once=1, as --mint says) and /connect/ with it, which its upgrade spends; each other request there is refused (403)", None),
+    // HTTP/2 with extended CONNECT on the listener (T-321).
+    row(None, "http2", Some("WORD"), FlagKind::Supported,
+        "serve: yes (the default) or no: offer h2 by ALPN before http/1.1, with extended CONNECT (RFC 8441), so that the sessions of a client's process are streams of one connection, each upgrade a CONNECT answered 200; /health, /relays.json, /trace, /llms-full.txt and the mint answer there too, and each other request is asked for again over HTTP/1.1; no offers http/1.1 alone, as before", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,

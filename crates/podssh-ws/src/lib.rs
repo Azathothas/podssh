@@ -16,7 +16,9 @@
 //! VLESS's header names, over a WebSocket or XHTTP (`vless`, T-440), and a
 //! wstunnel server one that its token names (`wstunnel`, T-441). The same
 //! upgrade goes with no TLS on the relay's port (`cleartext`, T-326), last,
-//! for a proxy that cuts TLS that it does not know.
+//! for a proxy that cuts TLS that it does not know. Where a relay offers it,
+//! as podssh's relay role does, the sessions of a process are streams of one
+//! HTTP/2 connection, by RFC 8441's extended CONNECT (`h2_road`, T-321).
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -45,6 +47,8 @@ pub mod error;
 // (T-369).
 pub mod forwarder;
 pub mod frame;
+// The WebSocket over HTTP/2's extended CONNECT (T-321).
+pub mod h2_road;
 pub mod handshake;
 pub mod http;
 // The road of GCP's Identity-Aware Proxy for TCP (T-351).

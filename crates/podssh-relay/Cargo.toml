@@ -31,7 +31,8 @@ base64 = { workspace = true }
 snow = { workspace = true }
 # A quick tunnel's connection to Cloudflare's edge (src/quick/serve.rs, T-300):
 # the edge is the client of HTTP/2 on the connection that podssh dialed. Pure
-# Rust, in the lock already through hyper; only with the feature `quick`.
+# Rust, in the lock already through hyper; only with the features `quick`,
+# `piping` and `serve`, whose relay role serves HTTP/2 (T-321).
 h2 = { version = "0.4.19", optional = true }
 http = { version = "1.5", optional = true }
 bytes = { version = "1.12", optional = true }
@@ -105,8 +106,9 @@ grant = []
 # relay's contract, served, and its reverse road (T-427), which reads and
 # writes the frames with the node's own codecs of `pair`; the caller owns the
 # listener and TLS. Its mailbox for the pairing by a short code (T-086) needs
-# no crypto of its own. No C either; the gate builds it.
-serve = ["pair"]
+# no crypto of its own. Its HTTP/2 with extended CONNECT (T-321) is h2's
+# server, which `quick` builds already. No C either; the gate builds it.
+serve = ["pair", "dep:h2", "dep:http", "dep:bytes"]
 # Pairing by a short code (T-086): magic-wormhole's mailbox protocol, SPAKE2
 # keyed by the code, then its phases in NaCl's SecretBox, which carry the
 # operator's part of a pair and each end's key. No C either; the gate builds it.

@@ -2,7 +2,8 @@
 //! own (T-441), apart from `notes_ssh`, which is full: [`SSH`] is its notes,
 //! then these, joined when the binary is built; and the note of `proxy` on
 //! the same road, as `notes` is full too. The cleartext road on the relay's
-//! port (T-326) is here for the same reason.
+//! port (T-326), and the WebSocket over HTTP/2 (T-321), are here for the same
+//! reason.
 
 use super::notes_ssh::SSH as OWN;
 
@@ -23,6 +24,7 @@ const ROADS: &[&str] = &[
      other end of that stream, its one road, with no relay and no pair (see --carrier). podssh cp, scp and \
      sftp take it too.",
     CLEARTEXT,
+    H2,
     "--wstunnel wss://HOST[:PORT] reaches the first hop through a server of erebe/wstunnel that you run \
      (wstunnel server wss://[::]:443), in place of the relay: podssh opens the WebSocket to it, through \
      HTTPS_PROXY when one is set, checked for HOST with podssh's trust (--ca-file), and its token names the \
@@ -61,6 +63,16 @@ const CLEARTEXT: &str =
      of their host's port 80 passed, one probe at a time, 5 s each: no relay token goes to a forwarder. \
      PODSSH_CLEARTEXT=no turns both off. podssh proxy, podssh pipe and each command that reaches its server \
      as podssh ssh does take the road too.";
+
+/// The WebSocket over HTTP/2 to a relay host of the user's (T-321).
+const H2: &str =
+    "To a relay host that you named (--relay-host, PODSSH_RELAY or RelayHost), the sessions of one run are streams \
+     of one HTTP/2 connection where the host offers RFC 8441's extended CONNECT, as podssh relay serve does: the \
+     hosts of podssh each, and each other session of the run to that relay host, cost no TLS handshake past the \
+     first, and -v names the road of each session (see THE RELAY, The WebSocket over HTTP/2). Where the host's \
+     TLS chooses http/1.1, the upgrade goes as before; where its HTTP/2 offers no extended CONNECT, the upgrade \
+     goes on a new connection, and the run asks that host for no HTTP/2 for 10 minutes. PODSSH_H2=no keeps each \
+     session on its own connection; yes offers the road to the default relay too.";
 
 /// The note of `podssh proxy` on the cleartext road.
 pub const PROXY_CLEARTEXT: &str =
