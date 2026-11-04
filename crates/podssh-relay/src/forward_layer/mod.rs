@@ -8,7 +8,8 @@
 //! deadline passes.
 //!
 //! - [`offer`]: whether a host offers it, by its `/relays.json`, read at run
-//!   time, as nothing is assumed of a relay;
+//!   time, as nothing is assumed of a relay, and the name of the process
+//!   that holds each session of it, where several share one name;
 //! - [`client`]: the links of one session to the host that holds it, and the
 //!   session across them.
 //!
@@ -18,8 +19,8 @@
 pub mod client;
 pub mod offer;
 
-pub use client::{carry, Dialer, Missed};
-pub use offer::offered;
+pub use client::{carry, no_room, Dialer, Missed};
+pub use offer::{offered, Offer};
 
 /// The head of the path; the target follows it as on `/connect/`.
 pub const PATH: &str = "/v1/layer/";

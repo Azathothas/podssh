@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/forward_layer/offer.rs
++++ b/crates/podssh-relay/src/forward_layer/offer.rs
+@@ -38,7 +38,7 @@ impl Offer {
+     /// The host that each link of a session goes to: the one that the offer
+     /// names, else `asked`, whose document made the offer.
+     pub fn holder(&self, asked: &Relay) -> Relay {
+-        self.at.clone().unwrap_or_else(|| asked.clone())
++        asked.clone()
+     }
+ }
+

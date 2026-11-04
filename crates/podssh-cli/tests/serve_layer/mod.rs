@@ -6,6 +6,10 @@
 //! no word to either end: the session lives on, as the role holds the
 //! connection to sshd and each new link resumes it, and the digests are
 //! equal. Another word in the variable is refused before any connection.
+//! `podssh ssh` does the same on the road (`ssh_layer`), and a session past
+//! the role's budget goes on the contract's road with one line.
+
+mod ssh_layer;
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -27,9 +31,9 @@ const SPREAD: usize = 3 * 512 * 1024;
 
 /// A stand-in HTTP CONNECT proxy on the loopback, which carries each tunnel
 /// to the role on `role_port`, whatever host the CONNECT names: while fewer
-/// than [`CUTS`] tunnels were cut, each new one is cut once it carried a
+/// than `cuts` tunnels were cut, each new one is cut once it carried a
 /// count of bytes, both ways together, of its own; the cuts made so far.
-fn cutting_proxy(role_port: u16) -> (u16, Arc<AtomicUsize>) {
+fn cutting_proxy(role_port: u16, cuts: usize) -> (u16, Arc<AtomicUsize>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let made = Arc::new(AtomicUsize::new(0));
@@ -40,7 +44,7 @@ fn cutting_proxy(role_port: u16) -> (u16, Arc<AtomicUsize>) {
             x ^= x << 13;
             x ^= x >> 17;
             x ^= x << 5;
-            let cut = (counted.load(Ordering::SeqCst) < CUTS).then_some(LEAST + x as usize % SPREAD);
+            let cut = (counted.load(Ordering::SeqCst) < cuts).then_some(LEAST + x as usize % SPREAD);
             let counted = counted.clone();
             std::thread::spawn(move || tunnel(client, role_port, cut, &counted));
         }
@@ -141,7 +145,7 @@ fn openssh_through_podssh_proxy_in_the_layer_lives_on_10_cuts_of_its_link() {
     let flags = relay_flags(&cell);
     let relay_host = value_of(&flags, "--relay-host");
     let role_port: u16 = relay_host.rsplit_once(':').and_then(|(_, p)| p.parse().ok()).expect("the role's port");
-    let (proxy_port, cuts) = cutting_proxy(role_port);
+    let (proxy_port, cuts) = cutting_proxy(role_port, CUTS);
     let bin = env!("CARGO_BIN_EXE_podssh");
     let proxy = format!("{bin} proxy --relay-host {relay_host} --ca-file {} %h %p", value_of(&flags, "--ca-file"));
     let back = dir.join("back");

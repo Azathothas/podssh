@@ -653,7 +653,7 @@ usable shell through `podssh serve`.
 | A stuck write | Fails after 60 s with no progress, on the relay road (the relay leg's limit) and with `--direct` (a writer around the TCP stream, T-227); the session ends with 255 |
 | The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without). To a node, the layer's records each 10 s keep it, and SSH sends no keepalive unless asked (T-154) |
 | The relay's limits (12 h, 64 MiB) | The session ends, with the reason. To a node, the session moves to a new link before them, at 48 MiB or 11 h (T-155) |
-| A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255; with `--persist`, it connects again and attaches the same tmux session on the server (T-178), and with `--persist -N` it connects again and asks for the forwards again (T-042). `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153). Through podssh's own relay role, `podssh proxy` with `PODSSH_RELAY_LAYER=yes` carries the session in the layer, and the role keeps its connection to a standard sshd across the drop, for 10 minutes (T-173) |
+| A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255; with `--persist`, it connects again and attaches the same tmux session on the server (T-178), and with `--persist -N` it connects again and asks for the forwards again (T-042). `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153). Through podssh's own relay role, `podssh proxy` and `podssh ssh` with `PODSSH_RELAY_LAYER=yes` carry the session in the layer, and the role keeps its connection to a standard sshd across the drop, for 10 minutes or its `--resume-deadline` (T-173) |
 | A changed client address | The session is lost. With `--direct`, `PODSSH_MPTCP=yes` asks Linux for Multipath TCP (T-172): where the server speaks it and the host's path manager has an endpoint on each network, the connection can go on over the other network when one goes; elsewhere, and through a proxy, the connection is plain TCP, and `-v` says which. Not measured, as it needs two networks of the operator's, which no check has: a session to such a server with one of two networks taken down, and whether Cloudflare's edge, so the relay's road, takes MPTCP (`cargo test -p podssh-ws --test mptcp -- --ignored`). Recommendation: on request and on `--direct` only, until both are measured; where both ends run podssh, the resumable layer carries a session to a new address on any road (T-153) |
 
 The relay has no resumption on either path (READ, in the relay's source and
@@ -712,8 +712,12 @@ beside the contract, as the far end of layer 2 below (T-173;
      handshake and kept while a link is lost, and the client sends each
      link to the host that holds the session, with no token in the `101`
      and no new framing: the layer's own records and proofs. `/relays.json`
-     offers it as `forward.layer`, and `podssh proxy` takes it on request,
-     `PODSSH_RELAY_LAYER=yes`, until a live run measured it.
+     offers it as `forward.layer`, with `forward.host`, the name of the
+     process that holds each session where several share one name, and
+     `podssh proxy` and `podssh ssh` take it on request,
+     `PODSSH_RELAY_LAYER=yes`, until a live run measured it (T-173). A new
+     session past the role's budget is refused in the layer's handshake, and
+     its client takes `/connect/`.
 
 An interactive echo for high latency (as mosh does) is a later option on top
 of layer 2. It needs podssh at both ends, and it cannot use UDP here.

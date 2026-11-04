@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/forward_layer/offer.rs
++++ b/crates/podssh-relay/src/forward_layer/offer.rs
+@@ -72,7 +72,7 @@ pub fn named(asked: &Relay, text: &str) -> Result<Relay, String> {
+     let relay = parse_relay(text).map_err(|_| format!("{shown:?} is not a host's name"))?;
+     let literal = asked.host.parse::<std::net::IpAddr>().is_ok();
+     let same = relay.host.eq_ignore_ascii_case(&asked.host);
+-    if same || (!literal && crate::pool::same_deployment(&asked.host, &relay.host)) {
++    if same || !literal || crate::pool::same_deployment(&asked.host, &relay.host) {
+         return Ok(relay);
+     }
+     Err(format!("{shown:?} is not of {}'s deployment", asked.host))

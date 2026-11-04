@@ -6,8 +6,9 @@
 //! members of the net (T-455, `serve_net`), its targets through its host's
 //! proxy (T-457, `serve_proxy`), the documents that `podssh relay` reads,
 //! its certificate read again on SIGHUP (T-447, `serve_certs`), and its
-//! forward road in the resumable layer, which `podssh proxy` takes when
-//! asked, across cuts of its link (T-173, `serve_layer`). The
+//! forward road in the resumable layer, which `podssh proxy` and `podssh
+//! ssh` take when asked, across cuts of their link, and its budget (T-173,
+//! `serve_layer`). The
 //! suite of the stand-in also runs against the role with
 //! `PODSSH_RELAY_UNDER_TEST=podssh`.
 

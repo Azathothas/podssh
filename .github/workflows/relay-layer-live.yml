@@ -1,0 +1,63 @@
+name: relay layer live
+
+# T-173: the relay role's forward road in the resumable layer, live, on a
+# runner: `podssh relay serve` on its loopback, in front of the runner's own
+# sshd, with a key made for the run, and each client's link through
+# scripts/fake-proxy.py as its HTTPS_PROXY, which ends each open tunnel with
+# RST every 8 s. OpenSSH's ssh with podssh proxy as its ProxyCommand, then
+# podssh ssh, each with PODSSH_RELAY_LAYER=yes, send 48 MiB through the
+# server's cat, a MiB each second: each must end 0 with each byte back in
+# order, through its resumes (scripts/relay-serve-live.sh with `layer`).
+# Started by hand only; it prints no token and no key, and the key goes with
+# the runner.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  layer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+
+      - name: the runner's sshd, with a key made for the run
+        run: |
+          set -u
+          command -v /usr/sbin/sshd >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q openssh-server; }
+          sudo mkdir -p /run/sshd
+          ssh-keygen -q -t ed25519 -N '' -C layer-live -f "$RUNNER_TEMP/user_ed25519"
+          sudo ssh-keygen -q -t ed25519 -N '' -C layer-live-host -f "$RUNNER_TEMP/host_ed25519"
+          cp "$RUNNER_TEMP/user_ed25519.pub" "$RUNNER_TEMP/authorized_keys"
+          sudo /usr/sbin/sshd -f /dev/null -E "$RUNNER_TEMP/sshd.log" -o ListenAddress=127.0.0.1:4022 \
+            -o HostKey="$RUNNER_TEMP/host_ed25519" -o PidFile="$RUNNER_TEMP/sshd.pid" \
+            -o AuthorizedKeysFile="$RUNNER_TEMP/authorized_keys" -o StrictModes=no -o UsePAM=yes \
+            -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no
+          for _ in $(seq 1 20); do (exec 3<>/dev/tcp/127.0.0.1/4022) 2>/dev/null && break; sleep 0.5; done
+          (exec 3<>/dev/tcp/127.0.0.1/4022) 2>/dev/null || { sudo cat "$RUNNER_TEMP/sshd.log"; exit 1; }
+          echo "ok    the sshd listens on 127.0.0.1:4022"
+
+      - name: a session in the layer across cuts of its link
+        env:
+          PODSSH_LAYER_SSHD: "127.0.0.1:4022"
+        run: |
+          set -u
+          export PODSSH_LAYER_KEY="$RUNNER_TEMP/user_ed25519"
+          rc=0
+          sh scripts/relay-serve-live.sh "$PWD/target/debug/podssh" layer || rc=$?
+          [ "$rc" = 0 ] || { echo "the run in the layer exited $rc"; sudo tail -n 40 "$RUNNER_TEMP/sshd.log"; exit 1; }
+
+      - name: the end
+        if: always()
+        run: |
+          sudo kill "$(cat "$RUNNER_TEMP/sshd.pid" 2>/dev/null)" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP"/user_ed25519* "$RUNNER_TEMP/authorized_keys"
+          sudo rm -f "$RUNNER_TEMP"/host_ed25519*

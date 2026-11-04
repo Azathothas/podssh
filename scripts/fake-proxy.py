@@ -6,8 +6,8 @@ interop harness. It resolves names itself, as the measured egress proxy does
 Usage: fake-proxy.py --port-file FILE --log FILE
                      [--map NAME=HOST:PORT ...] [--answer NAME=STATUS ...]
                      [--from ADDRESS] [--move SECONDS:ADDRESS]
-                     [--stop-after SECONDS] [--pause AFTER:FOR]
-                     [--start-file FILE]
+                     [--stop-after SECONDS] [--cut-every SECONDS]
+                     [--pause AFTER:FOR] [--start-file FILE]
 
 `--map` sends `CONNECT NAME:any-port` to HOST:PORT; `--answer` makes the
 proxy answer CONNECT to NAME with STATUS (a 5xx, say) instead. Any other name
@@ -19,11 +19,13 @@ end sees the client at another address. `--move` is a client whose address
 changes: SECONDS after the first tunnel, each open tunnel goes silent, with
 no RST, and each new one leaves from ADDRESS. `--stop-after` is a relay
 host that stops: SECONDS after the first tunnel, each open tunnel ends with
-RST, and new tunnels go on. `--pause` is a stall that ends: AFTER seconds
-after the first tunnel, each byte of each tunnel, both ways, waits until
-FOR seconds have passed (T-156). With `--start-file`, these clocks start
-when FILE appears, in place of the first tunnel: a test puts a fault in the
-middle of a transfer.
+RST, and new tunnels go on. `--cut-every` is a client's network that drops
+again and again: each SECONDS after the first tunnel, each open tunnel ends
+with RST, and new tunnels go on (T-173). `--pause` is a stall that ends:
+AFTER seconds after the first tunnel, each byte of each tunnel, both ways,
+waits until FOR seconds have passed (T-156). With `--start-file`, these
+clocks start when FILE appears, in place of the first tunnel: a test puts a
+fault in the middle of a transfer.
 """
 
 import argparse
@@ -81,6 +83,22 @@ async def stop_after():
     for writer in list(tunnels):
         writer.transport.abort()
     log("the open tunnels ended with RST (--stop-after)")
+
+
+async def cut_every():
+    """--cut-every: each period after the first tunnel, each tunnel open at
+    the time ends with RST; the tunnels after it go on until the next."""
+    while first_tunnel is None:
+        await asyncio.sleep(0.1)
+    cut = 0
+    while True:
+        cut += 1
+        await asyncio.sleep(max(0.0, first_tunnel + cut * args.cut_every - time.monotonic()))
+        # Each tunnel holds both of its writers here.
+        writers = list(tunnels)
+        for writer in writers:
+            writer.transport.abort()
+        log(f"cut {cut}: {len(writers) // 2} open tunnels ended with RST (--cut-every)")
 
 
 async def pipe(reader, writer, old):
@@ -163,6 +181,7 @@ async def main():
     parser.add_argument("--from", dest="source", default=None)
     parser.add_argument("--move", default=None)
     parser.add_argument("--stop-after", type=float, default=None)
+    parser.add_argument("--cut-every", type=float, default=None)
     parser.add_argument("--pause", default=None)
     parser.add_argument("--start-file", default=None)
     args = parser.parse_args()
@@ -183,6 +202,10 @@ async def main():
         f.write(str(server.sockets[0].getsockname()[1]))
     if args.stop_after is not None:
         asyncio.ensure_future(stop_after())
+    if args.cut_every is not None:
+        if args.cut_every <= 0:
+            parser.error("--cut-every takes seconds above 0")
+        asyncio.ensure_future(cut_every())
     if args.start_file is not None:
         asyncio.ensure_future(start_when_the_file_appears())
     async with server:

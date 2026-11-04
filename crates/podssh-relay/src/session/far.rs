@@ -6,6 +6,10 @@
 //! handshake costs no connection to sshd (T-164). [`serve`] is the whole of
 //! one link of a far end that keeps its sessions: each road's far end (the
 //! node of the reverse road, the iroh road) runs it.
+//!
+//! [`accept_with_room`] asks the caller for room before a new session's
+//! `ACCEPT`, and refuses one with none in the handshake, before the client
+//! sent a byte of it (the relay role's road, T-173).
 
 use std::fmt;
 use std::future::Future;
@@ -22,10 +26,14 @@ use super::handshake::{Established, FarHandshake, HandshakeError, Step};
 use super::keep::{admitted_at_once, Admitted, Keeper};
 use super::once;
 use super::pump::{self, Carry, Ended};
-use super::record::{Record, Role};
+use super::record::{cut_reason, Record, RefuseCode, Role};
 use super::secret::{Entropy, OsEntropy};
 use super::sessions::Sessions;
 use super::Settings;
+
+/// Whether a new session has room at a far end: `Err` holds why not, the
+/// words of its `REFUSE`.
+pub type Room<'a> = &'a (dyn Fn() -> Result<(), String> + Sync);
 
 /// How long the client may take to open or resume a session.
 pub const HANDSHAKE_LIMIT: Duration = Duration::from_secs(30);
@@ -49,6 +57,9 @@ pub enum FarError {
     Handshake(HandshakeError),
     /// The handshake took longer than [`HANDSHAKE_LIMIT`].
     Timeout,
+    /// A new session that this far end had no room for: its `REFUSE` (busy)
+    /// went out in the handshake, with these words.
+    NoRoom(String),
 }
 
 impl fmt::Display for FarError {
@@ -58,6 +69,7 @@ impl fmt::Display for FarError {
             FarError::Decode(e) => write!(f, "the client sent {e} in the layer's handshake"),
             FarError::Handshake(e) => write!(f, "the layer's handshake failed: {e}"),
             FarError::Timeout => write!(f, "the layer's handshake took more than {} s", HANDSHAKE_LIMIT.as_secs()),
+            FarError::NoRoom(why) => write!(f, "no room for a new session: {why}"),
         }
     }
 }
@@ -78,11 +90,30 @@ pub struct Accepted<L> {
 /// Greet the client on `link`, and accept the session that it opens or
 /// resumes, by the sessions that this far end keeps.
 pub async fn accept<L>(
+    link: L,
+    role: Role,
+    settings: Settings,
+    sessions: &Mutex<Sessions>,
+    entropy: &mut (dyn Entropy + Send),
+) -> Result<Accepted<L>, FarError>
+where
+    L: AsyncRead + AsyncWrite + Unpin,
+{
+    accept_with_room(link, role, settings, sessions, entropy, None).await
+}
+
+/// [`accept`], with `room` asked before a new session's `ACCEPT`: a session
+/// that has none is forgotten, and refused with the layer's `REFUSE` (busy)
+/// and its words, before the client sent a byte of it, so that its client
+/// can carry it another way. A resume is never asked: its session holds its
+/// room already.
+pub async fn accept_with_room<L>(
     mut link: L,
     role: Role,
     settings: Settings,
     sessions: &Mutex<Sessions>,
     entropy: &mut (dyn Entropy + Send),
+    room: Option<Room<'_>>,
 ) -> Result<Accepted<L>, FarError>
 where
     L: AsyncRead + AsyncWrite + Unpin,
@@ -95,8 +126,8 @@ where
     let (handshake, greeting) = FarHandshake::start(role, &named, entropy).map_err(FarError::Handshake)?;
     send(&mut link, &greeting).await?;
     let mut decoder = Decoder::new();
-    let shaken = tokio::time::timeout(HANDSHAKE_LIMIT, shake(&mut link, &mut decoder, handshake, sessions, entropy));
-    let (established, resume) = match shaken.await {
+    let shaking = shake(&mut link, &mut decoder, handshake, sessions, entropy, room);
+    let (established, resume) = match tokio::time::timeout(HANDSHAKE_LIMIT, shaking).await {
         Ok(result) => result?,
         Err(_) => return Err(FarError::Timeout),
     };
@@ -109,6 +140,7 @@ async fn shake<L>(
     mut handshake: FarHandshake,
     sessions: &Mutex<Sessions>,
     entropy: &mut (dyn Entropy + Send),
+    room: Option<Room<'_>>,
 ) -> Result<(Box<Established>, u64), FarError>
 where
     L: AsyncRead + AsyncWrite + Unpin,
@@ -124,6 +156,13 @@ where
                 Step::Send(record) => send(link, &record).await?,
                 Step::Wait => {}
                 Step::Established(accept, established) => {
+                    // No room: the session goes before its `ACCEPT` does,
+                    // and the client reads why before the link ends.
+                    if let Some(Err(why)) = room.filter(|_| !established.resumed).map(|room| room()) {
+                        sessions.lock().unwrap_or_else(|e| e.into_inner()).remove(&established.id);
+                        last_word(link, &Record::Refuse { code: RefuseCode::BUSY, reason: cut_reason(&why) }).await;
+                        return Err(FarError::NoRoom(why));
+                    }
                     // A resume's place is set before its answer goes out:
                     // the task that runs it may start late, after a newer
                     // resume of the same client.

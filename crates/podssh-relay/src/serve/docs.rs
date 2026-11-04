@@ -67,8 +67,9 @@ pub fn relays(cfg: &Config, head: &Request) -> Value {
         // (T-226), beside the contract.
         "reverse": { "pair_once": true },
         // The forward road in the resumable layer, `/v1/layer/HOST/PORT`
-        // (T-173), beside the contract: a client asks for it only here.
-        "forward": { "layer": true },
+        // (T-173), beside the contract: a client asks for it only here, and
+        // sends each link to the name of this process, when it has one.
+        "forward": cfg.resumes.offer(),
         "pool": [{ "rank": 0, "name": "podssh", "host": name, "bucket": null, "region": null,
                    "client_ms": 0, "target_ms": 0, "score_ms": 0 }],
         "limits": {

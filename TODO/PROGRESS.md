@@ -150,7 +150,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   On 2026-11-04 a seventh round was drafted, unbuilt, one commit for each entry, each branch pushed
   as `draft/worktree-agent-*`: T-616 (`worktree-agent-af68081e13f6b11f8`, `81bc6f2`, merged and
   closed); T-346 (`worktree-agent-a6730d81d38c2e802`, `363fcc1`, merged and closed); T-173's next part
-  (`worktree-agent-ac6a1db72f01e3003`, `71dbd72`); T-321 (`worktree-agent-afc21daca5ecea253`,
+  (`worktree-agent-ac6a1db72f01e3003`, `71dbd72`, merged, the entry partial for its live run and the road by
+  default); T-321 (`worktree-agent-afc21daca5ecea253`,
   `4d7c7d0`); T-615 (`worktree-agent-a3c0e12c59fd9dc1e`, `fe2bbaf`, after a stop at a limit of
   use, resumed). Each waits for its merge, in that order.
 

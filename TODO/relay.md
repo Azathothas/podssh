@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags/relay.rs:9-77`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags/relay.rs:9-84`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:322-343` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:315`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:316`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -2826,7 +2826,7 @@ session on 2026-11-03.
   WebSocket road (`crates/podssh-relay/src/open.rs:214`, `crates/podssh-relay/src/open.rs:255`).
 - `crates/podssh-cli/src/relay_ends.rs`: what a cut is (`cut_by`, `cut`), and `Told`, the relay
   stream that tells the record how its session ended once SSH lets it go, which
-  `crates/podssh-cli/src/ssh/transport.rs:211` spawns. `podssh proxy`
+  `crates/podssh-cli/src/ssh/transport.rs:220` spawns. `podssh proxy`
   (`crates/podssh-cli/src/proxy.rs:411`) and the relay's end of `podssh pipe` (`carry_opened`)
   tell it at their end (`crates/podssh-cli/src/pipe/relay.rs:210-212`).
 - `podssh status`: `relay_failures` names the road, and `relay_opened` gives the hosts that opened
@@ -3154,7 +3154,7 @@ URL written into each result, and a download target that is no test target of `A
   (`crates/podssh-cli/src/ping/mod.rs:156-161`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
   (`crates/podssh-cli/src/doctor/relay_checks.rs:207-238`); `--quick` keeps the relay's sections and
-  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:130-134`).
+  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:137-141`).
 - Read: `podssh relay trace` asks the relay to dial a target and gives its own times
   (`crates/podssh-cli/src/relay_diag.rs:178-181`); `relay info` gives the pool
   (`crates/podssh-cli/src/relay_diag.rs:133-135`).

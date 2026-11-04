@@ -57,13 +57,15 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["PODSSH_RELAY_LAYER"],
-        "yes: podssh proxy reads the /relays.json of the first relay host, and where it offers the resumable \
-          layer (forward.layer, which podssh relay serve gives), carries the session in it to that host alone: \
-          the relay keeps the connection to the target while this host's link is lost, for 10 minutes, and a new \
-          link resumes the session, which a line on stderr says (T-173). A host that offers none, or whose first \
-          link fails for a reason that another host may not share, takes the contract's road, with one line. \
-          Unset, empty or no: the contract's road, with no request more; another word is a configuration error \
-          (78).",
+        "yes: podssh proxy and podssh ssh, and each command that logs in as podssh ssh does, read the \
+          /relays.json of the first relay host, and where it offers the resumable layer (forward.layer, which \
+          podssh relay serve gives), carry the session in it to that host alone, or to the process that it names \
+          as forward.host, of its deployment: the relay keeps the connection to the target while this host's \
+          link is lost, for 10 minutes unless it says otherwise, and a new link resumes the session, which a \
+          line on stderr says (T-173). A host that offers none, that has no room for a new resumable session, or \
+          whose first link fails for a reason that another host may not share, takes the contract's road, with \
+          one line; so does podssh ssh --no-resume. Unset, empty or no: the contract's road, with no request \
+          more; another word is a configuration error (78).",
     ),
     (
         &["PODSSH_RELAY_RANK"],

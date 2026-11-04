@@ -6,10 +6,13 @@
 //! file owns the listener, TLS, the port file of a harness, the file of the
 //! pairs, whom it mints for (a list's keys, T-448; the net's members, T-455,
 //! `crate::net::mint`), and the end on Ctrl-C or SIGTERM, which closes each
-//! reverse socket with `1012` first (T-255).
+//! reverse socket with `1012` first (T-255). The sessions of its forward
+//! road in the resumable layer take their budget, their deadline and this
+//! process's name from flags of their own (T-173, `relay_serve/resumes.rs`).
 
 mod certs;
 mod list;
+mod resumes;
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -50,6 +53,12 @@ pub struct ServeArgs {
     /// file (T-346).
     pub deployment: Vec<String>,
     pub list_key: Option<String>,
+    /// The resumable sessions of the forward road (T-173): how long one
+    /// whose link is lost is kept, the MiB of their replay buffers in all,
+    /// and this process's own name for each link of one.
+    pub resume_deadline: Option<String>,
+    pub resume_budget: Option<String>,
+    pub resume_host: Option<String>,
 }
 
 impl ServeArgs {
@@ -74,6 +83,9 @@ impl ServeArgs {
                 .map(|v| v.cloned().collect())
                 .unwrap_or_default(),
             list_key: get("list-key"),
+            resume_deadline: get("resume-deadline"),
+            resume_budget: get("resume-budget"),
+            resume_host: get("resume-host"),
         }
     }
 
@@ -128,6 +140,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
             _ => return Err(Refusal::usage(format!("--keepalive {text:?}: seconds, from 1 to 3600"))),
         },
     };
+    // The resumable sessions of the forward road (T-173).
+    let (sessions, resumable) = resumes::of(s)?;
     if podssh_relay::open::offline() {
         let env = podssh_relay::open::OFFLINE_ENV;
         return Err(Refusal {
@@ -163,7 +177,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         egress,
         limits: Limits { keepalive, ..Limits::default() },
         pairs,
-        resumes: Default::default(),
+        resumes: sessions,
         answered: Default::default(),
         brake: Default::default(),
         events: Some(events),
@@ -172,7 +186,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let clear = if cleartext { ", the cleartext road beside TLS" } else { ", TLS alone" };
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}{listed}; {}",
+         {who}{inside}{kept}{through}{clear}{listed}{resumable}; {}",
         serve::CONTRACT,
         certs.shown
     );

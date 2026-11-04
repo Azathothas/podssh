@@ -74,6 +74,13 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "serve: a deployment that /relays.json names in its signed list, NAME=HOST[:PORT][,HOST[:PORT]...], repeatable, in order; a client that trusts the list's key (PODSSH_RELAY_KEYS, RelayKeys, a member of its net with the role relay) tries those hosts after its default list, each with a token of its own", None),
     row(None, "list-key", Some("FILE"), FlagKind::Supported,
         "serve --deployment: the Ed25519 key that signs the list, in a private file, made when it is missing (default: relay-list.key in the cache); the first line names its fingerprint", None),
+    // The resumable sessions of the forward road (T-173).
+    row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
+        "serve: keep a session of /v1/layer/ whose link is lost for TIME, and tell its client so: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default 10m)", None),
+    row(None, "resume-budget", Some("MIB"), FlagKind::Supported,
+        "serve: the replay buffers of the sessions of /v1/layer/ in all, in MiB, 4 for each session: from 4 to 16384 (default 256, 64 sessions), or 0 for none, which offers no such road; a new session past it is refused in its handshake, and podssh's client takes /connect/ instead", None),
+    row(None, "resume-host", Some("HOST[:PORT]"), FlagKind::Supported,
+        "serve: the name of this process alone, which its certificate holds, where several processes serve one name: /relays.json names it as forward.host, and podssh's client sends each link of a session of /v1/layer/ to it, so that each resume reaches the process that holds the session (a host of the name's deployment)", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,

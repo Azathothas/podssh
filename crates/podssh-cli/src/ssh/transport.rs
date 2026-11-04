@@ -2,7 +2,9 @@
 //! TCP with `--direct`. `ssh` runs a session on it, and `cp` an SFTP session.
 //! When the user named no relay and each relay host failed, the direct road
 //! once, as the road table gives it (T-363): the dial of `--direct`, then
-//! the server's version line, which goes to the SSH client first.
+//! the server's version line, which goes to the SSH client first. Where the
+//! user asked for it and the first relay host offers it, the relay role's
+//! resumable layer carries the stream (`crate::relay_layer::ssh`, T-173).
 
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -186,6 +188,13 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                 turned = podssh_relay::relay::RelayList { hosts, explicit: relays.explicit };
                 &turned
             };
+            // The resumable layer at podssh's relay role, where
+            // PODSSH_RELAY_LAYER asks for it and the first host offers it
+            // (T-173); else the contract's road.
+            let hop = (first.host.as_str(), first.port);
+            if let Some(reached) = crate::relay_layer::ssh::reach(relays, trust, *family, hop, opts, log).await {
+                return reached;
+            }
             let mut path = podssh_relay::relay::forward_path(&first.host, first.port)
                 .map_err(|why| NotReached { lines: vec![why], code: sysexits::EX_USAGE })?;
             if let Some(f) = family {
