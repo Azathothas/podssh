@@ -4413,6 +4413,32 @@ own, and the forward road starts at the node.
   is resolved at the start: one that is no directory exits 64, and so does
   `--cover` with no `ws-listen:` side. The relay role takes no cover: its
   404 is its contract's.
+- **An upgrade with no key, for a client of WebTunnel's shape** (T-645,
+  GitHub #143). `--raw-upgrade` lets `ws-listen:` answer the request that
+  podssh's own WebTunnel client sends (T-385): `GET` with a `Host`,
+  `Upgrade: websocket` and `Connection: Upgrade`, and no
+  `Sec-WebSocket-Key` and no version. The checks of
+  `podssh_ws::server::check_upgrade_or_raw` run in this order: the method
+  (405), HTTP/1.1 and a `Host` (400), the two tokens (426), as for a framed
+  client; then the key decides, before the version: a request with a key is
+  framed, with the version (426) and the key's 16 bytes (400) checked as
+  without the flag, so a broken client is never carried raw, and only a
+  request with no key at all is the raw form; then an `Origin` is 403 in
+  both, so that a page cannot reach the other side. The other side opens,
+  then the client hears `101 Switching Protocols` with the two headers and
+  no `Sec-WebSocket-Accept` (502 when the other side did not open), and its
+  bytes go both ways as `tcp-listen:` carries them, the ones that it sent
+  after its request first, with a half-close passed on: no frames, so no
+  close code, no Ping and no idle bound; TCP alone finds a path that died.
+  Without the flag a request with no key gets 426, as before, and the relay
+  role's roads keep `check_upgrade`, whose contract is framed. What the flag
+  admits: each program that can send such a `GET` reaches the other side,
+  as at `tcp-listen:`, which checks nothing; `ws-listen:` has no
+  authentication either way, and the key of RFC 6455 is no credential. A
+  browser cannot send the two tokens from a page's `fetch`, and its
+  WebSocket sends a key and an `Origin`, which is refused. No TLS on
+  `ws-listen:`: a client of `https://` needs a front that ends TLS before
+  it. `--raw-upgrade` with no `ws-listen:` side exits 64.
 - **A local socket, by its name.** `unix-connect:PATH` connects, which the
   rule of no listener allows; `@NAME` is Linux's abstract namespace. A name
   that does not fit a socket's address is refused first (64). A missing

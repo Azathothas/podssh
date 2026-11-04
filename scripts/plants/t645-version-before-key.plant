@@ -1,0 +1,7 @@
+# T-645: the version is checked before the key decides, so a request with
+# no key and no version, as WebTunnel's client sends it, gets 426 and never
+# the raw form; the unit test of the keyless request must fail.
+ENTRY=T-645
+GROUP=cli-tests
+EXPECT='test server::tests::a_request_with_no_key_opens_raw_bytes_where_its_caller_asks \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ws --lib server'

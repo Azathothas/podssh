@@ -10,13 +10,16 @@
 //! upgrade is good, as a refused request is no session; with
 //! `--keep-listening`, each in turn. With `--cover DIR`, a request that asks
 //! for no upgrade gets a page of DIR (`cover`, T-639), and is no session
-//! either.
+//! either. With `--raw-upgrade`, a request with no key, as a client of
+//! WebTunnel's shape sends it, hears a 101 with no accept, then its bytes
+//! go as `tcp-listen:` carries them (T-645).
 
 use std::io::Write;
 use std::rc::Rc;
 
 use podssh_ws::http::request;
-use tokio::io::AsyncWriteExt;
+use podssh_ws::server::Upgrade;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::address::Address;
 use super::cover::{self, Cover};
@@ -38,31 +41,39 @@ fn unopened() -> Vec<u8> {
 }
 
 /// What a `ws-listen:` answers besides a good upgrade: the pages of
-/// `--cover` (T-639).
+/// `--cover` (T-639), and the raw form of `--raw-upgrade` (T-645).
 #[derive(Debug, Default)]
 pub struct Answers {
     pub cover: Option<Cover>,
+    /// `--raw-upgrade`: a request with no key opens raw bytes.
+    pub raw: bool,
     /// `-q`: no line for a page, which is no failure.
     pub quiet: bool,
 }
 
+/// The flag of the raw form, for its refusal.
+const RAW_FLAG: &str = "--raw-upgrade";
+
 /// The answers of `ws-listen:`'s flags, read before anything binds: each is
 /// for a pipe with a `ws-listen:` side (64), and the DIR of `--cover` must
 /// be a directory (64).
-pub fn answers(addresses: [&Address; 2], dir: Option<&str>, quiet: bool) -> Result<Answers, Refusal> {
+pub fn answers(addresses: [&Address; 2], dir: Option<&str>, raw: bool, quiet: bool) -> Result<Answers, Refusal> {
     let listens = addresses.iter().any(|a| matches!(a, Address::WsListen(_)));
     if dir.is_some() && !listens {
         let why = format!("{} is for ws-listen:, the side that a browser visits", cover::FLAG);
         return Err(Refusal::usage(why));
     }
+    if raw && !listens {
+        return Err(Refusal::usage(format!("{RAW_FLAG} is for ws-listen:, the side that answers an upgrade")));
+    }
     let cover = dir.map(Cover::open).transpose()?;
-    Ok(Answers { cover, quiet })
+    Ok(Answers { cover, raw, quiet })
 }
 
-/// A client's request, read and checked as an upgrade: its key, and the
-/// bytes that came after it. A visit to a listener with a cover gets its
+/// A client's request, read and checked as an upgrade: what it opens, and
+/// the bytes that came after it. A visit to a listener with a cover gets its
 /// page here, as a refusal does: an answer, and no session.
-async fn asked(client: &mut End, answers: &Answers) -> Result<(String, Vec<u8>), Refused> {
+async fn asked(client: &mut End, answers: &Answers) -> Result<(Upgrade, Vec<u8>), Refused> {
     let (head, rest) = read_head(client).await?;
     let visited = answers.cover.as_ref().filter(|_| !podssh_ws::server::asks_upgrade(&head));
     if let Some(dir) = visited {
@@ -71,8 +82,15 @@ async fn asked(client: &mut End, answers: &Answers) -> Result<(String, Vec<u8>),
         let line = if answers.quiet { String::new() } else { line };
         return Err(Refused { answer: Some(answer), line });
     }
-    match podssh_ws::server::check_upgrade(&head) {
-        Ok(key) => Ok((key, rest)),
+    // The raw form only where the user asked for it: else a request with no
+    // key keeps its refusal.
+    let checked = if answers.raw {
+        podssh_ws::server::check_upgrade_or_raw(&head)
+    } else {
+        podssh_ws::server::check_upgrade(&head).map(Upgrade::Frames)
+    };
+    match checked {
+        Ok(upgrade) => Ok((upgrade, rest)),
         Err(refused) => {
             let line = format!("{}: answered {}", refused.why, refused.status);
             Err(Refused { answer: Some(refused.answer()), line })
@@ -91,13 +109,31 @@ async fn refused_away(client: &mut End, refused: Refused, prefix: &str, err: &mu
     }
 }
 
-/// Answer the upgrade, then the client's end: a session of a server's frames.
-async fn answered(mut client: End, key: &str, pending: Vec<u8>) -> std::io::Result<End> {
-    client.write.write_all(&podssh_ws::server::switching(key)).await?;
+/// Answer the upgrade, then the client's end: a session of a server's frames,
+/// or the raw bytes of a client with no key.
+async fn answered(mut client: End, upgrade: Upgrade, pending: Vec<u8>) -> std::io::Result<End> {
+    let key = match upgrade {
+        Upgrade::Frames(key) => key,
+        Upgrade::Raw => return raw(client, pending).await,
+    };
+    client.write.write_all(&podssh_ws::server::switching(&key)).await?;
     client.write.flush().await?;
     let End { read, write, .. } = client;
     let session = podssh_ws::server::session(Joined { read, write }, pending, Some(podssh_ws::DEFAULT_IDLE_TIMEOUT));
     Ok(carry(session, SHOWN.to_string()))
+}
+
+/// The raw form (T-645): 101 with no accept, then the client's end as
+/// `tcp-listen:` gives it, the bytes that came after its request first. No
+/// frames, so no close code and no Ping, and no idle bound: the bytes are
+/// the client's own protocol's, and TCP alone finds a path that died.
+async fn raw(mut client: End, pending: Vec<u8>) -> std::io::Result<End> {
+    client.write.write_all(&podssh_ws::server::switching_raw()).await?;
+    client.write.flush().await?;
+    if !pending.is_empty() {
+        client.read = Box::new(std::io::Cursor::new(pending).chain(client.read));
+    }
+    Ok(client)
 }
 
 /// One client of `--keep-listening`: its upgrade, then its session with a
@@ -112,7 +148,7 @@ pub async fn client(
 ) {
     let prefix = format!("podssh pipe: client {n}");
     let mut err = std::io::stderr();
-    let (key, pending) = match asked(&mut client, &answers).await {
+    let (upgrade, pending) = match asked(&mut client, &answers).await {
         Ok(asked) => asked,
         Err(refused) => return refused_away(&mut client, refused, &prefix, &mut err).await,
     };
@@ -127,7 +163,7 @@ pub async fn client(
             return;
         }
     };
-    let ws = match answered(client, &key, pending).await {
+    let ws = match answered(client, upgrade, pending).await {
         Ok(ws) => ws,
         Err(e) => {
             abandon(other).await;
@@ -153,7 +189,7 @@ pub(super) async fn first(
     stop: &mut Interrupt,
 ) -> i32 {
     let quiet = serve.quiet;
-    let (mut client, key, pending) = loop {
+    let (mut client, upgrade, pending) = loop {
         let accepted = {
             let mut say = |line: &str| {
                 if !quiet {
@@ -177,7 +213,7 @@ pub(super) async fn first(
             signal = stop.next() => return signal,
         };
         match got {
-            Ok((key, pending)) => break (client, key, pending),
+            Ok((upgrade, pending)) => break (client, upgrade, pending),
             Err(refused) => refused_away(&mut client, refused, "podssh pipe", err).await,
         }
     };
@@ -194,7 +230,7 @@ pub(super) async fn first(
             return code;
         }
     };
-    let ws = match answered(client, &key, pending).await {
+    let ws = match answered(client, upgrade, pending).await {
         Ok(ws) => ws,
         Err(e) => {
             abandon(other).await;

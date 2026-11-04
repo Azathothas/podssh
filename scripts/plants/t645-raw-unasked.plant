@@ -1,0 +1,7 @@
+# T-645: ws-listen: takes the raw form of a request with no key whether or
+# not the user gave --raw-upgrade; the test of the keyless request with no
+# flag must fail.
+ENTRY=T-645
+GROUP=cli-tests
+EXPECT='test raw::a_keyless_upgrade_is_refused_without_raw_upgrade \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test pipe_ws -- raw::a_keyless_upgrade_is_refused_without_raw_upgrade'

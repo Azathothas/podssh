@@ -50,6 +50,9 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
     // A page of a directory for a visit to ws-listen: (T-639).
     row(None, "cover", Some("DIR"), FlagKind::Supported,
         "ws-listen: a GET or HEAD that asks for no upgrade gets a file of DIR, index.html for / and a directory, 1 MiB at most, else 404", None),
+    // An upgrade with no key, as WebTunnel's client sends it (T-645).
+    row(None, "raw-upgrade", None, FlagKind::Supported,
+        "ws-listen: an upgrade with no Sec-WebSocket-Key gets 101 with no accept, then raw bytes both ways: no frames, close code or idle bound", None),
     // The bound on the open of a node: or relay: side (T-589), whose id is
     // ssh's, so that each hop of ssh: takes it as its ConnectTimeout too.
     super::operator::PIPE_CONNECT_TIMEOUT,

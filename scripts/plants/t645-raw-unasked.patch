@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/pipe/ws_listen.rs
++++ b/crates/podssh-cli/src/pipe/ws_listen.rs
+@@ -84,7 +84,7 @@ async fn asked(client: &mut End, answers: &Answers) -> Result<(Upgrade, Vec<u8>)
+     }
+     // The raw form only where the user asked for it: else a request with no
+     // key keeps its refusal.
+-    let checked = if answers.raw {
++    let checked = if answers.raw || head.method == "GET" {
+         podssh_ws::server::check_upgrade_or_raw(&head)
+     } else {
+         podssh_ws::server::check_upgrade(&head).map(Upgrade::Frames)

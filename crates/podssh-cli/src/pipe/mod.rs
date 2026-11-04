@@ -57,6 +57,8 @@ pub struct PipeArgs {
     pub proxy_auth_file: Option<String>,
     /// `--cover DIR`: the pages of `ws-listen:` for a visit (T-639).
     pub cover: Option<String>,
+    /// `--raw-upgrade`: `ws-listen:` answers an upgrade with no key (T-645).
+    pub raw_upgrade: bool,
     /// `--timeout DURATION`, another name of `--ConnectTimeout` (T-613),
     /// unparsed.
     pub timeout: Option<String>,
@@ -92,8 +94,9 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         Ok(credentials) => credentials,
         Err(refusal) => return refusal.report("pipe", err),
     };
-    // --cover's DIR, checked before anything binds (T-639).
-    let ws = match ws_listen::answers([&a, &b], args.cover.as_deref(), args.ssh.quiet > 0) {
+    // --cover's DIR (T-639) and --raw-upgrade (T-645), checked before
+    // anything binds.
+    let ws = match ws_listen::answers([&a, &b], args.cover.as_deref(), args.raw_upgrade, args.ssh.quiet > 0) {
         Ok(ws) => std::rc::Rc::new(ws),
         Err(refusal) => return refusal.report("pipe", err),
     };

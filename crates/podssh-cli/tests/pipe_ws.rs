@@ -10,7 +10,8 @@
 //! server's text and binary frames come as bytes, and its close ends the
 //! pipe with its code and its reason. A check that needs websocat says that
 //! it did not run where there is none. The pages of `--cover` (T-639) are
-//! in `pipe_ws/cover.rs`.
+//! in `pipe_ws/cover.rs`, and the keyless upgrade of `--raw-upgrade`
+//! (T-645) in `pipe_ws/raw.rs`.
 
 mod update_support;
 
@@ -378,3 +379,5 @@ fn read_some(stream: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
 
 #[path = "pipe_ws/cover.rs"]
 mod cover;
+#[path = "pipe_ws/raw.rs"]
+mod raw;
