@@ -10,13 +10,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      resolve `static.crates.io` (its job is run again), and TruffleHog could not verify five test
      keys of russh on the branch `draft/worktree-agent-t460-ssh` and read them "unknown"
      (`.github/secrets-allow.txt` now lists each test key of that copy and of ssh-key's).
-  2. **`v1.1.0-beta.2`** goes out now (Q98) from the newest green commit of `main`: move
-     `beta/v1.1.0-beta.2` to it by a fast-forward (no force); run `release.yml` by hand on that
-     branch; run `scripts/release-short.sh BINARY --net` on its x86_64 binary; publish with
-     `release.yml` and `publish=v1.1.0-beta.2`; then `release-proofs.yml` and `update-live.yml`; then
-     mark each `unreleased` row of `docs/STATUS.md` up to that commit, and add the commit to the
-     list of releases in `scripts/check-repo.py`, as beta.1's record did (`15819f9`).
-     `v1.1.0-beta.3` follows at the end of the night with the night's work (Q98).
+  2. **`v1.1.0-beta.2` is published** (Q98), from `dbd0fac` at 18:48 UTC: its gate passed (run
+     41869313854, after one job that GitHub abandoned ran again), the release workflow by hand on
+     `beta/v1.1.0-beta.2` (run 41869341058), `scripts/release-short.sh BINARY --net` on a static
+     build of the same code, then the tag's run (41885270408); `release-proofs.yml` (run
+     41892109498) and `update-live.yml` (run 41892114409) passed. `docs/STATUS.md` marks its 80
+     rows. `v1.1.0-beta.3` follows at the end of the night with the night's work (Q98).
   3. **GitHub #126 to #148** (Nemo-010, 2026-11-04): #126 is repaired (T-628) and closed; #127 to
      #148 are T-629 to T-650, by a triage draft merged the same evening (Q100).
   4. **osewa** (Q99): two agents studied `rjyo/osewa`'s code and its paper
@@ -274,8 +273,8 @@ the live relay are repaired, and the entries of the audit, the study and the iss
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76), each done. Each other `backlog` entry is done, but for those on hold, those of the relay's
 operator and the parked ones.
 
-**First tonight (2026-11-04, Q98 to Q100):** `v1.1.0-beta.2` (GitHub #126, the testers' P1
-defect, is repaired); then the entries that the studies of osewa filed (Q99,
+**First tonight (2026-11-04, Q98 to Q100):** `v1.1.0-beta.2` is out (GitHub #126, the testers'
+P1 defect, is in it); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first; its iroh and DERP rows),
 T-662 (a copy through a shaped link; the SSH client's flow control and liveness in round trips are done), T-670, T-664, T-665,
 T-666, T-667, T-668 and T-669; then GitHub #127 to #148 (T-629 to T-650,
