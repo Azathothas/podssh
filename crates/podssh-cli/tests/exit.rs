@@ -165,6 +165,8 @@ fn the_commands_of_an_exit_are_refused_as_the_manual_says_with_no_connection() {
         (words(&["node", "lab", "--exit", "--no-e2e"]), 64, "--no-e2e turns off"),
         (words(&["node", "lab", "--exit", "--quick-tunnel", "--allow", "x"]), 64, "quick tunnel"),
         (words(&["node", "lab", "--exit", "--routes", "10.0.0.0/33"]), 64, "is not a range"),
+        // A prefix that sets bits past it is no wider range by silence (T-635).
+        (words(&["node", "lab", "--exit", "--routes", "10.0.0.5/8"]), 64, "the range is 10.0.0.0/8"),
         (words(&["exit", "lab"]), 64, "--listen ADDR:PORT"),
         (words(&["exit", "lab", "--listen", "0.0.0.0:1080"]), 64, "a loopback address alone"),
         (words(&["exit", "--listen", "1080"]), 64, "missing NAME"),

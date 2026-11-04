@@ -1,0 +1,14 @@
+diff --git a/crates/podssh-relay/src/serve/policy.rs b/crates/podssh-relay/src/serve/policy.rs
+index 11745cb..c1f8327 100644
+--- a/crates/podssh-relay/src/serve/policy.rs
++++ b/crates/podssh-relay/src/serve/policy.rs
+@@ -156,6 +156,9 @@ impl Policy {
+     /// could be steered to it.
+     pub fn unlisted(&self, wanted: &[SocketAddr]) -> Option<IpAddr> {
+         let listed = |ip: IpAddr| self.ranges.iter().any(|range| range.contains(ip));
++        if wanted.iter().any(|a| listed(a.ip())) {
++            return None;
++        }
+         wanted.iter().map(SocketAddr::ip).find(|&ip| !public(ip) && !listed(ip))
+     }
+ 

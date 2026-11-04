@@ -61,7 +61,13 @@ static PLAN: OnceLock<Plan> = OnceLock::new();
 pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     if !args.exit {
         return match args.routes {
-            Some(_) => Err(Refusal::usage("--routes names the private ranges of an exit: give --exit too")),
+            // The ranges of the relay role behind a quick tunnel (T-635),
+            // which its own check reads.
+            Some(_) if args.relay => Ok(()),
+            Some(_) => Err(Refusal::usage(
+                "--routes names the private ranges of an exit, or of the relay role of --quick-tunnel --relay: give \
+                 --exit too, or --relay",
+            )),
             None => Ok(()),
         };
     }
@@ -89,15 +95,11 @@ pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
 }
 
 /// The ranges of `--routes`: `ADDR/BITS` or one address, separated by
-/// commas, as a rule of the net's policy names a range.
+/// commas, as a rule of the net's policy names a range; a prefix that sets
+/// bits past it is refused with the network that it names (T-635), as the
+/// relay role's `--routes` refuses it.
 fn ranges(text: &str) -> Result<Vec<(String, Range)>, Refusal> {
-    let range = |word: &str| match Range::parse(word) {
-        Some(range) => Ok((word.to_string(), range)),
-        None => Err(Refusal::usage(format!(
-            "--routes {text}: {word:?} is not a range: ADDR/BITS or one address, separated by commas"
-        ))),
-    };
-    text.split(',').map(str::trim).map(range).collect()
+    podssh_relay::serve::ranges::list(text).map_err(|why| Refusal::usage(format!("--routes {text}: {why}")))
 }
 
 /// Whether this node is an exit (`--exit`).

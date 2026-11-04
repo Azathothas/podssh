@@ -4268,13 +4268,40 @@ address is what holds (the policy checks addresses already, `crates/podssh-relay
 a second word for the exit's idea. A prefix with host bits is refused, as `ip route` refuses one,
 also for the exit, whose silent widening is the same fault.
 
+2026-11-04 (the drafting agent of T-635), for what the draft met. No row of `docs/decisions.md` settles
+these, and none changes one.
+
+1. The flag stays `--routes RANGES`, one value of ranges separated by commas, as the exit's. Lost: a
+   flag given more than once (`--allow-target` of the issue, repeatable): the parser makes a flag
+   repeatable by its name for each verb that has it (`crates/podssh-cli/src/tree.rs`, `appended`), so
+   `node --exit --routes` and `net add --routes` would take it too, whose readers take one value; one
+   form for the three is plainer.
+2. A name is admitted by its addresses alone, each inside a range or public, as the triage decided: a
+   test of a name (`localhost`) passes where a range holds each of its addresses, and a name of one
+   address outside is refused whole.
+3. `podssh net add --routes`, which lists in the net's document the routes that an exit's own
+   `--routes` dials, refuses a prefix that sets bits past it too, as the exit does. A word of a
+   document signed before keeps its reading (`Range::parse`), so a rule or a route of an older document
+   reaches what it reached. Lost: a strict reading of each document (a document of before would lose a
+   route with no word); `net add` that takes what the exit refuses (an owner's list and an exit's flag
+   that never agree).
+4. The client reads a target outside each range in T-628's words, `HOST:PORT not in the ALLOW list:
+   this relay dials no address of it`, unchanged; the owner's line on stdout adds "nor in a range of
+   --routes" to its cause. The first line names the ranges as given: ", the private targets in RANGES
+   too".
+5. On a node, `--routes` with `--relay` is the role's and with `--exit` the exit's: the two never meet,
+   as `--exit` refuses `--quick-tunnel` and `--relay` needs it. With neither, the refusal names both.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib serve::policy
+cargo test -p podssh-relay --features serve --lib -- serve::policy serve::ranges
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_routes --test relay_serve_contract
+cargo test -p podssh-cli --lib -- relay_serve node_exit net::
 cargo test -p podssh-cli --test relay_serve
-cargo test -p podssh-cli --test node_routes
+cargo test -p podssh-cli --test exit --test exit_routes --test node_quick_relay
+sh scripts/plant-each.sh --here t635-any-address-of-a-name t635-any-private-with-a-range t635-routes-unread
 ```
 
 A range lets one private literal in and refuses the next; a name whose addresses a range holds is
@@ -4283,6 +4310,51 @@ the start of a role and of an exit; `--routes` with `--allow-private` exits 64; 
 listed loopback target is reached and another refused with "not in the ALLOW list". Planted: the check
 that takes any address of a name in place of each, and the test of a name with one address outside
 fails.
+
+## Correction
+
+2026-11-04 (the drafting agent of T-635). Read in this tree, after T-628: the Premise's lines of
+`crates/podssh-relay/src/serve/policy.rs` are of `2042200`; the refusal of an address that is not
+public is now `Refused::NotDialed`, whose words name no address (`this relay dials no address of it`),
+with the cause in the owner's line alone, and a target outside each range keeps those words. The
+Prove's `cargo test -p podssh-cli --test node_routes` is the test of a node's routes of T-089, not of
+an exit's `--routes`: an exit's refusal of `10.0.0.5/8` is in `--test exit`, and `net add`'s in `--test
+exit_routes` (Decision 3); the Prove names those. `Range` moved to
+`crates/podssh-relay/src/serve/ranges.rs`, and `crates/podssh-cli/src/net/policy_words.rs` names it
+from there, so each reader of the net is unchanged.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-635`), UNVERIFIED: no command below ran in the draft.
+
+- The ranges (`crates/podssh-relay/src/serve/ranges.rs`): `Range` moved from the net's words, with its
+  strict reading for a flag and the list of a flag; the policy's `ranges` and `Policy::unlisted`
+  (`crates/podssh-relay/src/serve/policy.rs`). `cargo test -p podssh-relay --features serve --lib --
+  serve::policy serve::ranges`: UNVERIFIED (one private literal in and the next refused in the words of
+  before; each address of a name checked, in either order; a name whose each address a range holds;
+  port 25 inside a range; an empty list is no list; no name to the proxy unchecked; `10.0.0.5/8` and
+  `fd00::1/8` refused with their networks; a document's word read as before).
+- Through the role, as raw clients of the contract: `cargo test -p podssh-relay --features
+  serve,plain-ws --test relay_serve_routes`: UNVERIFIED (a target of the range reached; `127.0.0.2` and
+  `10.255.255.1` refused with the body of a role with no range, and the owner's line with "nor in a
+  range of --routes"; port 25; `localhost` reached and traced through `127.0.0.0/8` and `::1`).
+  `--test relay_serve_contract`: UNVERIFIED (unchanged).
+- The flags: `podssh relay serve --routes RANGES`, `podssh node NAME --quick-tunnel --relay --routes
+  RANGES`, the exit's `--routes` and `net add --routes`, each strict, and the role's with
+  `--allow-private` refused (64). `cargo test -p podssh-cli --lib -- relay_serve node_exit net::`:
+  UNVERIFIED (the ranges of a role, an exit and the net's words, each as before but for `10.0.0.5/8`,
+  and a node's `--routes` with `--relay`). `cargo test
+  -p podssh-cli --test relay_serve`: UNVERIFIED (the refusals of usage, and a listed loopback target
+  reached through `podssh proxy` while `10.255.255.1` is refused, the first line naming the ranges).
+  `cargo test -p podssh-cli --test exit --test exit_routes --test node_quick_relay`: UNVERIFIED.
+  `cargo test -p podssh-cli --test man_page --test man_flag_parity --test flag_table` and `--lib
+  man::`: UNVERIFIED.
+- Planted, each of which must fail its test: any address of a name in place of each
+  (`scripts/plants/t635-any-address-of-a-name.plant`), each private address with any range
+  (`scripts/plants/t635-any-private-with-a-range.plant`), and the role's ranges read and not given to
+  its policy (`scripts/plants/t635-routes-unread.plant`): UNVERIFIED.
+- The manual (`podssh man relay`, `podssh man node`), `docs/relay.md` ("podssh's own relay", "Limits
+  that users see", the role behind a quick tunnel and its way out) and `docs/cli.md` name the ranges.
 
 # T-636: The relay role counts no bytes for each key across its sessions, and keeps no count across a restart
 

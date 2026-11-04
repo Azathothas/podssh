@@ -76,7 +76,8 @@ pub struct NodeArgs {
     pub resume_deadline: Option<String>,
     /// `--exit`: lend this host's egress to the net's members (T-431).
     pub exit: bool,
-    /// `--routes RANGES`: the private ranges that the exit dials too, unparsed.
+    /// `--routes RANGES`: the private ranges that the exit, or the relay role
+    /// of `--relay` (T-635), dials too, unparsed.
     pub routes: Option<String>,
     /// `--carrier ADDR`: the node's one road, a stream that exists already
     /// (T-595), unparsed.
