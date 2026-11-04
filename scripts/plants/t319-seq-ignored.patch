@@ -1,0 +1,15 @@
+--- a/crates/podssh-relay/src/serve/http_road/sessions.rs
++++ b/crates/podssh-relay/src/serve/http_road/sessions.rs
+@@ -262,10 +262,8 @@
+                 if st.ended.is_some() {
+                     return Some(Stored::Ended);
+                 }
+-                if seq < st.next_up {
+-                    return Some(Stored::Taken);
+-                }
+-                if seq > st.next_up || st.fin {
++                // Planted: the batch's number is not read.
++                if st.fin {
+                     return Some(Stored::Conflict(st.next_up));
+                 }
+                 if st.queue.len() >= WINDOW {

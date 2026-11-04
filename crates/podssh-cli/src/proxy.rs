@@ -435,6 +435,11 @@ async fn session(
             for line in failure.lines(target) {
                 let _ = writeln!(err, "podssh: {line}");
             }
+            // The HTTP road at a host whose upgrade the way refused (T-319).
+            let to = (host, port);
+            if let Some(code) = crate::http_road::after_relay_pipe(&failure, road.relays, road.trust, to, err).await {
+                return code;
+            }
             // Each relay host failed: the forwarders that the binary names,
             // where the relay was podssh's choice (T-370) and no relay host
             // answered about the target (T-509).

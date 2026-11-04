@@ -1,9 +1,10 @@
 //! The variables of the roads that are read apart from `facts.rs`, for the
 //! length of that file: the DERP road (T-349, T-379), the Piping Server road
-//! (T-437), the direct road after the relay hosts (T-363), the forwarders of
-//! other products (T-369), Wisp's among them (T-438), and their fallback
-//! (T-370), the forward proxy over TLS of --via (T-439), the wstunnel
-//! server of --wstunnel (T-441), and the OpenTunnel road (T-531).
+//! (T-437), the direct road after the relay hosts (T-363), the HTTP road
+//! after them (T-319), the forwarders of other products (T-369), Wisp's
+//! among them (T-438), and their fallback (T-370), the forward proxy over TLS
+//! of --via (T-439), the wstunnel server of --wstunnel (T-441), and the
+//! OpenTunnel road (T-531).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -80,6 +81,14 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           -4 or -6 when one is given, also after a relay that closed a session to an IPv6 target before any \
           byte, through HTTPS_PROXY when one is set, and the server's version line must come within 10 s. The \
           settings file's Direct says the same, below the variable; another word is a configuration error (78).",
+    ),
+    (
+        &["PODSSH_HTTP_ROAD"],
+        "The HTTP road (see THE RELAY), which the operator's ruling Q44 allows: when each relay host failed and the \
+          way to one of them refused the WebSocket upgrade, podssh ssh, each command that reaches a server as it \
+          does, and podssh proxy carry the session over plain HTTPS requests to that host, which podssh relay serve \
+          serves. Unset, empty, auto or yes: the split form, then the serial form; split or serial: that form alone; \
+          no: no such road. Another word is a configuration error (78), which does not echo the value.",
     ),
     (
         &["PODSSH_FORWARDER"],

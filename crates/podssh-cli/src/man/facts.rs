@@ -479,6 +479,7 @@ fn relay() -> Vec<Block> {
         ),
     ]
     .into_iter()
+    .chain(http_road::blocks())
     // The iroh road's relays and its record, in a build that has it.
     .chain(iroh_road::blocks())
     .collect()
@@ -486,6 +487,7 @@ fn relay() -> Vec<Block> {
 
 mod cloud;
 mod exit;
+mod http_road;
 mod iroh_road;
 mod net;
 mod roads;

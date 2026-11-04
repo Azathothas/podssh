@@ -172,6 +172,21 @@ If a host fails with an error that another host can repair, `podssh-relay`
 tries the next host. During the session, a ping every 10 s finds a silent
 relay in 30 to 40 s. See [relay.md](relay.md).
 
+**The HTTP road** (T-319). When each relay host failed and the way to one
+of them refused the upgrade, `podssh-relay` (`crates/podssh-relay/src/http_road/`)
+carries the session to that host over plain requests of HTTP/1.1, on the
+same TCP, proxy and TLS, which podssh's relay role serves:
+
+```
+pump <-> pipe in memory <-> POST /v1/http/s/ID/up?seq=N, one batch each  <-> relay role <-> HOST:PORT
+                        <-> GET /v1/http/s/ID/down?at=OFFSET, streamed    <-'
+```
+
+The split form keeps the two on two connections (Q44); the serial form, its
+fallback, sends one POST after another on one, each answered with the bytes
+down. Each request goes again until an answer comes: a batch's number and an
+offset make it one that may come twice.
+
 **Reverse mode** (`podssh node`, `podssh operator`; milestone M4) uses the
 same relay session with the framing of the reverse legs: the node
 multiplexes sessions by a 32-character id, and the operator leg carries bare
@@ -223,7 +238,9 @@ These rules apply to each change. The reasons are in
    probe that made and closed one. The near end of a flow binds nothing.
    `podssh update` (T-375), which the user runs, opens one connection after
    another to GitHub, each through the proxy: the list of the releases,
-   then each file of one, and the host that a file's redirect names.
+   then each file of one, and the host that a file's redirect names. The
+   split form of the HTTP road (T-319, Q44) keeps two connections to one
+   relay host, once the way refused the upgrade there.
 4. **No C in the library crates.** `podssh-ws`, `podssh-relay`,
    `podssh-core`, `podssh-terminal` and `podssh-probe` use rustls with
    podssh's own provider and RustCrypto crates. The gate

@@ -11,6 +11,9 @@
 //!   kept in the cache for a run whose resolver fails (T-344);
 //! - [`mod@open`]: a forward session, failing over from host to host with backoff,
 //!   one bounded attempt per host;
+//! - [`http_road`]: the HTTP road (T-319), a forward session over plain
+//!   requests of HTTP/1.1 where a proxy refuses the WebSocket upgrade, in its
+//!   split form and its serial form, whose server is the relay role's;
 //! - [`keyed`]: a mint or a pair that the relay asks this client's key to
 //!   sign (T-448);
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
@@ -60,6 +63,7 @@ pub mod failures;
 #[cfg(feature = "grant")]
 pub mod grant;
 pub mod health;
+pub mod http_road;
 pub mod identity;
 pub mod keyed;
 pub mod open;

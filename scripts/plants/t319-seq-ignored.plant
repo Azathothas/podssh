@@ -1,0 +1,8 @@
+# T-319: the relay role's HTTP road reads no batch's number, so a batch that
+# the client sends again, after the stand-in proxy lost the answer to it, is
+# written to the target twice; the echo then holds bytes twice, and the
+# digests differ.
+ENTRY=T-319
+GROUP=resume
+EXPECT='each byte came back once'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test http_road -- each_byte_comes_once'

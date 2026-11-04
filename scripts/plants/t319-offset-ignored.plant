@@ -1,0 +1,7 @@
+# T-319: the relay role's HTTP road gives the bytes down from the first that
+# no request acknowledged, not from the offset that it was asked: the second
+# chunk of an answer repeats the first, and the digests differ.
+ENTRY=T-319
+GROUP=resume
+EXPECT='each byte came back once'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test http_road -- the_split_form_carries_20_mib_each_way_straight_to_the_role'

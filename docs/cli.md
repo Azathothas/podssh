@@ -426,6 +426,28 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   with IPv6 egress (`-J node://NAME`), or `warp://[ADDR]`, which podssh
   never tries unasked. With a relay named, or `PODSSH_DIRECT=no`, the run
   ends with that note, as before.
+- **The HTTP road after the relay hosts** (T-319, the operator's ruling
+  Q44; [relay.md](relay.md), "The relay role's HTTP road"). When no relay
+  host opened a session and the way to one of them refused the WebSocket
+  upgrade (a page of the proxy's, or a `426` of a relay that got the request
+  with its `Upgrade` taken off, as the probe of the Piping Server road tells
+  the way's refusal from the relay's own word), `ssh`, each command that
+  reaches its server as `ssh` does, and `proxy` carry the session to that
+  host over plain HTTPS requests of HTTP/1.1, which `podssh relay serve`
+  serves: the same token (minted once more when the role no longer takes a
+  cached one), the target's checks and the limits of the WebSocket road. The
+  split form comes first: the bytes up in numbered batches, one POST after
+  another, and the bytes down from their offset on a second connection; when
+  that connection gives no answer within 20 s, the serial form on the first
+  connection, one POST after another, each answered with the bytes down.
+  Each request goes again until an answer comes, so a proxy that loses an
+  answer, or cuts one, loses no byte and doubles none. One line names the
+  host and the road before it; `-v` names the form. It comes before the
+  direct road and the forwarders, which a proxy that refuses the upgrade
+  refuses too, or which send the target to another; when it fails, its line
+  says why, and they follow. A relay with no such road (the default relay's
+  deployment) is named as one. `PODSSH_HTTP_ROAD=no` turns it off, `split` or
+  `serial` names one form, and another word is refused (78).
 - **`--forwarder TEMPLATES` reaches the first hop through other products'
   WebSocket forwarders, in place of the relay** (T-369, GitHub #60). A
   forwarder dials the host and the port that a client names and carries the

@@ -61,7 +61,9 @@ pub async fn behind_node<F: Future>(served: F) -> F::Output {
     BEHIND_NODE.scope(true, served).await
 }
 
-fn is_behind_node() -> bool {
+/// Whether the request served now came through a quick tunnel's node; the
+/// HTTP road (T-319) reads it too.
+pub(super) fn is_behind_node() -> bool {
     BEHIND_NODE.try_with(|behind| *behind).unwrap_or(false)
 }
 

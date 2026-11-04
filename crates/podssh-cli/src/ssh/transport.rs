@@ -220,6 +220,16 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     if matches!(failure.last(), OpenError::Offline) {
                         return Err(not);
                     }
+                    // The HTTP road at a host whose upgrade the way refused (T-319).
+                    let at = (first.host.as_str(), first.port);
+                    match crate::http_road::after_relay(&failure, relays, trust, at, *family, log).await {
+                        Ok(Some(opened)) => {
+                            let stream = Box::new(opened.stream);
+                            return Ok(Reached { stream, relay: None, direct_proxy: None, layer: None });
+                        }
+                        Ok(None) => {}
+                        Err(why) => return Err(NotReached { lines: vec![why], code: sysexits::EX_CONFIG }),
+                    }
                     // The direct road first (T-363): it sends the target to no
                     // one else; then the forwarders that the binary names, where
                     // the relay was podssh's choice (T-370), another product's,
