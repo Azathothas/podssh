@@ -155,6 +155,8 @@ pub mod proxy;
 // `podssh proxy node://NAME`: the pipe of `podssh operator NAME` (T-587).
 pub mod proxy_node;
 pub mod refuse;
+// `podssh relay pair --code` and `podssh relay join`: pairing by a short code (T-086).
+mod relay_code;
 pub mod relay_cmd;
 pub mod relay_diag;
 mod relay_diag_text;

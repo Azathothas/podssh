@@ -271,7 +271,9 @@ its client; this deployment serves them once its contract has them.
     for 10 minutes. The mailbox limits the attempts, and one failed
     exchange ends the code. podssh keeps the file as the fallback.
     In podssh: T-086 pairs by a short code over a public magic-wormhole
-    mailbox (Q65), and podssh's own relay role (T-427) may serve one.
+    mailbox (Q65), and podssh's own relay role serves one at `/v1/mailbox`
+    for podssh's application alone ([relay.md](relay.md), "The relay role's
+    mailbox").
 
 ## The Tailscale relay
 

@@ -37,10 +37,11 @@ pub fn monotonic() -> Clock {
     Arc::new(move || u64::try_from(origin.elapsed().as_millis()).unwrap_or(u64::MAX))
 }
 
-/// Whether a request of `method` to `path` is braked: each mint, and each
-/// request to `/v1/pair`, as each is an attempt.
+/// Whether a request of `method` to `path` is braked: each mint, each
+/// request to `/v1/pair`, and each connection to the mailbox of the pairing
+/// by code (T-086), as each is an attempt.
 pub fn braked(method: &str, path: &str) -> bool {
-    (method == "POST" && path == "/v1/mint") || path == "/v1/pair"
+    (method == "POST" && path == "/v1/mint") || path == "/v1/pair" || path == super::mailbox::PATH
 }
 
 /// The visitor that Cloudflare's edge names in [`EDGE_VISITOR`], one address

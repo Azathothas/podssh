@@ -9,7 +9,8 @@
 //! `behind`). Its targets are dialed through the host's proxy when one is
 //! set ([`egress`], T-457), and an IPv6 target that its host cannot route
 //! out is refused before the upgrade ([`ipv6`], T-253). Its probes tell a
-//! client what the path does to a stream ([`probe`], T-325).
+//! client what the path does to a stream ([`probe`], T-325). Its mailbox is
+//! a meeting point of the pairing by a short code ([`mailbox`], T-086).
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -19,6 +20,7 @@ pub mod egress;
 pub mod forward;
 pub mod ipv6;
 pub mod keys;
+pub mod mailbox;
 pub mod policy;
 pub mod probe;
 pub mod reverse;
@@ -201,6 +203,8 @@ where
         ("GET", "/llms-full.txt") => answer(&mut stream, docs::text(docs::SPEC)).await,
         // What a path does to a stream, for `podssh doctor --stream` (T-325).
         (_, p) if probe::serves(p) => probe::request(stream, head, pending).await,
+        // The meeting point of the pairing by a short code (T-086).
+        (_, p) if mailbox::serves(p) => mailbox::request(stream, head, pending, cfg).await,
         (_, p) if reverse::serves(p) => reverse::request(stream, head, pending, cfg, sni).await,
         (_, p) => answer(&mut stream, request::refusal(404, &format!("{p}: not found"), &[])).await,
     }

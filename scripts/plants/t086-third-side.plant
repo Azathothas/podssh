@@ -1,0 +1,7 @@
+# T-086: the relay role's mailbox takes three sides of a nameplate, so a
+# third end of a code that two ends hold gets into their mailbox, where it
+# must be refused (crowded); the test of a third end must fail at the role.
+ENTRY=T-086
+GROUP=resume
+EXPECT='test a_third_end_is_refused_while_two_hold_the_code \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair,code,serve --test pair_code -- a_third_end_is_refused_while_two_hold_the_code'

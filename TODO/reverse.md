@@ -1104,6 +1104,61 @@ public mailbox of another project, reached through the forward road, lost for no
 depend on a service that it does not run for each pairing. Keep it as the fallback if the relay's
 operator declines.
 
+Decided in the work (2026-11-03, the draft; the Correction below made the public mailboxes the meeting
+point):
+- The code: the mailbox's nameplate, then three words of the PGP list, odd and even in turn, as
+  magic-wormhole's own `choose_words` gives them: 24 bits, against one online guess for each code
+  (`SECURITY.md`, "A code of the pairing"). Lost: magic-wormhole's default of two words (16 bits, one
+  in 65,536 for a guess that wins a connect token and a line of `--allow`); four words or more (32
+  bits and up, harder to read aloud, for an attacker who gets one try anyway); digits alone (a
+  person mishears them, and nothing tells a dropped one, where the two lists do).
+- Its life: 10 minutes at the giver, then it releases the nameplate and closes `lonely`; a taker
+  waits 20 s for the giver's `pake`, which the mailbox keeps, and 60 s for each later step. Lost: a
+  life as long as the pair (a code on a sticky note would be a credential for 72 h).
+- Its attempts: one. The giver leaves after the first exchange, whatever its end; a `version` that
+  does not open ends the code at both ends (`scary`); the mailbox takes two sides of a nameplate,
+  a third gets `crowded`; and podssh's relay role brakes each connection to its mailbox as a
+  request of `/v1/pair`. Lost: a giver that waits on for the right taker after a wrong one (each
+  wrong code would be another guess), and a count of failures at the giver (the mailbox's two
+  sides already end the code).
+- How a taker finds its giver: each mailbox in order, by its `list`; one that lists others has no
+  giver of the code, and claiming there would spend a stranger's code, so it is passed; one that
+  lists none (a server of `--disallow-list`) is claimed, and the giver's `pake` comes at once or not
+  at all. Lost: a mark of the mailbox in the code (a word more to read aloud), and claiming at each
+  mailbox in turn (a stranger's code spent at a mailbox that the giver could not reach).
+- The crates: `spake2` 0.4 (RustCrypto's PAKEs, the one that magic-wormhole's Rust port uses, which
+  interoperates with python-spake2), on the curve25519-dalek 4, hkdf 0.12 and sha2 0.10 that
+  crypto_box and snow keep in the lock, its `getrandom` off and its scalar from podssh's own source
+  through rand_core 0.6; and `crypto_secretbox` 0.1, which crypto_box builds. Each is pure Rust, and
+  the gate builds them under `CC=/nonexistent` (UNVERIFIED, the draft). Lost: `spake2` 0.5.0-pre.0,
+  on the workspace's newer curve, a prerelease whose API may move; the `magic-wormhole` crate, whose
+  EUPL-1.2 and size podssh does not need for a few messages (docs/carriers.md, [N14]).
+- A proof of work that a mailbox asks (`permission-required` with no `none`): not made; that
+  mailbox is passed for the next. Lost for now: hashcash, which no mailbox that podssh uses asks.
+- What moves: the giver's label, the node's key and the operator's part; the taker's key back; the
+  giver's last word of what it did with that key. The taker pins the key under its own label before
+  any session, and keeps the part as `operator-NAME.json`, which each client of a pair reads where no
+  whole pair is stored under NAME. The giver adds the key's line to the allowlist that
+  `--allow FILE` names, which the node reads again for each session; with none, it says that the
+  connect token is the door. Lost: the node's roads (iroh and DERP tickets, a quick tunnel's name): a `relay pair`
+  holds none, as only a running node knows them, and an operator's host keeps no tickets by label;
+  a member of the net gets them from the net's document (T-429). Lost: a grant of T-226 in place of
+  `--allow` (a grant lets in one session; `podssh node NAME --grant-to KEY` mints one once the key is
+  known), and the routes of an allowlist line (the user adds `routes=` to the line that the code
+  wrote). The net's own join by this code, the Correction's `podssh net invite`, is no command of
+  T-429: it is the net's work on this exchange, for an entry of its own.
+- The commands: `podssh relay pair NAME --code` (the stored pair while it has 10 minutes left, else
+  the next one, made as `pair NAME` makes it) and `podssh relay join NAME`, beside the pair's other
+  verbs. Lost: a flag of `podssh node` (its file is at its 500 lines, and the code would wait on a
+  node that runs), and a verb of its own (the pair's verbs are under `relay`).
+- The code's terminal: stderr when it is a terminal, else the process's terminal (`/dev/tty`,
+  `CONOUT$`), else a refusal (64) before a pair is made; the taker reads a prompt on a terminal, or
+  one line of a pipe for a script, never argv. Lost: stdout (a script's capture is a log).
+- The role's mailbox: at `/v1/mailbox`, for podssh's AppID alone, in memory, one table for each role
+  (a field of its pairs, so that no caller of the role changes). Lost: a table for the process (two
+  roles of one process, as the tests run them, would share nameplates), and a mailbox of each AppID
+  (the role would be a public mailbox of other programs).
+
 ## Prove
 
 ```sh
@@ -1178,6 +1233,51 @@ a second use fails; a code older than 10 minutes fails; the code is in no output
 second use accepted; the single-use test fails. Live, a short run from a GitHub runner and from a
 session's own host (Q65): a node and an operator pair through `wss://relay.magic-wormhole.io/v1`,
 then `podssh operator` reaches the node.
+
+2026-11-03 (the drafting agent). The Premise holds at its lines
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:130-136`, and `:137-138` says "Accept
+a connect token only"). The Prove gains the feature `serve`, as its tests run against podssh's relay
+role's mailbox beside magic-wormhole's server (the gate has no Python), and the commands' tests; the
+Prove that ran is in `## Done`.
+
+## Done
+
+UNVERIFIED (2026-11-03, the draft, unbuilt): commit UNVERIFIED.
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features code --lib code::
+cargo test -p podssh-relay --features serve --lib serve::mailbox
+cargo test -p podssh-relay --features pair,code --lib pair::part
+cargo test -p podssh-relay --features pair,code,serve --test pair_code
+cargo test -p podssh-relay --features pair,code --test pair_code_live -- --ignored
+cargo test -p podssh-cli --lib relay_code
+cargo test -p podssh-cli --test relay_code --test relay_code_role
+sh scripts/plant-each.sh --here t086-third-side t086-code-said t086-version-unchecked
+```
+
+- `--lib code::`: UNVERIFIED (the word lists of magic-wormhole's `_wordlist.py`; the phase keys of
+  HKDF-SHA256 equal to Python's `hmac` and `hashlib`; SecretBox; SPAKE2 of one code agreeing and of
+  two not; a scalar whose draw failed never used).
+- `--lib serve::mailbox` and `pair::part`: UNVERIFIED.
+- `--test pair_code`, against podssh's relay role, and against magic-wormhole-mailbox-server and a
+  peer of magic-wormhole's Python library (`PODSSH_MAILBOX_TEST_SERVER=required`, `pair-code.yml`):
+  UNVERIFIED (two podssh ends of one code agree and move each part; a wrong code fails both and
+  spends the code; a second use and a code past its life find nobody; a third end is refused while
+  two hold the code; no line and no `Debug` holds the code; the Python peer takes podssh's code,
+  gives one that podssh takes, and a wrong code fails both).
+- The plants: `t086-third-side` (the role takes a third side), `t086-code-said` (the giver says its
+  code in a line) and `t086-version-unchecked` (a `version` that does not open is taken): UNVERIFIED,
+  each must fail its test.
+- `podssh-cli`: UNVERIFIED (each flag where it means nothing, 64; no terminal, 64 before a pair; the
+  code read from a pipe and never said; `no`, 78; a whole pair under NAME, 78; a part kept under NAME
+  found by `relay status` and `operator`; through `podssh relay serve` on a pty, a code given, taken,
+  the node's key pinned, the operator's key in `--allow`, and the status asked by the label).
+- Live, a short run (Q65): `--test pair_code_live -- --ignored` through
+  `wss://relay.magic-wormhole.io/v1` and Least Authority's mailbox: UNVERIFIED. Then, from end to
+  end on the live relay: `podssh relay pair lab --code` on one host, `podssh relay join lab` on
+  another, then `podssh operator lab` through `podssh node lab TARGET`: UNVERIFIED.
+- Waits: nothing of the operator's; the release's checks (Q88).
 
 # T-087: Node identity and access: a node key, an allowlist, an expected fingerprint, revocation
 

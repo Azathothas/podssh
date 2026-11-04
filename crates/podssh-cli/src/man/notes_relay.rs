@@ -1,6 +1,7 @@
 //! The notes of `podssh relay`: the pairs (T-083), the document (T-060),
 //! the relay's own state (T-058) and the relay role (T-169, T-427), with its
-//! certificate (T-447), apart from the others so that each file stays short.
+//! certificate (T-447), and the pairing by a short code (T-086), apart from
+//! the others so that each file stays short.
 
 pub const RELAY: &[&str] = &[
     "podssh relay pair NAME makes a pair on the relay and keeps it under the label NAME, in a private \
@@ -34,6 +35,32 @@ pub const RELAY: &[&str] = &[
      status to its connect token. NAME is then only the label shown (else FILE). With --json, the pair's \
      state is one object: schema (1), podssh, label, online, sessions, expires (RFC 3339) and \
      seconds_left, for a check.",
+    "podssh relay pair NAME --code gives the operator's part by a short code in place of a file (T-086): the \
+     pair stored under NAME while it has 10 minutes left, else the next pair, made first, and the node's key \
+     (node-NAME.key, made when it is missing). The code, such as 7-crossover-clockwork-adroitness, shows on \
+     this run's terminal alone: on stderr when it is a terminal, else on the process's terminal, and with \
+     neither it is refused (64) before anything is asked. It is never on stdout, in a log or in argv. Read \
+     it to the operator, who runs podssh relay join NAME and types it: the two ends meet at a mailbox, run \
+     SPAKE2 keyed by the whole code over it, and seal each later message with the key that it gave, so \
+     the mailbox learns nothing of the code and changes nothing. The code lives 10 minutes and is used \
+     once: the first exchange spends it, whatever its end, so a wrong code, or a guess, gets one try of its \
+     24 bits. The operator's key comes back: --allow FILE adds its line to the node's allowlist, which \
+     podssh node NAME --allow FILE reads again for each session; with none, the pair's connect token is \
+     the node's door, and the key is said. stdout has one line, the label, the operator's fingerprint and \
+     the pair's expiry; nobody within 10 minutes is 69, a wrong code 77.",
+    "podssh relay join NAME takes the code at a prompt on the terminal, or as one line of stdin from a \
+     pipe, never from argv. It finds the node's host at the first mailbox that lists the code's number, \
+     checks the pair that comes as a pair of the relay is checked, pins the node's key under NAME in \
+     known-nodes (a key that differs from the pin is refused, 77, and nothing is kept), gives this \
+     operator's key (client.key, or --client-key FILE), and keeps the operator's part under NAME \
+     (operator-NAME.json, see FILES), where podssh operator NAME, podssh ssh node://NAME and podssh \
+     relay status NAME find it, as they find a pair. stdout has one line, the label, the node's label \
+     and fingerprint and the expiry. A code that nobody holds (it expired, it was used, or it was typed \
+     wrong at its number) and a wrong code are 77; no mailbox reached is 69. The mailboxes: \
+     magic-wormhole's public one, wss://relay.magic-wormhole.io/v1, then Least Authority's, \
+     wss://mailbox.mw.leastauthority.com/v1, which the operator's ruling Q65 lets podssh use unasked; \
+     --pair-mailbox URLS or PODSSH_PAIR_MAILBOX names others, such as podssh relay serve's, and no turns \
+     the pairing by code off. Both ends name the same ones.",
     "podssh relay spec reads the relay's /health and its published document, /llms-full.txt, and checks \
      the document against the facts that podssh was built with (see RELAY FACTS). It prints ok, with the \
      document's lines, its digest and the version that the relay serves, or a FAIL line for each fact \
@@ -177,6 +204,13 @@ pub const RELAY: &[&str] = &[
      after 5 minutes, then twice as long each time up to 6 hours, and the certificate of before stays. \
      When no certificate is kept and the first order fails, the role stops with the CA's reason (69). \
      SIGHUP reads the file kept again.",
+    "podssh relay serve is a mailbox of the pairing by code too, at /v1/mailbox (T-086): magic-wormhole's \
+     mailbox protocol for podssh's application alone, so that the two ends of podssh relay pair --code and \
+     podssh relay join meet at your own relay with --pair-mailbox wss://HOST/v1/mailbox, and a client of \
+     magic-wormhole's own library with podssh's application id meets them there. It keeps its nameplates \
+     and mailboxes in memory, two sides each (a third gets crowded), 32 messages of 8 KiB at most each, \
+     and each for 20 minutes at most; it learns no code. Each connection to it is braked as a request of \
+     /v1/pair is.",
     "The relay brakes /v1/mint and /v1/pair for each address, as the default relay does: 120 requests \
      of one address within a minute, the two together, and then 429 with Retry-After, the seconds \
      until the oldest of them is a minute old, which podssh says. The address is the connection's own, \

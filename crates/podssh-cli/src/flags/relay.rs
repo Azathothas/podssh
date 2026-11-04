@@ -17,6 +17,15 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "pair: write the operator's part of the pair to FILE, a new file that only its owner can read", None),
     // A connect token of one upgrade, on podssh's relay role (T-226).
     super::grant::RELAY_ONCE,
+    // Pairing by a short code, in place of the operator's file (T-086).
+    row(None, "code", None, FlagKind::Supported,
+        "pair: give the operator's part by a short code, in place of --operator-file: the pair stored under NAME while it has 10 minutes left, else a new one, and the node's key; the code shows on this terminal alone, lives 10 minutes and is used once; the operator types it at podssh relay join NAME", None),
+    row(None, "pair-mailbox", Some("URLS"), FlagKind::Supported,
+        "pair --code and join: where the two ends meet, wss://HOST[:PORT]/PATH or ws://, by commas, in order, such as podssh relay serve's wss://HOST/v1/mailbox (default: env PODSSH_PAIR_MAILBOX, else magic-wormhole's public mailbox, then Least Authority's); no turns pairing by code off", None),
+    row(None, "allow", Some("FILE"), FlagKind::Supported,
+        "pair --code: add the operator's key to FILE, the allowlist of podssh node NAME --allow FILE, which the node reads again for each session", None),
+    row(None, "client-key", Some("FILE"), FlagKind::Supported,
+        "join: this operator's key file, whose key goes to the node's host (default: client.key in the cache)", None),
     // The stored pair renewed, on podssh's relay role (T-592).
     row(None, "renew", None, FlagKind::Supported,
         "pair: renew the pair stored under NAME at its relay, 72 h from now, its tokens the same, so that each operator's file holds; podssh relay serve renews, and a relay that renews none is said so (69), with the next pair in the last 24 h as the way", None),

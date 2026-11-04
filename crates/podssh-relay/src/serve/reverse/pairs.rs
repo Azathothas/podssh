@@ -205,6 +205,9 @@ pub struct Pairs {
     pub live: Arc<Writers>,
     /// A planned stop closes each socket: none joins meanwhile (T-255).
     stopping: AtomicBool,
+    /// The role's mailbox of the pairing by code, whose codes give a pair's
+    /// operator's part (T-086): one table for each role.
+    pub mailbox: crate::serve::mailbox::table::Table,
 }
 
 impl Pairs {
