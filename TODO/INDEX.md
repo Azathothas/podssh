@@ -702,3 +702,4 @@ repository and CI).
 | [T-669](ssh.md) | P3 | S | M10 | measurement | open | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |
 | [T-670](ssh.md) | P3 | M | M10 | feature | open | The download's rate while a key waits on a slow path: win back what T-661 gives up |
 | [T-671](relay.md) | P2 | S | M10 | defect | open | The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them |
+| [T-672](ssh.md) | P3 | S | M10 | defect | open | The rate's best on a lossy link: a burst after a loss's stall read as the path's rate |

@@ -2,7 +2,9 @@
 //! message (podssh's patch): a smaller target withholds the adjusts at once,
 //! a larger one is granted at the next message, each channel keeps its own,
 //! and a handler that gives none keeps the configured window, as before.
-//! russh 0.65.0 adjusted each channel to the configured window alone.
+//! russh 0.65.0 adjusted each channel to the configured window alone. And
+//! the room left under which a window goes back to its target, which the
+//! handler gives too (a later patch): russh's own is half the target.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)] // as in the test suite
 
 use std::collections::HashMap;
@@ -17,11 +19,12 @@ use crate::{ChannelId, msg};
 
 const KIB: u32 = 1024;
 
-/// A handler that gives a target for some channels, and counts the adjusts
-/// that `adjust_window` hears.
+/// A handler that gives a target for some channels, a room for some, and
+/// counts the adjusts that `adjust_window` hears.
 #[derive(Default)]
 struct Targets {
     of: HashMap<ChannelId, u32>,
+    low: HashMap<ChannelId, u32>,
     heard: u32,
 }
 
@@ -34,6 +37,10 @@ impl Handler for Targets {
 
     fn window_target(&mut self, channel: ChannelId, window: u32) -> u32 {
         self.of.get(&channel).copied().unwrap_or(window)
+    }
+
+    fn window_low(&mut self, channel: ChannelId, target: u32) -> u32 {
+        self.low.get(&channel).copied().unwrap_or(target / 2)
     }
 
     fn adjust_window(&mut self, _channel: ChannelId, window: u32) -> u32 {
@@ -168,4 +175,77 @@ async fn a_handler_that_gives_no_target_keeps_the_configured_window() {
     handler.of.insert(id, 0);
     session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
     assert_eq!(adjusts(&mut session), vec![(40 + id.0, 2048 * KIB - 56 * KIB)]);
+}
+
+/// The handler's room: with a quarter of a target of 64 KiB used, the window
+/// goes back to the target once less than 48 KiB is left; with russh's own,
+/// half, once less than 32 KiB is.
+#[tokio::test]
+async fn a_handlers_room_adjusts_the_window_once_it_is_under_it() {
+    let (mut session, quarter, _ends) = with_channel(64 * KIB);
+    let half = open(&mut session, 64 * KIB);
+    let mut handler = Targets::default();
+    handler.of.insert(quarter, 64 * KIB);
+    handler.of.insert(half, 64 * KIB);
+    handler.low.insert(quarter, 48 * KIB);
+    for _ in 0..2 {
+        session.process_packet(&mut handler, &data(quarter, 8 * KIB)).await.unwrap();
+    }
+    assert_eq!(adjusts(&mut session), vec![], "48 KiB left is not under 48 KiB");
+    session.process_packet(&mut handler, &data(quarter, 8 * KIB)).await.unwrap();
+    assert_eq!(adjusts(&mut session), vec![(40 + quarter.0, 24 * KIB)]);
+    for _ in 0..4 {
+        session.process_packet(&mut handler, &data(half, 8 * KIB)).await.unwrap();
+    }
+    assert_eq!(adjusts(&mut session), vec![], "32 KiB left is not under half of 64");
+    session.process_packet(&mut handler, &data(half, 8 * KIB)).await.unwrap();
+    assert_eq!(adjusts(&mut session), vec![(40 + half.0, 40 * KIB)]);
+    assert_eq!(handler.heard, 2, "adjust_window hears each adjust that went out");
+}
+
+/// A room over the target is the target: a window granted before, larger
+/// than the target, is not taken back, and once less than the target is
+/// left each message tops it up.
+#[tokio::test]
+async fn a_room_over_the_target_is_the_target() {
+    let (mut session, id, _ends) = with_channel(64 * KIB);
+    let mut handler = Targets::default();
+    handler.of.insert(id, 16 * KIB);
+    handler.low.insert(id, u32::MAX);
+    session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
+    assert_eq!(adjusts(&mut session), vec![], "56 KiB left is over the target of 16");
+    for _ in 0..6 {
+        session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
+    }
+    assert_eq!(adjusts(&mut session), vec![(40 + id.0, 8 * KIB)]);
+    session.process_packet(&mut handler, &data(id, 4 * KIB)).await.unwrap();
+    assert_eq!(adjusts(&mut session), vec![(40 + id.0, 4 * KIB)]);
+}
+
+/// A room of 0 keeps russh's own, half the target, as a handler that gives
+/// none does (the control above, with the configured window).
+#[tokio::test]
+async fn a_room_of_0_keeps_russhs_half() {
+    let (mut session, id, _ends) = with_channel(64 * KIB);
+    let mut handler = Targets::default();
+    handler.of.insert(id, 64 * KIB);
+    handler.low.insert(id, 0);
+    for _ in 0..4 {
+        session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
+    }
+    assert_eq!(adjusts(&mut session), vec![]);
+    session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
+    assert_eq!(adjusts(&mut session), vec![(40 + id.0, 40 * KIB)]);
+}
+
+#[tokio::test]
+async fn stderr_is_adjusted_under_the_same_room() {
+    let (mut session, id, _ends) = with_channel(16 * KIB);
+    let mut handler = Targets::default();
+    handler.of.insert(id, 16 * KIB);
+    handler.low.insert(id, 12 * KIB);
+    session.process_packet(&mut handler, &extended(id, 4 * KIB)).await.unwrap();
+    assert_eq!(adjusts(&mut session), vec![], "12 KiB left is not under 12 KiB");
+    session.process_packet(&mut handler, &extended(id, 2 * KIB)).await.unwrap();
+    assert_eq!(adjusts(&mut session), vec![(40 + id.0, 6 * KIB)]);
 }

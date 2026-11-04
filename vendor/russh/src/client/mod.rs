@@ -3181,6 +3181,18 @@ pub trait Handler: Sized + Send {
         window
     }
 
+    /// The room left in `channel`'s window under which russh adjusts it to
+    /// `target`, asked after `window_target` at each of its data messages
+    /// (podssh's patch, vendor/patches/russh/). The default, half the
+    /// target, is russh's own rule, as 0 is; a room over the target is the
+    /// target. A higher room adjusts sooner: a window that bounds the flow
+    /// then lets more of itself through each round trip, as less of it waits
+    /// to come before the next adjust.
+    #[allow(unused_variables)]
+    fn window_low(&mut self, channel: ChannelId, target: u32) -> u32 {
+        target / 2
+    }
+
     /// Called when the server announces its host keys
     /// (`hostkeys-00@openssh.com`, sent by OpenSSH after authentication).
     ///

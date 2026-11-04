@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/pace/mod.rs
++++ b/crates/podssh-ssh/src/pace/mod.rs
+@@ -179,7 +179,7 @@
+             // window, and no other channel that carries bulk still had more
+             // than a held window in flight, whose bytes queue in front of it.
+             let held = self.drain.began.is_some_and(|began| sample.sent >= began);
+-            if self.draining(now) && held && self.others_drained(channel) {
++            if self.draining(now) && held {
+                 self.drain.until = Some(now);
+             }
+         }

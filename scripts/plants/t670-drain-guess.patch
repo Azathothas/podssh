@@ -1,0 +1,15 @@
+--- a/crates/podssh-ssh/src/pace/mod.rs
++++ b/crates/podssh-ssh/src/pace/mod.rs
+@@ -222,5 +222,10 @@
+         if self.draining(now) {
+             return;
+         }
+-        self.drain = Drain { began: Some(now), until: Some(now + DRAIN_MAX), next: Some(now + DRAIN_EVERY) };
++        let in_flight: u64 = self.chans.values().filter(|c| c.busy).map(Chan::outstanding).sum();
++        let rate = self.path.rate(now).unwrap_or(0).max(1);
++        let rtt = self.path.rtt().unwrap_or(INTERVAL).min(Duration::from_secs(1));
++        let comes = Duration::try_from_secs_f64(in_flight as f64 / rate as f64).unwrap_or(DRAIN_MAX);
++        let drains = comes.saturating_add(rtt * 2).min(DRAIN_MAX);
++        self.drain = Drain { began: Some(now), until: Some(now + drains), next: Some(now + DRAIN_EVERY) };
+     }
+

@@ -1,0 +1,9 @@
+# T-670: podssh's channels ask for russh's 32 KiB again, not the pace's
+# 8 KiB, so the server's messages are four times larger than the pace counts
+# on; through russh's server in this process, the largest data message of
+# the download must be over the size asked for, and the test fail.
+ENTRY=T-670
+GROUP=resume
+EXPECT='test pace::wire_tests::a_channel_is_granted_the_handlers_target_not_russhs_window \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::wire_tests'
+LIMIT=1800

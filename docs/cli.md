@@ -916,37 +916,37 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   older form: the variable that holds the path, and no agent when it is not
   set; `-G` prints it as given. Elsewhere `$NAME` is part of a file name.
 - **A key's echo while a download runs** (T-661, `crates/podssh-ssh/src/pace/`).
-  The window that podssh grants a channel bounds what its server has in
-  flight, and so what waits in front of a key's echo in each queue between,
-  the relay's too. For 2 s after a key on a session with a pty, each channel
-  of the connection (the session's own, so that Ctrl-C shows sooner, the
-  forwards, SFTP, a command, the agent's) gets the path's rate times its
-  least round trip plus 40 ms, four thirds of it as russh adjusts a window
-  once half is left, and twice the rate times the round trip at least, so
-  that the path never runs dry; 16 KiB at least, shared among the channels
-  that press on their windows. Idle, plus 200 ms. The rate is the most bytes
-  a second of the last 5 to 10 s; the round trip is the time from a window
-  adjust to the first byte that only it allowed, less that message's time on
-  the path, the least of the last 10 to 20 s: end to end, through any relay
-  or proxy, against any sshd. A queue that never empties hides the path's
-  round trip, so the windows drain to 16 KiB for a moment at the first key
-  after a pause and each 10 s of a download (as BBR probes its least round
-  trip). Unmeasured, a channel has the window of before, 512 KiB. Where
-  nobody types, the same rule grows a window past it, up to the cap of the
-  road, as a window is what a server may have in flight, and so what a road
-  holds for a slow reader (T-662): 16 MiB on `--direct` (and on the direct
-  road after the relay hosts), on the iroh road and at podssh's relay role
-  (its resumable layer); 1.5 MiB through the default relay, under the
-  2 MiB of its `1013`; 768 KiB on a node's pair road, the layer's window
-  there (T-443); 512 KiB on each other road. The channels that carry bulk
-  share the cap, each 512 KiB at least, and a `-J` hop's channel has the
-  whole of it. russh 0.65.0 took no target from its handler:
-  `vendor/patches/russh/0002-window-target.patch` asks for one at each data
-  message. podssh's own senders (the local side of `-L`, `-R` and `-D`,
-  `-W`, SFTP's writes and the copy by exec) wait while a key waits for its
-  echo, 1 s at most; the session's next output is the echo. On the direct
-  road, `TCP_NOTSENT_LOWAT` of 16 KiB where `setsockopt` takes it (Linux,
-  macOS); `-v` says a refusal.
+  The window that podssh grants a channel bounds what its server has in flight,
+  and so what waits in front of a key's echo in each queue between, the relay's
+  too. For 2 s after a key on a session with a pty, each channel of the
+  connection (the session's own, so that Ctrl-C shows sooner, the forwards,
+  SFTP, a command, the agent's) gets the path's rate times its least round trip
+  plus 40 ms, and a third more, as russh tops a window up once a quarter of it
+  is used, not half, so that a window that bounds the flow grows (T-670);
+  16 KiB at least, shared among the channels that carry bulk. Idle, plus
+  200 ms. Each channel takes messages of 8 KiB at most (OpenSSH's client asks
+  for 32 KiB), so that a slow path's window holds a few. The rate is the most
+  bytes a second of the last 5 to 10 s; the round trip is the time from a
+  window adjust to the first byte that only it allowed, less that message's
+  time on the path, the least of the last 10 to 20 s: end to end, through any
+  relay or proxy, against any sshd. To time the path and not its queue, the
+  windows drain to 16 KiB at the first key after a pause and each 10 s of a
+  download until a round trip is timed with no other bulk in flight, 10 s at
+  most, not until a guess from the rate (T-670). Unmeasured, a channel has the
+  window of before, 512 KiB, topped up at half. Where nobody types, the same
+  rule grows a window past it, up to the cap of the road, as a window is what a
+  road holds for a slow reader (T-662): 16 MiB on `--direct` (and on the direct
+  road after the relay hosts), on the iroh road and at podssh's relay role (its
+  resumable layer); 1.5 MiB through the default relay, under the 2 MiB of its
+  `1013`; 768 KiB on a node's pair road, the layer's window there (T-443);
+  512 KiB on each other road. The channels that carry bulk share the cap, each
+  512 KiB at least, and a `-J` hop's channel has the whole of it. russh asks
+  the handler for each target (`vendor/patches/russh/0002-window-target.patch`)
+  and its room (`vendor/patches/russh/0004-window-low.patch`). podssh's own
+  senders (the local side of `-L`, `-R` and `-D`, `-W`, SFTP's writes and the
+  copy by exec) wait while a key waits for its echo, 1 s at most; the session's
+  next output is the echo. On the direct road, `TCP_NOTSENT_LOWAT` of 16 KiB
+  where `setsockopt` takes it (Linux, macOS); `-v` says a refusal.
 
 ## Forwarding
 

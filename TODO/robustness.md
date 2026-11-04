@@ -583,7 +583,7 @@ sh scripts/dev.sh check                    # interop: the slow reader stays unde
 
 Each command exits 0. Planted defect: set `WINDOW`
 (`crates/podssh-ssh/src/run.rs:30`) to 64 MiB, and russh's queue of a
-channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:68-78`) to
+channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:68-81`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
 check at `crates/podssh-ws/src/session.rs:454-456`; the fragment test must
@@ -614,7 +614,7 @@ fail.
   ignored. The table says so.
 - The window is not the only bound of a reader that takes nothing: russh queues at most 100
   messages of a channel (`channel_buffer_size`, its default, which
-  `crates/podssh-ssh/src/run_config.rs:68-78` leaves), each of 32 KiB at most, and its task then reads
+  `crates/podssh-ssh/src/run_config.rs:68-81` leaves), each of 32 KiB at most, and its task then reads
   no more from the server. Measured in the build image on 2026-10-11, with the Prove's plant: the
   window at 64 MiB gave a peak of 8948 KiB, held by the queue; the queue at 2^20 messages as well
   gave 62708 KiB, and even a reader that took each byte held 62084 KiB, as the server outran the

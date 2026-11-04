@@ -1,0 +1,221 @@
+diff --git a/src/client/encrypted.rs b/src/client/encrypted.rs
+index af4c38d..d328d04 100644
+--- a/src/client/encrypted.rs
++++ b/src/client/encrypted.rs
+@@ -612,9 +612,11 @@ impl Session {
+                 // The handler's target of this channel's window, asked at
+                 // each message (podssh's patch, vendor/patches/russh/).
+                 let target = window_target(client, channel_num, self.common.config.window_size);
++                // And the room left under which it goes back to the target.
++                let low = window_low(client, channel_num, target);
+                 #[allow(clippy::collapsible_if)]
+                 if let Some(ref mut enc) = self.common.encrypted {
+-                    if enc.adjust_window_size(channel_num, &data, target)? {
++                    if enc.adjust_window_size_below(channel_num, &data, target, low)? {
+                         let next_window =
+                             client.adjust_window(channel_num, self.target_window_size);
+                         if next_window > 0 {
+@@ -639,9 +641,10 @@ impl Session {
+                     return Ok(());
+                 }
+                 let target = window_target(client, channel_num, self.common.config.window_size);
++                let low = window_low(client, channel_num, target);
+                 #[allow(clippy::collapsible_if)]
+                 if let Some(ref mut enc) = self.common.encrypted {
+-                    if enc.adjust_window_size(channel_num, &data, target)? {
++                    if enc.adjust_window_size_below(channel_num, &data, target, low)? {
+                         let next_window =
+                             client.adjust_window(channel_num, self.target_window_size);
+                         if next_window > 0 {
+@@ -1644,3 +1647,15 @@ fn window_target<H: Handler>(client: &mut H, channel: ChannelId, configured: u32
+         target => target,
+     }
+ }
++
++/// The room left in `channel`'s window under which russh adjusts it to
++/// `target`, as the handler gives it now (podssh's patch,
++/// vendor/patches/russh/); 0 keeps russh's own, half the target. At half, a
++/// window that bounds the flow lets about half of itself through each round
++/// trip, as the adjust waits for half to come first.
++fn window_low<H: Handler>(client: &mut H, channel: ChannelId, target: u32) -> u32 {
++    match client.window_low(channel, target) {
++        0 => target / 2,
++        low => low,
++    }
++}
+diff --git a/src/client/mod.rs b/src/client/mod.rs
+index 6c88232..0725380 100644
+--- a/src/client/mod.rs
++++ b/src/client/mod.rs
+@@ -3181,6 +3181,18 @@ pub trait Handler: Sized + Send {
+         window
+     }
+ 
++    /// The room left in `channel`'s window under which russh adjusts it to
++    /// `target`, asked after `window_target` at each of its data messages
++    /// (podssh's patch, vendor/patches/russh/). The default, half the
++    /// target, is russh's own rule, as 0 is; a room over the target is the
++    /// target. A higher room adjusts sooner: a window that bounds the flow
++    /// then lets more of itself through each round trip, as less of it waits
++    /// to come before the next adjust.
++    #[allow(unused_variables)]
++    fn window_low(&mut self, channel: ChannelId, target: u32) -> u32 {
++        target / 2
++    }
++
+     /// Called when the server announces its host keys
+     /// (`hostkeys-00@openssh.com`, sent by OpenSSH after authentication).
+     ///
+diff --git a/src/client/window_target.rs b/src/client/window_target.rs
+index 96baaa8..4949653 100644
+--- a/src/client/window_target.rs
++++ b/src/client/window_target.rs
+@@ -2,7 +2,9 @@
+ //! message (podssh's patch): a smaller target withholds the adjusts at once,
+ //! a larger one is granted at the next message, each channel keeps its own,
+ //! and a handler that gives none keeps the configured window, as before.
+-//! russh 0.65.0 adjusted each channel to the configured window alone.
++//! russh 0.65.0 adjusted each channel to the configured window alone. And
++//! the room left under which a window goes back to its target, which the
++//! handler gives too (a later patch): russh's own is half the target.
+ #![allow(clippy::unwrap_used, clippy::indexing_slicing)] // as in the test suite
+ 
+ use std::collections::HashMap;
+@@ -17,11 +19,12 @@ use crate::{ChannelId, msg};
+ 
+ const KIB: u32 = 1024;
+ 
+-/// A handler that gives a target for some channels, and counts the adjusts
+-/// that `adjust_window` hears.
++/// A handler that gives a target for some channels, a room for some, and
++/// counts the adjusts that `adjust_window` hears.
+ #[derive(Default)]
+ struct Targets {
+     of: HashMap<ChannelId, u32>,
++    low: HashMap<ChannelId, u32>,
+     heard: u32,
+ }
+ 
+@@ -36,6 +39,10 @@ impl Handler for Targets {
+         self.of.get(&channel).copied().unwrap_or(window)
+     }
+ 
++    fn window_low(&mut self, channel: ChannelId, target: u32) -> u32 {
++        self.low.get(&channel).copied().unwrap_or(target / 2)
++    }
++
+     fn adjust_window(&mut self, _channel: ChannelId, window: u32) -> u32 {
+         self.heard += 1;
+         window
+@@ -169,3 +176,76 @@ async fn a_handler_that_gives_no_target_keeps_the_configured_window() {
+     session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
+     assert_eq!(adjusts(&mut session), vec![(40 + id.0, 2048 * KIB - 56 * KIB)]);
+ }
++
++/// The handler's room: with a quarter of a target of 64 KiB used, the window
++/// goes back to the target once less than 48 KiB is left; with russh's own,
++/// half, once less than 32 KiB is.
++#[tokio::test]
++async fn a_handlers_room_adjusts_the_window_once_it_is_under_it() {
++    let (mut session, quarter, _ends) = with_channel(64 * KIB);
++    let half = open(&mut session, 64 * KIB);
++    let mut handler = Targets::default();
++    handler.of.insert(quarter, 64 * KIB);
++    handler.of.insert(half, 64 * KIB);
++    handler.low.insert(quarter, 48 * KIB);
++    for _ in 0..2 {
++        session.process_packet(&mut handler, &data(quarter, 8 * KIB)).await.unwrap();
++    }
++    assert_eq!(adjusts(&mut session), vec![], "48 KiB left is not under 48 KiB");
++    session.process_packet(&mut handler, &data(quarter, 8 * KIB)).await.unwrap();
++    assert_eq!(adjusts(&mut session), vec![(40 + quarter.0, 24 * KIB)]);
++    for _ in 0..4 {
++        session.process_packet(&mut handler, &data(half, 8 * KIB)).await.unwrap();
++    }
++    assert_eq!(adjusts(&mut session), vec![], "32 KiB left is not under half of 64");
++    session.process_packet(&mut handler, &data(half, 8 * KIB)).await.unwrap();
++    assert_eq!(adjusts(&mut session), vec![(40 + half.0, 40 * KIB)]);
++    assert_eq!(handler.heard, 2, "adjust_window hears each adjust that went out");
++}
++
++/// A room over the target is the target: a window granted before, larger
++/// than the target, is not taken back, and once less than the target is
++/// left each message tops it up.
++#[tokio::test]
++async fn a_room_over_the_target_is_the_target() {
++    let (mut session, id, _ends) = with_channel(64 * KIB);
++    let mut handler = Targets::default();
++    handler.of.insert(id, 16 * KIB);
++    handler.low.insert(id, u32::MAX);
++    session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
++    assert_eq!(adjusts(&mut session), vec![], "56 KiB left is over the target of 16");
++    for _ in 0..6 {
++        session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
++    }
++    assert_eq!(adjusts(&mut session), vec![(40 + id.0, 8 * KIB)]);
++    session.process_packet(&mut handler, &data(id, 4 * KIB)).await.unwrap();
++    assert_eq!(adjusts(&mut session), vec![(40 + id.0, 4 * KIB)]);
++}
++
++/// A room of 0 keeps russh's own, half the target, as a handler that gives
++/// none does (the control above, with the configured window).
++#[tokio::test]
++async fn a_room_of_0_keeps_russhs_half() {
++    let (mut session, id, _ends) = with_channel(64 * KIB);
++    let mut handler = Targets::default();
++    handler.of.insert(id, 64 * KIB);
++    handler.low.insert(id, 0);
++    for _ in 0..4 {
++        session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
++    }
++    assert_eq!(adjusts(&mut session), vec![]);
++    session.process_packet(&mut handler, &data(id, 8 * KIB)).await.unwrap();
++    assert_eq!(adjusts(&mut session), vec![(40 + id.0, 40 * KIB)]);
++}
++
++#[tokio::test]
++async fn stderr_is_adjusted_under_the_same_room() {
++    let (mut session, id, _ends) = with_channel(16 * KIB);
++    let mut handler = Targets::default();
++    handler.of.insert(id, 16 * KIB);
++    handler.low.insert(id, 12 * KIB);
++    session.process_packet(&mut handler, &extended(id, 4 * KIB)).await.unwrap();
++    assert_eq!(adjusts(&mut session), vec![], "12 KiB left is not under 12 KiB");
++    session.process_packet(&mut handler, &extended(id, 2 * KIB)).await.unwrap();
++    assert_eq!(adjusts(&mut session), vec![(40 + id.0, 6 * KIB)]);
++}
+diff --git a/src/session.rs b/src/session.rs
+index df11ef4..1bf832c 100644
+--- a/src/session.rs
++++ b/src/session.rs
+@@ -308,6 +308,21 @@ impl Encrypted {
+         data: &[u8],
+         target: u32,
+     ) -> Result<bool, crate::Error> {
++        self.adjust_window_size_below(channel, data, target, target / 2)
++    }
++
++    /// As `adjust_window_size`, with the room left under which the window
++    /// goes back to `target` given by the caller (podssh's patch,
++    /// vendor/patches/russh/); russh's own is half the target. A room over
++    /// the target is the target, so an adjust never takes a window back.
++    pub fn adjust_window_size_below(
++        &mut self,
++        channel: ChannelId,
++        data: &[u8],
++        target: u32,
++        low: u32,
++    ) -> Result<bool, crate::Error> {
++        let low = low.min(target);
+         if let Some(channel) = self.channels.get_mut(&channel) {
+             trace!(
+                 "adjust_window_size, channel = {}, size = {},",
+@@ -318,7 +333,7 @@ impl Encrypted {
+             if data.len() as u32 <= channel.sender_window_size {
+                 channel.sender_window_size -= data.len() as u32;
+             }
+-            if channel.sender_window_size < target / 2 {
++            if channel.sender_window_size < low {
+                 debug!(
+                     "sender_window_size {:?}, target {:?}",
+                     channel.sender_window_size, target

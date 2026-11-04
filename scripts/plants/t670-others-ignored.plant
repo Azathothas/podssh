@@ -1,0 +1,9 @@
+# T-670: a drain ends at the first round trip timed after it began, though
+# another channel that carries bulk still has its bytes in flight in front
+# of it, so the least round trip holds that channel's queue; the test of two
+# downloads, whose first round trip crosses the other's bytes, must fail.
+ENTRY=T-670
+GROUP=resume
+EXPECT='test pace::drain_tests::a_drain_waits_for_each_channel_that_carries_bulk \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::drain_tests'
+LIMIT=1800
