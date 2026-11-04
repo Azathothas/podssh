@@ -360,8 +360,10 @@ async fn make(parts: &Parts, options: &Options, udp: bool, secret: Option<Secret
     if let Some(secret) = secret.or_else(|| options.secret.clone()) {
         builder = builder.secret_key(secret);
     }
+    // The ALPN of lanes first (T-666): the accepting end chooses, and a
+    // client of before offers the first alone.
     if options.accepts {
-        builder = builder.alpns(vec![crate::ALPN.to_vec()]);
+        builder = builder.alpns(vec![crate::ALPN_LANES.to_vec(), crate::ALPN.to_vec()]);
     }
     builder.bind().await.map_err(|e| BindError::Iroh(e.to_string()))
 }

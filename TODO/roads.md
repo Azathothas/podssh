@@ -9254,9 +9254,78 @@ road puts up to 16 sessions on one TCP connection (T-321).
 
 ```sh
 cargo test -p podssh-iroh --lib
+cargo test -p podssh-iroh --test share
+sh scripts/plant-each.sh --here t666-share-while-made
 ```
 
 T-660's echo under load with a copy beside the terminal: lower than on one stream.
+
+## Decision
+
+2026-11-04, with the draft (read in iroh 1.4.1, noq 1.4.0 and rustls 0.23.46, the crates that
+`Cargo.lock` holds):
+
+1. **Where sessions share.** A process-wide list of dialers in podssh-iroh
+   (`crates/podssh-iroh/src/share.rs`), each made once by the first lease that needs it, shared by
+   the sessions of one tokio runtime (an endpoint's tasks are its runtime's) with one key of the
+   client to one node; the connection and its endpoint close with the last lease, and a lease that is
+   dropped unreleased gives itself back. The iroh road of `node://NAME` takes a lease
+   (`crates/podssh-cli/src/ssh/iroh/race.rs`), which `podssh ssh` and each copy race (T-551): a copy
+   beside a session of the same process, and the two sessions of a copy within one server with no
+   SFTP, ride one connection. Lost: a list that each command makes and hands down (it would change
+   each copy's signature, `cp`'s among them); `podssh ssh iroh:TICKET`, `pipe` and `chat` (one session
+   each, with nothing to share); an endpoint kept a while after the last lease, for an `edit`'s copy
+   back (a process's last session ends its connection at once, as before).
+2. **The lane of a session** is the task's, a task-local value (`Lane::scope`), which the task of a
+   copy's race takes (`crates/podssh-cli/src/ssh/node_roads.rs`, through `as_bulk` of
+   `crates/podssh-cli/src/ssh/iroh.rs`, which a build with no iroh road keeps as a no-op): so the
+   ticket's iroh road and the record's (T-445) take it alike, and `roads.rs` (497 lines) is not
+   changed. `podssh ping DEST --under-load` reaches a node as a copy does (T-660), so its one session
+   takes the copy's lane, which changes nothing with no other stream. Lost: a field of the race, which
+   the record's road would need too.
+3. **The priority** is QUIC's send priority of a stream at each end (noq's `SendStream::set_priority`):
+   0 for a terminal, as each stream had before, and -1 for a copy, so that a copy's bytes wait in
+   each sender while a terminal's are there, and the congestion controller of the one connection
+   serves both. Lost: a copy above 0 for a terminal (a stream of a podssh of before would then go
+   below a terminal's of a new one).
+4. **The far end learns the lane from the stream's first byte**, `0x02` beside `0x01`, which a podssh
+   of before refuses (and then accepts no other stream on that connection): so the client sends it
+   only on a connection of the ALPN `podssh/2`, which a node of this build offers before `podssh/1`,
+   as rustls's server takes the first of its own list that the client offers. Lost: a byte for each
+   lane on `podssh/1` (a node of before would stop that connection's streams); a lane in the resumable
+   layer's handshake (`crates/podssh-relay/src/session/`, another entry's files, and a round trip
+   later than the first byte).
+5. **Item 2, the relay's HTTP/2 road** (a copy's session on a connection of its own, or HTTP/1.1),
+   is not in this draft: its client is `crates/podssh-relay/src/h2_road.rs` and podssh-ws's
+   `h2_road`, outside the draft's files. It waits in this entry.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-666`), UNVERIFIED: no command below ran in the draft.
+
+- The lanes: `Lane`, its task-local value, `SESSION_BULK` and `open_lane`
+  (`crates/podssh-iroh/src/stream.rs`); a far end gives its bytes of each stream the lane that its
+  first byte names (`accept_session`). The ALPN `podssh/2` (`ALPN_LANES`), offered first at each end:
+  `crates/podssh-iroh/src/client.rs` (`connect_lanes`, `link_as`, `endpoint`, `connection_id`) and
+  `crates/podssh-iroh/src/endpoint.rs`.
+- The list of dialers and its leases (`crates/podssh-iroh/src/share.rs`); the iroh road of
+  `node://NAME` on a lease (`crates/podssh-cli/src/ssh/iroh/race.rs`), its `-v` line for a session
+  that joins; a copy's race in the copy's lane (`crates/podssh-cli/src/ssh/node_roads.rs`).
+- `cargo test -p podssh-iroh --test share`: UNVERIFIED (2 tests through iroh's relay server on the
+  loopback and a stand-in CONNECT proxy: a terminal's lease and a copy's of one process hold one
+  dialer, made once; their two streams, at priorities 0 and -1, each carry a session of the layer, the
+  copy 4 MiB each way with equal digests and the terminal a key and its echo, while the far end sees
+  one connection and two sessions; another key of the client gets a dialer of its own; a second
+  release gives nothing more back, and the endpoint closes with the last lease; and a copy's stream
+  goes below at the far end on `podssh/2`, while a far end of `podssh/1` alone takes it as any
+  session). `cargo test -p podssh-iroh --lib`, `cargo test -p podssh-iroh --features test-relay`,
+  `cargo test -p podssh-cli --features iroh-test --test iroh_road`: UNVERIFIED.
+- Planted, which must fail its test: a dialer shared only while it is being made
+  (`scripts/plants/t666-share-while-made.plant`): UNVERIFIED.
+- Waits: item 2 (Decision 5); T-660's echo under load with a copy beside the terminal on two streams
+  against one, which needs a second SSH connection of `ping`'s process (`--under-load` puts its
+  download on a channel of its one connection). The document: `docs/design.md`, section 7. `cargo
+  todo remap docs/design.md`: at the merge.
 
 # T-641: `doctor` does not say whether this host's NAT keeps one mapping across destinations
 

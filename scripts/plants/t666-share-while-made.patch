@@ -1,0 +1,11 @@
+--- a/crates/podssh-iroh/src/share.rs
++++ b/crates/podssh-iroh/src/share.rs
+@@ -79,7 +79,7 @@ pub async fn lease<F, Fut, E>(client: PublicKey, node: EndpointId, make: F) -> R
+ /// The usable slot of `key`, one lease more; else a new one.
+ fn take(key: Key) -> Arc<Slot> {
+     let mut slots = slots();
+-    let usable = |slot: &Slot| slot.key == key && slot.made.get().is_none_or(|d| !d.endpoint().is_closed());
++    let usable = |slot: &Slot| slot.key == key && slot.made.get().is_none();
+     if let Some((slot, held)) = slots.iter_mut().find(|(slot, _)| usable(slot)) {
+         *held += 1;
+         return slot.clone();

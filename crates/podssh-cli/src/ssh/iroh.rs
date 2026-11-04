@@ -205,6 +205,20 @@ pub(super) async fn connect(
     podssh_ssh::EXIT_FAILURE
 }
 
+/// `future` as a copy's (T-666): each stream that it opens on the iroh road
+/// goes below a terminal's of the same connection, at each end that reads
+/// its lane. A task that it spawns takes the lane again with this.
+#[cfg(feature = "iroh")]
+pub(crate) fn as_bulk<F: std::future::Future>(future: F) -> impl std::future::Future<Output = F::Output> {
+    podssh_iroh::Lane::Bulk.scope(future)
+}
+
+/// A build with no iroh road has no lane to set.
+#[cfg(not(feature = "iroh"))]
+pub(crate) fn as_bulk<F: std::future::Future>(future: F) -> F {
+    future
+}
+
 /// The DERP ticket of a race names the node that the iroh ticket names: a
 /// node has one key for each road (T-379).
 #[cfg(feature = "iroh")]
