@@ -3465,6 +3465,30 @@ commands. The rules behind them:
   its line names the task at boot that only an administrator can make.
   A new `--install` removes what an earlier one made by another way, so
   that two ways never start the same service.
+- **The journal's priorities (T-640, GitHub #138).** systemd files each
+  line of a unit's stderr at one priority, `info`, so `journalctl -p
+  warning -u UNIT` showed nothing that the node said. Where stderr is the
+  journal's own stream (`JOURNAL_STREAM` holds its device and inode, and
+  they are descriptor 2's: a program that inherited the variable has
+  another stderr, and a detached run's log is a file), each error line
+  also goes to the journal's socket beside that stream (`socket` beside
+  its `stdout`, `/run/systemd/journal/socket` by default) as one entry of
+  the journal's native protocol: `PRIORITY` (3, and 2 for a fatal one),
+  `SYSLOG_IDENTIFIER=podssh`, then `MESSAGE`, a message of many lines in
+  the binary form, so that it stays one entry. Each line stays on stderr
+  first, as before: the stream keeps the order and the unit, which the
+  journal reads from the sending process and can miss when it ended at
+  once. A line at `info` or below gets no copy, as the stream gives it
+  that priority already, and a copy would show it twice. The lines copied
+  are a refusal of each command (`Refusal`), the end of a node by a fault,
+  and a retired variable ("Variables that a release stopped reading",
+  below); the lines of the SSH client (`Log`), such as a tunnel's, are
+  not. The socket binds nothing and does not block, and a send that fails
+  is dropped, never an exit code: a unit stops for good on 64 and 78.
+  This is no outbound connection (rule 2 of `AGENTS.md`) and no helper,
+  as the copy reaches the service that each line of the stream reaches,
+  on the host (the call of Q86). `-y` stays refused: this is not syslog,
+  and no flag turns it on or off.
 - **One run of a service at a time (T-393).** A run with `--env-file FILE`
   holds an exclusive lock on `FILE.lock` (`flock`, `LockFileEx`) for its
   life, with its pid in the file. A second run with the same FILE (the

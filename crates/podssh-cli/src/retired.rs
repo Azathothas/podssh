@@ -95,7 +95,8 @@ pub fn check(parsed: &Parsed, table: &[Retired], vars: &[(String, String)], err:
         return None;
     }
     for row in rows {
-        let _ = writeln!(err, "podssh: {}", row.refusal());
+        // A unit's stale file is found by `journalctl -p warning` too (T-640).
+        crate::journal::line(err, podssh_ssh::LogLevel::Error, &format!("podssh: {}", row.refusal()));
     }
     Some(EX_CONFIG)
 }

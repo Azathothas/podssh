@@ -78,6 +78,8 @@ pub mod http_road;
 pub mod install_hint;
 // `podssh job`: jobs on a far host, each in its tmux (T-193).
 pub mod job;
+// A service's error lines at their priority in the journal (T-640).
+pub mod journal;
 pub mod keygen;
 pub mod keygen_cert;
 pub mod keygen_change;

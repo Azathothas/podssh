@@ -1672,12 +1672,37 @@ host, and binds nothing. Lost: stderr alone (the defect); syslog's `/dev/log` (a
 the `-y` row refuses for its own reasons); a flag that turns it on (a unit's owner would not know to
 set it, and a line's level is no secret).
 
+2026-11-04 (the drafting agent), within that call:
+
+- The module is `crates/podssh-cli/src/journal.rs`, not one of `podssh-ssh`: each line by which a node
+  or a command fails is written in `podssh-cli`, through `Refusal::report` (each command's refusals, and
+  most ends of a node's roads), the end of a node by a fault (`node`, `node_carrier`, `node_piping`) and
+  the refusal of a retired variable (T-634); `err_line` and `Log` keep their signatures. Lost: a level
+  in `err_line` and `Log` of `podssh-ssh`, which another agent's draft held that day, and which carry
+  no error line of a node; the lines of the SSH client (`Log`, a tunnel's session) keep one priority,
+  for an entry of their own (see Done).
+- Only a line above the stream's `info` (an error 3, a fatal one 2) is copied, after the stream's own
+  line. Lost: a copy of each line, which `journalctl -u` would show twice, each at `info` already;
+  the copy in place of the stream's line, as `JOURNAL_STREAM`'s documents propose, as the journal
+  reads a datagram's unit from its sending process, which a node ends just after its last line, so
+  `systemctl status` could lose the line that says why, and the order of the two sockets' lines would
+  mix; sd-daemon's `<N>` prefix on the stream (one line, no socket), which a unit with
+  `SyslogLevelPrefix=no` would show as text, and which the call above did not take.
+- The stream is compared with descriptor 2 at the start and again at each line (a copy of the
+  descriptor, `fstat`, closed after it), as a detached run moves its stderr to its log after the start.
+  The socket for entries is `socket` beside the stream's far end when that is a `stdout` of systemd
+  (a journal's namespace has its own), else `/run/systemd/journal/socket`. The socket does not block:
+  a journal that reads too slowly loses the copy, and the line never waits.
+- `JOURNAL_STREAM` is a variable that podssh reads, so the manual lists it (ENVIRONMENT), and `-y`'s
+  row names it.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-ssh --lib journal
-cargo test -p podssh-ssh --lib line
+cargo test -p podssh-cli --lib journal
+cargo test -p podssh-cli --lib relay_settings
+cargo test -p podssh-cli --lib man::
 ```
 
 With a datagram socket of the test in a temporary directory and its device and inode given to the
@@ -1685,3 +1710,21 @@ probe: each level's number; `PRIORITY` first and `MESSAGE` last; a message with 
 entry; a variable that does not match descriptor 2 installs nothing; a line reaches stderr and the
 journal, and stderr alone when the socket is gone. Planted: the probe that trusts the variable alone,
 and the test of the child that inherited it fails.
+
+## Done
+
+2026-11-04, drafted (UNVERIFIED: no build ran in the draft).
+
+- `crates/podssh-cli/src/journal.rs` with `journal/entry.rs` (the priority of each level, the bytes of
+  an entry, `JOURNAL_STREAM`'s pair) and `journal/sink.rs` (Linux: the probe, the socket bound to
+  nothing, the copy). `main` installs it once, before the command's thread; `journal::line` writes the
+  line to `err` first, then the copy. Wired: `Refusal::report`, `node::finish`, the carrier's end,
+  the Piping Server road's expiry, and `retired::check`. The manual's ENVIRONMENT lists
+  `JOURNAL_STREAM`; `-y`'s row names it; `docs/cli.md`, "The journal's priorities".
+- `cargo test -p podssh-cli --lib journal`: UNVERIFIED. `--lib relay_settings`: UNVERIFIED. `--lib
+  man::`: UNVERIFIED. The plant `t640-probe-trusts-the-variable`: UNVERIFIED. A unit of systemd on a
+  Linux host, `podssh node` refused there, and `journalctl -p warning -u UNIT`: UNVERIFIED.
+- Waits for an entry of its own, to file at the merge (a drafting agent takes no id): the SSH client's
+  `Log` and `err_line` of `crates/podssh-ssh/src`, so that a tunnel's session (`podssh ssh --install`)
+  gives its errors their priority too, through `journal::line` or a sink that `podssh-cli` hands
+  `podssh-ssh`.

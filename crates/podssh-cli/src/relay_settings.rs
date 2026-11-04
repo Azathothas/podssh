@@ -32,9 +32,11 @@ impl Refusal {
         Refusal { message: message.into(), code: EX_CONFIG }
     }
 
-    /// Print the message for `verb`, and give the exit code.
+    /// Print the message for `verb`, and give the exit code. Where stderr is
+    /// the journal's stream, the journal gets it at the priority of an error
+    /// too (T-640).
     pub fn report(&self, verb: &str, err: &mut dyn Write) -> i32 {
-        let _ = writeln!(err, "podssh {verb}: {}", self.message);
+        crate::journal::line(err, podssh_ssh::LogLevel::Error, &format!("podssh {verb}: {}", self.message));
         self.code
     }
 }
@@ -208,5 +210,14 @@ mod tests {
         assert!(relays_from(Some("good.example"), Some("bad host!".into()), &Defaults::default()).is_ok());
         // An empty variable is no variable.
         assert!(relays_from(None, Some("  ".into()), &Defaults::default()).is_ok());
+    }
+
+    /// A refusal's line on `err` is as it was before the journal's copy
+    /// (T-640): one line, the verb, the message, and its code.
+    #[test]
+    fn a_refusal_reports_its_line_as_before() {
+        let mut err = Vec::new();
+        assert_eq!(Refusal::config("PODSSH_NET: a relative path").report("net", &mut err), EX_CONFIG);
+        assert_eq!(err, b"podssh net: PODSSH_NET: a relative path\n");
     }
 }
