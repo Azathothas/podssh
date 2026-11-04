@@ -292,6 +292,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             ssh: crate::ssh::args::SshArgs::from_matches(&matches),
             keep_listening: matches.get_flag("keep-listening"),
             proxy_auth_file: get("proxy-auth-file"),
+            cover: get("cover"),
+            raw_upgrade: matches.get_flag("raw-upgrade"),
             timeout: get("timeout"),
             refused,
         }));

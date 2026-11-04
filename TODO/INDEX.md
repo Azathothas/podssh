@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**629 entries: 112 open, 8 partial, 3 blocked, 506 done.**
+**629 entries: 110 open, 8 partial, 3 blocked, 508 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
 | P2 | 25 | 4 | 0 | 246 | 275 |
-| P3 | 87 | 2 | 3 | 195 | 287 |
-| **All** | 112 | 8 | 3 | 506 | 629 |
+| P3 | 85 | 2 | 3 | 197 | 287 |
+| **All** | 110 | 8 | 3 | 508 | 629 |
 
 ## Entries
 
@@ -678,13 +678,13 @@ repository and CI).
 | [T-636](relay.md) | P3 | M | M10 | feature | open | The relay role counts no bytes for each key across its sessions, and keeps no count across a restart |
 | [T-637](relay.md) | P3 | M | M10 | feature | open | Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline |
 | [T-638](mesh.md) | P3 | M | M10 | feature | open | A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door |
-| [T-639](pipe.md) | P3 | S | none | feature | open | `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory |
+| [T-639](pipe.md) | P3 | S | none | feature | done | `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory |
 | [T-640](robustness.md) | P3 | M | none | feature | done | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |
 | [T-641](roads.md) | P3 | M | M10 | feature | open | `doctor` does not say whether this host's NAT keeps one mapping across destinations |
 | [T-642](ws.md) | P3 | L | none | feature | open | TLS sends each name in the clear: no Encrypted Client Hello from the name's HTTPS record |
 | [T-643](reverse.md) | P3 | M | M10 | feature | open | Neither end of the reverse road compares the `version` of the role's `hello`, and an operator's offer of the net answered plainly says nothing |
 | [T-644](relay.md) | P3 | M | M10 | feature | open | `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road |
-| [T-645](pipe.md) | P3 | M | none | feature | open | `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends |
+| [T-645](pipe.md) | P3 | M | none | feature | done | `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends |
 | [T-646](relay.md) | P3 | M | M10 | feature | open | `--mint keys:` takes a file alone, so a role in a read-only image changes whom it mints for only by a rebuild |
 | [T-647](reverse.md) | P3 | M | M10 | feature | done | A pair of the relay role is served or ended; no halt that keeps its name and its node's socket |
 | [T-648](reverse.md) | P2 | M | none | feature | done | A node's socket queues each session's bytes in one line of 256 places, so one session's backlog delays each other session's |

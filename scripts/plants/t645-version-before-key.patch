@@ -1,0 +1,12 @@
+--- a/crates/podssh-ws/src/server.rs
++++ b/crates/podssh-ws/src/server.rs
+@@ -65,7 +65,8 @@ pub fn check_upgrade(head: &Request) -> Result<String, Refused> {
+ /// refused in both, as a page could else reach the other side.
+ pub fn check_upgrade_or_raw(head: &Request) -> Result<Upgrade, Refused> {
+     opening(head)?;
+-    let upgrade = if head.has("sec-websocket-key") { Upgrade::Frames(keyed(head)?) } else { Upgrade::Raw };
++    let versioned = head.has("sec-websocket-key") || head.header("sec-websocket-version") != Some("13");
++    let upgrade = if versioned { Upgrade::Frames(keyed(head)?) } else { Upgrade::Raw };
+     no_origin(head)?;
+     Ok(upgrade)
+ }

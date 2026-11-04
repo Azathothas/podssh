@@ -21,6 +21,7 @@ use std::time::Duration;
 use super::address::Address;
 use super::http_listen::Proxy;
 use super::listen::Listener;
+use super::ws_listen::Answers;
 use super::{open, pump, remote, report};
 use crate::exitmap::sysexits::EX_UNAVAILABLE;
 
@@ -40,14 +41,17 @@ pub struct Serve<'a> {
     pub quiet: bool,
     /// What the clients of `http-listen:` must give (T-367).
     pub credentials: Option<super::credentials::Credentials>,
+    /// What `ws-listen:` answers besides an upgrade (T-639).
+    pub ws: Rc<Answers>,
 }
 
 /// What a client does before its session: nothing, the CONNECT of a proxy
-/// (T-367), or a WebSocket's upgrade (T-368).
+/// (T-367), or a WebSocket's upgrade (T-368) or a visit of its cover
+/// (T-639).
 enum Front {
     Plain,
     Proxy(Rc<Proxy>),
-    Upgrade,
+    Upgrade(Rc<Answers>),
 }
 
 /// The task of one client.
@@ -68,7 +72,9 @@ impl Front {
             Front::Proxy(proxy) => {
                 Box::pin(super::http_listen::client(n, client, proxy.clone(), settings, listener_is_a))
             }
-            Front::Upgrade => Box::pin(super::ws_listen::client(n, client, other, settings, listener_is_a)),
+            Front::Upgrade(answers) => {
+                Box::pin(super::ws_listen::client(n, client, other, settings, answers.clone(), listener_is_a))
+            }
         }
     }
 }
@@ -149,12 +155,12 @@ async fn keep_listening(
     settings: &remote::Settings,
     stop: &mut Interrupt,
 ) -> i32 {
-    let Serve { listening, other, listener_is_a, quiet, credentials, .. } = serve;
+    let Serve { listening, other, listener_is_a, quiet, credentials, ws, .. } = serve;
     let front = match (listening, other) {
         (Address::HttpListen(_), Address::Template(template)) => {
             Front::Proxy(Rc::new(Proxy { template: template.clone(), credentials, quiet }))
         }
-        (Address::WsListen(_), _) => Front::Upgrade,
+        (Address::WsListen(_), _) => Front::Upgrade(ws),
         _ => Front::Plain,
     };
     let at_once = if matches!(front, Front::Proxy(_)) { super::http_listen::AT_ONCE } else { AT_ONCE };

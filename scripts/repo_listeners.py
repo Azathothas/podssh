@@ -38,8 +38,11 @@ LISTENERS = {
     # The control socket of `podssh ssh -M` (T-039), which the user asks for:
     # pipe/listen.rs makes it before anything connects (the probe), and the
     # master serves it; its tests make one in a scratch directory. And the
-    # target of the tests of -R to a socket on this host (T-365), in one.
+    # target of the tests of -R to a socket on this host (T-365), in one. And
+    # a socket file in the directory of `ws-listen --cover`'s tests (T-639),
+    # which the cover must refuse to serve as it is no regular file.
     "UnixListener": [
+        "crates/podssh-cli/src/pipe/cover_tests.rs",
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-ssh/src/agent_forward_tests.rs",
         "crates/podssh-ssh/src/remote_tests.rs",
@@ -85,9 +88,11 @@ LISTENERS = {
     # address alone, and the bind is its probe. And the tests of a service's
     # journal (T-640): a datagram socket in a scratch directory that stands
     # for the journal's own and reads what the sink sent; the sink itself
-    # binds nothing.
+    # binds nothing. And the socket file of `ws-listen --cover`'s tests
+    # (T-639), as above.
     "bind(": [
         "crates/podssh-cli/src/journal/tests.rs",
+        "crates/podssh-cli/src/pipe/cover_tests.rs",
         "crates/podssh-cli/src/exit/listen.rs",
         "crates/podssh-cli/src/relay_serve.rs",
         "crates/podssh-iroh/src/test_pkarr.rs",
