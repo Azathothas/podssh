@@ -131,7 +131,7 @@ pub const SFTP_FLAGS: &[FlagRow] = &[
         "an OpenSSH option, as -o Name=Value; repeatable", None),
     row(Some('P'), "port", Some("PORT"), FlagKind::Supported, "port to connect to; this is sftp's -P", None),
     row(Some('R'), "requests", Some("COUNT"), FlagKind::Supported,
-        "the reads or writes in flight at once (default 64), never more than 512 KiB in flight", None),
+        "the reads or writes in flight at once (default 64), never more bytes than the road's window", None),
     row(Some('S'), "program", Some("PROGRAM"), FlagKind::Refused,
         "another program for the connection: podssh is the connection", Some("no flag")),
     row(Some('s'), "subsystem-name", Some("NAME"), FlagKind::Supported,

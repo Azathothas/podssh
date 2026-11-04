@@ -83,6 +83,11 @@ impl Run {
         }
     }
 
+    /// A paced run on a road whose cap is `cap` (T-662).
+    fn capped(shape: Shape, cap: u32, keys: &'static Keys) -> Self {
+        Run { pace: Some(Pace::new(false, cap).with_keys(keys)), ..Run::new(shape, false, keys) }
+    }
+
     fn at(&self, step: u64) -> Instant {
         self.t0 + Duration::from_millis(step)
     }
@@ -250,4 +255,37 @@ fn the_least_round_trip_does_not_grow_with_the_queue() {
     // 1.25 MB/s for 60 + 40 ms, and four thirds: 166666; a queue of 100 ms
     // more in the least round trip would give twice that.
     assert!((150_000..250_000).contains(&target), "{target}");
+}
+
+/// T-662: 100 Mbit/s and 100 ms, where nobody types: on the direct road the
+/// window grows past today's 512 KiB, which holds a copy to about 5 MB/s, and
+/// moves more than twice today's; on the default relay its cap of 1.5 MiB
+/// still moves more than today's, and a road of the window of before moves
+/// as today.
+#[test]
+fn where_nobody_types_a_window_grows_to_its_roads_cap() {
+    static DIRECT: Keys = Keys::new();
+    static RELAY: Keys = Keys::new();
+    static OTHER: Keys = Keys::new();
+    static TODAY: Keys = Keys::new();
+    let shape = Shape { rate: 12_500, down: 50, up: 50 };
+    let mut direct = Run::capped(shape, super::Road::Direct.cap(), &DIRECT);
+    direct.run(20_000, u64::MAX, 1);
+    let mut relay = Run::capped(shape, super::Road::Relay.cap(), &RELAY);
+    relay.run(20_000, u64::MAX, 1);
+    let mut other = Run::capped(shape, super::Road::Other.cap(), &OTHER);
+    other.run(20_000, u64::MAX, 1);
+    let mut today = Run::new(shape, false, &TODAY);
+    today.run(20_000, u64::MAX, 1);
+    eprintln!(
+        "delivered: direct {}, relay {}, other {}, today {}",
+        direct.delivered, relay.delivered, other.delivered, today.delivered
+    );
+    assert!(direct.delivered > 2 * today.delivered, "{} against {}", direct.delivered, today.delivered);
+    assert!(relay.delivered > today.delivered * 3 / 2, "{} against {}", relay.delivered, today.delivered);
+    assert!(other.delivered * 100 >= today.delivered * 95, "{} against {}", other.delivered, today.delivered);
+    // The window of the direct road is never past its cap.
+    let at = direct.t0 + Duration::from_millis(20_000);
+    let pace = direct.pace.as_mut().expect("paced");
+    assert!(pace.target(BULK, at) <= super::Road::Direct.cap());
 }

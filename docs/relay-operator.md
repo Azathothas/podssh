@@ -61,9 +61,10 @@ found each of podssh's 7 facts in it.
    - podssh's check: `crates/podssh-relay/tests/live_backpressure.rs`
      (108 s, from podssh's host or in `relay-live.yml`). When the relay
      bounds the queue, its verdict names a `1013`, or less than 16 MiB past
-     the node. podssh keeps the SSH window at 512 KiB, so the relay holds no
-     more than that for an SSH session; a raw stream (`podssh proxy`, `-W`)
-     has no such bound.
+     the node. podssh keeps the SSH window of a channel at 1.5 MiB at most
+     on the relay's road (T-662), so the relay holds no more than that for
+     an SSH session's channel; a raw stream (`podssh proxy`, `-W`) has no
+     such bound.
    - Measured again on 2026-11-03, from a cloud container: no Close in
      90 s, and 48878136 bytes past the node.
    - In podssh: podssh's own relay role bounds each queue (T-336): each

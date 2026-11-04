@@ -155,6 +155,7 @@ pub(crate) async fn ran(plan: &Plan, place: Place) -> (Ended, Ran) {
             }
         };
         let relay = reached.relay.clone();
+        opts.window_cap = crate::ssh::window::road(&plan.resolved.transport, &reached).cap();
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
         transport::settle(reached.layer).await;
         // The relay's close, as `podssh ssh` keeps it.

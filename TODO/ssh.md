@@ -4703,9 +4703,79 @@ both moved more on a long path in osewa's runs.
 
 ```sh
 cargo test -p podssh-ssh --lib
+cargo test -p podssh-ssh --test sftp_pipeline --test sftp_client
+cargo test -p podssh-cli --lib -- ssh::window cp::chunks
 ```
 
 A copy through a shaped stand-in of 100 ms and 100 Mbit/s moves more than twice today's rate.
+
+## Decision
+
+1. **The caps** (`crates/podssh-ssh/src/pace/road.rs`): 16 MiB on `--direct` (also the direct road
+   after the relay hosts), the iroh road and podssh's relay role; 1.5 MiB through the default relay, a
+   quarter under the 2 MiB of its `1013` for the frames around SSH's bytes, and the room that `podssh
+   cp` already shares among its tasks there (`RELAY_ROOM`); 768 KiB on the pair's road, the layer's
+   window there (a test of podssh-cli holds it to `PAIR_WINDOW`); 512 KiB, the window of before, on each
+   road whose hold for a slow reader podssh has not measured (DERP, `cf://`, a forwarder, Shadowsocks,
+   VLESS, wstunnel, `--via`, a cloud's tunnel). Lost: 64 MiB on the direct road (the paper's "as memory
+   allows"): 16 MiB fills about 1 Gbit/s at 100 ms with the idle margin, and is what each channel may
+   hold in memory; 2 MiB on the relay: the very size at which its document closes the session.
+2. **The growth is T-661's rule**: its target is twice the round trip's bytes at least, which russh's
+   adjust at half the target needs on any long path, idle or not, so this entry adds the caps and their
+   share, not a second rule. Idle, the rate times the round trip and 200 ms grows a window that limits
+   the rate from round to round, as a start of TCP does.
+3. **The channels that carry bulk share the cap**, each with 512 KiB at least, so no channel gets less
+   than before and one channel alone gets it all. A `-J` hop's channel gets the whole cap, and each hop
+   rides the destination's road (`hop_options`). Lost: the whole cap for each channel (memory of 16 MiB
+   for each forward of `-L`); a strict share (four downloads through the relay would get less than
+   before).
+4. **podssh-cli names the road** (`crates/podssh-cli/src/ssh/window.rs`), from the resolved transport
+   and what reached it: a relay host's session with no relay leg and the resumable layer is podssh's
+   relay role's (T-173), with neither the direct road's after the relay hosts. A node races its roads;
+   the pair's cap holds whichever won, as each node has that road. Lost: the winner's own cap, which
+   needs the race's outcome in `Reached`, built in 24 places. The relay role and the iroh road carry
+   the resumable layer, whose replay buffer (4 MiB by default, `PODSSH_REPLAY_BUFFER` up to 16 MiB)
+   bounds what is unacknowledged: there a window past it waits at the far end, and costs nothing.
+5. **SFTP's requests follow the room of their session**: `sftp::Limits::in_flight`, the road's cap,
+   which `podssh cp` gives each session that it opens; a pipeline that asks nothing asks for as much as
+   its session takes, and `--parallel`'s tasks share it, each with 512 KiB at least, as before through
+   the relay. The requests stay at 64 at most (OpenSSH's `sftp -R`): of OpenSSH's blocks of 255 KiB
+   they fill 16 MiB; of 32 KiB, 2 MiB. Lost: more requests, which changes what `-R` means and fills a
+   server's queue of requests; the check of a relay session's budget counts the relay's room now.
+6. **A channel still opens with 512 KiB**, russh's advertised window: it grows from the first measures.
+   Lost: a larger first window on the direct road: a channel opened on a slow path would queue it all
+   in front of the first key.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-662`), UNVERIFIED: no command below ran in the draft.
+
+- The caps by road, `crates/podssh-ssh/src/pace/road.rs`, and the share of a cap in the target
+  (`crates/podssh-ssh/src/pace/target.rs`). `cargo test -p podssh-ssh --lib -- pace`: UNVERIFIED (the
+  road's 3 tests: each road's cap, the relay's and the pair's under their closes, none under 512 KiB;
+  the target's 2 more: a window grows to the path up to each road's cap, and the channels share it;
+  the fake path's 1 more: at 100 Mbit/s and 100 ms with nobody typing, the direct road moves more than
+  twice today's window, the relay's cap more than half again, a road of the window of before as
+  today).
+- SFTP: `sftp::Limits::in_flight`, `Pipeline::within` and `MAX_IN_FLIGHT`
+  (`crates/podssh-ssh/src/sftp/pipeline.rs`). `cargo test -p podssh-ssh --lib -- sftp::pipeline`:
+  UNVERIFIED (2 tests: the requests follow the room of the road; what a copy asked stays). `cargo test
+  -p podssh-ssh --test sftp_pipeline --test sftp_client`: UNVERIFIED (a session of the default room
+  keeps 512 KiB in flight, as before).
+- podssh-cli: the road of `podssh ssh`, `podssh each`, `podssh pipe`'s SSH side, `podssh cp`, a node's
+  roads and the iroh road (`crates/podssh-cli/src/ssh/window.rs`); `cp`'s share of a session's room
+  for `--parallel`'s chunks and for several files at once, each extra session with its share
+  (`crates/podssh-cli/src/cp/chunks.rs`, `crates/podssh-cli/src/cp/lanes.rs`,
+  `crates/podssh-cli/src/cp/bysftp.rs`). `cargo test -p podssh-cli --lib -- ssh::window cp::chunks`:
+  UNVERIFIED (the road of each transport; the pair's cap is the layer's window; the cap goes into the
+  options; the tasks share the room, and the relay's is its cap).
+- Planted, which must fail its test: one cap for every road, today's
+  (`scripts/plants/t662-one-cap.plant`): UNVERIFIED.
+- A copy through a shaped stand-in of 100 ms and 100 Mbit/s, against today's rate: waits for the
+  shaper of T-660 (`scripts/fake_shape.py`, T-203). UNVERIFIED.
+- The documents: `docs/cli.md` (the window, and `cp`'s requests in flight), `docs/architecture.md`,
+  `docs/relay.md`, `docs/relay-operator.md`, the manual's note of `podssh ssh` and `-R` of `scp` and
+  `sftp`. `cargo todo remap` of each edited file that entries cite: at the merge.
 
 # T-664: A faster cold connect: TLS tickets kept across runs, a key's signature sent with no query first, and fewer waits before the first command
 

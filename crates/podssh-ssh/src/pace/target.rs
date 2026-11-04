@@ -58,7 +58,9 @@ pub struct Inputs {
 /// - Unmeasured, [`START`] idle, [`FLOOR`] while a key waits.
 /// - Else the path's rate times its least round trip plus the margin, and
 ///   twice the rate times the round trip at least, its share of it, at
-///   least [`FLOOR`] and at most the cap.
+///   least [`FLOOR`] and at most its share of the cap (T-662), which is
+///   never under [`START`]: channels that carry bulk together share what
+///   the road holds, and none gets less than before.
 pub fn of(i: &Inputs) -> u32 {
     let cap = i.cap.max(FLOOR);
     if i.carrier {
@@ -71,10 +73,12 @@ pub fn of(i: &Inputs) -> u32 {
         return if i.typing { FLOOR } else { START.min(cap) };
     };
     let margin = if i.typing { TYPING_MARGIN } else { IDLE_MARGIN };
+    let sharing = i.sharing.max(1);
     let rate = rate as f64;
     let held = rate * (rtt + margin).as_secs_f64() * SAWTOOTH;
     let full = rate * rtt.as_secs_f64() * FULL;
-    clamp(held.max(full) / f64::from(i.sharing.max(1)), cap)
+    let share = (cap / sharing).max(START.min(cap));
+    clamp(held.max(full) / f64::from(sharing), share)
 }
 
 /// `bytes`, within [`FLOOR`] and `cap`.

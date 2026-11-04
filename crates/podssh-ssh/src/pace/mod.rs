@@ -7,8 +7,10 @@
 //! echo in each queue between (a relay holds what a window lets through:
 //! T-062). While a key was typed in the last [`keys::TYPING`], a channel's
 //! window is held to the path's rate times its least round trip plus
-//! [`target::TYPING_MARGIN`]; idle, plus [`target::IDLE_MARGIN`], at most
-//! the road's cap. The rate and the round trip are the connection's own,
+//! [`target::TYPING_MARGIN`]; idle, plus [`target::IDLE_MARGIN`], and twice
+//! the round trip's bytes at least, at most the road's cap ([`road`], T-662),
+//! which the channels that carry bulk share. The rate and the round trip are
+//! the connection's own,
 //! end to end: the bytes that came, and the time from a window adjust to
 //! the first byte that needed it. `TCP_INFO` would see one leg only, the
 //! proxy's, and russh consumes the replies of its keepalives, which it
@@ -32,9 +34,11 @@ use std::time::{Duration, Instant};
 pub mod keys;
 pub mod lowat;
 mod path;
+pub mod road;
 pub mod target;
 
 pub use keys::{echo, key, keys, turn, Keys, Turn};
+pub use road::Road;
 
 use path::{Chan, Path};
 

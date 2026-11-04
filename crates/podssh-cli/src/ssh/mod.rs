@@ -69,6 +69,8 @@ mod servers;
 pub mod tokens;
 pub mod transport;
 mod upgrade;
+// The cap of a session's SSH windows by its road (T-662).
+pub mod window;
 pub mod x11;
 
 use std::io::Write;
@@ -439,6 +441,7 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
             .and_then(|status| idle_warn::spawn(status, opts.silence.clone(), opts.idle_lead, log.clone()));
         // A rank in the session's background, with RelayRank auto (T-608).
         let ranker = crate::relay_rank_auto::spawn(&resolved.transport, reached.relay.is_some());
+        opts.window_cap = window::road(&resolved.transport, &reached).cap();
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
         for watch in [near, idle, ranker].into_iter().flatten() {
             watch.abort();

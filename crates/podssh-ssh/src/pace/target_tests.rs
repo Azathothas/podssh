@@ -125,3 +125,32 @@ fn on_a_long_path_half_a_window_still_fills_the_path() {
     // On a short path, the margin's is the larger.
     assert!(of(&path(true)) > (1_250_000.0 * 0.060 * 2.0) as u32);
 }
+
+/// T-662: where nobody types, a window grows past today's 512 KiB to what
+/// the path asks, up to its road's cap.
+#[test]
+fn where_nobody_types_a_window_grows_to_the_path_up_to_the_roads_cap() {
+    use crate::pace::Road;
+    // 10 MB/s and 500 ms: twice the round trip's bytes, 10 MB, under 16 MiB.
+    let far = Inputs { rate: Some(10_000_000), rtt: Some(ms(500)), ..path(false) };
+    assert_eq!(of(&Inputs { cap: Road::Direct.cap(), ..far }), 10_000_000);
+    // 100 MB/s and 200 ms: past each cap, so each road's.
+    let fat = Inputs { rate: Some(100_000_000), rtt: Some(ms(200)), ..path(false) };
+    for road in [Road::Direct, Road::Iroh, Road::Role, Road::Relay, Road::Pair, Road::Other] {
+        assert_eq!(of(&Inputs { cap: road.cap(), ..fat }), road.cap(), "{road:?}");
+    }
+    // While a key waits, a short path's window is the same on each road.
+    assert_eq!(of(&Inputs { cap: Road::Direct.cap(), ..path(true) }), of(&path(true)));
+}
+
+/// The channels that carry bulk share the cap, each with today's 512 KiB at
+/// least; a carrier of a hop has the whole of it.
+#[test]
+fn the_channels_that_carry_bulk_share_the_roads_cap() {
+    use crate::pace::Road;
+    let fat = Inputs { rate: Some(1_000_000_000), rtt: Some(ms(200)), cap: Road::Direct.cap(), ..path(false) };
+    assert_eq!(of(&Inputs { sharing: 4, ..fat }), 4 * MIB);
+    assert_eq!(of(&Inputs { sharing: 64, ..fat }), 512 * KIB, "never under the window of before");
+    assert_eq!(of(&Inputs { sharing: 2, cap: Road::Relay.cap(), ..fat }), 768 * KIB);
+    assert_eq!(of(&Inputs { sharing: 4, carrier: true, ..fat }), 16 * MIB);
+}

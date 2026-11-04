@@ -143,7 +143,12 @@ pub(super) const MORE: &[&str] = &[
      more. podssh measures the rate and the round trip on the connection itself, end to end, through any \
      relay or proxy and against any sshd, and lets the windows drain for a moment at the first key and \
      each 10 s of a download, to time the path and not its queue. Until it has measured them, a channel \
-     has the window of before, 512 KiB, which is also the most. podssh's own uploads (cp, sftp, the \
-     local side of -L, -R and -D, and -W) wait while a key waits for its echo, a second at most. On the \
-     direct road, the socket keeps 16 KiB unsent at most, where the system takes TCP_NOTSENT_LOWAT.",
+     has the window of before, 512 KiB. Where nobody types, a window grows by the same rule, up to the \
+     cap of its road, as a window is what a road may hold for a slow reader: 16 MiB with --direct, on \
+     the iroh road and at podssh's relay role (podssh relay serve), 1.5 MiB through the default relay, \
+     768 KiB on a node's pair road, 512 KiB on each other; the channels that carry bulk share it, each \
+     with 512 KiB at least, and the requests in flight of cp, scp and sftp follow it. podssh's own \
+     uploads (cp, sftp, the local side of -L, -R and -D, and -W) wait while a key waits for its echo, a \
+     second at most. On the direct road, the socket keeps 16 KiB unsent at most, where the system takes \
+     TCP_NOTSENT_LOWAT.",
 ];
