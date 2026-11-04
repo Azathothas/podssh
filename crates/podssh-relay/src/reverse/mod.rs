@@ -2,13 +2,16 @@
 //! the control messages, the close table, the state of each session) and its
 //! runners, the node (T-079) and the operator (T-080); the node's far end of
 //! the resumable layer (T-153); a node's handlers of a TCP target and of a
-//! UDP one (T-168); and the check of a roost's sshd (T-166).
+//! UDP one (T-168); the check of a roost's sshd (T-166); and an operator's
+//! legs with a token of one leg each, where podssh's relay role registers
+//! them (T-615).
 
 pub mod closes;
 pub mod control;
 pub mod e2e;
 pub mod framing;
 pub mod layered;
+pub mod legs;
 pub mod node;
 pub mod operator;
 pub mod routes;

@@ -11,7 +11,10 @@
 //! the contract, `POST /v1/renew/<name>` with the stop token renews a pair
 //! for 72 h, its tokens the same, and the status names the expiry (T-592);
 //! and `POST /v1/pair?once=1` makes a pair whose connect token takes one
-//! upgrade alone, which `/relays.json` offers (T-226).
+//! upgrade alone, which `/relays.json` offers (T-226). A pair's node
+//! registers tokens of one leg on its socket, each of which one operator's
+//! upgrade takes, and rotates its stop token with `POST /v1/rotate/<name>`;
+//! the node's `hello` and `/relays.json` offer both (T-615, [`pairs::Leg`]).
 //!
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
@@ -66,7 +69,7 @@ const BODY_MAX: usize = 4096;
 
 /// Whether `path` is one of the reverse road's.
 pub fn serves(path: &str) -> bool {
-    let socket_or_pair = ["/v1/node/", "/v1/connect/", "/v1/status/", "/v1/stop/", "/v1/renew/"];
+    let socket_or_pair = ["/v1/node/", "/v1/connect/", "/v1/status/", "/v1/stop/", "/v1/renew/", "/v1/rotate/"];
     path == "/v1/pair" || socket_or_pair.iter().any(|p| path.starts_with(p))
 }
 
@@ -100,13 +103,27 @@ where
         _ => Role::Stop,
     };
     let now = super::tokens::now_ms();
-    let found = crate::relay::check_node_name(name)
-        .ok()
-        .and_then(|()| cfg.pairs.find(name, role, token_of(&head).as_deref(), now));
+    let token = token_of(&head);
+    let found =
+        crate::relay::check_node_name(name).ok().and_then(|()| cfg.pairs.find(name, role, token.as_deref(), now));
+    // A token of one leg that the pair's node registered (T-615), for the
+    // upgrade of an operator alone.
+    let (found, leg) = match (found, kind) {
+        (None, "connect") => match cfg.pairs.find_leg(name, token.as_deref(), now) {
+            Some((pair, digest)) => (Some(pair), Some(digest)),
+            None => (None, None),
+        },
+        (found, _) => (found, None),
+    };
     // Each failed authentication looks the same, as on the default relay.
     let Some(pair) = found else {
         return answer(&mut stream, request::refusal(403, "reverse: forbidden", &[])).await;
     };
+    // It takes this upgrade and no other; a planned stop refuses it below, as
+    // it refuses each socket.
+    if let (Some(digest), false) = (leg, cfg.pairs.stopping()) {
+        return leg_upgrade(stream, head, pending, pair, digest, cfg).await;
+    }
     let method = head.method.clone();
     match (kind, method.as_str()) {
         ("status", "GET") => {
@@ -125,6 +142,7 @@ where
             answer(&mut stream, docs::json(&json!({ "stopped": stopped, "sessions": sessions }))).await
         }
         ("renew", "POST") => renew(&mut stream, name, &cfg).await,
+        ("rotate", "POST") => rotate(&mut stream, name, &sent, &cfg).await,
         // A planned stop closes each socket: one that would join now would
         // be cut with no Close, so it waits for the role that comes back.
         ("node" | "connect", _) if cfg.pairs.stopping() => {
@@ -137,9 +155,9 @@ where
             cfg.event("reverse connect token spent");
             answer(&mut stream, request::refusal(403, "reverse: forbidden", &[])).await
         }
-        ("connect", _) => operator::join(stream, head, pending, pair, cfg).await,
+        ("connect", _) => operator::join(stream, head, pending, pair, cfg, None).await,
         (_, method) => {
-            let allow = if matches!(kind, "stop" | "renew") { "POST" } else { "GET" };
+            let allow = if matches!(kind, "stop" | "renew" | "rotate") { "POST" } else { "GET" };
             let why = format!("{path}: not {method}, but {allow}");
             answer(&mut stream, request::refusal(405, &why, &[("Allow", allow)])).await
         }
@@ -216,6 +234,65 @@ where
     }
 }
 
+/// An operator's upgrade by the token of one leg `digest` (T-615): taken
+/// only while the pair's node is there to hear of it, as it then registers
+/// the next one; else `503`, and the token waits for the node. A token that
+/// another upgrade took meanwhile gets the `403` of each failed
+/// authentication.
+async fn leg_upgrade<S>(
+    mut stream: S,
+    head: Request,
+    pending: Vec<u8>,
+    pair: Arc<pairs::Pair>,
+    digest: [u8; 32],
+    cfg: Arc<Config>,
+) where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    // A request that is no upgrade spends nothing.
+    if let Err(refused) = podssh_ws::server::check_upgrade(&head) {
+        return answer(&mut stream, refused.answer()).await;
+    }
+    match cfg.pairs.spend_leg(&pair, &digest, super::tokens::now_ms()) {
+        pairs::Leg::Taken => {
+            cfg.event("reverse leg token");
+            operator::join(stream, head, pending, pair, cfg, Some(digest)).await
+        }
+        pairs::Leg::NoNode => {
+            let why = "reverse: node unavailable";
+            answer(&mut stream, request::refusal(503, why, &[("Retry-After", "1")])).await
+        }
+        pairs::Leg::Refused => {
+            cfg.event("reverse leg token refused");
+            answer(&mut stream, request::refusal(403, "reverse: forbidden", &[])).await
+        }
+    }
+}
+
+/// `POST /v1/rotate/<name>` with `{"digest": HEX}`, whose stop token was
+/// checked (T-615): HEX, the SHA-256 of a stop token that the node drew, is
+/// the one to come, whose first use makes it the pair's and ends each before
+/// it; `{"rotated": true}`. The new token crosses no wire before its use.
+async fn rotate<S>(stream: &mut S, name: &str, body: &[u8], cfg: &Config)
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let asked: Option<serde_json::Value> = serde_json::from_slice(body).ok();
+    let digest = asked.as_ref().and_then(|a| a.get("digest")).and_then(serde_json::Value::as_str);
+    let Some(next) = digest.and_then(pairs::parse_digest) else {
+        let why = "/v1/rotate: the body is {\"digest\": the SHA-256 of the next stop token, in 64 hex digits}";
+        return answer(stream, request::refusal(400, why, &[])).await;
+    };
+    match cfg.pairs.rotate(name, next, super::tokens::now_ms()) {
+        Ok(Some(())) => {
+            cfg.event("reverse rotate");
+            answer(stream, docs::json(&json!({ "rotated": true }))).await
+        }
+        Ok(None) => answer(stream, request::refusal(403, "reverse: forbidden", &[])).await,
+        Err(why) => answer(stream, request::refusal(503, &format!("/v1/rotate: {why}"), &[])).await,
+    }
+}
+
 /// The token of a reverse request: its `X-Relay-Token`, else its `?token=`,
 /// the two places that the contract names.
 fn token_of(head: &Request) -> Option<String> {
@@ -233,9 +310,22 @@ fn new_id() -> Option<SessionId> {
 }
 
 /// The node's first frame, as the default relay sends it (measured
-/// 2026-10-09).
-fn hello() -> String {
-    json!({ "type": "hello", "version": 1, "maxFrameBytes": 65536, "maxSessions": MAX_SESSIONS }).to_string()
+/// 2026-10-09); with `offers`, the role's tokens of one leg and the stop
+/// token's rotation beside it (T-615), which a node of before keeps as
+/// fields that it does not know.
+fn hello(offers: bool) -> String {
+    let mut hello = json!({ "type": "hello", "version": 1, "maxFrameBytes": 65536, "maxSessions": MAX_SESSIONS });
+    if offers {
+        hello[crate::e2e::legs::OFFER] = json!(true);
+        hello[crate::reverse::legs::ROTATION] = json!(true);
+    }
+    hello.to_string()
+}
+
+/// `spent {digest}` to the node, before the `open` of the session whose
+/// upgrade took the token of one leg of `digest` (T-615).
+fn spent(digest: &[u8; 32]) -> String {
+    json!({ "type": "spent", "digest": pairs::hex(digest) }).to_string()
 }
 
 /// `open {id}` to the node.
@@ -269,6 +359,7 @@ mod tests {
             assert!(serves(path), "{path}");
         }
         assert!(serves("/v1/renew/p-a"), "the role's renewal (T-592)");
+        assert!(serves("/v1/rotate/p-a"), "the role's rotation of a stop token (T-615)");
         for path in ["/v1/mint", "/v1/pairs", "/connect/h/22", "/health", "/v1/nodes/p-a"] {
             assert!(!serves(path), "{path}");
         }
@@ -285,11 +376,22 @@ mod tests {
     #[test]
     fn podssh_s_node_reads_each_frame_that_the_role_sends_it() {
         let mut limits = NodeLimits::conservative();
-        match control::parse_inbound(hello().as_bytes()).unwrap() {
-            NodeInbound::Hello(hello) => limits.apply(&hello),
+        match control::parse_inbound(hello(true).as_bytes()).unwrap() {
+            NodeInbound::Hello(hello) => {
+                limits.apply(&hello);
+                assert!(crate::e2e::legs::offered(&hello.extra), "the tokens of one leg (T-615)");
+                assert!(crate::reverse::legs::says_rotation(&hello), "the stop token's rotation (T-615)");
+            }
             other => panic!("{other:?}"),
         }
         assert_eq!(limits, NodeLimits { max_sessions: 64, max_frame_bytes: 65536 });
+        match control::parse_inbound(hello(false).as_bytes()).unwrap() {
+            NodeInbound::Hello(hello) => assert!(!crate::e2e::legs::offered(&hello.extra), "a carrier's offers none"),
+            other => panic!("{other:?}"),
+        }
+        let digest = [7u8; 32];
+        let told = control::parse_inbound(spent(&digest).as_bytes()).unwrap();
+        assert!(matches!(&told, NodeInbound::Spent { digest: d } if *d == pairs::hex(&digest)), "{told:?}");
         let id = new_id().unwrap();
         assert!(
             matches!(control::parse_inbound(open(&id).as_bytes()).unwrap(), NodeInbound::Open { id: i } if i == id.as_str())

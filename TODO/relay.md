@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:411-420`).
+   and above all not the `stop_token` (`docs/reverse.md:465-474`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:317`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:318`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -2537,7 +2537,7 @@ and of any length. A relay, or a proxy on the way, can so write to the user's te
 
 ## Premise
 
-- Read: `crates/podssh-relay/src/token.rs:210` and `crates/podssh-relay/src/pair.rs:270` took
+- Read: `crates/podssh-relay/src/token.rs:210` and `crates/podssh-relay/src/pair.rs:272` took
   `response.header("retry-after")` as it was, and the lines of `TokenError::RateLimited` and
   `PairError::RateLimited` print it.
 - Read: the body of a refusal goes through `Response::body_text`, which `one_line` makes safe

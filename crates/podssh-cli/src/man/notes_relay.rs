@@ -252,6 +252,7 @@ pub const RELAY: &[&str] = &[
      HTTP/1.1 (HTTP_1_1_REQUIRED, which a client of HTTP/2 follows at once). A connection with no stream for 2 \
      minutes ends. --http2 no offers http/1.1 alone, as before; the first line says which.",
     super::notes_grant::RELAY,
+    super::notes_legs::RELAY,
     super::notes_doctor::RELAY_PROBES,
     super::notes_deployments::RELAY,
 ];

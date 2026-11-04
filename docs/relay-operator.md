@@ -267,7 +267,14 @@ its client; this deployment serves them once its contract has them.
    whose connect token takes one upgrade, `POST /v1/pair?once=1`, offered
    in its `/relays.json` as `"reverse": {"pair_once": true}`. The relay's
    part, should it want the same: that query, the answer's `"once": true`,
-   and the token refused after its first upgrade, also by the status.
+   and the token refused after its first upgrade, also by the status. The
+   role also takes a node's tokens of one leg, each for one upgrade, and
+   rotates a pair's stop token by `POST /v1/rotate/<name>` (T-615,
+   [relay.md](relay.md), "The relay role's reverse road"): the relay's
+   part, should it want them, is the node's `token` frame, the `spent`
+   frame before the session's `open`, that path, and the two fields of the
+   node's `hello` that offer them; without them, podssh keeps the pair's
+   tokens.
 10. **Pairing by a short code** (T-086, [TODO/reverse.md](../TODO/reverse.md)).
     Today the node gives the operator a file with the relay host, the
     pair's name and its `connect_token`, and a person moves it over a

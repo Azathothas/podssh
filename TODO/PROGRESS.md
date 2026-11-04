@@ -153,7 +153,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-ac6a1db72f01e3003`, `71dbd72`, merged, the entry partial for its live run and the road by
   default); T-321 (`worktree-agent-afc21daca5ecea253`,
   `4d7c7d0`, merged, the entry partial for Apache httpd's server, `each` over 8 hosts and the live run); T-615 (`worktree-agent-a3c0e12c59fd9dc1e`, `fe2bbaf`, after a stop at a limit of
-  use, resumed). Each waits for its merge, in that order.
+  use, resumed; merged and closed). Each is merged; their worktrees and local branches are gone, and
+  their `draft/` branches on GitHub can go.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -198,7 +199,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 581 entries: 88 open, 5 partial, 2 blocked, 486 done.
+`TODO/INDEX.md` holds 582 entries: 88 open, 5 partial, 2 blocked, 487 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -243,8 +244,8 @@ this order:
    T-319, T-321 and T-173; `doctor`'s measure of a stream's path, the role's IPv6 targets,
    with `doctor`'s line of them, a client's lost link during a node's bulk, and the cleartext road
    on the relay's port are done.
-2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once, a copy's race of the roads, the pairing by a short code, a device's join by one and the signed list of deployments are
-   done): T-615, T-106 and T-617.
+2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once, a copy's race of the roads, the pairing by a short code, a device's join by one, the signed list of deployments and the
+   tokens of one leg are done): T-106, T-617 and T-620.
 3. Exit, routes, share and funnel (the exit, `doctor --exit` and the net's routes are done): T-433,
    T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the

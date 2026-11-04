@@ -5,7 +5,9 @@
 //! `close` (`docs/reverse.md`, "Node"). The reader routes data by id to the
 //! local side of each session, and never waits for one: a local side that
 //! reads no more ends its own session. An opener task per `open` asks the
-//! handler, and only its answer queues `ready` or `reject`.
+//! handler, and only its answer queues `ready` or `reject`. A role that
+//! registers tokens of one leg says so in its `hello`, and the handler sends
+//! its registrations through the writer too (T-615, `crate::e2e::legs`).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -89,6 +91,8 @@ enum Out {
     LocalEnd(SessionId),
     /// The local side reads no more: `close {id}`, with the reason.
     Stalled(SessionId),
+    /// A text frame of the node's own: a token of one leg (T-615).
+    Text(String),
     Stop,
 }
 
@@ -157,7 +161,15 @@ where
         };
         match frame {
             Ok(f) if f.opcode == frame::OPCODE_TEXT => match control::parse_inbound(&f.payload) {
-                Ok(NodeInbound::Hello(hello)) => limits.apply(&hello),
+                Ok(NodeInbound::Hello(hello)) => {
+                    limits.apply(&hello);
+                    // A role that registers tokens of one leg (T-615): the
+                    // handler registers them on this socket from now on.
+                    super::legs::heard(&hello);
+                    if crate::e2e::legs::offered(&hello.extra) {
+                        handler.attach(Some(frames(&tx)));
+                    }
+                }
                 Ok(NodeInbound::Open { id }) => {
                     let Ok(id) = SessionId::parse(id.as_bytes()) else { continue };
                     let live = routes_len(&routes) + opening.load(Ordering::SeqCst);
@@ -184,6 +196,8 @@ where
                     routes.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
                     let _ = tx.send(Out::Closed(id)).await;
                 }
+                // The role took a token of one leg for an operator (T-615).
+                Ok(NodeInbound::Spent { digest }) => handler.spent(&digest),
                 // Not a message that a node answers.
                 Ok(NodeInbound::Unknown) | Err(_) => {}
             },
@@ -203,6 +217,8 @@ where
             Err(e) => break End::Failed(e),
         }
     };
+    // The tokens of one leg wait for the next socket (T-615).
+    handler.attach(None);
     routes.lock().unwrap_or_else(|e| e.into_inner()).clear();
     drop(tx);
     // A stop's last frames (each session's `close`, the Close) go out
@@ -224,6 +240,16 @@ impl Drop for Writer {
     fn drop(&mut self) {
         self.0.abort();
     }
+}
+
+/// The text frames of the handler's registrations, from a caller that holds
+/// a lock and cannot wait (T-615): a frame that finds the control queue full
+/// is dropped, and a leg that needed it takes the pair's token.
+fn frames(tx: &Outbox) -> crate::e2e::legs::Frames {
+    let control = tx.control.clone();
+    Arc::new(move |text: String| {
+        let _ = control.try_send(Out::Text(text));
+    })
 }
 
 fn routes_len(routes: &Routes) -> usize {
@@ -391,6 +417,7 @@ where
                     sessions.closed(&id);
                 }
             }
+            Out::Text(text) => session.send_text(&text).await?,
             Out::Stop => {
                 let live: Vec<SessionId> = sessions.live().map(|(id, _)| *id).collect();
                 for id in live {

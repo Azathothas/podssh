@@ -5,7 +5,9 @@
 //! operator asks ([`Ask`]) is a route, or of an exit node a target of its
 //! own (T-431), which a node that is no exit refuses. An operator's grant
 //! used once (T-226) is the node's [`Redeem`]'s to judge, in the place of
-//! its admission.
+//! its admission. A session let in gets the seed of its tokens of one leg in
+//! the verdict, where the node's socket is to a role that registers them, and
+//! an operator's end gives it to the legs of its session (T-615, [`legs`]).
 
 use std::future::Future;
 use std::sync::Arc;
@@ -13,6 +15,7 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 
+use super::legs::{self, Leases};
 use super::{initiate, respond, Ask, Error, Refusal};
 use crate::identity::{Identity, PublicKey};
 
@@ -53,8 +56,8 @@ pub const NO_EXIT: &str = "this node is no exit: it lends no egress (podssh node
 pub const GRANT_REFUSED: &str = "this grant does not let this key in: it was used already, its window is not now, or \
                                  it is not for this key, this node or this route; the node's log says which";
 
-/// A node's end: its key, who may come in, where its lines go, and its door
-/// for grants.
+/// A node's end: its key, who may come in, where its lines go, its door
+/// for grants, and its tokens of one leg.
 #[derive(Clone)]
 pub struct Node {
     pub identity: Arc<Identity>,
@@ -63,13 +66,16 @@ pub struct Node {
     /// The check of a grant used once (T-226); with none, a grant is set
     /// aside and the admission decides.
     pub redeem: Option<Arc<Redeem>>,
+    /// The tokens of one leg of each session let in (T-615), which the
+    /// node's socket to its role registers; each clone shares them.
+    pub leases: Arc<Leases>,
 }
 
 impl Node {
     /// A node that lets in each operator whose key proves itself: the relay's
     /// connect token decided who reaches it.
     pub fn open_to_all(identity: Arc<Identity>, say: Arc<dyn Fn(String) + Send + Sync>) -> Node {
-        Node { identity, admit: Arc::new(|_: &PublicKey, _: &Ask| Ok(())), say, redeem: None }
+        Node { identity, admit: Arc::new(|_: &PublicKey, _: &Ask| Ok(())), say, redeem: None, leases: Arc::default() }
     }
 }
 
@@ -181,7 +187,10 @@ where
         }
     };
     (node.say)(format!("the operator key {peer} came in{to}"));
-    let channel = match asked.admit().await {
+    // The seed of the session's tokens of one leg (T-615), registered at the
+    // role first; they go with the session, as the lease does.
+    let lease = node.leases.issue();
+    let channel = match asked.admit_with(lease.as_ref().map(legs::Lease::seed)).await {
         Ok(channel) => channel,
         Err(e) => {
             (node.say)(format!("the session of {peer} ended before it began: {e}"));
@@ -245,7 +254,13 @@ where
             offered.reject().await;
             return Err(Error::NodeKey(why));
         }
-        offered.accept_granted(route.as_deref(), grant.as_deref()).await?.carry(app).await?;
+        let channel = offered.accept_granted(route.as_deref(), grant.as_deref()).await?;
+        // The node's seed of the session's tokens of one leg (T-615), for
+        // the legs that resume it.
+        if let (Some(seed), Some(taker)) = (channel.leg_seed(), legs::current()) {
+            taker.give(seed);
+        }
+        channel.carry(app).await?;
         Ok(node)
     };
     (ours, session)

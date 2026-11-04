@@ -9,10 +9,12 @@
 //! Where its relay renews a pair (podssh's relay role, T-592), the node
 //! renews its own in its last day instead, at the start of that day, then
 //! each hour until it took, and says each renewal; the store keeps the new
-//! end. A relay that renews none (404, or 405) gets the lines above.
+//! end. A relay that renews none (404, or 405) gets the lines above. The
+//! renewal takes the stop token as the node rotated it (T-615,
+//! `node_rotate`), which runs beside it.
 
 use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use podssh_relay::pair::renew::Renewed;
@@ -21,6 +23,7 @@ use podssh_relay::reverse::node::RepairHook;
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
+use crate::node_rotate::{lock, Held};
 use crate::pairs::{now_ms, utc};
 
 /// The times before an expiry at which a node says it, the longest first.
@@ -178,9 +181,9 @@ pub(crate) fn hook(label: String, current: Current, say: Say) -> RepairHook {
 }
 
 /// The hook and the lines of a node's pair, and its renewal at the relay
-/// that `trust` reaches: the hook only for a pair of the store, as the next
-/// one is looked for there. The task ends with the node: the caller aborts
-/// it.
+/// that `trust` reaches, beside the rotation of its stop token (T-615): the
+/// hook only for a pair of the store, as the next one is looked for there.
+/// The task ends with the node: the caller aborts it.
 pub(crate) fn watch(
     label: &str,
     pair: &Pair,
@@ -189,16 +192,21 @@ pub(crate) fn watch(
     trust: &Trust,
 ) -> (Option<RepairHook>, tokio::task::JoinHandle<()>) {
     let current = Current::of(pair);
-    let renewer = Renewer { pair: pair.with_expiry(pair.expires_ms), trust: trust.clone() };
-    let lines = tokio::spawn(warn(label.to_string(), current.clone(), stored, say.clone(), Some(renewer)));
-    (stored.then(|| hook(label.to_string(), current, say)), lines)
+    let held: Held = Arc::new(Mutex::new(pair.with_expiry(pair.expires_ms)));
+    let renewer = Renewer { pair: held.clone(), trust: trust.clone() };
+    let lines = warn(label.to_string(), current.clone(), stored, say.clone(), Some(renewer));
+    let rotation = crate::node_rotate::run(label.to_string(), held, stored, say.clone(), trust.clone());
+    let task = tokio::spawn(async move {
+        tokio::join!(lines, rotation);
+    });
+    (stored.then(|| hook(label.to_string(), current, say)), task)
 }
 
-/// The node's renewal of its own pair (T-592): a copy of it, with the stop
-/// token, which the node holds as the pair's owner does, and the trust of
-/// its relay.
+/// The node's renewal of its own pair (T-592): its copy, with the stop
+/// token now, which the node holds as the pair's owner does and rotates
+/// (T-615), and the trust of its relay.
 pub(crate) struct Renewer {
-    pair: Pair,
+    pair: Held,
     trust: Trust,
 }
 
@@ -217,7 +225,7 @@ enum Tried {
 impl Renewer {
     /// One renewal of the pair that ends at `expires_ms`.
     async fn once(&self, expires_ms: i64) -> Tried {
-        let (pair, proxy) = (self.pair.with_expiry(expires_ms), ProxyChoice::FromEnvironment);
+        let (pair, proxy) = (lock(&self.pair).with_expiry(expires_ms), ProxyChoice::FromEnvironment);
         let ctx = crate::pairs::context(&pair.relay, &self.trust, &proxy);
         match pair::renew::renew(&ctx, &pair).await {
             Ok(Renewed::Until(until)) if until > expires_ms => Tried::Took(until),
@@ -232,9 +240,10 @@ impl Renewer {
     /// pair (not a next one made since), and the line.
     fn took(&self, label: &str, current: &Current, until: i64, stored: bool, say: &Say) {
         current.0.store(until, Ordering::Relaxed);
+        let name = lock(&self.pair).name.clone();
         let unkept = match stored {
             true => match pair::load(label) {
-                Ok(Some(held)) if held.name == self.pair.name => pair::store(label, &held.with_expiry(until)).err(),
+                Ok(Some(held)) if held.name == name => pair::store(label, &held.with_expiry(until)).err(),
                 _ => None,
             },
             false => None,

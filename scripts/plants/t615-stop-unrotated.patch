@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/reverse/legs.rs
++++ b/crates/podssh-relay/src/serve/reverse/legs.rs
+@@ -95,7 +95,7 @@ impl Held {
+             return true;
+         }
+         if stop.next.is_some_and(|next| same(&next, got)) {
+-            stop.current = stop.next.take();
++            let _ = stop.next.take();
+             return true;
+         }
+         false

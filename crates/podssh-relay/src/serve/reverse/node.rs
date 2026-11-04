@@ -6,6 +6,8 @@
 //! the payload; a fault of the node's bytes closes its socket with the row of
 //! the contract's close table, and its operators hear that cause. A
 //! carrier's node (T-595) has the same socket with no upgrade before it.
+//! Beside the contract, a node registers tokens of one leg with `token`
+//! frames, which the role's `hello` offers to the node of a pair (T-615).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -63,7 +65,7 @@ where
         outbox.close(1001, "pair expired");
         return;
     }
-    socket(session, outbox, pair, cfg, serial).await
+    socket(session, outbox, pair, cfg, serial, true).await
 }
 
 /// A node's socket that is a WebSocket from its first byte, with no upgrade
@@ -87,7 +89,8 @@ where
         outbox.close(1001, "the carrier's role ended");
         return Err("the carrier's role ended".into());
     }
-    Ok(tokio::spawn(socket(session, outbox, pair, cfg, serial)))
+    // A carrier's legs take no token: its `hello` offers none (T-615).
+    Ok(tokio::spawn(socket(session, outbox, pair, cfg, serial, false)))
 }
 
 /// Give the node's socket under `serial` its writer, unless the pair ended,
@@ -105,14 +108,21 @@ fn joined(pair: &Pair, serial: u64, outbox: &Outbox) -> bool {
 }
 
 /// Serve the node's socket of `pair`, joined under `serial` with its writer
-/// `outbox`, until it ends.
-async fn socket<S>(session: Arc<RelaySession<S>>, outbox: Outbox, pair: Arc<Pair>, cfg: Arc<Config>, serial: u64)
-where
+/// `outbox`, until it ends; `offers`: its `hello` offers the tokens of one
+/// leg and the stop token's rotation (T-615).
+async fn socket<S>(
+    session: Arc<RelaySession<S>>,
+    outbox: Outbox,
+    pair: Arc<Pair>,
+    cfg: Arc<Config>,
+    serial: u64,
+    offers: bool,
+) where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
     // Until the node answered a Close: a planned stop waits for it (T-255).
     let _live = cfg.pairs.live.counted();
-    outbox.text(hello());
+    outbox.text(hello(offers));
     cfg.event("reverse node");
 
     let (mut frames, reader) = frames_of(session.clone());
@@ -211,6 +221,10 @@ fn control_frame(pair: &Pair, text: &[u8], cfg: &Config) -> Result<(), Fault> {
     }
     let message: Value = serde_json::from_slice(text).map_err(|_| (1003, "invalid control json"))?;
     let kind = message.get("type").and_then(Value::as_str).unwrap_or_default();
+    // A token of one leg that the node registers, or withdraws (T-615).
+    if kind == "token" {
+        return register(pair, &message);
+    }
     if !matches!(kind, "ready" | "reject" | "close") {
         return Err((1003, "unknown control type"));
     }
@@ -258,6 +272,18 @@ fn control_frame(pair: &Pair, text: &[u8], cfg: &Config) -> Result<(), Fault> {
         session.operator.close(1000, &shown);
     }
     Ok(())
+}
+
+/// A node's `{"type":"token","digest":HEX,"expires":MS}` (T-615): a token of
+/// one leg that an upgrade of its operators may take, by its SHA-256, until
+/// MS, or withdrawn with an end that passed.
+fn register(pair: &Pair, message: &Value) -> Result<(), Fault> {
+    let digest = message.get("digest").and_then(Value::as_str);
+    let expires = message.get("expires").and_then(Value::as_u64);
+    match (digest, expires) {
+        (Some(digest), Some(expires)) if pair.register_leg(digest, expires, tokens::now_ms()) => Ok(()),
+        _ => Err((1003, "invalid token frame")),
+    }
 }
 
 /// A binary frame of the node: the session's id, then its payload, for the

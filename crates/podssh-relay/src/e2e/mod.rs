@@ -17,13 +17,17 @@
 //! the newer one inside the channel (T-429, [`net`]). The operator's proof
 //! names what it asks of the node ([`Ask`]): a route, or the target of an
 //! exit (T-431); and it may carry a grant used once (T-226), which the node
-//! checks before it dials, and which no relay sees.
+//! checks before it dials, and which no relay sees. The node's verdict may
+//! give the seed of the session's tokens of one leg, so that each leg that
+//! resumes it through podssh's relay role has a token of its own ([`legs`],
+//! T-615).
 
 mod ask;
 mod channel;
 pub mod ends;
 mod frame;
 mod handshake;
+pub mod legs;
 pub mod net;
 
 use std::fmt;

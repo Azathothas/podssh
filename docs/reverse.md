@@ -266,11 +266,65 @@ and the relay never sees it (`crates/podssh-relay/src/grant/`):
 
 podssh's relay role makes a pair whose connect token takes one upgrade
 alone, too (`podssh relay pair NAME --once`, [relay.md](relay.md)), so that
-a token that leaks after its use is worth nothing. A node whose door is the
+a token that leaks after its use is worth nothing; its session resumes on
+tokens of one leg ("Tokens of one leg", below). A node whose door is the
 pair's token alone (no `--allow`, no net) says so as it starts: a TARGET
 that is not SSH has no other gate. Measured on 2026-11-03 (T-226): `cargo
 test -p podssh-relay --features pair,grant --test grant`, 9 passed, against
 certificates that OpenSSH 9.6's `ssh-keygen -s` minted.
+
+## Tokens of one leg, and a stop token that rotates
+
+A pair's connect token opens each leg of each session until the pair ends,
+and its stop token lasts as long as the pair: a token that a proxy logged
+from a request's headers stays good until then. Through podssh's relay
+role, each leg after a session's first has a connect token of its own,
+which one upgrade spends, and the node rotates its stop token (T-615,
+drafted 2026-11-04; `crates/podssh-relay/src/e2e/legs.rs`,
+`crates/podssh-relay/src/reverse/legs.rs`,
+`crates/podssh-relay/src/serve/reverse/legs.rs`):
+
+1. The role's `hello` on the node's socket says `"legTokens": true` and
+   `"stopRotation": true`, fields that a node of before keeps and reads
+   nothing of; `/relays.json` says `"reverse": {"leg_tokens": true,
+   "rotate": true}`. A relay of the contract says neither, and the node
+   and its operators keep the pair's tokens as before.
+2. A session that the end-to-end channel lets in above the layer gets a
+   seed of 32 random bytes in the node's verdict, after the code that lets
+   it in, where an operator of before reads nothing; the relay never sees
+   it. Leg N of the session after the first takes the token
+   HMAC-SHA256(seed, "podssh leg token, version 1" and N), in 64 hex
+   digits: no token crosses a wire before its own leg, and none is carried
+   ahead for the next.
+3. The node registers the SHA-256 of the next four at the role, on its
+   socket (`{"type":"token","digest":HEX,"expires":MS}`, a day ahead, or
+   0 to withdraw one), before the verdict goes. The role takes such a
+   token for one upgrade of `/v1/connect/<name>` while the node is joined,
+   tells the node which (`{"type":"spent","digest":HEX}`) before the
+   session's `open`, and refuses it after, also when the node registers it
+   again; with no node joined, it answers `503` and takes nothing. The node
+   then registers the four after it, withdraws those before it, withdraws
+   each of a session that ended, and registers each session's again on
+   each new socket, as a role that restarted holds none.
+4. The operator's first leg opens with the pair's connect token; each next
+   one, a resume, a move or a spare link, with the session's next token. A
+   refusal of one (403) is tried again once, as a role that restarted holds
+   it again only once the node's next socket registered it, then the next;
+   after eight in a row the legs take the pair's token. So a session of a
+   pair of `--once` resumes, and a token that a proxy logged is spent
+   already.
+5. At its first socket that heard the offer, and each day after, a node
+   whose pair is the store's draws the next stop token, names its SHA-256
+   at `POST /v1/rotate/<name>` by the token now, keeps the new one in the
+   store in the place of the old, then uses it once: that use makes it the
+   pair's and ends the one before. A stop between two steps leaves a token
+   that the role takes. `podssh relay revoke` and `relay pair --renew` on
+   the node's host read the store; a copy of the pair elsewhere can no
+   longer stop it. A pair of `--pair-file` keeps its stop token, as that
+   file is the user's.
+
+Measured on 2026-11-04: `relay_serve_once` 6 passed and `relay_serve_node` 6 passed (T-615's
+Prove).
 
 ## Pairing by a short code
 
@@ -421,7 +475,8 @@ tokens in URLs. podssh does not do that.
 - Each token is a bearer token. A grant used once ("Grants used once",
   above) holds the node's door with a key that the channel proves; a pair
   of `--once` on podssh's relay role ends its connect token at its first
-  upgrade (T-226).
+  upgrade (T-226); on that role each later leg takes a token of its own,
+  and the node rotates its stop token ("Tokens of one leg", above; T-615).
 
 ## The Piping Server road
 

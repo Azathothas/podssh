@@ -1,0 +1,7 @@
+# T-615: the operator's end sets aside the seed of the node's verdict, so its
+# later legs take the pair's spent token of once; the test of the resume,
+# whose taker must hold the node's seed, must fail.
+ENTRY=T-615
+GROUP=resume
+EXPECT='test a_resume_takes_the_next_token_that_the_node_gave_and_a_replayed_one_is_refused \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_once -- a_resume_takes_the_next_token_that_the_node_gave_and_a_replayed_one_is_refused'

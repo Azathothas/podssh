@@ -1,6 +1,8 @@
 //! The control channel of the node: JSON text frames, under the 4 KiB cap.
 //! The node receives `hello`, `open {id}` and `close {id}`, and sends
-//! `ready {id}`, `reject {id, reason}` or `close {id}`. The operator receives
+//! `ready {id}`, `reject {id, reason}` or `close {id}`; with podssh's relay
+//! role, it sends `token` and receives `spent` too, beside the contract
+//! (T-615, `crate::e2e::legs`). The operator receives
 //! `ready`, `reject` and `close` as text, and never sends a text frame: the
 //! relay closes it with `1003` (`docs/reverse.md`). `hello` may never come, so
 //! the limits have a floor of their own.
@@ -30,6 +32,11 @@ pub enum NodeInbound {
         #[serde(default)]
         reason: Option<String>,
     },
+    /// podssh's relay role took a token of one leg that this node registered
+    /// for an operator's upgrade, by its digest (T-615); it comes before the
+    /// session's `open`, and only to a node that registered one.
+    #[serde(rename = "spent")]
+    Spent { digest: String },
     /// Any other type, read rather than dropped: a message that vanished would
     /// look like a relay that stopped talking.
     #[serde(other)]

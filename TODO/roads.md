@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-490` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-136`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-491` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-136`).
 
 ## Decision
 
@@ -4431,7 +4431,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1108`, `:1118`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:374-378`).
+  (`docs/reverse.md:428-432`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -6144,7 +6144,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:154`).
+  port 443 answers (`docs/STATUS.md:155`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -6747,7 +6747,7 @@ ask, and nothing does so.
 ## Premise
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
-  (`crates/podssh-cli/src/node_iroh.rs:360-361`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node_iroh.rs:361-362`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:105-107`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-76`), in a file of 488 of its 500 lines.

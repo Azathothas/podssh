@@ -1,0 +1,7 @@
+# T-615: podssh's relay role takes a token of one leg and keeps it live, so
+# that a second upgrade with it is taken too; the test of a token of one leg,
+# whose replay must get 403, must fail.
+ENTRY=T-615
+GROUP=resume
+EXPECT='test a_token_of_one_leg_takes_one_upgrade_and_its_node_hears_which \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_once -- a_token_of_one_leg_takes_one_upgrade_and_its_node_hears_which'

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**581 entries: 88 open, 5 partial, 2 blocked, 486 done.**
+**582 entries: 88 open, 5 partial, 2 blocked, 487 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 26 | 2 | 0 | 236 | 264 |
-| P3 | 62 | 2 | 2 | 186 | 252 |
-| **All** | 88 | 5 | 2 | 486 | 581 |
+| P3 | 62 | 2 | 2 | 187 | 253 |
+| **All** | 88 | 5 | 2 | 487 | 582 |
 
 ## Entries
 
@@ -654,6 +654,7 @@ repository and CI).
 | [T-612](resume.md) | P2 | S | M10 | feature | done | A client of a node can turn the resumable layer off: `--no-resume` |
 | [T-613](reverse.md) | P3 | S | M10 | feature | done | `operator`, `proxy` and `pipe`'s remote sides take `--timeout` and `PODSSH_TIMEOUT` as other names of `--ConnectTimeout` |
 | [T-614](mesh.md) | P2 | M | M10 | feature | done | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |
-| [T-615](reverse.md) | P3 | M | M10 | feature | open | A connect token for each session, and a stop token that the node rotates, in podssh's relay role |
+| [T-615](reverse.md) | P3 | M | M10 | feature | done | A connect token for each session, and a stop token that the node rotates, in podssh's relay role |
 | [T-616](mesh.md) | P3 | M | M10 | feature | done | `podssh net invite`: a new device joins the net by a short code |
 | [T-617](mesh.md) | P3 | S | M10 | feature | open | The net's document names each relay member's hosts, for its signed list |
+| [T-620](reverse.md) | P3 | S | M10 | defect | open | The stop token's rotation and the renewal follow the node's next pair at expiry |

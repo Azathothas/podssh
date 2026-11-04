@@ -305,7 +305,7 @@ const OPEN_DOOR: &str = "warning: with no --allow, whoever reaches this node's d
 pub fn node_end(label: &str, identity: Identity, admit: Arc<ends::Admit>) -> ends::Node {
     let shown = label.to_string();
     let say = Arc::new(move |line: String| podssh_ssh::err_line!("podssh node: {shown}: {line}"));
-    ends::Node { identity: Arc::new(identity), admit, say, redeem: None }
+    ends::Node { identity: Arc::new(identity), admit, say, redeem: None, leases: Default::default() }
 }
 
 /// Who may come in through the channel: the keys of the allowlist at
@@ -419,5 +419,19 @@ impl<H: Handler> Handler for Piped<H> {
 
     fn queue_bytes(&self) -> usize {
         self.inner.queue_bytes()
+    }
+
+    /// Each session that the channel lets in gets the seed of its tokens of
+    /// one leg, registered in `frames` (T-615).
+    fn registers(&self, frames: Option<podssh_relay::e2e::legs::Frames>) {
+        if let Some(node) = &self.channel {
+            node.leases.attach(frames);
+        }
+    }
+
+    fn spent(&self, digest: &str) {
+        if let Some(node) = &self.channel {
+            node.leases.spent(digest);
+        }
     }
 }

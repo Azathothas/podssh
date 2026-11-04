@@ -9,7 +9,8 @@
 //! The renewal of T-592: `podssh relay pair --renew` and a node in its
 //! pair's last day renew it at the role, with its tokens, so that an
 //! operator's file past its end still reaches the node; the stand-in, whose
-//! contract renews no pair, gets the way of the next pair and 69.
+//! contract renews no pair, gets the way of the next pair and 69. A node of
+//! the role rotates its stop token, which the store keeps (T-615).
 
 mod live_harness;
 mod ssh_harness;
@@ -175,6 +176,39 @@ fn a_node_renews_its_pair_in_its_last_day() {
     let out = podssh(&s, &ca, &login);
     assert_eq!(out.status.code(), Some(0), "{}", said(&out));
     assert_eq!(String::from_utf8_lossy(&out.stdout), ssh_harness::GREETING);
+}
+
+/// T-615: a node of the role rotates its pair's stop token once its socket
+/// heard the role's offer: it says so, the store keeps a new stop token, and
+/// `podssh relay revoke`, which reads the store, stops the pair with it, as
+/// the role refuses the one before.
+#[test]
+fn a_node_rotates_its_stop_token_and_revoke_takes_the_new_one() {
+    let s = Session::start("serve-rotate");
+    let Some((_, host, ca)) = role(&s) else { return };
+    let out = podssh(&s, &ca, &["relay", "pair", "lab", "--relay-host", &host]);
+    assert!(out.status.success(), "podssh relay pair against the role: {}", said(&out));
+    let stored = s.home.join("cache").join("podssh").join(podssh_relay::pair::file_name("lab").unwrap());
+    // The token is compared, never shown.
+    let stop_of = |path: &std::path::Path| {
+        let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        doc["stop_token"].as_str().unwrap_or_default().to_string()
+    };
+    let before = stop_of(&stored);
+    let args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", s.port)];
+    let mut node = without_proxy(s.command(&args));
+    let node = node.envs(role_env(&ca)).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
+    let mut node = node.spawn().unwrap();
+    let lines = lines_of(&mut node);
+    s.keep(node);
+    let rotated = both(&lines, "online", "the pair's stop token is new at its relay");
+    let said_line = rotated.unwrap_or_else(|why| panic!("the node is online and rotates its stop token: {why}"));
+    assert!(said_line.contains("the one before it ends"), "{said_line}");
+    let after = stop_of(&stored);
+    assert!(after != before && after.len() == 64, "the store keeps a new stop token of the relay's shape");
+    let out = podssh(&s, &ca, &["relay", "revoke", "lab"]);
+    assert!(out.status.success(), "{}", said(&out));
+    assert!(String::from_utf8_lossy(&out.stdout).starts_with("lab: stopped"), "{}", said(&out));
 }
 
 /// T-592: the stand-in relay, whose contract has no renewal, answers its

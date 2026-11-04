@@ -3316,7 +3316,7 @@ The draft's calls, 2026-11-02:
    numbers an address, whose wait is an estimate, so a client told 60 s could meet a second
    `429`.
 2. `/v1/mint` and `/v1/pair` share one count, as on the default relay
-   (`crates/podssh-relay/src/pair.rs:98` says "the brake that pairs share with mints"; the
+   (`crates/podssh-relay/src/pair.rs:100` says "the brake that pairs share with mints"; the
    contract's limits, `docs/relay.md`, "Limits that users see": "mint, pair, upgrades with no
    token"). Each request at the two paths counts, whatever its answer: a keyed mint's `401`
    (T-448), a `403`, `--mint nobody`'s `503`. Lost: a count for each path, which lets one client
@@ -3379,7 +3379,7 @@ first after the minute passes. Planted, the brake removed, and the test fails.
 
 2026-11-02 (the drafting agent). The Premise holds; the Approach needs two facts that it does not
 name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it:
-`crates/podssh-relay/src/serve/reverse/mod.rs:151` says "async fn pair". And the role had no
+`crates/podssh-relay/src/serve/reverse/mod.rs:169` says "async fn pair". And the role had no
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
@@ -3642,7 +3642,7 @@ nothing, works.
 ## Premise
 
 - `crates/podssh-relay/src/serve/forward.rs:144` dials the resolved addresses with
-  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:137` does the same for
+  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:138` does the same for
   `/trace`; neither reads `HTTPS_PROXY`.
 - Rule 2 of `AGENTS.md`: one outbound connection, through `HTTPS_PROXY` when it is set.
 
@@ -6829,8 +6829,8 @@ pair that its operators hold.
 
 ## Premise
 
-- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:26-27`,
-  set as the pair is made, `:244`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
+- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:27-28`,
+  set as the pair is made, `:254`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
   `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs`, line 57 at
   `b02d8c4`).
 - Read: the default relay renews no pair (T-395's Correction: no such request in its document); a
@@ -7033,7 +7033,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 ## Premise
 
 - Read: the node's side of the reverse road runs over any `RelaySession<S>`
-  (`crates/podssh-relay/src/reverse/serve.rs:134`), and a `RelaySession` is made over any stream,
+  (`crates/podssh-relay/src/reverse/serve.rs:138`), and a `RelaySession` is made over any stream,
   with no HTTP in it (`crates/podssh-ws/src/session.rs:104-108`).
 - Read: podssh's relay role serves the relay's side of a node's socket and of an operator's
   (`crates/podssh-relay/src/serve/reverse/mod.rs:1-3`, T-427).
@@ -7042,7 +7042,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:263-273`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:265-275`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -7396,8 +7396,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:272-273`), and needs the net's role exit, signed by
-  its owner (`:270-271`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:274-275`), and needs the net's role exit, signed by
+  its owner (`:272-273`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:95`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

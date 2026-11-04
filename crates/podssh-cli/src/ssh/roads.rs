@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use podssh_relay::derp::Dialer;
-use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as LegOutcome, Wire};
+use podssh_relay::reverse::{legs, OperatorConfig, OperatorLimits, Outcome as LegOutcome, Wire};
 use podssh_relay::session::race::{in_turn, Start, HEAD_START};
 use podssh_relay::session::resume::{self, Next, Note};
 use podssh_relay::session::{client, Ask, End, Ended, OsEntropy};
@@ -213,7 +213,7 @@ async fn pair_link(
         return Err("the pair's road ended for good".to_string());
     }
     let (link, leg_end) = tokio::io::duplex(PIPE);
-    match operator::start(config, leg_end).await {
+    match legs::start(config, leg_end).await {
         Ok(handle) => {
             *layered::lock(&roads.legs) = Some(handle);
             Ok(Road::Pair(link))
@@ -456,7 +456,9 @@ where
         crate::hangup::bounded(hangup.as_ref(), run).await
     };
     let ridden = hand(Ok(Handed { stream: ssh_end, channel: channel_runs }));
-    let (code, outcome, failed) = tokio::join!(Box::pin(ridden), Box::pin(carried), session);
+    // The session's tokens of one leg (T-615), for its channel and its legs.
+    let joined = async { tokio::join!(Box::pin(ridden), Box::pin(carried), session) };
+    let (code, outcome, failed) = legs::during(joined).await;
     if let Some(path) = roads.iroh.as_ref().and_then(IrohRoad::path) {
         log.verbose(&format!("{shown}: the iroh road: {path}"));
     }

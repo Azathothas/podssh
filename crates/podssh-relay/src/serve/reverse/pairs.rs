@@ -8,7 +8,8 @@
 //! alone holds the stop token, renews a pair (T-592): 72 h from then, its
 //! tokens the same, so that each operator's file keeps working. A pair made
 //! with `once` (T-226) takes its connect token at one upgrade alone: a token
-//! that leaks after it is worth nothing, also after a restart.
+//! that leaks after it is worth nothing, also after a restart. Its node
+//! registers tokens of one leg, and rotates its stop token ([`legs`], T-615).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -84,6 +85,9 @@ pub struct Pair {
     pub once: bool,
     /// The one upgrade of a pair of `once` was taken.
     spent: AtomicBool,
+    /// The tokens of one leg that its node registered, and its stop token
+    /// as its node rotated it (T-615).
+    held: legs::Held,
 }
 
 /// The node's socket, while one is joined.
@@ -161,7 +165,7 @@ impl Pair {
     fn new(name: String, expires_ms: u64, session_bytes: u64, digests: [[u8; 32]; 3]) -> Pair {
         let expires = AtomicU64::new(expires_ms);
         let (once, spent) = (false, AtomicBool::new(false));
-        Pair { name, expires, session_bytes, digests, state: Default::default(), once, spent }
+        Pair { name, expires, session_bytes, digests, state: Default::default(), once, spent, held: Default::default() }
     }
 
     /// Take the one upgrade of a pair of `once` (T-226): `true` the first
@@ -186,6 +190,10 @@ impl Pair {
     }
 
     fn takes(&self, role: Role, token: &str) -> bool {
+        // The stop token as its node rotated it (T-615).
+        if role == Role::Stop {
+            return self.held.takes_stop(&self.digests[2], &digest(token));
+        }
         let wanted = &self.digests[role as usize];
         same(wanted, &digest(token))
     }
@@ -222,6 +230,8 @@ impl Pairs {
                 let digests = kept.digests()?;
                 let mut pair = Pair::new(kept.name, kept.expires, super::SESSION_BYTES, digests);
                 (pair.once, pair.spent) = (kept.once, AtomicBool::new(kept.spent));
+                // The stop token to come, which its node asked for (T-615).
+                pair.held.next_stop(kept.next_stop.as_deref(), &pair.name)?;
                 map.insert(pair.name.clone(), Arc::new(pair));
             }
         }
@@ -344,21 +354,8 @@ impl Pairs {
 
     fn save(&self) -> Result<(), String> {
         let Some(path) = &self.file else { return Ok(()) };
-        let kept: Vec<Kept> = self
-            .map
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .values()
-            .map(|p| Kept {
-                name: p.name.clone(),
-                expires: p.expires_ms(),
-                node: hex(&p.digests[0]),
-                connect: hex(&p.digests[1]),
-                stop: hex(&p.digests[2]),
-                once: p.once,
-                spent: p.connect_spent(),
-            })
-            .collect();
+        // Each pair as its file keeps it, its stop token as rotated (T-615).
+        let kept: Vec<Kept> = self.map.lock().unwrap_or_else(|e| e.into_inner()).values().map(|p| p.kept()).collect();
         let body = serde_json::to_vec(&File { pairs: kept }).map_err(|e| e.to_string())?;
         write_private(path, &body).map_err(|e| format!("{}: {e}", path.display()))
     }
@@ -383,6 +380,11 @@ struct Kept {
     once: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     spent: bool,
+    /// The digest of the stop token to come, which its node asked for and
+    /// whose first use makes it the stop token (T-615); a file of before has
+    /// none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    next_stop: Option<String>,
 }
 
 impl Kept {
@@ -473,6 +475,11 @@ fn base36(n: usize) -> Result<String, String> {
 #[path = "stop.rs"]
 mod stop;
 pub use stop::Stopping;
+
+// The tokens of one leg and the stop token's rotation (T-615).
+#[path = "legs.rs"]
+mod legs;
+pub use legs::{parse_digest, Leg, LEG_LIFE_MS, MAX_LEGS};
 
 #[cfg(test)]
 #[path = "pairs_tests.rs"]

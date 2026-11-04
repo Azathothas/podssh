@@ -137,6 +137,22 @@ impl Role {
         let body = text.split_once("\r\n\r\n").map(|(_, b)| b.to_string()).unwrap_or_default();
         (status, body)
     }
+
+    /// One HTTP request with `body`, its status and its body: the rotation
+    /// of a stop token names the next one's digest (T-615).
+    pub async fn http_body(&self, method: &str, path: &str, token: Option<&str>, body: &str) -> (u16, String) {
+        let mut tcp = TcpStream::connect(("127.0.0.1", self.relay.port)).await.unwrap();
+        let header = token.map(|t| format!("X-Relay-Token: {t}\r\n")).unwrap_or_default();
+        let head = format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n{header}");
+        let request = format!("{head}Content-Length: {}\r\n\r\n{body}", body.len());
+        tcp.write_all(request.as_bytes()).await.unwrap();
+        let mut answer = Vec::new();
+        tokio::time::timeout(LIMIT, tcp.read_to_end(&mut answer)).await.expect("an answer in time").unwrap();
+        let text = String::from_utf8_lossy(&answer).into_owned();
+        let status = text.get(9..12).and_then(|s| s.parse().ok()).unwrap_or(0);
+        let body = text.split_once("\r\n\r\n").map(|(_, b)| b.to_string()).unwrap_or_default();
+        (status, body)
+    }
 }
 
 /// The next message of `socket`: its opcode and payload, or `None` at its end

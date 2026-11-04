@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:160-166`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:107`),
-   so that only the notes change. No document changes: `docs/cli.md:5147-5205`
+   so that only the notes change. No document changes: `docs/cli.md:5168-5226`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:701`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:702`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:5053-5121`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:5074-5142`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:5063-5066`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:5084-5087`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:5053-5121`, and the measurement in
+5. Write the measured rule in `docs/cli.md:5074-5142`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:5147-5205` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:5168-5226` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -964,7 +964,7 @@ filed as it is, with no port, as OpenSSH files it (the Correction).
   a run in the build image stalled on the download of the crates, and the
   checks' plant waits for T-251.
 - `docs/cli.md:137-146` and the manual's note of host keys
-  (`crates/podssh-cli/src/man/notes_ssh.rs:322-333`) say how each hop is checked,
+  (`crates/podssh-cli/src/man/notes_ssh.rs:323-334`) say how each hop is checked,
   and which settings hold for each hop.
 - `cargo test -p podssh-ssh`: 141 passed; `cargo test -p podssh-cli`:
   563 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1308,7 +1308,7 @@ session starts with the size of its start
   place of the one of `scripts/interop.sh`. The next commit names that helper
   `ping_via` (`scripts/interop-ping.sh:10-16`), so that each later harness
   gets `podssh ssh`.
-- `docs/cli.md:788-799` and `docs/cli.md:4546-4558`, the manual's notes and an
+- `docs/cli.md:788-799` and `docs/cli.md:4567-4579`, the manual's notes and an
   example, say what the flag and the verb do, and their risks.
 - `cargo test -p podssh-ssh`: 151 passed; `cargo test -p podssh-cli`:
   574 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -2041,7 +2041,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:426`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:5170-5173`). A person who types slowly must not meet a limit
+  `docs/cli.md:5191-5194`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -2065,7 +2065,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:39-40`,
    `crates/podssh-cli/src/flags.rs:179-180`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:5203-5205` asks for a limit on the whole operation.
+   `docs/cli.md:5224-5226` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2514,7 +2514,7 @@ constraint of a key (lines 296-297), and when a request to sign names such a key
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
 Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:173-176`), and is never
-called. `docs/cli.md:4444-4445` says that the key "is never used".
+called. `docs/cli.md:4465-4466` says that the key "is never used".
 
 ## Approach
 
@@ -4222,8 +4222,8 @@ A defect: `ssh node://` is the documented way to log in to a node.
   names no byte, no version line and no step (`crates/podssh-ssh/src/run.rs`, lines 395-403 at
   `3bb42ea`).
 - Read: `ssh node://` carries SSH with `carry_keeping`: the layer's settings of `ssh`, which name
-  `keep.v1` (`crates/podssh-cli/src/layered.rs:221`), the far end's shells learned and its
-  silence watched (`:255-261`), and the SSH client and the carriage joined in one task
+  `keep.v1` (`crates/podssh-cli/src/layered.rs:222`), the far end's shells learned and its
+  silence watched (`:256-262`), and the SSH client and the carriage joined in one task
   (`crates/podssh-cli/src/ssh/node.rs:287-290`); `operator` carries with `carry_through`, with
   none of these (`crates/podssh-cli/src/operator.rs:164-165`). These are the client's differences
   between the run that stopped and the one that worked; which one stopped it is not known.

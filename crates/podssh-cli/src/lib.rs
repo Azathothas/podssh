@@ -97,6 +97,8 @@ pub mod node_args;
 pub mod node_carrier;
 // A pair's expiry said before it comes, and the next pair taken at it (T-395).
 pub mod node_expiry;
+// A node's stop token, rotated where its relay rotates one (T-615).
+pub mod node_rotate;
 // `podssh node --install`: the node as a service of this user (T-121).
 pub mod node_install;
 // The flags of `podssh node` that each road reads: the keys, the resume

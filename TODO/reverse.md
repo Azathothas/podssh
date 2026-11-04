@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:365`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:399-401`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:453-455`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:101-401`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:101-455`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:396-401`).
+   the code and the reason (`docs/reverse.md:450-455`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:5067`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:5088`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:581-584`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:215-225`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:420`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:5063-5067`).
+`podssh proxy` sysexits (`docs/cli.md:5084-5088`).
 
 ## Approach
 
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:138`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:139`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1701,14 +1701,14 @@ next session. Plant: ignore the grant; the refusal test must fail.
 ## Done
 
 2026-10-12. The route in the channel's handshake: the proof that names one
-at `crates/podssh-relay/src/e2e/handshake.rs:26-31`, made at
-`crates/podssh-relay/src/e2e/handshake.rs:296-305` and read at
-`crates/podssh-relay/src/e2e/handshake.rs:332-410`; the node's side of a
-routed session at `crates/podssh-relay/src/e2e/ends.rs:97-194`, and the
-operator's at `crates/podssh-relay/src/e2e/ends.rs:185-193`. The grants at
+at `crates/podssh-relay/src/e2e/handshake.rs:27-32`, made at
+`crates/podssh-relay/src/e2e/handshake.rs:303-312` and read at
+`crates/podssh-relay/src/e2e/handshake.rs:339-417`; the node's side of a
+routed session at `crates/podssh-relay/src/e2e/ends.rs:103-203`, and the
+operator's at `crates/podssh-relay/src/e2e/ends.rs:194-202`. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
-their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-116`.
+their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-126`.
 The command line: the targets at `crates/podssh-cli/src/node.rs:210-246`,
 `NAME/ROUTE` at `crates/podssh-cli/src/node.rs:248-263`, the dial of each
 target at `crates/podssh-cli/src/node_target.rs:14-39`, the routes at
@@ -1979,7 +1979,7 @@ parts, and the Decision above (the relay's shape, by the relay's operator) gives
 
 - At the node. The seam that the client's shape lacked exists: the e2e channel carries an
   encrypted proof of the operator's key, with a version byte
-  (`crates/podssh-relay/src/e2e/handshake.rs:27-31`), so a third version carries a grant that no
+  (`crates/podssh-relay/src/e2e/handshake.rs:28-32`), so a third version carries a grant that no
   relay sees. A grant is an OpenSSH user certificate over the grantee's Ed25519 key, signed by an
   issuer that the node's allowlist names (`crates/podssh-relay/src/identity/allow.rs:1-8`) or by
   the node's own key: a principal `node:SHA256:<the node's key>` (with `/ROUTE`), a validity
@@ -2489,7 +2489,7 @@ that only the node reaches is locked out until somebody starts it again.
 ## Premise
 
 - Read: `after_close` gives `Next::Exit("fault")` for `1003` and `1009`
-  (`crates/podssh-relay/src/reverse/node.rs:125`), and `run` returned `Exit::Fault` for it.
+  (`crates/podssh-relay/src/reverse/node.rs:140`), and `run` returned `Exit::Fault` for it.
 - Measured: the run of 41289022291: the node offline from the move on; the node's own lines were
   not printed by the workflow.
 
@@ -2542,7 +2542,7 @@ only the node reaches is then locked out until somebody starts it again.
 ## Premise
 
 - Read: the `409` arm of `run` gave `Exit::NameInUse` when the node had lost no socket
-  (`crates/podssh-relay/src/reverse/node.rs:262-280`); only after a loss did it connect again.
+  (`crates/podssh-relay/src/reverse/node.rs:277-295`); only after a loss did it connect again.
 - Measured: the run of job 124857212234: `b2` exited at its first `409`.
 
 ## Approach
@@ -2607,7 +2607,7 @@ documents works; the form that a user expects is missing.
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
   which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:143`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
-  (`crates/podssh-cli/src/man/notes_pair.rs:298-300`), and `pipe` takes `node:NAME`
+  (`crates/podssh-cli/src/man/notes_pair.rs:300-302`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
   byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:392`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
@@ -3009,7 +3009,7 @@ to go on. A feature.
   `2608b91`, `crates/podssh-cli/src/pairs.rs:36-44`); `relay` takes no `--pair-file`, and `--operator-file`
   goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:130-133`).
 - Read: the relay answers `/v1/status/<name>` to the connect token
-  (`crates/podssh-relay/src/pair.rs:194-198`), which the operator's part holds.
+  (`crates/podssh-relay/src/pair.rs:196-200`), which the operator's part holds.
 - Read: `relay pair` prints the label and its expiry and nothing more
   (`crates/podssh-cli/src/relay_cmd.rs:294`); in the last 24 h of a stored pair it makes the next
   one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:223-246`);
@@ -3164,7 +3164,7 @@ of one upgrade and left these two.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3196,6 +3196,88 @@ it in `/relays.json`. A resume of the layer opens a new leg, which needs a token
    own at each start and each day, inside the private file of its pair; an operator never holds it.
 4. A node of a relay that offers neither keeps the pair's tokens, as now.
 
+## Decision
+
+2026-11-04 (the drafting agent). No row of `docs/decisions.md` settles these, and none changes one: Q4
+keeps the relay's tokens and the trust end to end, and Q63 makes the relay a role of podssh's, whose
+contract beside the default relay's is podssh's own. Each call is weighed against `SECURITY.md`: a token
+is a credential, never in a URL, a log, argv or a file of the relay's, and the relay sees no secret of
+the channel.
+
+1. **How the token reaches the operator: a seed in the node's verdict, and a token for each leg derived
+   from it**, HMAC-SHA256 under the seed of `podssh leg token, version 1` and the leg's number, 64 hex
+   digits (`crates/podssh-relay/src/e2e/legs.rs`). The verdict that lets a session in carries the seed as
+   an item after its code, which `frame::answer` of a podssh of before reads past
+   (`crates/podssh-relay/src/e2e/frame.rs`), so no word of either end is needed first, and no token
+   crosses a wire before its own leg. Lost: a message of the channel with each next token, as the
+   Approach had it, because an operator of before ends its session at a message type that it does not
+   know (`crates/podssh-relay/src/e2e/channel.rs`), so each end would first have to say that it reads it,
+   and a leg lost before the next token came would have none for its resume; a record of the layer,
+   which the relay reads, and so does a proxy that ends TLS, before the token's use; tokens derived from
+   the layer's secret, which needs no byte more but takes that secret out of the layer's code at both
+   ends, and serves `--no-e2e`, whose node has no door but the pair's token anyway.
+2. **The offer: two fields of the role's `hello`, `"legTokens": true` and `"stopRotation": true`, which
+   the node reads on the socket itself**; `/relays.json` says the same (`reverse.leg_tokens`,
+   `reverse.rotate`) for a client that asks. A node of before keeps the fields and reads nothing of them
+   (`crates/podssh-relay/src/reverse/control.rs`, `Hello::extra`). Lost: `/relays.json` alone, a second
+   request at each socket, which a host behind a balancer may answer apart from the one that holds the
+   socket. A carrier's role (T-595) offers neither: its stream is the door, and its legs take no token.
+3. **What the role keeps, and how many**: the SHA-256 of each token that the node registers, by a text
+   frame of its socket (`{"type":"token","digest":HEX,"expires":MS}`, an end of 0 withdraws one), never a
+   token; a window of 4 for each session, and at most 256 live and 256 spent ones for each pair (64
+   sessions of a node), those that end first making room
+   (`crates/podssh-relay/src/serve/reverse/legs.rs`). Lost: one token at a time, as a leg that the role
+   took while the node missed its word would leave none for the next; a window for each pair, for which
+   the sessions of one node would race; no bound, as a node's frames would grow the role without one.
+4. **Their life: a day at the role, from each registration**, which the node makes again at each token
+   taken and at each new socket, and which a session's end withdraws; at its use, the pair's end holds
+   too. Lost: the pair's life, as a crashed node's tokens would hold room for 72 h and more after a
+   renewal; minutes, as a session that runs an hour with no move would find none at its resume.
+5. **When a token is taken: at the upgrade, only while the node is joined with room for a session, which
+   hears `{"type":"spent","digest":HEX}` before the session's `open`; with no node, `503` and nothing
+   taken.** The role keeps each spent digest until its end, and refuses it when the node registers it
+   again. Lost: a token taken at each upgrade, as an operator that retries while its node connects again
+   would spend the whole window with no word to the node; no record of the spent ones, as a node that
+   registers its window again on its next socket would bring back a token that a leg spent while it was
+   away. The role's records live in memory: a node registers its own again on its next socket, after a
+   planned stop's `1012`. Lost: the file of `--pairs`, written whole at each leg, and up to 4096 pairs of
+   512 digests in it. The window that remains (`SECURITY.md`): after a restart of the role, a token that
+   a leg spent while the node did not hear of it is good once more, for the node's door alone, which the
+   channel holds.
+6. **The operator's side**: the first leg takes the pair's connect token, as no session exists before
+   it; each next leg (a resume, a move, a spare) takes the next token by
+   `podssh_relay::reverse::legs::start`, from the CLI's layered client and the race of `ssh node://`'s
+   roads (`crates/podssh-cli/src/layered.rs`, `crates/podssh-cli/src/ssh/roads.rs`). A 403 of a token is
+   no refusal of the pair: the next leg tries it once more, as the node may not have registered it again
+   after a restart, then the next one; after 8 in a row (twice the window) the legs take the pair's
+   token, as with a node that gave no seed. Lost: the pair's token at the first refusal, which ends a
+   session of a pair of `--once` at a restart of the role.
+7. **The stop token's rotation: the node draws the next token, names its SHA-256 at `POST
+   /v1/rotate/<name>` by the token now, keeps the new one in the store, then uses it once**, which makes
+   it the pair's and ends each before it (`crates/podssh-relay/src/pair/rotate.rs`,
+   `crates/podssh-cli/src/node_rotate.rs`). The role takes both the token now and the one to come until
+   that use, so a node that stops at any step keeps a token that the role takes, and the new token
+   crosses no wire before its first use; the file of `--pairs` keeps both. A 403 of the new one at its
+   first use (another rotation took its place) puts the one before back in the store. Lost: a new token
+   that the role draws and answers, as the Approach had it, because the answer crosses the wire, which a
+   proxy that ends TLS logs, and a node that stops before it kept the answer loses its stop token for
+   good.
+8. **Its period: at the node's first socket that heard the offer, and each 24 h after; an hour after a
+   try that did not take.** A node that missed a day (it was stopped) rotates at its next start; the role
+   forces none, so a token that no node rotates stays as before T-615. Lost: each start alone, as a node
+   that runs for weeks would keep one token; each hour, a write of the store each hour for a token that
+   no operator holds.
+9. **A pair of `--pair-file` keeps its stop token**, and the node says so once: its file is the user's,
+   which T-592 decided is never rewritten, and a copy of it elsewhere would stop working with no word.
+   Lost: rewriting it.
+10. **What a podssh of before does.** A relay of the contract offers neither: no registration, no
+    rotation, the pair's tokens as before. A node of before with this role registers none, and its
+    operators keep the pair's token. An operator of before with this node reads past the seed and takes
+    the pair's token; the node withdraws that session's 4 registrations at its end.
+11. **What gets a seed**: a session that the end-to-end channel lets in above the resumable layer, on any
+    road of the node, so that one that came by another road resumes on the pair's; none of `--plain`,
+    which has no later leg, or `--no-e2e`, which has no place for a seed.
+
 ## Prove
 
 ```sh
@@ -3206,3 +3288,136 @@ cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once
 Offline, through the role on the loopback: a leg's token takes one upgrade, a resume takes the next one
 that the node gave, and a replayed one is refused; a rotated stop token ends the old one. Planted: the
 role takes a spent token; the replay test fails.
+
+## Correction
+
+2026-11-04 (the drafting agent). The Premise holds at its files: the role keeps the SHA-256 of each of a
+pair's three tokens and spends the connect token of a pair of `once` at its first upgrade
+(`crates/podssh-relay/src/serve/reverse/pairs.rs`), and closes the node's socket with `1003 unknown
+control type` for a frame that is not `ready`, `reject` or `close`
+(`crates/podssh-relay/src/serve/reverse/node.rs`). Two parts of it give way. The token does not travel
+to the operator: its seed does, once, in the verdict (Decision 1). The offer that the node reads is its
+socket's `hello` (Decision 2). And the stop token is drawn by the node, not answered by the role
+(Decision 7).
+
+The new Approach, in place of the one above:
+
+1. The role: the fields of `hello` and of `/relays.json`; the node's `token` frame; an upgrade of
+   `/v1/connect/<name>` by a live token, taken only while the node is joined, the node told by `spent`
+   before the `open`, and a spent token refused, also when registered again; `POST /v1/rotate/<name>`
+   with the stop token and `{"digest": HEX}`, and the stop token to come, which its first use makes the
+   pair's.
+2. The node: a seed in the verdict of each session let in above the layer, its window of 4 registered
+   before the verdict goes, moved at each `spent`, withdrawn at the session's end, registered again at
+   each new socket; the rotation of a stored pair's stop token at its first socket that heard the offer
+   and each day.
+3. The operator: each leg after the first with the session's next token, the pair's token after 8
+   refusals in a row.
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --features pair --lib -- e2e:: reverse:: pair::rotate
+cargo test -p podssh-cli --lib -- node_expiry man::
+cargo test -p podssh-cli --test relay_serve_node
+```
+
+Offline, through the role on the loopback: a token that a node registered takes one upgrade, the node
+hears which before the `open`, and a replay is refused, also once registered again; a token waits while
+its node is away; through podssh's own node and operator, a session of a pair of `once` resumes on the
+next token that the node gave, and the one that it spent is refused after; a rotated stop token ends the
+one before at the first use of the new one, also across a restart of the role with `--pairs`. Planted:
+the role takes a spent token (`t615-leg-reused`), the replay test fails; the first use of the new stop
+token ends nothing (`t615-stop-unrotated`), the rotation's test fails; the operator reads no seed
+(`t615-seed-unread`), the resume's test fails; a spent token moves no window (`t615-window-unmoved`), the
+test of the window fails. OpenSSH's `ssh` with `podssh operator` as its ProxyCommand through a node of
+the role, which `relay_serve_node` runs, crosses the node's rotation at its start.
+
+## Done
+
+2026-11-04, drafted (`fe2bbaf`, the agent stopped at a limit of use and was resumed), merged and measured
+by the main session the same day. At the merge: the roads of DERP and OpenTunnel, which came after the
+draft's base, give their channel an empty table of leases, as each road of no pair does; `frame::verdict`,
+read by the tests alone, is the tests'; a test's `matches!` borrows what it then prints; and the test of a
+resume boxes the node, the layer's handshake, the session and its steps, as together they outgrew the
+2 MiB stack of a test's thread in a build with no optimization (with a 16 MiB stack it passed as it was;
+the binary's own futures are boxed where it runs them, and its suites passed).
+
+- The seed and the tokens (`crates/podssh-relay/src/e2e/legs.rs`, its tests in
+  `crates/podssh-relay/src/e2e/legs_tests.rs`): the node's `Leases`, the operator's `Taker` inside
+  `legs::during`; the seed after the verdict's code (`crates/podssh-relay/src/e2e/frame.rs`,
+  `crates/podssh-relay/src/e2e/channel.rs`, `Asked::admit_with` of
+  `crates/podssh-relay/src/e2e/handshake.rs`); `ends::Node::leases`, a seed for each session let in, and
+  the operator's taker given the seed (`crates/podssh-relay/src/e2e/ends.rs`).
+- The node's socket: `Handler::attach`, `registers` and `spent` (`crates/podssh-relay/src/reverse/node.rs`),
+  forwarded by `Layered` and taken by `E2e`, `Routed` and the CLI's `Piped`; the `token` frames through
+  the writer, and the `spent` frame read (`crates/podssh-relay/src/reverse/serve.rs`,
+  `crates/podssh-relay/src/reverse/control.rs`); the operator's leg by its token and the offer of the
+  rotation heard (`crates/podssh-relay/src/reverse/legs.rs`).
+- The role: `crates/podssh-relay/src/serve/reverse/legs.rs`, beside `pairs.rs`, the `hello` and
+  `/v1/rotate/` of `crates/podssh-relay/src/serve/reverse/mod.rs`, the `token` frame of `node.rs`, the
+  `spent` frame of `operator.rs`, and `/relays.json` (`crates/podssh-relay/src/serve/docs.rs`).
+- The rotation: `crates/podssh-relay/src/pair/rotate.rs`, `crates/podssh-cli/src/node_rotate.rs`, and the
+  renewal's stop token now (`crates/podssh-cli/src/node_expiry.rs`).
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once`: 6 passed, three runs (the
+  2 of T-226, and 4 of T-615: the draft counted 5).
+- `cargo test -p podssh-relay --features serve --lib serve::`: 73 passed (among them the two new tests of
+  `pairs_tests.rs`, and the `hello` and `spent` of `serve::reverse::tests`).
+- `cargo test -p podssh-relay --features pair --lib -- e2e:: reverse:: pair::rotate`: 20 passed (7 tests of
+  `e2e::legs`, 1 of `e2e::frame`, 1 of `reverse::legs`, 1 of `pair::rotate`).
+- The CLI's whole `--lib`: 848 passed (`node_expiry`, and `man::`: the notes' flags and
+  variables, `man::notes_legs`).
+- `cargo test -p podssh-cli --test relay_serve_node`: 6 passed (each node of the role rotates its stop
+  token at its start; `relay revoke` after it reads the new one).
+- The relay crate's whole suite with `pair,serve,plain-ws,grant,code,quick,piping`: 83 targets, each
+  passed; the CLI's `exit` 7, `exit_routes` 3, `doctor_exit` 3, `node_cut` 3 and `relay_serve` 18 too.
+- Planted (`sh scripts/plant-each.sh --here t615-leg-reused t615-stop-unrotated t615-seed-unread
+  t615-window-unmoved`): 4 caught.
+- `cargo clippy -p podssh-relay --features serve,plain-ws,quick,pair,grant,code --all-targets` and `-p
+  podssh-cli --all-targets`, with `-D warnings`, and with no feature, with `serve,plain-ws,quick` and the
+  CLI with `iroh`: clean; rustfmt: clean once it reflowed three files; the library crates on Rust
+  1.89: clean. The rotation's task looks every 2 s, for the node's whole run, whether a socket heard
+  the offer; on a relay of the contract that is one read of a flag each 2 s, kept as it is.
+
+# T-620: The stop token's rotation and the renewal follow the node's next pair at expiry
+
+**Source:** T-615's draft (2026-11-04), which left it: a node that moves to its next pair at the
+pair's expiry (T-395) still rotates and renews the pair that it started with, as T-592's renewal does.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A node of podssh's relay role rotates its pair's stop token each day (T-615) and renews the pair
+before its end (T-592). At the pair's expiry a node moves to the next pair (T-395), and the task of
+each still holds the first pair: it rotates a stop token that ended with it, or renews nothing, and
+the new pair's stop token is never rotated.
+
+## Premise
+
+- Read: the rotation's task takes the pair held at the node's start
+  (`crates/podssh-cli/src/node_rotate.rs`), and so does the renewal (`crates/podssh-cli/src/node_expiry.rs`).
+- Read: a node goes on with the next pair at its pair's expiry (T-395, `node_expiry.rs`).
+
+## Approach
+
+1. The rotation and the renewal read the pair that the node holds now, through the same `Held`, which the
+   move to the next pair replaces, so that each next turn is the new pair's.
+2. The new pair's stop token is rotated at its first socket that hears the offer, as the first pair's.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_serve_node
+```
+
+A node of the role whose pair ends while it runs moves to the next one, and its next rotation names
+the new pair's name; the first pair's stop token is not used again. Planted: the task keeps the first
+pair; the test fails.
