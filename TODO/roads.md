@@ -2935,8 +2935,13 @@ serving line sit beside T-346's `--deployment` and `--list-key`.
   `pair,grant,piping,code` too), of `podssh-cli --all-targets` and of `podssh-cli --features iroh`:
   clean; rustfmt: clean once it reflowed two files of the draft.
 
-What remains of the entry after this part: item 4's run (the workflow, by hand), then item 2, the
-road by default where the first host offers it, with the tests of `podssh proxy` and `podssh ssh`
+Item 4's run, 2026-11-04: `relay-layer-live.yml` by hand at `537a156` (run 41784988681) passed:
+OpenSSH's client through `podssh proxy` and `podssh ssh` to the runner's sshd, each 48 MiB each
+way back in order through 6 resumes; the role resumed 12 links, and the stand-in proxy cut the
+open tunnels 12 times.
+
+What remains of the entry after this part: item 2, the road by default where the first host
+offers it, with the tests of `podssh proxy` and `podssh ssh`
 through the stand-in and the role that count their connections.
 
 # T-280: The iroh road through a SOCKS5 proxy
@@ -8989,7 +8994,7 @@ banner where a hop holds the body: the form needs a test of the way and a fallba
 
 ## Premise
 
-- `TODO/roads.md:3153` says "An answer down ends 20 ms after nothing more came": T-319's answers
+- `TODO/roads.md:3158` says "An answer down ends 20 ms after nothing more came": T-319's answers
   end so that a hop which holds them holds little, and none of its forms streams an answer while
   its request's body is open.
 - `crates/podssh-cli/src/doctor/stream/mod.rs:2` says "passes as it comes or is held until its
