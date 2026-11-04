@@ -537,6 +537,19 @@ Measured 2026-10-01:
   `X-Relay-Name` header of the `101` names the relay that served the
   session.
 
+Measured again on 2026-11-03 by a tester (GitHub #125, which GitHub no
+longer has), through one proxy: three calls, answered by the edges NRT, SIN
+and ARN, and each of the 37 hosts of the pool had another rank and another
+score in the first call and the third. The document's `policy.note`, as #125
+quotes it, calls `score_ms` a static estimate of the round trip from the
+client through the relay to the target. Whether `?prefer=`, `?region=` or
+`?spread=` pins the rank to one vantage, as the live document says of them
+(T-619): UNVERIFIED. A run of podssh takes this rank only where it measured
+none for its egress (T-606, T-607, above), and `podssh relay info` says
+whose rank it shows (T-610, T-618). A rank that two calls can compare is
+item 20 of [relay-operator.md](relay-operator.md), the note to the relay's
+operator.
+
 ### Open questions
 
 - Why does the relay's side drop a socket of the reverse road with no

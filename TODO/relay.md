@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:319`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:320`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -2232,8 +2232,8 @@ relay's operator has no way to move the binaries in the field to another deploym
   in regions of AWS, GCP and Azure, each a name of the same domain (`:30-68`). Inferred: each is a
   placement of the same Worker.
 - Read: the pairs of the reverse road live on the control host alone
-  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:587-592`). The audit cited
-  `docs/relay.md:579-584`; the fact is at `:587-592`.
+  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:600-605`). The audit cited
+  `docs/relay.md:592-597`; the fact is at `:600-605`.
 - Read: a release binary is uploaded or copied into its host, which cannot build it or download
   it (Q48, `docs/decisions.md:56`); a machine keeps one token for each deployment, and podssh
   "never sends a token to a deployment that did not mint it" (`docs/decisions.md:95`).
@@ -4020,3 +4020,32 @@ cargo todo check
 The item is in `docs/relay-operator.md`, with this entry and #125, and so is the fact in
 `docs/relay.md`; the reading of item 1 is quoted with its date, and holds no token, no address of
 this host and none of the document's `you`; both checks pass with the new citations.
+
+## Correction
+
+- 2026-11-04: the section "Questions about the contract" begins at `docs/relay-operator.md:437`,
+  not at line 430 at `366f511`, which is inside item 19 (T-421); the paragraph of the default
+  list's rank is `docs/relay.md:169-178`, beside the range that the Premise cites. Each claim of
+  the Premise holds at its lines.
+- The relay's `policy.note` is quoted from #125's export, of which this repository keeps no copy; the
+  item and `docs/relay.md` say "as #125 quotes it", and step 1's read of the live document checks
+  it.
+
+## Done
+
+2026-11-04 (drafted; each result below is UNVERIFIED until the main session runs it):
+
+- Step 1, the live relay's `/relays.json`, read once, with its `you` left out of what is kept:
+  UNVERIFIED. The reading goes, with its date, where the item and `docs/relay.md` say
+  UNVERIFIED (`docs/relay-operator.md:486-490`, `docs/relay.md:545-547`): what the document says
+  of `?prefer=`, `?region=` and `?spread=`, and whether one of them pins the rank and the score to
+  one vantage. Where one does, a client that asks with it is an entry of its own (the Decision).
+- Step 2: item 20 of the note, "A rank and a score that two calls can compare", under "Questions
+  about the contract" (`docs/relay-operator.md:465-501`), with this entry and #125: the
+  measurements of 2026-10-01 and of #125's three calls; the two forms that would make two answers
+  comparable; the parameters of step 1; and "In podssh": T-606, T-607 and T-608, T-610 and T-618,
+  and the role's one host, which `relay info` reads as no estimate.
+- Step 3: `docs/relay.md`, "Relay facts for a client that selects a relay"
+  (`docs/relay.md:540-551`): #125's measurement after the one of 2026-10-01, which keeps its words
+  (`docs/relay.md:531-532`), the parameters of step 1, podssh's own order, and the item's place.
+- `python scripts/check-repo.py`: UNVERIFIED. `cargo todo check`: UNVERIFIED.
