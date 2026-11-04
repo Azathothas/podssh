@@ -50,7 +50,10 @@ SHORT = {"made": False}
 IN_FLIGHT = 2.0
 # lateclose:SECONDS (T-421): the relay tells the node of an operator's lost
 # link SECONDS late, as a relay far from its node does, so that the node's
-# frames for that session are sure to come after the relay forgot it.
+# frames for that session come after the relay forgot it. A node that moved
+# the session to a new link first sends none on a loaded host (1 run in 18),
+# so the node's socket that heard nothing of the loss by then gets the 1003
+# that such a frame gets, and the mode's 1003 comes in each run.
 # FAKE_RELAY_DEBUG=1: each frame of the reverse road, on stderr.
 DEBUG = bool(os.environ.get("FAKE_RELAY_DEBUG"))
 
@@ -356,15 +359,21 @@ async def operator(pair, socket):
         if lost:
             pair.lost[sid] = time.monotonic()
         if lost and MODE.startswith("lateclose:"):
-            asyncio.ensure_future(close_late(pair, sid, float(MODE.split(":", 1)[1])))
+            asyncio.ensure_future(close_late(pair, sid, float(MODE.split(":", 1)[1]), pair.node))
         elif pair.node is not None:
             await pair.node.text({"type": "close", "id": sid})
 
 
-async def close_late(pair, sid, seconds):
-    """The close of a lost link, `seconds` late (lateclose)."""
+async def close_late(pair, sid, seconds, heard):
+    """The close of a lost link, `seconds` late (lateclose): the 1003 of a
+    frame of the node for it, on `heard`, the node's socket at the loss,
+    where no such frame closed it first."""
     await asyncio.sleep(seconds)
-    if pair.node is not None and not pair.node.closed:
+    if heard is not None and heard is pair.node and not heard.closed:
+        print(f"reverse: a frame of the node for {sid[:8]}, whose operator's link was lost {int(seconds * 1000)} ms "
+              "before (late close): 1003", file=sys.stderr, flush=True)
+        await heard.close(1003, "unknown session id")
+    elif pair.node is not None and not pair.node.closed:
         await pair.node.text({"type": "close", "id": sid})
 
 
