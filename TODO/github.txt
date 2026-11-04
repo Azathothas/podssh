@@ -133,7 +133,7 @@
 125 issue deleted
 126 issue closed
 127 issue closed
-128 issue open
+128 issue closed
 129 issue open
 130 issue open
 131 issue open
@@ -151,6 +151,6 @@
 143 issue open
 144 issue open
 145 issue open
-146 issue open
+146 issue closed
 147 issue open
 148 issue open
