@@ -986,7 +986,7 @@ The live test needs a node and the layer's client, which are in
 podssh-cli: it is `cargo test -p podssh-cli --test node_live -- --ignored
 move_200mib`, with an echo server on the loopback as the node's TARGET.
 Step 6 needs no ticket of T-163: the operator's part of a pair keeps its
-expiry (`expires_ms`, `crates/podssh-relay/src/pair.rs:340`), and at the
+expiry (`expires_ms`, `crates/podssh-relay/src/pair.rs:339`), and at the
 expiry the relay ends each session of the pair with `1001 pair expired`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:171`), which
 the policy of T-153 does not resume. The repair of T-262 changed step 3:

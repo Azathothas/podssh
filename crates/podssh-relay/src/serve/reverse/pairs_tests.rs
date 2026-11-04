@@ -186,6 +186,136 @@ async fn the_tokens_of_one_leg_are_bounded_and_a_spent_one_stays_spent() {
     assert!(pairs.find_leg(&made.name, Some(token(21).as_str()), 30_000).is_none(), "past its end");
 }
 
+/// The key of `seed`, among `keys` keys that the role mints for (T-630).
+fn asker(seed: u8, keys: usize) -> Asker {
+    Asker { key: format!("SHA256:the-key-of-seed-{seed}"), keys }
+}
+
+/// The pairs that `asker` makes at `now` until one is refused: their names,
+/// and why the next was not made. The table's own bound ends it.
+fn until_refused(pairs: &Pairs, asker: Option<&Asker>, now: u64) -> (Vec<String>, NotMade) {
+    let mut names = Vec::new();
+    loop {
+        match pairs.make_for(now, false, asker) {
+            Ok(made) => names.push(made.name),
+            Err(why) => return (names, why),
+        }
+    }
+}
+
+#[test]
+fn the_reserve_is_half_the_table_in_equal_parts_and_the_whole_for_a_key_alone() {
+    assert_eq!((reserve(16, 4), reserve(4096, 3), reserve(8, 100)), (2, 682, 1));
+    assert_eq!((reserve(16, 1), reserve(16, 0)), (16, 16), "a key alone, and a role that cannot count its keys");
+    assert_eq!(Pairs::default().room(), MAX_PAIRS);
+}
+
+/// Three keys of four that pair in turns, as fast as they can: each meets
+/// its share, and the fourth still finds its reserve, then the full table.
+#[test]
+fn greedy_keys_leave_each_other_key_its_reserve() {
+    let pairs = Pairs::default().with_room(16);
+    let greedy: Vec<Asker> = (1..=3).map(|seed| asker(seed, 4)).collect();
+    let mut refused: Vec<Option<NotMade>> = vec![None; greedy.len()];
+    while refused.iter().any(Option::is_none) {
+        for (n, key) in greedy.iter().enumerate() {
+            if refused[n].is_none() {
+                refused[n] = pairs.make_for(1_000, false, Some(key)).err();
+            }
+        }
+    }
+    for why in &refused {
+        assert!(matches!(why, Some(NotMade::Share { share: 2, .. })), "{refused:?}");
+    }
+    assert_eq!(pairs.len(), 14, "the last key's reserve stays free");
+    let (last, why) = until_refused(&pairs, Some(&asker(4, 4)), 1_000);
+    assert_eq!((last.len(), why), (2, NotMade::Full), "the last key's reserve, then the table's own bound");
+}
+
+/// A busy key among idle ones borrows past its reserve, up to the places
+/// that the others' reserves hold; each other key then finds its own. A key
+/// alone takes the whole table. The refusal holds its own count and share.
+#[test]
+fn a_busy_key_borrows_past_its_reserve_and_a_key_alone_takes_the_whole_table() {
+    let pairs = Pairs::default().with_room(16);
+    let (busy, why) = until_refused(&pairs, Some(&asker(1, 4)), 1_000);
+    assert_eq!((busy.len(), why), (10, NotMade::Share { holds: 10, share: 2 }), "past its reserve of 2");
+    for seed in 2..=4 {
+        let (own, _) = until_refused(&pairs, Some(&asker(seed, 4)), 1_000);
+        assert_eq!(own.len(), 2, "the key of seed {seed} finds its reserve");
+    }
+    assert_eq!(pairs.len(), 16);
+    let alone = Pairs::default().with_room(16);
+    let (each, why) = until_refused(&alone, Some(&asker(1, 1)), 1_000);
+    assert_eq!((each.len(), why), (16, NotMade::Full), "a key alone takes each place");
+}
+
+/// A pair that ends, or expires, gives its place back to its key; a renewal
+/// keeps its maker.
+#[test]
+fn an_ended_or_expired_pair_returns_its_place_to_its_key() {
+    let pairs = Pairs::default().with_room(8);
+    let key = asker(1, 2);
+    let (held, why) = until_refused(&pairs, Some(&key), 1_000);
+    assert_eq!((held.len(), why), (6, NotMade::Share { holds: 6, share: 2 }));
+    assert_eq!(pairs.renew(&held[0], 2_000), Ok(Some(2_000 + LIFETIME_MS)));
+    let refused = pairs.make_for(2_000, false, Some(&key)).err();
+    assert_eq!(refused, Some(NotMade::Share { holds: 6, share: 2 }), "a renewal keeps its maker");
+    pairs.end(&held[1], 1001, "operator stopped reverse relay");
+    let (again, _) = until_refused(&pairs, Some(&key), 2_000);
+    assert_eq!(again.len(), 1, "the place of the stopped pair");
+    // Each pair made at 1 000 has expired; the renewed one holds on.
+    let later = 1_000 + LIFETIME_MS + 1;
+    let (after, why) = until_refused(&pairs, Some(&key), later);
+    assert_eq!((after.len(), why), (4, NotMade::Share { holds: 6, share: 2 }), "the places of the expired pairs");
+}
+
+/// A role for anyone counts no key, and its pairs count against none: a key
+/// that comes later meets its share by its own count alone.
+#[test]
+fn a_pair_of_no_key_counts_against_none() {
+    let pairs = Pairs::default().with_room(16);
+    for _ in 0..6 {
+        pairs.make(1_000).unwrap();
+    }
+    let (own, why) = until_refused(&pairs, Some(&asker(1, 4)), 1_000);
+    assert_eq!((own.len(), why), (4, NotMade::Share { holds: 4, share: 2 }), "its own 4, not the table's 10");
+    let anyone = Pairs::default().with_room(16);
+    let (each, why) = until_refused(&anyone, None, 1_000);
+    assert_eq!((each.len(), why), (16, NotMade::Full), "a role for anyone");
+}
+
+/// A file of before, with no maker, reads, and its pair counts against no
+/// key; a pair's maker is kept, and comes back from a restart.
+#[test]
+fn a_file_of_before_reads_and_a_maker_comes_back_after_a_restart() {
+    let dir = std::env::temp_dir().join(format!("podssh-pairs-{}-{}", std::process::id(), line!()));
+    crate::cache::private_dir(&dir).unwrap();
+    let path = dir.join("pairs.json");
+    let now = super::super::super::tokens::now_ms();
+    let before = serde_json::json!({ "pairs": [{
+        "name": format!("p-{}", "a".repeat(32)), "expires": now + LIFETIME_MS,
+        "node": hex(&digest("n")), "connect": hex(&digest("c")), "stop": hex(&digest("s")),
+    }]});
+    write_private(&path, before.to_string().as_bytes()).unwrap();
+    let pairs = Pairs::open(Some(path.clone())).unwrap().with_room(4);
+    assert_eq!(pairs.len(), 1, "the pair of before");
+    let key = asker(1, 2);
+    let (made, why) = until_refused(&pairs, Some(&key), now);
+    assert_eq!((made.len(), why), (2, NotMade::Share { holds: 2, share: 1 }), "the pair of before is no key's");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(text.matches(&format!("\"maker\":\"{}\"", key.key)).count(), 2, "{text}");
+    let again = Pairs::open(Some(path.clone())).unwrap().with_room(4);
+    let past = Some(NotMade::Share { holds: 2, share: 1 });
+    assert_eq!(again.make_for(now, false, Some(&key)).err(), past, "its count, after a restart");
+    // A renewal keeps the maker in the file too.
+    assert!(again.renew(&made[0], now + 1_000).unwrap().is_some());
+    let renewed = Pairs::open(Some(path)).unwrap().with_room(4);
+    assert_eq!(renewed.make_for(now, false, Some(&key)).err(), past, "its count, after a renewal and a restart");
+    assert!(renewed.make_for(now, false, Some(&asker(2, 2))).is_ok(), "the other key's reserve");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// A pair of the role with one operator's socket on a pipe of 1 KiB, so
 /// that its frames wait in the queue, four of 16 KiB queued; the client's
 /// end of the socket.

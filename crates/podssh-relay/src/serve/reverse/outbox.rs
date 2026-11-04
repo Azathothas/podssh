@@ -3,7 +3,10 @@
 //! session's first byte. What waits for it is counted against the contract's
 //! bound for a slow receiver, 1 MiB (its row `1011 relay backpressure`): a
 //! sender to an operator gets a refusal past it, a sender to a node waits for
-//! room (`super::node`, `super::operator`).
+//! room (`super::node`, `super::operator`). Text goes first; binary frames
+//! wait in a line for each session, a turn each, so that one session's
+//! backlog to a node delays no other session's bytes (T-648,
+//! `crate::reverse::fair`), and a session's `close` goes after its bytes.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -13,18 +16,39 @@ use podssh_ws::frame::{self, Frame};
 use podssh_ws::session::RelaySession;
 use podssh_ws::SessionError;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::{mpsc, watch, Notify, OwnedSemaphorePermit, Semaphore};
+use tokio::sync::{mpsc, watch, Notify};
 use tokio::task::JoinHandle;
+
+use crate::reverse::fair::{Fair, Refused, Turn};
+use crate::reverse::framing::SessionId;
 
 /// The contract's bound for a slow receiver: past it, `1011 relay
 /// backpressure`, and the frame that would pass it is dropped.
 pub const BOUND: usize = 1 << 20;
 
-/// A queued write. A binary frame holds its room until it is written.
+/// A queued write ahead of the sessions' lines: a text frame, or the Close,
+/// which goes once each line has gone out.
 enum Item {
     Text(String),
-    Binary(Vec<u8>, OwnedSemaphorePermit),
     Close(u16, String),
+}
+
+/// A piece of a session's line: a binary frame, which holds its room until
+/// it is written, or the text that ends the session after its bytes.
+enum Piece {
+    Binary(Vec<u8>),
+    Text(String),
+}
+
+/// A session's line: its id on a node's socket; an operator's socket
+/// carries one session, in one line.
+type Line = Option<SessionId>;
+
+/// What the writer takes next.
+enum Next {
+    Abort,
+    Item(Option<Item>),
+    Turn(Option<Turn<Line, Piece>>),
 }
 
 /// A Close that goes before what waits: the frames queued are dropped.
@@ -103,7 +127,7 @@ impl Writers {
 #[derive(Clone)]
 pub struct Outbox {
     tx: mpsc::UnboundedSender<Item>,
-    room: Arc<Semaphore>,
+    lines: Fair<Line, Piece>,
     abort: Arc<Abort>,
     done: watch::Receiver<bool>,
 }
@@ -115,33 +139,55 @@ impl Outbox {
         S: AsyncRead + AsyncWrite + Send + 'static,
     {
         let (tx, mut rx) = mpsc::unbounded_channel::<Item>();
-        let room = Arc::new(Semaphore::new(BOUND));
+        // Each line may hold the whole bound, as one session did before;
+        // a line that holds nothing takes one frame past it.
+        let lines = Fair::new(BOUND, BOUND);
         let abort = Arc::new(Abort::default());
         let (ended, done) = watch::channel(false);
         writers.join();
-        let (task_room, task_abort) = (room.clone(), abort.clone());
+        let (task_lines, task_abort) = (lines.clone(), abort.clone());
         tokio::spawn(async move {
+            // The Close asked for, which goes once each line went out; `None`
+            // inside when each sender is gone, which ends with no Close.
+            let mut closing: Option<Option<(u16, String)>> = None;
             loop {
-                let item = tokio::select! {
+                let next = tokio::select! {
                     biased;
-                    () = task_abort.now.notified() => None,
-                    item = rx.recv() => item,
+                    () = task_abort.now.notified() => Next::Abort,
+                    item = rx.recv(), if closing.is_none() => Next::Item(item),
+                    turn = task_lines.next() => Next::Turn(turn),
                 };
                 // An abort that came while a frame went out goes now.
                 if let Some((code, why)) = task_abort.take() {
                     let _ = session.send_close(code, &why).await;
                     break;
                 }
-                let sent = match item {
-                    None => break,
-                    Some(Item::Text(text)) => session.send_text(&text).await,
-                    Some(Item::Binary(frame, room)) => {
-                        let sent = session.send_binary(&frame).await;
-                        drop(room);
+                let sent = match next {
+                    Next::Abort => break,
+                    Next::Item(Some(Item::Text(text))) => session.send_text(&text).await,
+                    // No frame joins a line now; what they hold goes first.
+                    Next::Item(Some(Item::Close(code, why))) => {
+                        closing = Some(Some((code, why)));
+                        task_lines.shut();
+                        continue;
+                    }
+                    Next::Item(None) => {
+                        closing = Some(None);
+                        task_lines.shut();
+                        continue;
+                    }
+                    Next::Turn(Some(turn)) => {
+                        let sent = match turn.piece {
+                            Piece::Binary(frame) => session.send_binary(&frame).await,
+                            Piece::Text(text) => session.send_text(&text).await,
+                        };
+                        drop(turn.slot);
                         sent
                     }
-                    Some(Item::Close(code, why)) => {
-                        let _ = session.send_close(code, &why).await;
+                    Next::Turn(None) => {
+                        if let Some(Some((code, why))) = closing.take() {
+                            let _ = session.send_close(code, &why).await;
+                        }
                         break;
                     }
                 };
@@ -150,36 +196,55 @@ impl Outbox {
                 }
             }
             // A sender that waits for room learns that none comes.
-            task_room.close();
+            task_lines.shut();
             rx.close();
             let _ = ended.send(true);
             writers.leave();
         });
-        Outbox { tx, room, abort, done }
+        Outbox { tx, lines, abort, done }
     }
 
-    /// A text frame, after what waits; control is small and never waits.
+    /// A text frame, before the sessions' bytes that wait; control is small
+    /// and never waits.
     pub fn text(&self, text: String) {
         let _ = self.tx.send(Item::Text(text));
     }
 
-    /// A binary frame for a receiver that its senders wait for: the node,
-    /// whose one socket carries each session.
-    pub async fn binary_waiting(&self, frame: Vec<u8>) -> Result<(), Gone> {
-        let room = self.room.clone().acquire_many_owned(permits(frame.len())).await.map_err(|_| Gone)?;
-        self.tx.send(Item::Binary(frame, room)).map_err(|_| Gone)
+    /// A text frame that ends session `id`, after the bytes of `id` that
+    /// wait, and before the Close: a node hears a session's last bytes before
+    /// its `close` (T-648).
+    pub fn text_after(&self, id: SessionId, text: String) {
+        let _ = self.lines.push_last(Some(id), Piece::Text(text));
+    }
+
+    /// A binary frame of session `id` for a receiver that its senders wait
+    /// for: the node, whose one socket carries each session, a turn each.
+    pub async fn binary_waiting(&self, id: SessionId, frame: Vec<u8>) -> Result<(), Gone> {
+        let cost = cost(frame.len());
+        self.lines.push(Some(id), Piece::Binary(frame), cost).await.map_err(|_| Gone)
     }
 
     /// A binary frame, or [`Full`] when it would put more than [`BOUND`] in
-    /// the queue: the contract's `1011 relay backpressure`.
+    /// the queue: the contract's `1011 relay backpressure`. A socket that
+    /// ends, after its Close was asked for, takes it as each frame after a
+    /// Close: it is never written.
     pub fn binary_or_full(&self, frame: Vec<u8>) -> Result<(), Full> {
-        let room = self.room.clone().try_acquire_many_owned(permits(frame.len())).map_err(|_| Full)?;
-        self.tx.send(Item::Binary(frame, room)).map_err(|_| Full)
+        let cost = cost(frame.len());
+        match self.lines.try_push(None, Piece::Binary(frame), cost) {
+            Ok(()) | Err(Refused::Shut) => Ok(()),
+            Err(Refused::Full) => Err(Full),
+        }
     }
 
     /// The bytes that wait to be written.
     pub fn waiting(&self) -> usize {
-        BOUND.saturating_sub(self.room.available_permits())
+        self.lines.used()
+    }
+
+    /// Drop the frames that wait for session `id`, which its receiver ended:
+    /// they would reach it for an id that it forgot.
+    pub fn drop_session(&self, id: &SessionId) {
+        self.lines.drop_line(&Some(*id));
     }
 
     /// A Close after what waits: the receiver gets each byte before it.
@@ -202,8 +267,8 @@ impl Outbox {
 }
 
 /// The room that a frame of `len` bytes takes; an empty one takes one.
-fn permits(len: usize) -> u32 {
-    u32::try_from(len.clamp(1, BOUND)).unwrap_or(u32::MAX)
+fn cost(len: usize) -> usize {
+    len.clamp(1, BOUND)
 }
 
 /// The socket's messages, read by a task of its own: a read that a `select!`
@@ -227,30 +292,5 @@ where
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_frame_takes_its_length_in_room_and_one_at_least() {
-        assert_eq!(permits(0), 1);
-        assert_eq!(permits(65568), 65568);
-        assert_eq!(permits(usize::MAX), BOUND as u32);
-    }
-
-    #[tokio::test]
-    async fn a_queue_for_a_slow_receiver_refuses_what_passes_the_bound() {
-        // The writer's socket is never read: what is queued stays queued
-        // once the pipe's own buffer is full.
-        let (ours, _theirs) = tokio::io::duplex(1024);
-        let session = Arc::new(podssh_ws::server::session(ours, Vec::new(), None));
-        let writers = Arc::new(Writers::default());
-        let outbox = Outbox::start(session, writers.clone());
-        let mut queued = 0;
-        while outbox.binary_or_full(vec![7u8; 64 * 1024]).is_ok() {
-            queued += 64 * 1024;
-            assert!(queued <= BOUND + 64 * 1024, "the bound held nothing back");
-        }
-        assert!(queued >= BOUND - 128 * 1024, "only {queued} bytes were queued");
-        assert!(outbox.waiting() <= BOUND, "{} bytes wait", outbox.waiting());
-    }
-}
+#[path = "outbox_tests.rs"]
+mod tests;

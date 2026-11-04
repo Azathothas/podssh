@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:465-474`).
+   and above all not the `stop_token` (`docs/reverse.md:472-481`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:327`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:329`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -4087,7 +4087,7 @@ Read at `2042200`:
   `CAPBSET`), so no step drops a privilege today.
 - After the bind the role still reads files: the certificate on SIGHUP and when its files change
   (`crates/podssh-cli/src/relay_serve.rs:316-323`, T-447), the file of pairs at each pair
-  (`crates/podssh-relay/src/serve/reverse/pairs.rs:271`), and ACME's cache at each renewal. A root
+  (`crates/podssh-relay/src/serve/reverse/pairs.rs:289`), and ACME's cache at each renewal. A root
   that dropped `CAP_DAC_OVERRIDE` reads a file of another owner only as its mode lets uid 0
   (Inferred from capabilities(7); not measured here).
 - `crates/podssh-cli/Cargo.toml:146` says "[target.'cfg(unix)'.dependencies]" above the binary's
@@ -4361,7 +4361,7 @@ Read at `2042200`:
   replaces; the issue's own Risks say so.
 - The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:327-331` takes the key that
   proved itself, and drops it after its line.
-- The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:416`)
+- The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:438`)
   and a SHA-256 of each token (`:435`).
 - The brake counts requests for each address (`crates/podssh-relay/src/serve/brake.rs:22` says
   "pub const PER_MINUTE: usize = 120;"), never bytes.
@@ -4562,9 +4562,9 @@ Read at `2042200`:
   other form; `crates/podssh-cli/src/relay_serve.rs:265-272` reads it at the start, and a file that
   does not read stops it (78). The role behind a quick tunnel reads the same words
   (`crates/podssh-cli/src/node_quick_relay.rs:70`).
-- The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs:68`, and
-  `crates/podssh-relay/src/serve/keys.rs:72` says "this relay cannot read its list of keys";
-  `docs/relay.md:789` says "read again for each request".
+- The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs:80`, and
+  `crates/podssh-relay/src/serve/keys.rs:84` says "this relay cannot read its list of keys";
+  `docs/relay.md:796` says "read again for each request".
 - `crates/podssh-relay/src/serve/mod.rs:93` holds the list as a path; the net's members are a source
   that the binary gives (`crates/podssh-relay/src/serve/keys.rs:31`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.
@@ -4623,7 +4623,7 @@ Read at `2042200`:
   the session (`crates/podssh-relay/src/serve/listener.rs:51`), and so does ACME's TLS-ALPN-01
   (`:45`). The issue reads these in `relay_serve.rs`, where they were before the listener moved to
   `podssh-relay`.
-- A pair is found by its name, its role and a token (`crates/podssh-relay/src/serve/reverse/pairs.rs:281`).
+- A pair is found by its name, its role and a token (`crates/podssh-relay/src/serve/reverse/pairs.rs:299`).
 - A reader of a ClientHello's name exists in a test's stand-in alone
   (`crates/podssh-relay/tests/opentunnel_stand_in/parse.rs:110` for the record's length, `:120` for the
   name), and routing by a name's label in OpenTunnel's road (`crates/podssh-relay/src/opentunnel/wire.rs:206`).

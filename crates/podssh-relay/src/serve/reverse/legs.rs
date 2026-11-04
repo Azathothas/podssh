@@ -113,7 +113,7 @@ impl Held {
 
 impl Pair {
     /// This pair as its file keeps it: the digest of each token, the stop
-    /// token's as its node rotated it, and the one to come.
+    /// token's as its node rotated it, the one to come, and its maker (T-630).
     pub(super) fn kept(&self) -> Kept {
         let stop = lock(&self.held.stop);
         Kept {
@@ -125,6 +125,7 @@ impl Pair {
             once: self.once,
             spent: self.connect_spent(),
             next_stop: stop.next.map(|next| hex(&next)),
+            maker: self.maker.clone(),
         }
     }
 

@@ -2,19 +2,27 @@
 //! role (T-427), as they run against the live relay and the stand-in: two
 //! sessions at once carry their bytes whole; a slow operator meets the
 //! contract's bound, `1011 relay backpressure` at 1 MiB, while the node's
-//! other session goes on (T-336); and a planned stop's `1012` sends the node
-//! back to its pair (T-255).
+//! other session goes on (T-336); a planned stop's `1012` sends the node
+//! back to its pair (T-255); a role that mints for keys keeps a share of its
+//! pairs for each (T-630); and the role's frames to a node give each session
+//! a turn (T-648).
 #![cfg(all(feature = "serve", feature = "plain-ws"))]
 
 mod role_harness;
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use podssh_relay::identity::Identity;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::{self, operator, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits};
 use podssh_relay::reverse::{Outcome, SessionId, Settings, Wire};
+use podssh_relay::serve::reverse::{carrier, Pairs};
+use podssh_relay::serve::Mint;
+use podssh_ws::frame::{Frame, OPCODE_BINARY, OPCODE_TEXT};
+use podssh_ws::session::RelaySession;
 use podssh_ws::{ProxyChoice, Trust};
 use role_harness::{Role, LIMIT};
 use sha2::{Digest, Sha256};
@@ -286,4 +294,166 @@ async fn after_a_planned_stops_1012_the_node_joins_its_pair_again() {
     .await
     .expect("in time");
     assert!(matches!(exit, Exit::Stopped), "{exit:?}");
+}
+
+/// A list of the keys of `seeds`, in a private scratch file that goes when
+/// the test ends, pass or fail: the gate counts what tests leave.
+struct Keys {
+    dir: PathBuf,
+    path: PathBuf,
+}
+
+impl Keys {
+    fn of(seeds: &[u8]) -> Keys {
+        let dir = std::env::temp_dir().join(format!("podssh-share-{}", std::process::id()));
+        podssh_relay::cache::private_dir(&dir).unwrap();
+        let path = dir.join("allow");
+        let print = |seed: u8| Identity::from_seed(&[seed; 32]).public().fingerprint();
+        let lines: String = seeds.iter().map(|&seed| format!("{} the key of seed {seed}\n", print(seed))).collect();
+        std::fs::write(&path, lines).unwrap();
+        Keys { dir, path }
+    }
+}
+
+impl Drop for Keys {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+/// `POST /v1/pair` by the key of `seed`, as podssh's client sends it to a
+/// role that mints for keys (T-448): the contract's `{}`, then the key's
+/// proof of the role's challenge, signed for the `Host` that it sends. The
+/// status and the body.
+async fn pair_by_key(role: &Role, seed: u8) -> (u16, String) {
+    let (status, body) = role.http_body("POST", "/v1/pair", None, "{}").await;
+    assert_eq!(status, 401, "a challenge: {body}");
+    let asked: serde_json::Value = serde_json::from_str(&body).expect("the challenge's JSON");
+    let challenge = asked["challenge"].as_str().expect("a challenge");
+    let proof = podssh_relay::keyed::proof(&Identity::from_seed(&[seed; 32]), "127.0.0.1", "/v1/pair", challenge);
+    role.http_body("POST", "/v1/pair", None, std::str::from_utf8(&proof).unwrap()).await
+}
+
+/// T-630: a role that mints for three keys, with a table of 6 places, keeps
+/// one for each: the first key pairs past its own, then meets its share in
+/// words that name its own count and share and no other key; each other key
+/// still pairs; then the table is full, in the table's own words.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_key_past_its_share_hears_its_own_words_and_each_other_key_still_pairs() {
+    let list = Keys::of(&[1, 2, 3]);
+    let role = Role::with_pairs(Mint::Keys(list.path.clone()), Pairs::default().with_room(6)).await;
+    let mut made = 0;
+    let (status, body) = loop {
+        let (status, body) = pair_by_key(&role, 1).await;
+        if status != 200 {
+            break (status, body);
+        }
+        made += 1;
+        assert!(made <= 6, "the table's bound held nothing back");
+    };
+    assert_eq!((status, made), (429, 4), "{body}");
+    assert_eq!(body.trim_end(), "/v1/pair: this key holds 4 pairs, past its share of 1 while others wait");
+    for seed in [2, 3] {
+        let print = Identity::from_seed(&[seed; 32]).public().fingerprint();
+        assert!(!body.contains(&print), "another key's name: {body}");
+    }
+    assert!(role.said("/v1/pair: a key past its share of 1 pairs"), "{:?}", role.events.lock().unwrap());
+    for seed in [2, 3] {
+        let (status, body) = pair_by_key(&role, seed).await;
+        assert_eq!(status, 200, "the reserve of the key of seed {seed}: {body}");
+    }
+    let (status, body) = pair_by_key(&role, 3).await;
+    assert_eq!((status, body.trim_end()), (429, "/v1/pair: this relay keeps 6 pairs already"));
+}
+
+/// The turns of the other tasks that a still count waits through: each step
+/// of a task on the test's one thread takes one.
+const QUIET_TURNS: usize = 1000;
+
+/// The node's next text or binary frame on its socket.
+async fn node_frame(node: &RelaySession<DuplexStream>) -> Frame {
+    loop {
+        let f = tokio::time::timeout(LIMIT, node.read_frame()).await.expect("a frame in time").expect("a frame");
+        if f.opcode == OPCODE_TEXT || f.opcode == OPCODE_BINARY {
+            return f;
+        }
+    }
+}
+
+async fn node_text(node: &RelaySession<DuplexStream>) -> serde_json::Value {
+    let f = node_frame(node).await;
+    assert_eq!(f.opcode, OPCODE_TEXT, "{:?}", String::from_utf8_lossy(&f.payload));
+    serde_json::from_slice(&f.payload).expect("JSON")
+}
+
+/// An operator's leg of the carrier's role, once the node readied its
+/// session: the leg, and the session's id as the node heard it.
+async fn leg(role: &carrier::Role, node: &RelaySession<DuplexStream>) -> (RelaySession<DuplexStream>, String) {
+    let path = podssh_relay::relay::operator_path(carrier::NAME).unwrap();
+    let leg = role.open(&path, LIMIT).await.expect("an operator's leg");
+    let open = node_text(node).await;
+    let id = open["id"].as_str().expect("an open with its id").to_string();
+    node.send_text(&format!(r#"{{"type":"ready","id":"{id}"}}"#)).await.unwrap();
+    let ready = tokio::time::timeout(LIMIT, leg.read_frame()).await.expect("ready in time").expect("ready");
+    assert_eq!(ready.opcode, OPCODE_TEXT, "the operator's ready");
+    (leg, id)
+}
+
+/// Until `count` stays still while each other task of this thread runs: its
+/// sender waits, as each queue on its way is full.
+async fn until_still(count: &AtomicUsize) {
+    let (mut last, mut still) = (count.load(Ordering::SeqCst), 0);
+    while still < QUIET_TURNS {
+        tokio::task::yield_now().await;
+        let now = count.load(Ordering::SeqCst);
+        (last, still) = if now == last { (last, still + 1) } else { (now, 0) };
+    }
+}
+
+/// T-648: the relay role's side of a node's socket, on pipes with no kernel
+/// between (a carrier's, T-595, which runs the role's own code), and a node
+/// that reads nothing while operator A uploads: A's frames fill the role's
+/// line to the node. Operator B's four bytes then reach the node before 512
+/// KiB more of A's; one queue for all held 1 MiB of A ahead of them.
+#[tokio::test]
+async fn an_operators_bytes_reach_a_slow_node_before_anothers_backlog() {
+    let role = carrier::Role::new("a test's pipe", None, None).expect("the carrier's role");
+    let (link, node_end) = tokio::io::duplex(64 * 1024);
+    role.attach(Box::new(link)).expect("the node's socket");
+    let node = carrier::node_socket(node_end);
+    carrier::greet(&node).await.unwrap();
+    assert_eq!(node_text(&node).await["type"], "hello");
+    let (a, id_a) = leg(&role, &node).await;
+    let (b, id_b) = leg(&role, &node).await;
+    let (a, sent) = (Arc::new(a), Arc::new(AtomicUsize::new(0)));
+    let flood = {
+        let (a, sent) = (a.clone(), sent.clone());
+        tokio::spawn(async move {
+            let payload = vec![b'a'; 60_000];
+            for _ in 0..64 {
+                if a.send_binary(&payload).await.is_err() {
+                    return;
+                }
+                sent.fetch_add(1, Ordering::SeqCst);
+            }
+        })
+    };
+    until_still(&sent).await;
+    let waited = sent.load(Ordering::SeqCst);
+    assert!(waited < 64, "A's sender never waited: the role took 3.8 MB for a node that reads nothing");
+    b.send_binary(b"to b").await.unwrap();
+    let mut before = 0;
+    loop {
+        let f = node_frame(&node).await;
+        assert_eq!(f.opcode, OPCODE_BINARY);
+        let (id, payload) = f.payload.split_at(32);
+        if id == id_b.as_bytes() {
+            assert_eq!(payload, b"to b");
+            break;
+        }
+        assert_eq!(id, id_a.as_bytes());
+        before += payload.len();
+        assert!(before < 512 * 1024, "{before} bytes of A came before B's four");
+    }
+    flood.abort();
 }

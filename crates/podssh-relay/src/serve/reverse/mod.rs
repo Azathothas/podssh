@@ -15,6 +15,7 @@
 //! registers tokens of one leg on its socket, each of which one operator's
 //! upgrade takes, and rotates its stop token with `POST /v1/rotate/<name>`;
 //! the node's `hello` and `/relays.json` offer both (T-615, [`pairs::Leg`]).
+//! A role that mints for keys keeps a share of its pairs for each (T-630).
 //!
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
@@ -183,20 +184,31 @@ where
         return answer(stream, request::refusal(400, "/v1/pair: the body is {} or nothing", &[])).await;
     }
     // For the keys of a list, as the mint (T-448).
-    if let Err(refusal) = super::proven(cfg, head, sni, "/v1/pair", body) {
-        return answer(stream, refusal).await;
-    }
+    let maker = match super::proven(cfg, head, sni, "/v1/pair", body) {
+        Ok(maker) => maker,
+        Err(refusal) => return answer(stream, refusal).await,
+    };
     // `?once=1`: a connect token that takes one upgrade alone (T-226); the
     // query holds no credential, and the proof of a key signs the path.
     let query = head.target.split_once('?').map(|(_, q)| q).unwrap_or("");
     let once = query.split('&').any(|p| p == "once=1" || p == "once=true");
-    let made = match cfg.pairs.make_with(super::tokens::now_ms(), once) {
+    // Within its share of the table, among the keys that the role mints for
+    // now (T-630).
+    let keys = super::keys::Whom::of(&cfg.mint).map_or(0, |whom| whom.count());
+    let asker = maker.map(|key| pairs::Asker { key: key.fingerprint(), keys });
+    let made = match cfg.pairs.make_for(super::tokens::now_ms(), once, asker.as_ref()) {
         Ok(made) => made,
         Err(NotMade::NameInUse) => {
             return answer(stream, request::refusal(409, "/v1/pair: the name drawn is in use; pair again", &[])).await
         }
         Err(NotMade::Full) => {
-            let why = format!("/v1/pair: this relay keeps {} pairs already", pairs::MAX_PAIRS);
+            let why = format!("/v1/pair: this relay keeps {} pairs already", cfg.pairs.room());
+            return answer(stream, request::refusal(429, &why, &[("Retry-After", "60")])).await;
+        }
+        // The key's own count and share, and no word of another key's.
+        Err(NotMade::Share { holds, share }) => {
+            cfg.event(&format!("/v1/pair: a key past its share of {share} pairs"));
+            let why = format!("/v1/pair: this key holds {holds} pairs, past its share of {share} while others wait");
             return answer(stream, request::refusal(429, &why, &[("Retry-After", "60")])).await;
         }
         Err(NotMade::Failed(why)) => {
