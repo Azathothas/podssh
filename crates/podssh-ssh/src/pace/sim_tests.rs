@@ -1,9 +1,12 @@
 //! T-661 on a fake path: a bottleneck with a deep buffer (it queues all it
 //! is given), a server that sends a bulk channel as fast as its window lets
-//! it, a key's echo queued behind that, and russh's rule of the adjust in
-//! between (to the target once less than half of it is left). Today's fixed
-//! window of 512 KiB is the reference. Time is the simulation's own, a
-//! millisecond a step, so each run gives the same figures.
+//! it, in messages no larger than the channel asked for, a key's echo queued
+//! behind that, and russh's rule of the adjust in between (to the target
+//! once less than the room that podssh gives is left, T-670). Today's fixed
+//! window of 512 KiB, in OpenSSH's messages of 32 KiB and with russh's room
+//! of half the window, is the reference. Time is the simulation's own, a
+//! millisecond a step, and a lost packet comes from a seeded generator, so
+//! each run gives the same figures.
 
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
@@ -13,10 +16,14 @@ use crate::run::WINDOW;
 
 /// The bulk channel's number.
 const BULK: u32 = 2;
-/// The largest data message of the server: OpenSSH's.
-const PACKET: u64 = 32 * 1024;
+/// The largest data message of the server before T-670: OpenSSH's, as
+/// podssh asked for russh's 32 KiB. Paced, the server sends
+/// [`super::PACKET`] at most.
+const TODAY_PACKET: u64 = 32 * 1024;
 /// A key's echo on the wire.
 const ECHO: u64 = 64;
+/// A TCP segment's payload: what a lossy link loses (scripts/fake_shape.py).
+const SEGMENT: u64 = 1448;
 
 /// A path: its bottleneck's rate, in bytes a millisecond, and each way's
 /// delay in milliseconds.
@@ -31,6 +38,35 @@ impl Shape {
     /// A key's echo with nothing in front of it.
     fn idle_echo(&self) -> u64 {
         self.up + self.down + ECHO.div_ceil(self.rate)
+    }
+}
+
+/// A link that loses each segment with a chance, as scripts/fake_shape.py
+/// does: a message with a lost segment comes a round trip late, two (200 ms
+/// at least) when nothing follows it, and each message behind it waits, as
+/// in one TCP stream. The generator is xorshift, seeded.
+struct Loss {
+    chance: f64,
+    state: u64,
+}
+
+impl Loss {
+    fn new(chance: f64, seed: u64) -> Self {
+        Loss { chance, state: seed.max(1) }
+    }
+
+    fn next(&mut self) -> f64 {
+        let mut x = self.state;
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        self.state = x;
+        (x >> 11) as f64 / (1u64 << 53) as f64
+    }
+
+    /// Whether a message of `size` bytes loses a segment.
+    fn hits(&mut self, size: u64) -> bool {
+        (0..size.div_ceil(SEGMENT)).any(|_| self.next() < self.chance)
     }
 }
 
@@ -62,6 +98,11 @@ struct Run {
     remaining: u64,
     delivered: u64,
     echoes: Vec<u64>,
+    /// The server's largest message.
+    packet: u64,
+    loss: Option<Loss>,
+    /// The step that the last message down arrives at: none passes it.
+    last: u64,
 }
 
 impl Run {
@@ -80,12 +121,21 @@ impl Run {
             remaining: u64::from(WINDOW),
             delivered: 0,
             echoes: Vec::new(),
+            packet: if paced { u64::from(super::PACKET) } else { TODAY_PACKET },
+            loss: None,
+            last: 0,
         }
     }
 
     /// A paced run on a road whose cap is `cap` (T-662).
     fn capped(shape: Shape, cap: u32, keys: &'static Keys) -> Self {
-        Run { pace: Some(Pace::new(false, cap).with_keys(keys)), ..Run::new(shape, false, keys) }
+        let pace = Some(Pace::new(false, cap).with_keys(keys));
+        Run { pace, packet: u64::from(super::PACKET), ..Run::new(shape, false, keys) }
+    }
+
+    /// The same run on a link that loses a segment with `chance`.
+    fn lossy(self, chance: f64, seed: u64) -> Self {
+        Run { loss: Some(Loss::new(chance, seed)), ..self }
     }
 
     fn at(&self, step: u64) -> Instant {
@@ -103,6 +153,26 @@ impl Run {
         }
     }
 
+    /// T-660's `ping --under-load`: the download starts 200 ms after the
+    /// last of the idle keys, and after a warm-up of 3 s, 40 keys go 150 ms
+    /// apart beside it, until each came back (20 s at most).
+    fn under_load(&mut self) {
+        let before = self.t0.checked_sub(Duration::from_millis(200)).expect("an instant 200 ms before");
+        self.keys.key(before);
+        let mut typed = 0;
+        for now in 0..20_000 {
+            if now >= 3_000 && (now - 3_000_u64).is_multiple_of(150) && typed < 40 {
+                self.keys.key(self.at(now));
+                self.up.push_back((now + self.shape.up, Up::Key(now)));
+                typed += 1;
+            }
+            self.step(now);
+            if self.echoes.len() == 40 {
+                return;
+            }
+        }
+    }
+
     fn step(&mut self, now: u64) {
         while self.up.front().is_some_and(|(at, _)| *at <= now) {
             match self.up.pop_front().map(|(_, what)| what) {
@@ -113,7 +183,7 @@ impl Run {
         }
         // The server has more than any window: it sends all that it may.
         while self.credit > 0 {
-            let n = self.credit.min(PACKET);
+            let n = self.credit.min(self.packet);
             self.queue.push_back(Down::Bulk(n));
             self.credit -= n;
         }
@@ -131,7 +201,20 @@ impl Run {
             budget -= sent;
             if self.head_left == 0 {
                 let done = self.queue.pop_front().expect("the head");
-                self.down.push_back((now + self.shape.down, done));
+                let size = match done {
+                    Down::Bulk(n) => n,
+                    Down::Echo(_) => ECHO,
+                };
+                let trip = self.shape.down + self.shape.up;
+                let lost = self.loss.as_mut().is_some_and(|loss| loss.hits(size));
+                let held = match (lost, self.queue.is_empty()) {
+                    (false, _) => 0,
+                    (true, false) => trip,
+                    (true, true) => (2 * trip).max(200),
+                };
+                let at = (now + self.shape.down + held).max(self.last);
+                self.last = at;
+                self.down.push_back((at, done));
             }
         }
         while self.down.front().is_some_and(|(at, _)| *at <= now) {
@@ -144,17 +227,21 @@ impl Run {
     }
 
     /// The bulk channel's data at podssh, in the order of the patched russh:
-    /// the target, the adjust, then the bytes to the handler.
+    /// the target and the room, the adjust, then the bytes to the handler.
     fn bulk(&mut self, n: u64, now: u64) {
         let at = self.at(now);
-        let target = match self.pace.as_mut() {
-            Some(pace) => u64::from(pace.target(BULK, at)),
-            None => u64::from(WINDOW),
+        let (target, low) = match self.pace.as_mut() {
+            Some(pace) => {
+                let target = pace.target(BULK, at);
+                (u64::from(target), u64::from(pace.low(target, at)))
+            }
+            None => (u64::from(WINDOW), u64::from(WINDOW) / 2),
         };
         if n <= self.remaining {
             self.remaining -= n;
         }
-        if self.remaining < target / 2 {
+        // russh takes a room over the target as the target.
+        if self.remaining < low.min(target) {
             self.up.push_back((now + self.shape.up, Up::Credit(target - self.remaining)));
             self.remaining = target;
             if let Some(pace) = self.pace.as_mut() {
@@ -169,10 +256,15 @@ impl Run {
 
     /// The median echo, in milliseconds.
     fn echo_p50(&self) -> u64 {
-        let mut sorted = self.echoes.clone();
-        sorted.sort_unstable();
-        sorted[sorted.len() / 2]
+        p50(&self.echoes)
     }
+}
+
+/// The median of `echoes`.
+fn p50(echoes: &[u64]) -> u64 {
+    let mut sorted = echoes.to_vec();
+    sorted.sort_unstable();
+    sorted[sorted.len() / 2]
 }
 
 /// T-660's deep-buffer shape: 10 Mbit/s and 60 ms. A download from the
@@ -221,10 +313,62 @@ fn on_a_slow_long_path_too() {
     );
     assert!(today.echo_p50() > 10 * idle, "the reference queues up to 4 s in front of each key");
     assert!(paced.echo_p50() <= 2 * idle, "echo p50 {} ms, idle {idle} ms", paced.echo_p50());
-    // A key each 300 ms for the whole run holds the bulk to a round trip
-    // the whole time: on this path it moves 72% of today's (T-661's
-    // Correction; T-670 wins the rest back). Below 70% is a defect.
-    assert!(paced.delivered * 10 >= today.delivered * 7, "{} of {}", paced.delivered, today.delivered);
+    // A key each 300 ms for the whole run holds the bulk to a round trip and
+    // 40 ms the whole time, 23 KB: in OpenSSH's messages of 32 KiB that was
+    // one message a round trip, 72% of today's (T-661's Correction); in
+    // messages of 8 KiB, topped up once a quarter is used, the path stays
+    // full (T-670).
+    assert!(paced.delivered * 10 >= today.delivered * 9, "{} of {}", paced.delivered, today.delivered);
+}
+
+/// T-660's run of `ping --under-load` on the slow link of its matrix, which
+/// loses a segment in a hundred (scripts/fake_shape.py), on the direct
+/// road. The first keys wait behind the window that the channel opened with
+/// (T-661's Decision 8), until the drain at the first key lets it come; a
+/// drain that ended at a guess of when it comes ended before it came, and
+/// the window went back to the queue's round trip, seconds of it (T-670).
+/// Each key after the drain waits for little; a loss holds the bytes behind
+/// it a round trip, and the rate's best reads the burst after it (T-673),
+/// so the bound is four idle echoes.
+#[test]
+fn on_a_slow_lossy_link_the_drain_waits_for_its_queue() {
+    static PACED: Keys = Keys::new();
+    static TODAY: Keys = Keys::new();
+    let shape = Shape { rate: 125, down: 50, up: 50 };
+    let mut paced = Run::capped(shape, super::Road::Direct.cap(), &PACED).lossy(0.01, 670);
+    paced.under_load();
+    let mut today = Run::new(shape, false, &TODAY).lossy(0.01, 670);
+    today.under_load();
+
+    let idle = shape.idle_echo();
+    assert_eq!(paced.echoes.len(), 40, "each key came back: {:?}", paced.echoes);
+    let after = p50(&paced.echoes[20..]);
+    eprintln!(
+        "idle echo {idle} ms; p50 paced {} ms, of the last 20 keys {after} ms, today {} ms; paced {:?}",
+        paced.echo_p50(),
+        today.echo_p50(),
+        paced.echoes
+    );
+    assert!(today.echo_p50() > 10 * idle, "the reference queues up to 4 s in front of each key");
+    assert!(paced.echo_p50() <= 8 * idle, "echo p50 {} ms, idle {idle} ms", paced.echo_p50());
+    assert!(after <= 4 * idle, "the last 20 keys' p50 {after} ms, idle {idle} ms");
+}
+
+/// A window that bounds the flow, the road's cap on a long fat path where
+/// nobody types: topped up once a quarter is used, three quarters of it
+/// come each round trip, where russh's own rule, at half, let half of it
+/// through (T-670), and the same 512 KiB moves a third more than today's.
+#[test]
+fn a_window_that_bounds_the_flow_lets_three_quarters_through_each_round_trip() {
+    static PACED: Keys = Keys::new();
+    static TODAY: Keys = Keys::new();
+    let shape = Shape { rate: 12_500, down: 50, up: 50 };
+    let mut paced = Run::capped(shape, super::Road::Other.cap(), &PACED);
+    paced.run(20_000, u64::MAX, 1);
+    let mut today = Run::new(shape, false, &TODAY);
+    today.run(20_000, u64::MAX, 1);
+    eprintln!("delivered: paced {}, today {}", paced.delivered, today.delivered);
+    assert!(paced.delivered * 10 >= today.delivered * 13, "{} against {}", paced.delivered, today.delivered);
 }
 
 /// With no key, the paced window moves as much as today's.

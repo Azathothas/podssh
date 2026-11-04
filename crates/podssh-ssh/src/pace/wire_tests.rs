@@ -3,7 +3,8 @@
 //! gives, here a road's cap of 64 KiB, where russh 0.65.0 granted its
 //! configured window (512 KiB) whatever the handler returned. Without the
 //! patch of `vendor/patches/russh/`, or with the hook not taken, the server
-//! sees a window far over the cap.
+//! sees a window far over the cap. And the channel asks for messages of
+//! [`super::PACKET`] at most, which the server keeps to (T-670).
 
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 use std::sync::Arc;
@@ -119,10 +120,13 @@ async fn a_channel_is_granted_the_handlers_target_not_russhs_window() {
 
         let mut channel = client.channel_open_session().await.expect("a session channel");
         channel.exec(true, "bulk").await.expect("exec sent");
-        let (mut got, mut status) = (0usize, None);
+        let (mut got, mut status, mut largest_message) = (0usize, None, 0usize);
         while let Some(msg) = channel.wait().await {
             match msg {
-                ChannelMsg::Data { data } => got += data.len(),
+                ChannelMsg::Data { data } => {
+                    got += data.len();
+                    largest_message = largest_message.max(data.len());
+                }
                 ChannelMsg::ExitStatus { exit_status } => status = Some(exit_status),
                 _ => {}
             }
@@ -133,6 +137,9 @@ async fn a_channel_is_granted_the_handlers_target_not_russhs_window() {
         let (largest, adjusts) = (seen.largest.load(Relaxed), seen.adjusts.load(Relaxed));
         assert!(adjusts >= 32, "the window was adjusted as the data came: {adjusts} adjusts");
         assert!(largest <= CAP, "the server was granted {largest} bytes at once, over the cap of {CAP}");
+        let packet = super::PACKET as usize;
+        assert!(largest_message <= packet, "a message of {largest_message} bytes, over the {packet} asked for");
+        assert_eq!(largest_message, packet, "the server sent as much as each message took");
     };
     tokio::time::timeout(Duration::from_secs(60), test).await.expect("the test ends within 60 s");
 }

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**627 entries: 113 open, 7 partial, 3 blocked, 504 done.**
+**628 entries: 114 open, 7 partial, 3 blocked, 504 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
 | P2 | 25 | 4 | 0 | 246 | 275 |
-| P3 | 88 | 1 | 3 | 193 | 285 |
-| **All** | 113 | 7 | 3 | 504 | 627 |
+| P3 | 89 | 1 | 3 | 193 | 286 |
+| **All** | 114 | 7 | 3 | 504 | 628 |
 
 ## Entries
 
@@ -703,3 +703,4 @@ repository and CI).
 | [T-670](ssh.md) | P3 | M | M10 | feature | open | The download's rate while a key waits on a slow path: win back what T-661 gives up |
 | [T-671](relay.md) | P2 | S | M10 | defect | done | The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them |
 | [T-672](ssh.md) | P3 | M | backlog | feature | blocked | TLS tickets kept across runs, once a release of rustls lets a client write one |
+| [T-673](ssh.md) | P3 | S | M10 | defect | open | The rate's best on a lossy link: a burst after a loss's stall read as the path's rate |

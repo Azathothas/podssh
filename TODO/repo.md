@@ -4344,7 +4344,7 @@ would get no pull request, and maybe no red job.
   checksum, as a path package has none (`vendor/README.md` lines 133-134 at `80e26fc`); Dependabot's file says that
   an update of russh moves the patch by hand (`.github/dependabot.yml` lines 7-9 at `80e26fc`).
 - Read: the copy of russh is the release 0.64.1 (`vendor/README.md` lines 90-92 at `80e26fc`), iroh-relay is 1.4.1
-  (`vendor/README.md:149-153`), and the Tailscale fork is upstream's commit `f4781c4` of
+  (`vendor/README.md:152-156`), and the Tailscale fork is upstream's commit `f4781c4` of
   2026-09-29 with podssh's patch set (`vendor/README.md:12-19`).
 - Read, through fetch.web.pkgforge.dev on 2026-10-31
   (https://github.com/rustsec/advisory-db/blob/main/crates/russh/RUSTSEC-2026-0154.md):

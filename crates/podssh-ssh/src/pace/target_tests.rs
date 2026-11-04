@@ -89,8 +89,9 @@ fn a_carrier_of_a_hop_gets_the_cap_whatever_is_typed() {
 }
 
 /// A window that limits the rate grows from round to round, idle and while
-/// a key waits, on a long path too: the rate that it measures gives a
-/// larger target than the window that limited it.
+/// a key waits, on a long path too: topped up once a quarter is used, three
+/// quarters of it come each round trip, and the rate that it measures gives
+/// a larger target than the window that limited it, by the margin.
 #[test]
 fn a_window_that_limits_the_rate_grows_from_round_to_round() {
     for (typing, rtt) in [(true, 300), (false, 300), (true, 20), (false, 20)] {
@@ -114,16 +115,49 @@ fn while_the_windows_drain_each_is_the_floor_but_a_carriers() {
     }
 }
 
-/// On a long path half a target holds the path's bytes of a round trip, so
-/// the path never runs dry between adjusts: twice the bytes of a round trip,
-/// more than the margin's 40 ms there.
+/// On a long path the room under which a window is topped up holds the
+/// path's bytes of its round trip and the margin, so the path never runs dry
+/// between adjusts (T-670; under russh's half, that took twice the bytes of
+/// a round trip).
 #[test]
-fn on_a_long_path_half_a_window_still_fills_the_path() {
+fn on_a_long_path_the_room_of_an_adjust_still_fills_the_path() {
     let long = Inputs { rtt: Some(ms(200)), ..path(true) };
-    // 1.25 MB/s for 200 ms, twice; the margin's would be 400000.
-    assert_eq!(of(&long), 500_000);
-    // On a short path, the margin's is the larger.
-    assert!(of(&path(true)) > (1_250_000.0 * 0.060 * 2.0) as u32);
+    // 1.25 MB/s for 200 + 40 ms, and four thirds.
+    assert_eq!(of(&long), 400_000);
+    let room = low(of(&long), true);
+    assert_eq!(room, 300_000);
+    assert!(f64::from(room) >= 1_250_000.0 * 0.240, "a round trip's bytes and the margin's");
+}
+
+/// Measured, russh tops a window up once a quarter of its target is used;
+/// unmeasured, at its own half, as with the window of before. The room is
+/// never over the target.
+#[test]
+fn a_window_is_topped_up_once_a_quarter_is_used_and_at_half_unmeasured() {
+    assert_eq!(low(166_666, true), 125_000);
+    assert_eq!(low(FLOOR, true), 12 * KIB);
+    assert_eq!(low(START, false), START / 2);
+    assert_eq!(low(FLOOR, false), FLOOR / 2);
+    for target in [0, 1, 3, FLOOR, START, 16 * MIB, u32::MAX] {
+        for measured in [true, false] {
+            assert!(low(target, measured) <= target, "{target} {measured}");
+        }
+    }
+}
+
+/// Why a quarter: under russh's half, a window that limits the rate lets
+/// about half of itself through each round trip, and on a path of more than
+/// 80 ms the target from the rate that it measures is no larger than the
+/// window, so the window never grows (the far link's 0.8 MiB/s while
+/// typing, T-670).
+#[test]
+fn under_russhs_half_a_window_that_limits_the_rate_would_not_grow() {
+    for rtt in [120, 300] {
+        let window = 512 * KIB;
+        let rate = (f64::from(window) * 0.5 / ms(rtt).as_secs_f64()) as u64;
+        let next = of(&Inputs { rate: Some(rate), rtt: Some(ms(rtt)), cap: 16 * MIB, ..path(true) });
+        assert!(next <= window, "{rtt} ms: {window} to {next}");
+    }
 }
 
 /// T-662: where nobody types, a window grows past today's 512 KiB to what
@@ -131,9 +165,9 @@ fn on_a_long_path_half_a_window_still_fills_the_path() {
 #[test]
 fn where_nobody_types_a_window_grows_to_the_path_up_to_the_roads_cap() {
     use crate::pace::Road;
-    // 10 MB/s and 500 ms: twice the round trip's bytes, 10 MB, under 16 MiB.
+    // 10 MB/s for 500 + 200 ms, and four thirds: 9.33 MB, under 16 MiB.
     let far = Inputs { rate: Some(10_000_000), rtt: Some(ms(500)), ..path(false) };
-    assert_eq!(of(&Inputs { cap: Road::Direct.cap(), ..far }), 10_000_000);
+    assert_eq!(of(&Inputs { cap: Road::Direct.cap(), ..far }), 9_333_333);
     // 100 MB/s and 200 ms: past each cap, so each road's.
     let fat = Inputs { rate: Some(100_000_000), rtt: Some(ms(200)), ..path(false) };
     for road in [Road::Direct, Road::Iroh, Road::Role, Road::Relay, Road::Pair, Road::Other] {

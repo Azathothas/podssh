@@ -549,7 +549,7 @@ back to the plain key only when no CA line matches.
 
 1. Ask for certificates: when a `@cert-authority` line matches the name of a
    hop, set `host_key_certificates` in `client_config`
-   (`crates/podssh-ssh/src/run_config.rs:17-79`) to the algorithms of
+   (`crates/podssh-ssh/src/run_config.rs:17-82`) to the algorithms of
    `preferred.key`. A host with no CA line keeps today's negotiation.
 2. Add a lookup of CA keys in `crates/podssh-ssh/src/known_hosts.rs`, beside
    the `@revoked` arm (`crates/podssh-ssh/src/known_hosts.rs:113-115`). Match CA
@@ -600,7 +600,7 @@ Planted defect: accept each certificate, and the wrong-principal test fails.
 GitHub #29 says that podssh drops a certificate that russh gives. In fact no
 certificate comes: russh 0.64.1 offers certificate algorithms only from
 `Preferred::host_key_certificates`, which is empty by default, and
-`client_config` does not set it (`crates/podssh-ssh/src/run_config.rs:17-79`). So
+`client_config` does not set it (`crates/podssh-ssh/src/run_config.rs:17-82`). So
 a server always presents its plain key. The words "checked as plain keys"
 in `docs/STATUS.md` and `SECURITY.md` were not exact either: podssh never
 asks for a certificate. They were corrected in the change that wrote this
@@ -4994,14 +4994,112 @@ a slow link pays that much of the download.
    rise to the path's while the echo stays within twice the idle one.
 3. The test's bound goes back to 90% of today's, and its echo's bound stays.
 
+## Decision
+
+1. **The cause on the fake path: one message a round trip; so a channel takes the server's messages
+   of 8 KiB at most** (`PACKET`, `crates/podssh-ssh/src/pace/mod.rs`, asked at each channel's open
+   in `crates/podssh-ssh/src/run_config.rs`). Read in a port of the fake path to Python, which gave
+   T-661's merged figures to the byte (3,595,483 bytes, an echo of 114 ms): while a key waits, the
+   window, 24,798 bytes, went as one message of 24,798 bytes each 298 ms, a round trip and its own
+   198 ms on the path. A server sends a grant smaller than its largest message as one message;
+   podssh counts a message once the whole of it came; and russh's adjust at half adds what a
+   smaller message freed to the next grant. So a window of a message or two moves one message at a
+   time, and a window of k round trips' bytes moves k/(k+1) of the path: twice, 67% (T-661's 72%);
+   three times, 75% (its 74%). Only the size that a channel asks for splits a grant, so 23 KB is
+   three messages of 8 KiB. Lost: 16 KiB (75%: a message and a half); 4 KiB (99.9% and an echo of
+   156 ms, against 99.5% and 162 ms, for twice the messages of 8 KiB on a fast path); a window of
+   more round trips (the echo); a size from the measured path (russh asks for it at each channel's
+   open, and the session's channel opens before anything is measured).
+2. **russh tops a window up once a quarter of it is used** (a patch,
+   `vendor/patches/russh/0004-window-low.patch`: `Handler::window_low`, the room left under which
+   russh adjusts, asked after `window_target`; its default is russh's half). Under the half, a
+   window that bounds the flow lets about half of itself through each round trip (0.52 to 0.56 in
+   the port), so the rate measured from it, times twice the round trip (T-661's floor, the larger
+   term on a path of more than 80 ms), gives back the same window: on the far link it never grew
+   while a key waited (inferred; the port, whose server overshoots each grant by a message, did not
+   reproduce the 0.8 MiB/s). Measured, podssh gives three quarters of the target: three quarters
+   come each round trip, T-661's four thirds hold, and a target of the rate times the round trip
+   and the margin grows by the margin each round trip while it bounds the flow; the floor of twice
+   the round trip's bytes goes. Lost: an adjust at each message (a message up for each message
+   down); at an eighth used (a target of 8/7 gave 142,840 at 60 s in the least round trip's test,
+   under its 150,000); Approach item 2's probe, BBR's 1.25 for one round trip in eight (25% each
+   eight round trips: about 70 round trips from 0.8 to 6 MiB/s on the far link, against seven, and
+   a quarter window of queue each eighth); russh's rule changed for each caller (its server, and a
+   handler that gives no room, keep the half).
+3. **Unmeasured, russh's half.** T-661's Decision 8 keeps the window of before while nothing is
+   measured, and its adjust at half is part of it: with the quarter there, a channel opened while a
+   key waits keeps all of its first 512 KiB in flight, and T-660's run under load waited 4.1 s at
+   its first key, not 3.4 s (the port: a p50 of 1,288 ms, against 567).
+4. **A drain ends at its first clean round trip, `DRAIN_MAX` at most, not at a guess.** The raw
+   samples of T-661's matrix (its run's file direct.slow.json under .work/feel/, which git
+   ignores): the echo falls from 3,561 ms at the first key to 102 ms at 6.75 s, then 4,195 ms at
+   6.9 s, a grant of about 512 KB; the role's jumps each 2.5 s. The port with the bench's loss (a
+   segment in a hundred, held a round trip, as `scripts/fake_shape.py` does) gives 2.5 to 3.7 s:
+   the drain ended at T-661's guess, what was in flight at the best rate of the last seconds and
+   twice a round trip, here 100 ms as none was timed; the best rate was a burst after a loss's
+   stall, 1.7 times the path's, so the drain ended a second before its queue came, with no clean
+   round trip, and the target came from the queue's round trip (1.8 s): 742 KB. Ended at its first
+   clean round trip, the port's p50 of 40 keys is 567 to 666 ms, the first window's queue at the
+   first key. Not the road: the node's queue at its first key was 1.2 s where `--direct`'s was
+   3.6 s, and the port gives the same with a cap of 512 KiB, 768 KiB or 16 MiB. A round trip is
+   clean once no other channel that carries bulk has more than a held window in flight; T-661 took
+   any channel's first. Lost: a better guess (the rate's best reads a burst on a lossy link: T-673).
+5. **The lossy link's test bounds what this entry repairs**: the p50 of its 40 keys at most eight
+   idle echoes, of the last 20 at most four (the port: 567 and 325 ms; with T-661's guess 2,396 ms
+   each). A key after the drain on that link still waits about three idle echoes, for the rate's
+   burst: T-673.
+6. **The patch is 0004**: a draft of T-664 has a 0003 of its own, and the names never meet.
+
 ## Prove
 
 ```sh
 cargo test -p podssh-ssh --lib pace::sim_tests
+cargo test -p podssh-ssh --lib pace
+cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::window_target
 ```
 
 On the slow path, the download at 90% of today's at least, the echo's p50 at most twice the idle
 echo; T-660's matrix on the slow link, before and after.
+
+## Correction
+
+- The Premise's "neither a target of three round trips' bytes nor a run with no drain moved the
+  slow path's rate" holds: it is Decision 1's one message a round trip, where k round trips' bytes
+  move k/(k+1) of the path, whatever drains.
+- The Premise's node road (486 ms) differs by its queue at the first key, not by its road (Decision
+  4).
+- Approach item 1's third candidate is the fake path's cause (Decision 1), its first two the far
+  link's (Decision 2); the drains' cadence is sound, their end was not (Decision 4). Approach item
+  2 is not done: Decision 2 grows a window that bounds the flow without a probe.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-670`), UNVERIFIED: no command below ran in the draft. Each figure is
+the port's, which gave T-661's merged figures to the byte; the Rust tests give their own.
+
+- The patch `vendor/patches/russh/0004-window-low.patch`, applied to `vendor/russh` after 0002
+  (`vendor/README.md`); its tests in `vendor/russh/src/client/window_target.rs` (a room of a
+  quarter used, one over the target, one of 0, stderr's): `cargo test --manifest-path
+  vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::window_target`, UNVERIFIED.
+- podssh-ssh: `target::low` and the target with no floor of twice the round trip
+  (`crates/podssh-ssh/src/pace/target.rs`); `Pace::low`, `PACKET`, the drain's end and
+  `others_drained` (`crates/podssh-ssh/src/pace/mod.rs`); the hook (`crates/podssh-ssh/src/handler.rs`);
+  the maximum packet (`crates/podssh-ssh/src/run_config.rs`). `cargo test -p podssh-ssh --lib pace`:
+  UNVERIFIED. The port's figures: the slow path 162 ms and 99.5% of today's (the bound back to
+  90%); the deep buffer 113 ms and 99.2%; no key 99.5%; the least round trip's target 167,208;
+  T-662's roads 4.35, 4.11 and 1.44 times today's; the new tests: the slow lossy link's p50 567 ms,
+  325 ms for its last 20 keys; a window that bounds the flow 1.44 times today's. And
+  `drain_tests.rs` (3), three of the target's, and the wire test's largest message, 8 KiB.
+- `cargo test -p podssh-ssh --lib`, `cargo test -p podssh-cli --lib` (the manual's note), clippy and
+  rustfmt: UNVERIFIED.
+- Plants: `t670-drain-guess` and `t670-half-room` caught in the port (2,396 ms; 77.7%);
+  `t670-low-unasked`, `t670-packet-unasked` and `t670-others-ignored` UNVERIFIED (each a test of
+  Rust alone); `t661-target-unasked` moved onto the new lines; `t661-no-drain` still caught by the
+  slow path's test in the port (2,395 ms).
+- T-660's matrix on the slow and far links, before and after: `python3 scripts/feel-matrix.py
+  target/x86_64-unknown-linux-musl/release/podssh --runs 3 --roads openssh,direct,role,node
+  --shapes slow,far`, UNVERIFIED (the port puts the slow link's echo by `--direct` and the role near
+  the node's; it does not reproduce the far link's 0.8 MiB/s).
 
 # T-672: TLS tickets kept across runs, once a release of rustls lets a client write one
 
@@ -5053,3 +5151,48 @@ trust, `Full`. Planted: a ticket written and not read, and the test fails.
 rustls's maintainers: a release of rustls that carries rustls/rustls#2907, which podssh's
 dependencies then take. Nothing in podssh waits for it but this entry; T-664 keeps the group of
 the key exchange, which the release of 0.23 lets a store keep.
+
+# T-673: The rate's best on a lossy link: a burst after a loss's stall read as the path's rate
+
+**Source:** the draft of T-670, 2026-11-04 (its Decision 5).
+**Category:** defect
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The pace's rate is the best of its samples of the last 5 to 10 s, each the bytes of an interval of a
+round trip at least over its length. On a link that loses packets, a lost one holds each byte
+behind it a round trip, and they then come at once. In the port of T-661's fake path with the loss
+of `scripts/fake_shape.py` (a segment in a hundred, 1 Mbit/s, 100 ms), one sample read 213,269 B/s
+on a path of 125,000, and the first sample of a download 202,271; the best kept each for 5 to 10 s,
+the target was twice the path's, and a key after T-670's drain waited three idle echoes (296 to
+325 ms, idle 101) where the same path with no loss gives 162 ms.
+
+## Premise
+
+- `crates/podssh-ssh/src/pace/path.rs:125` says "pub(super) fn count(&mut self, now: Instant, n: u64) -> bool {":
+  an interval ends at the first message past its length, which after a stall is the stall's first,
+  so the next interval opens with the rest of the burst.
+- `crates/podssh-ssh/src/pace/path.rs:10` says "/// A rate is the best of the samples of the last 5 to 10 s; older, none:".
+
+## Approach
+
+1. An interval ends at the end of a burst: a message that came within a quarter of a message's time
+   at the best rate after the one before it belongs to the interval before; a burst longer than an
+   interval ends it anyway. In the port this read the sample after a stall as 124,302 B/s.
+2. Find why the first sample of a download still read 202,271 with that rule and a gap of 1 ms, in
+   the port, before any rate.
+3. A drain's clean round trip that a loss held reads long (124.5 ms on a path of 100 in the port):
+   the least of a drain's round trips, not its first.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib pace
+```
+
+On the fake path's slow lossy link (`on_a_slow_lossy_link_the_drain_waits_for_its_queue`), the last
+20 keys' p50 at most twice the idle echo.

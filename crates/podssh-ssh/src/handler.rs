@@ -326,11 +326,16 @@ impl Handler for Client {
     }
 
     // The window of each channel (T-661): russh asks for its target at each
-    // data message (podssh's patch of russh), tells of each adjust that went
-    // out, then hands over the bytes.
+    // data message, and for the room left under which it adjusts (podssh's
+    // patches of russh, T-670), tells of each adjust that went out, then
+    // hands over the bytes.
 
     fn window_target(&mut self, channel: ChannelId, _window: u32) -> u32 {
         self.pace.target(u32::from(channel), std::time::Instant::now())
+    }
+
+    fn window_low(&mut self, _channel: ChannelId, target: u32) -> u32 {
+        self.pace.low(target, std::time::Instant::now())
     }
 
     fn adjust_window(&mut self, channel: ChannelId, window: u32) -> u32 {

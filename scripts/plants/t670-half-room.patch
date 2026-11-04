@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/pace/target.rs
++++ b/crates/podssh-ssh/src/pace/target.rs
+@@ -85,7 +85,7 @@
+ /// grows (T-670). Unmeasured, russh's half, as with the window of before.
+ pub fn low(target: u32, measured: bool) -> u32 {
+     if measured {
+-        target - target / 4
++        target / 2
+     } else {
+         target / 2
+     }

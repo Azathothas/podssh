@@ -612,9 +612,11 @@ impl Session {
                 // The handler's target of this channel's window, asked at
                 // each message (podssh's patch, vendor/patches/russh/).
                 let target = window_target(client, channel_num, self.common.config.window_size);
+                // And the room left under which it goes back to the target.
+                let low = window_low(client, channel_num, target);
                 #[allow(clippy::collapsible_if)]
                 if let Some(ref mut enc) = self.common.encrypted {
-                    if enc.adjust_window_size(channel_num, &data, target)? {
+                    if enc.adjust_window_size_below(channel_num, &data, target, low)? {
                         let next_window =
                             client.adjust_window(channel_num, self.target_window_size);
                         if next_window > 0 {
@@ -639,9 +641,10 @@ impl Session {
                     return Ok(());
                 }
                 let target = window_target(client, channel_num, self.common.config.window_size);
+                let low = window_low(client, channel_num, target);
                 #[allow(clippy::collapsible_if)]
                 if let Some(ref mut enc) = self.common.encrypted {
-                    if enc.adjust_window_size(channel_num, &data, target)? {
+                    if enc.adjust_window_size_below(channel_num, &data, target, low)? {
                         let next_window =
                             client.adjust_window(channel_num, self.target_window_size);
                         if next_window > 0 {
@@ -1712,5 +1715,17 @@ fn window_target<H: Handler>(client: &mut H, channel: ChannelId, configured: u32
     match client.window_target(channel, configured) {
         0 => configured,
         target => target,
+    }
+}
+
+/// The room left in `channel`'s window under which russh adjusts it to
+/// `target`, as the handler gives it now (podssh's patch,
+/// vendor/patches/russh/); 0 keeps russh's own, half the target. At half, a
+/// window that bounds the flow lets about half of itself through each round
+/// trip, as the adjust waits for half to come first.
+fn window_low<H: Handler>(client: &mut H, channel: ChannelId, target: u32) -> u32 {
+    match client.window_low(channel, target) {
+        0 => target / 2,
+        low => low,
     }
 }

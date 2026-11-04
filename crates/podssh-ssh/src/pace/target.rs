@@ -1,5 +1,6 @@
 //! The target of a channel's window (T-661), a pure function of what the
-//! connection measured, whether a key was typed lately, and the road's cap.
+//! connection measured, whether a key was typed lately, and the road's cap;
+//! and the room left under which russh tops a window up to it (T-670).
 
 use std::time::Duration;
 
@@ -19,17 +20,13 @@ pub const TYPING_MARGIN: Duration = Duration::from_millis(40);
 /// pause.
 pub const IDLE_MARGIN: Duration = Duration::from_millis(200);
 
-/// russh adjusts a window to its target once less than half of it is left,
-/// so what is in flight averages three quarters of the target: the target
-/// is that much larger, or a window that limits the rate would shrink with
-/// the rate that it limits.
+/// Measured, russh tops a window up to its target once a quarter of it is
+/// used ([`low`]), so three quarters of a target are in flight at least: the
+/// target is that much larger than the path's bytes of its round trip and
+/// margin, which then always fill the path, and a window that limits the
+/// rate lets three quarters of itself through each round trip, so the rate
+/// that it measures gives a larger target, by the margin.
 const SAWTOOTH: f64 = 4.0 / 3.0;
-
-/// For the same reason half a target must hold the path's bytes of a round
-/// trip, or the path runs dry before each adjust arrives: a target is twice
-/// those at least. On a long path this, not the margin, bounds the queue,
-/// to half a round trip on average.
-const FULL: f64 = 2.0;
 
 /// What a channel's target is made of.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -56,11 +53,11 @@ pub struct Inputs {
 ///   channels, and a smaller window would only queue at the hop.
 /// - While the windows drain, [`FLOOR`].
 /// - Unmeasured, [`START`] idle, [`FLOOR`] while a key waits.
-/// - Else the path's rate times its least round trip plus the margin, and
-///   twice the rate times the round trip at least, its share of it, at
-///   least [`FLOOR`] and at most its share of the cap (T-662), which is
-///   never under [`START`]: channels that carry bulk together share what
-///   the road holds, and none gets less than before.
+/// - Else the path's rate times its least round trip plus the margin, and a
+///   third more, its share of it, at least [`FLOOR`] and at most its share
+///   of the cap (T-662), which is never under [`START`]: channels that carry
+///   bulk together share what the road holds, and none gets less than
+///   before.
 pub fn of(i: &Inputs) -> u32 {
     let cap = i.cap.max(FLOOR);
     if i.carrier {
@@ -74,11 +71,24 @@ pub fn of(i: &Inputs) -> u32 {
     };
     let margin = if i.typing { TYPING_MARGIN } else { IDLE_MARGIN };
     let sharing = i.sharing.max(1);
-    let rate = rate as f64;
-    let held = rate * (rtt + margin).as_secs_f64() * SAWTOOTH;
-    let full = rate * rtt.as_secs_f64() * FULL;
+    let held = rate as f64 * (rtt + margin).as_secs_f64() * SAWTOOTH;
     let share = (cap / sharing).max(START.min(cap));
-    clamp(held.max(full) / f64::from(sharing), share)
+    clamp(held / f64::from(sharing), share)
+}
+
+/// The room left in a window under which russh tops it up to `target`.
+///
+/// Measured, once a quarter of the target is used. russh's own rule, half,
+/// waits for half a window to come before the next adjust, so a window that
+/// limits the rate lets about half of itself through each round trip: the
+/// rate that it measures then gives back the same window, and it never
+/// grows (T-670). Unmeasured, russh's half, as with the window of before.
+pub fn low(target: u32, measured: bool) -> u32 {
+    if measured {
+        target - target / 4
+    } else {
+        target / 2
+    }
 }
 
 /// `bytes`, within [`FLOOR`] and `cap`.
