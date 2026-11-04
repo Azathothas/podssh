@@ -68,7 +68,7 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           one line; so does podssh ssh --no-resume. Unset or empty: the same where the first host offered the \
           layer within a day, with no line where it is not there: each read of a host's offer is kept in the \
           cache for a day (relay-offer-HOST-PORT.json), and for a relay host that the user named whose offer \
-          is not kept, its /relays.json is read once, 5 s at most, before the session; the default relay's \
+          is not kept, its /relays.json is read once, 1 s at most, before the session; the default relay's \
           offer comes with the refresh of its pool alone. A kept offer whose host answers 404 for the layer is \
           forgotten, with one line, and the contract's road carries the session. no: the contract's road, \
           with no request more. Another word is a configuration error (78).",

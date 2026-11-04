@@ -3535,16 +3535,20 @@ commands. The rules behind them:
   each reads that host's `/relays.json` at each run, and says each case;
   unset, each takes the offer that the host made within a day, kept in the
   cache (`crates/podssh-relay/src/forward_layer/kept.rs`), with no line
-  where there is none, and reads it once, 5 s at most, for a relay that the
+  where there is none, and reads it once, 1 s at most, for a relay that the
   user named whose offer is not kept (the default relay's comes with its
-  pool's refresh); a kept offer whose host answers 404 for the layer's path
+  pool's refresh), so that a silent first host costs its failover that
+  second once a day; a kept offer whose host answers 404 for the layer's path
   is forgotten, with one line, and the contract's road carries the session;
   `no` takes the contract's road alone. Where the road is taken, each sends
   each link of the session to the process that the offer names, of its
   deployment, else to that host alone
   (`crates/podssh-cli/src/relay_layer.rs`), each loss and resume a line on
   stderr; OpenSSH's SIGHUP at its exit is the end of `proxy`'s bytes, so the
-  role forgets the session at once. `podssh ssh` runs the layer on a thread
+  role forgets the session at once, while the end of stdin stops sending and
+  keeps receiving until the target closes, as on the contract's road: the
+  layer's `CLOSE` ends the whole session, so a reply on its way would be
+  lost. `podssh ssh` runs the layer on a thread
   of its own beside SSH (`crates/podssh-cli/src/relay_layer/ssh.rs`), holds
   `-4` and `-6` on each link, and sends no SSH keepalive unless
   `ServerAliveInterval` is given; the copies, `run`, `each` and `job`, which
@@ -3552,8 +3556,8 @@ commands. The rules behind them:
   contract's road. A host that offers none, that refused a new session for
   its budget, or whose first link fails as another host may not, takes the
   contract's road with one line; a refusal that the contract's road would
-  get too ends the run with its code. Unset, empty or `no` is the contract's
-  road with no request more, and another word is refused (78). A role
+  get too ends the run with its code. `no` is the contract's road with no
+  request more, and another word is refused (78). A role
   without a listener, behind a quick tunnel (`node --relay`), serves the
   same path.
 - **One pair for each label.** A pair that has not expired is not replaced:

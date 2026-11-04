@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/relay_layer.rs
++++ b/crates/podssh-cli/src/relay_layer.rs
+@@ -216,7 +216,7 @@
+             return Some(EX_UNAVAILABLE);
+         }
+     };
+-    let io = tokio::io::join(KeepsReceiving { read: tokio::io::stdin(), ended: false }, tokio::io::stdout());
++    let io = tokio::io::join(tokio::io::stdin(), tokio::io::stdout());
+     let app = crate::hangup::ending(io, Some(&hangup));
+     // stdout carries the session's bytes alone: each line goes to stderr.
+     let note = |note: Note| {

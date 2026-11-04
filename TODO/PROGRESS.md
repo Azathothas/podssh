@@ -358,7 +358,7 @@ forward carriers** (`docs/research/forward-carriers.md`, section 8; each call is
   a road of the user's own server with a file of credentials, and the HTTP form is a form of the
   relay role's HTTP road, behind which T-319's forms stay. Recommendation: confirm.
 - Q96, T-173: with `PODSSH_RELAY_LAYER` unset, `podssh proxy` and `podssh ssh` read the offer of a
-  relay host that the user named once a day, 5 s at most, before the session's connection, and keep
+  relay host that the user named once a day, 1 s at most, before the session's connection, and keep
   it, so that the resumable layer is the default where the host offers it. Recommendation: allow it;
   it is a connection before the session's, never beside it, and the default relay's offer comes with
   its pool's refresh.

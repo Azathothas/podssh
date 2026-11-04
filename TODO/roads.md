@@ -2694,8 +2694,9 @@ workflow of item 4):
   Each read of a host's offer is kept in the cache as `relay-offer-HOST-PORT.json`
   (`crates/podssh-relay/src/forward_layer/kept.rs`): a run that asked, the pool's refresh of the
   same document (`crate::pool::refresh`, which already read its body), and, for a relay host that
-  the user named whose offer is not kept, one read of it before the session, 5 s at most, kept even
-  when it failed, as no offer, so that a host whose document hangs costs the wait once a day. Unset,
+  the user named whose offer is not kept, one read of it before the session, 1 s at most in all, kept
+  even when it failed, as no offer, so that a host whose document hangs costs the wait once a day
+  (5 s at first: a silent first host added it to each failover of T-220, past their bounds). Unset,
   nothing is said where the layer is not there. A kept offer whose host answers `404` for the
   layer's path is forgotten, with one line, and the contract's road carries the session; another
   refusal stays final, as the contract's road would get it too. For the operator to confirm (Q86,
@@ -2985,6 +2986,26 @@ here:
 - clippy with `-D warnings` of `podssh-relay --all-targets` with no feature and with
   `serve,plain-ws,quick,pair,grant,piping,code`, and of `podssh-cli --all-targets`: clean; rustfmt:
   clean; the library crates on Rust 1.89 with `serve`: clean.
+
+Two repairs, 2026-11-04, of what the gate at `501999f` found (run 41800030980):
+
+- The interop's six cases of failover past a silent or a black-holed first host (T-220) took 7 s
+  and 10 s, past their 5 s and 10 s: the read of the offer of a host that the user named waited
+  its 5 s before the session's race. It waits 1 s in all now (`UNASKED_WAIT`), still before the
+  session's connection and never beside it, and its failure is kept as no offer. By hand here,
+  `podssh proxy --relay-failover staggered` past the stand-in's `silent` host to its `normal` one:
+  3.05 s unset and 2.04 s with `no`, then 0.03 s for the next run, whose cache kept both.
+- `serve_proxy` (T-457) failed on Windows and macOS, and here once in two beside the layer's
+  tests, as did `unasked`'s first test: `podssh proxy` with stdin at its end said nothing and
+  ended 0. The layer has no half-close: its `CLOSE` ends the whole session, so the end of stdin,
+  which became the layer's end, made the role forget the session before the target's banner
+  crossed. On the layer, `podssh proxy`'s stdin now stops sending at its end and keeps receiving
+  until the target closes, as the contract's road does (`relay_layer::KeepsReceiving`); a signal
+  still ends it (T-586). A new test, `a_reply_after_the_end_of_stdin_still_comes_on_the_layer`,
+  has its target answer 500 ms after the connection; its plant `t173-stdin-end-closes` (the end
+  of stdin goes to the layer again) is caught. `cargo test -p podssh-cli --test relay_serve --
+  serve_proxy serve_layer`: 6 runs of 8 passed, where 4 of 7 failed before; `--lib relay_layer`:
+  4 passed.
 
 # T-280: The iroh road through a SOCKS5 proxy
 
@@ -9036,7 +9057,7 @@ banner where a hop holds the body: the form needs a test of the way and a fallba
 
 ## Premise
 
-- `TODO/roads.md:3200` says "An answer down ends 20 ms after nothing more came": T-319's answers
+- `TODO/roads.md:3221` says "An answer down ends 20 ms after nothing more came": T-319's answers
   end so that a hop which holds them holds little, and none of its forms streams an answer while
   its request's body is open.
 - `crates/podssh-cli/src/doctor/stream/mod.rs:2` says "passes as it comes or is held until its

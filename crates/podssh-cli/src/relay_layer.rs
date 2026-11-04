@@ -2,7 +2,8 @@
 //! (T-173), where the first relay host offers it in its `/relays.json`: read
 //! at each run with `PODSSH_RELAY_LAYER=yes`; unset, as a host offered it
 //! within a day (`podssh_relay::forward_layer::kept`), the offer of a host
-//! that the user named read once a day before its session; never with `no`.
+//! that the user named read once a day before its session, a second at
+//! most; never with `no`.
 //! The role holds the
 //! connection to HOST while this client's link to it is lost, and a new link
 //! to the same host resumes the session, so that an OpenSSH session through
@@ -24,10 +25,14 @@
 pub(crate) mod ssh;
 
 use std::io::Write;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
+use tokio::io::{AsyncRead, ReadBuf};
+
 use podssh_relay::forward_layer::{self, kept, offer, Dialer, Missed};
-use podssh_relay::relay::RelayList;
+use podssh_relay::relay::{Relay, RelayList};
 use podssh_relay::session::client::{self, Outcome};
 use podssh_relay::session::resume::Note;
 use podssh_relay::session::{Ask, OsEntropy};
@@ -42,8 +47,9 @@ use crate::relay_settings::Refusal;
 pub const ENV: &str = "PODSSH_RELAY_LAYER";
 /// How long each step of the read of the host's offer may take.
 const OFFER_WAIT: Duration = Duration::from_secs(10);
-/// The same where the user did not ask: the session waits for it.
-const UNASKED_WAIT: Duration = Duration::from_secs(5);
+/// The whole read where the user did not ask, before the session: a silent
+/// first host costs its failover this, once a day (T-220's bounds).
+const UNASKED_WAIT: Duration = Duration::from_secs(1);
 /// What follows when the layer is not there: the contract's road.
 const WITHOUT: &str = "the session goes on with no resume";
 
@@ -56,7 +62,7 @@ pub enum Asked {
     No,
     /// Unset or empty: the layer where the first host's kept offer says so,
     /// with no line where it is not there; for a host that the user named
-    /// and whose offer is not kept, one read of it first.
+    /// and whose offer is not kept, one read of it first, a second at most.
     Unset,
 }
 
@@ -109,14 +115,14 @@ pub(crate) async fn chosen(
     let kept = if loud { None } else { kept::kept_now(&asked) };
     let read = match kept {
         Some(offered) => Ok(offered),
-        None if loud || relays.explicit => {
-            let wait = if loud { OFFER_WAIT } else { UNASKED_WAIT };
-            let read = offer::ask(&asked, trust, &ProxyChoice::FromEnvironment, wait).await;
+        None if loud => {
+            let read = offer::ask(&asked, trust, &ProxyChoice::FromEnvironment, OFFER_WAIT).await;
             // A read that failed is kept as no offer, so that a host whose
             // document hangs costs the wait once a day, not at each run.
             kept::keep_now(&asked, read.as_ref().unwrap_or(&offer::Offer::default()));
             read
         }
+        None if relays.explicit => unasked(&asked, trust).await,
         None => return None,
     };
     let offered = match read {
@@ -136,6 +142,21 @@ pub(crate) async fn chosen(
     let dialer = Dialer::for_offer(&asked, &offered, host, port, trust.clone()).ok()?;
     let held_at = shown(dialer.relay());
     Some((dialer, held_at))
+}
+
+/// The read of the offer of `relay`, a host that the user named, where the
+/// user did not ask for the layer: [`UNASKED_WAIT`] in all, its connection
+/// closed before the session's opens, never beside it. What it found is
+/// kept for a day; a read that failed or passed the wait as no offer, so
+/// that a silent first host costs the wait once a day, not at each run.
+async fn unasked(relay: &Relay, trust: &Trust) -> Result<offer::Offer, String> {
+    let asking = offer::ask(relay, trust, &ProxyChoice::FromEnvironment, UNASKED_WAIT);
+    let read = match tokio::time::timeout(UNASKED_WAIT, asking).await {
+        Ok(read) => read,
+        Err(_) => Err(format!("/relays.json took more than {} s", UNASKED_WAIT.as_secs())),
+    };
+    kept::keep_now(relay, read.as_ref().unwrap_or(&offer::Offer::default()));
+    read
 }
 
 /// The line of a session that the role had no room for, by its words.
@@ -195,7 +216,7 @@ pub async fn run(relays: &RelayList, trust: &Trust, (host, port): (&str, u16), e
             return Some(EX_UNAVAILABLE);
         }
     };
-    let io = tokio::io::join(tokio::io::stdin(), tokio::io::stdout());
+    let io = tokio::io::join(KeepsReceiving { read: tokio::io::stdin(), ended: false }, tokio::io::stdout());
     let app = crate::hangup::ending(io, Some(&hangup));
     // stdout carries the session's bytes alone: each line goes to stderr.
     let note = |note: Note| {
@@ -214,6 +235,33 @@ pub async fn run(relays: &RelayList, trust: &Trust, (host, port): (&str, u16), e
         Some(why) => {
             let _ = writeln!(err, "podssh: {at}: {why}");
             Some(EX_UNAVAILABLE)
+        }
+    }
+}
+
+/// stdin, whose end stops sending and keeps receiving, as on the contract's
+/// road (`crate::proxy`): the layer's `CLOSE` ends the whole session, so an
+/// end of input that reached it would cut off a reply still on its way
+/// (`echo QUERY | podssh proxy HOST PORT`). The target's end ends the
+/// session; a signal still ends the input (`crate::hangup::ending`).
+struct KeepsReceiving<R> {
+    read: R,
+    ended: bool,
+}
+
+impl<R: AsyncRead + Unpin> AsyncRead for KeepsReceiving<R> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
+        if self.ended {
+            // The other ways of the session wake its task.
+            return Poll::Pending;
+        }
+        let before = buf.filled().len();
+        match Pin::new(&mut self.read).poll_read(cx, buf) {
+            Poll::Ready(Ok(())) if buf.filled().len() == before && buf.remaining() > 0 => {
+                self.ended = true;
+                Poll::Pending
+            }
+            other => other,
         }
     }
 }
@@ -269,6 +317,18 @@ mod tests {
         let refusal = asked(Some("secret-ish")).unwrap_err();
         assert_eq!(refusal.code, 78);
         assert!(!refusal.message.contains("secret-ish"), "the value is not echoed: {}", refusal.message);
+    }
+
+    /// What came before the end of stdin is read; the read after it waits,
+    /// so the end never reaches the layer as a `CLOSE`.
+    #[tokio::test]
+    async fn the_end_of_stdin_reads_as_a_wait_not_as_an_end() {
+        use tokio::io::AsyncReadExt;
+        let mut input = KeepsReceiving { read: &b"query"[..], ended: false };
+        let mut buf = [0u8; 16];
+        assert_eq!(input.read(&mut buf).await.unwrap(), 5);
+        let next = tokio::time::timeout(Duration::from_millis(100), input.read(&mut buf)).await;
+        assert!(next.is_err(), "the end of the input was read as one");
     }
 
     #[test]

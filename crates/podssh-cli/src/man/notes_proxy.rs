@@ -19,8 +19,9 @@ pub const PROXY: &[&str] = &[
      process that its /relays.json names as forward.host, of the same deployment: the relay keeps its \
      connection to the target while this host's link is lost, and a new link resumes the session where \
      it was, so that an OpenSSH session outlives a drop of this host's network, for as long as the relay \
-     keeps it, 10 minutes by default (T-173). Each loss and resume is a line on stderr. OpenSSH's SIGHUP \
-     at its exit ends the session at the relay at once. A host that offers none, or that has no room for \
+     keeps it, 10 minutes by default (T-173). Each loss and resume is a line on stderr. As on the \
+     contract's road, the end of stdin stops sending and keeps receiving until the target closes; \
+     OpenSSH's SIGHUP at its exit ends the session at the relay at once. A host that offers none, or that has no room for \
      a new resumable session, takes the contract's road, with one line (for a host that offers none, \
      with PODSSH_RELAY_LAYER=yes alone). Where podssh can run on the \
      server's side, a roost in front of its sshd (podssh node --sshd, see podssh node) gives the same \

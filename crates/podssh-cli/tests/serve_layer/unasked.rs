@@ -3,9 +3,13 @@
 //! for a day, and takes the layer where it was offered, with no read of its
 //! own after the first and no line; `no` takes the contract's road. A kept
 //! offer whose host answers 404 for the layer's path is forgotten, with one
-//! line, and the contract's road carries the session.
+//! line, and the contract's road carries the session. On the layer, the end
+//! of stdin keeps receiving, as on the contract's road.
 
+use std::io::Write;
+use std::net::TcpListener;
 use std::process::Output;
+use std::time::Duration;
 
 use crate::throughput_harness::{Cell, Session};
 use crate::{banner_target, ran_with, relay_flags, role, said};
@@ -89,6 +93,41 @@ fn a_kept_offer_whose_host_no_longer_serves_the_layer_is_forgotten_and_the_contr
     let text = said(&out);
     assert!(out.status.success() && text.contains("SSH-2.0-kept-but-gone"), "{text}");
     assert!(!text.contains("resumable layer"), "{text}");
+}
+
+/// The end of stdin stops sending and keeps receiving on the layer, as on
+/// the contract's road: a reply that the target sends after it still comes,
+/// where a `CLOSE` for the end would make the role forget the session first.
+#[test]
+fn a_reply_after_the_end_of_stdin_still_comes_on_the_layer() {
+    let s = Session::start("serve-layer-late");
+    let Some(cell) = role(&s, &["--allow-private"]) else { return };
+    let flags = relay_flags(&cell);
+    let target = late_target("SSH-2.0-after-the-end\r\n", Duration::from_millis(500));
+    let out = proxy(&s, &flags, target, Some("yes"));
+    let text = said(&out);
+    assert!(out.status.success(), "{text}; the role: {}", events(&s));
+    assert!(
+        text.contains("SSH-2.0-after-the-end"),
+        "the reply after the end of stdin: {text}; the role: {}",
+        events(&s)
+    );
+    assert_eq!(count(&events(&s), "upgrade layer"), 1, "the layer's road: {}", events(&s));
+}
+
+/// A target that sends `line` `after` each connection came, then closes it.
+fn late_target(line: &'static str, after: Duration) -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for mut stream in listener.incoming().map_while(Result::ok) {
+            std::thread::spawn(move || {
+                std::thread::sleep(after);
+                let _ = stream.write_all(line.as_bytes());
+            });
+        }
+    });
+    port
 }
 
 /// A cache file that podssh trusts: this user's, read by nobody else.
