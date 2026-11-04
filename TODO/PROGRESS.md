@@ -198,7 +198,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 581 entries: 89 open, 4 partial, 2 blocked, 486 done.
+`TODO/INDEX.md` holds 583 entries: 91 open, 4 partial, 2 blocked, 486 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -274,7 +274,7 @@ features and documents (T-532,
 and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed; the features of #112 to #124 are done) follow, by priority, beside M10 (Q85); Dependabot's #119,
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
-policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged. GitHub #125 (2026-11-03, `relay info`'s rank changes with the edge that answered) is done: the line says whose order it is; the research of the operator's relay archive is merged (2026-11-03).
+policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged. GitHub #125 (2026-11-03, `relay info`'s rank changes with the edge that answered) is done: the line says whose order it is; the research of the operator's relay archive is merged (2026-11-03). The operator's export of #125 (2026-11-04; GitHub has since deleted it) left two parts: T-618 (`relay info` names `relay rank` and the order that a run takes, which T-610 left for T-606 and T-607), then T-619 (the remedy on the relay's side, an item of `docs/relay-operator.md`).
 
 **The operator's request of 2026-11-03:** an archive of research on relays, read in
 `docs/research/relay-measurement.md`: its harness, adapted to run podssh itself, is done

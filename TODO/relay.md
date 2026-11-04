@@ -3783,3 +3783,177 @@ Repaired after the merge (2026-11-04): on Windows (the gate of `14b7943`) the la
 and closed in the millisecond of the session's end, and the test's check that no probe came after
 the end compared their milliseconds; it now compares their places in the stand-in's log, where the
 probe's lines come before the end's. `cargo test -p podssh-cli --test relay_rank`: 6 passed here.
+
+
+# T-618: `relay info` names neither `podssh relay rank` nor the order that this host's runs take, which T-610 left for T-606 and T-607
+
+**Source:** The operator's export of GitHub #125 (aerrand-agent, 2026-11-03; GitHub has since
+deleted the issue), read on 2026-11-04: its second remedy, "podssh stops presenting an unstable
+rank, or measures instead", and its words "A client that calls once and takes rank 0 gets the best
+host for a colo it never used". T-610 did the first half, and its Done left the rest for T-606 and
+T-607, which were done after it the same day.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh relay info` sends a user, or a program that reads its `--json`, to the relay's order and to
+two measures of the hosts that podssh tries, and stops there. It names neither the rank that
+podssh now measures and keeps for each host of the pool (`podssh relay rank`, T-606) nor the order
+that this host's runs take from it (T-607), which `podssh status` (`relay_order`) and `doctor`'s
+line `rank` give with no connection. Its `pool_order` says `measured_here: false` and nothing
+more, so a client of `relay info --json` that wants an order still finds only the relay's: the
+client of #125's words. And a document that names no edge and scores each host 0, as podssh's own
+relay role serves it, still reads as "the relay's estimate from the edge that answered, which
+changes with the edge", which is not true of the role: it has no edge and gives no estimate.
+
+## Premise
+
+- Read: `crates/podssh-cli/src/relay_diag_text.rs:35` says "measured from this host: podssh relay
+  status (the hosts that podssh tries), podssh ping --relay-host HOST (one)"; `pool_order` gives
+  `by`, `edge` and `measured_here` alone (`crates/podssh-cli/src/relay_diag_text.rs:39-44`); the
+  pool's line says "the edge that answered" when the document names no edge, whatever its scores
+  (`crates/podssh-cli/src/relay_diag_text.rs:70-76`).
+- Read: T-610's Done, `TODO/relay.md:3120-3121` says "once they are done, the line names the rank
+  too"; T-606 (`e892246`) and T-607 (`11295ef`) were done after T-610 (`2516f32`), and the line
+  did not change.
+- Read: the manual's note of `relay info` names `relay status` and `ping` alone
+  (`crates/podssh-cli/src/man/notes_relay.rs:72-78`), and so does `docs/cli.md:3241-3247`.
+- Read: `relay status` and `ping` time the hosts of the run's list, the default host and three
+  others at most (`crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize =
+  3;"; `crates/podssh-cli/src/relay_diag.rs:88-97`, `crates/podssh-cli/src/ping/mod.rs:156-161`),
+  not the 37 hosts of the pool, which only `relay rank` measures.
+- Read: the order that a run of the default list takes, in a word, is `order_now`
+  (`crates/podssh-relay/src/rank_list.rs:195-212`), and the list in that order `placed_now`
+  (`crates/podssh-relay/src/rank_list.rs:146-154`), both from the cache; `doctor` words them
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:39-52`).
+- Read: podssh's own relay role answers `/relays.json` with `you.edge_colo` null
+  (`crates/podssh-relay/src/serve/docs.rs:60`) and its one host at rank 0 and score 0
+  (`crates/podssh-relay/src/serve/docs.rs:73-74`).
+
+## Approach
+
+1. After the pool, the line of the measures names `podssh relay rank` (each host of the pool,
+   from this host) beside `relay status` and `ping --relay-host HOST`. A second line says which
+   order this host's runs take, in `doctor`'s words (the rank kept for this egress, the times of
+   earlier races, the relay's order, `RelayRank no`, or the order that the user named), with the
+   list in that order: read from the cache by `order_now` and `placed_now`, with no connection.
+   The words move out of `doctor/relay_checks.rs` into one function beside
+   `relay_rank_auto::doctor_line`, which both call; `relay_diag.rs` computes the order and hands
+   it to the text, so that `relay_diag_text.rs` stays a function of what it is given.
+2. `--json`: `info` and `pool_order` stay as they are, and two keys come beside them:
+   `relay_order`, the word of `podssh status` (`rank`, `samples`, `pool` or `off`; `named` for a
+   list that the user named), and `relay_list`, the hosts in that order.
+3. A document that names no edge and gives no host a score above 0 (podssh's own relay role)
+   reads "the relay gives no estimate of a round trip", not an estimate that changes with the
+   edge. The default relay's shape keeps T-610's line.
+4. The manual's note of `relay info`, `docs/cli.md`, and the greps of the interop check
+   `relay.info` (`scripts/interop-relay.sh`) read the new lines.
+
+## Decision
+
+- `relay info` reads the order from the cache and measures nothing: it reads one document from one
+  host, as rule 2 of `AGENTS.md` asks, and `relay rank` measures on demand. Lost: an order that
+  `relay info` measures itself, which would be a second `relay rank`.
+- The pool stays in the relay's order, its fields unchanged under `info`, as T-610 keeps them: it is
+  the relay's document. Lost: the pool sorted by podssh's rank, which would hide what the relay
+  said, and which `relay rank --cached` gives already.
+- `relay_order` is `podssh status`'s key with its words, so one word means one thing in both.
+  Lost: a field inside `pool_order`, which says whose order the relay's pool is in, not which list
+  a run takes.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib relay_diag_text
+cargo test -p podssh-cli --test relay
+cargo test -p podssh-cli --test man_page --test man_flag_parity
+```
+
+The text's unit test, with the order given: a rank of this egress gives the line that names
+`podssh relay rank` and the line of the rank's order with its hosts; none, the relay's order; off,
+`RelayRank no`; a named list, the order named. The role's document (`serve::docs::relays`) gives
+"no estimate", and two documents of NRT and SIN keep T-610's line. The stand-in's test of `relay
+info` with `--relay-host` reads the order named, and `--json` has `relay_order` `named` and
+`relay_list`. Planted: the line of the order left out; the test fails.
+
+
+# T-619: The note to the relay's operator asks nothing of `/relays.json`'s rank, which changes with the edge that answered
+
+**Source:** The operator's export of GitHub #125 (aerrand-agent, 2026-11-03; GitHub has since
+deleted the issue), read on 2026-11-04: its first remedy, "the relay pins the estimate to one
+vantage point and names that vantage in the payload, so two answers are comparable".
+**Category:** docs
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+#125 names two remedies, one on each side. podssh's side is T-610, T-606, T-607 and T-618. The
+relay's side, a rank and a score that two calls can compare, is in no item of the note to the
+relay's operator, where a change of the default deployment goes since Q63, so its operator was
+never asked for it, nor told that podssh takes the relay's order only where no rank and no
+samples hold.
+
+## Premise
+
+- Read: Q63, `docs/decisions.md:37` says "stays the default relay; a change of that deployment
+  stays an item of"; no entry waits for one.
+- Read: `docs/relay-operator.md` has no item on `/relays.json`'s rank or `score_ms`: its sections
+  "Defects on the relay's side" (`docs/relay-operator.md:34`) and "Questions about the contract"
+  (`docs/relay-operator.md:430`) name other changes.
+- Read: `docs/relay.md:526-528` says "ranks relays by the Cloudflare edge that answered, which
+  changes between identical calls" (measured 2026-10-01); #125 measured it again on 2026-11-03,
+  through one proxy: three calls answered by NRT, SIN and ARN, each of the 37 hosts with another
+  rank and score between the first and the third.
+- Read: the relay's document says that `/relays.json` "ranks the pool for your edge colo and the
+  target" and documents its own `?prefer=`, `?region=`, `?relay=` and `?spread=`
+  (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:70-71`); the record reads only
+  `?relay=` (`docs/relay.md:529-530`), so whether one of the others pins the rank is not known.
+- Read: the relay's `policy.note`, as #125 quotes it: "score_ms is a static estimate of client to
+  relay to target round trip; probe /health on each host and keep the fastest for your path".
+- Read: podssh's own relay role serves its one host, with `you.edge_colo` null and a score of 0
+  (`crates/podssh-relay/src/serve/docs.rs:60`, `crates/podssh-relay/src/serve/docs.rs:73-74`), so
+  each call gets the same answer there, with no vantage to pin.
+- Read: podssh's default list takes the relay's order only where no rank and no samples hold for
+  this egress, or with `RelayRank no` (`docs/relay.md:166-177`).
+
+## Approach
+
+1. Read the live relay's `/relays.json` once, for what its own document says of `?prefer=`,
+   `?region=` and `?spread=`, with the caller's fields (`you`) left out of what is kept: a short
+   read of the live relay, which `AGENTS.md` (section 4) allows.
+2. An item of `docs/relay-operator.md`, under "Questions about the contract", with this entry and
+   #125: what was measured (2026-10-01, and #125's three calls); what would make two answers
+   comparable (an estimate from one vantage that the document names, or the edge's estimate with
+   that edge named beside each score); whether a parameter of item 1 pins it already; and "In
+   podssh": T-606, T-607 and T-608 (podssh measures its own order), T-610 and T-618 (`relay info`
+   says whose order it shows), and the role's one host.
+3. `docs/relay.md`, "Relay facts for a client that selects a relay": #125's measurement beside the
+   one of 2026-10-01, what item 1 found, and the item's place.
+
+## Decision
+
+- An item of the note and a reading, not a change of podssh's client: since T-607 podssh's runs do
+  not depend on the relay's order where a rank or samples hold, and a client cannot pin the
+  relay's estimate. Lost: a client that asks `/relays.json` with a parameter that pins the order,
+  which needs item 1 to show that one does; then it is an entry of its own.
+- The entry is done when the item is written (Q63: no entry waits for the relay's operator); an
+  answer of the deployment is read as the note's section "When an item is ready" says.
+
+## Prove
+
+```sh
+python scripts/check-repo.py
+cargo todo check
+```
+
+The item is in `docs/relay-operator.md`, with this entry and #125, and so is the fact in
+`docs/relay.md`; the reading of item 1 is quoted with its date, and holds no token, no address of
+this host and none of the document's `you`; both checks pass with the new citations.
