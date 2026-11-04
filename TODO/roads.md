@@ -8965,3 +8965,82 @@ the repair removed, not the stall itself, as the new test makes it come every ti
   rest; clippy `--all-targets -D warnings`: clean. The echo test, 12 loops of 200 at once on 4
   CPUs, on the repaired binary: 0 of 2,400 failed, where the binary before the repair failed 2
   of 2,400 with the counts, and 4 of about 1,000 before them.
+
+# T-622: The HTTP road's one-POST form: one request carries both ways, where the way streams a body
+
+**Source:** the operator's archive `ff-relay` of 2026-11-04 (its podssh-poc.patch, part 2, its
+tools/http_relay.py and tools/buffering_relay.py, and its docs/poc.md), read by a drafting agent
+the same day: `docs/research/forward-carriers.md`, sections 3.1, 3.2 and 6.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The HTTP road of T-319 carries a session where a proxy refuses the WebSocket upgrade, in two forms
+that a hop which holds bodies passes: a GET down with a POST for each batch up, or one exchange
+after another. Where a hop passes a request's body as it comes, one POST whose body is the way up
+and whose answer is the way down carries the session on one connection, with no request for each
+batch. The archive carried an SSH session in that form at the loopback's rate (33.75 MiB/s, a
+median round trip of 0.7 ms; Read in its docs/poc.md), and showed that the same form stops at the
+banner where a hop holds the body: the form needs a test of the way and a fallback.
+
+## Premise
+
+- `TODO/roads.md:3153` says "An answer down ends 20 ms after nothing more came": T-319's answers
+  end so that a hop which holds them holds little, and none of its forms streams an answer while
+  its request's body is open.
+- `crates/podssh-cli/src/doctor/stream/mod.rs:2` says "passes as it comes or is held until its
+  end, whether a request's body": podssh measures whether a request's body passes as it comes
+  (T-325).
+- `crates/podssh-ws/src/vless/xhttp.rs:10` says "stream-one: one POST to the path, its body up and
+  its answer down": podssh speaks the form inside XHTTP to Xray-core, over HTTP/2 alone, as
+  `crates/podssh-ws/src/vless/xhttp.rs:19-21` says why HTTP/1.1 is refused there.
+- The archive found no public server of the form: one relay of that shape on a public name wants
+  a key (Read in its results/http-relay-hunt.json), and its own relay is a test of about 130 lines
+  on the loopback. A server of the form that a user has is podssh's relay role.
+
+## Approach
+
+1. The role's side, beside T-319's paths and with its open's checks (the token, the target as
+   `/v1/http/open/HOST/PORT` takes it): a POST whose body is chunked bytes up, answered at once
+   with its head and a mark, then the target's bytes down in chunks as they come.
+2. The client: this form first where the HTTP road is taken, on one connection; a client whose
+   mark does not come within 2 s while its first chunk is out ends that request and takes T-319's
+   split form, as a hop holds the body; the result kept for the egress for the rest of the run.
+3. HTTP/2 where ALPN gives `h2` (one stream), else HTTP/1.1 with chunked bodies both ways.
+4. `PODSSH_HTTP_ROAD=one` asks for this form alone; `auto` tries it first; `split` and `serial`
+   leave it out.
+5. `doctor` names the form that carried.
+
+## Decision
+
+- **A form of the HTTP road in podssh's relay role, not a form of `--forwarder`; for the operator to confirm (Q86, Q95).** Lost: the
+  archive's `http://` and `https://` templates of `--forwarder` (its patch, part 2), for three
+  reasons: no server of that shape is offered to others, so the template names the target to an
+  HTTP server that nobody runs for the use; its session has no form for a hop that holds a body
+  (the patch's own "Limits of the POC"); and it takes the scheme `https://`, which
+  `crates/podssh-ws/src/forwarder/template.rs:65` refuses today, so a mistyped `https://` for
+  `wss://` would become another road with no word.
+- **The form first, with a bound of 2 s on its mark.** Lost: the form after the split form, which
+  keeps a request for each batch where the hop streams; a probe of the way at each start (T-325's),
+  which takes seconds (T-319's Decision).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test http_road
+```
+
+Through T-319's stand-in proxy that refuses `Upgrade`: where it passes bodies as they come, a
+session carries 20 MiB each way with equal digests on one connection, this form named; where it
+holds each body, the client takes the split form within the bound of the mark, and the session
+carries the same. Planted: the bound on the mark removed, and the session behind the hop that
+holds bodies does not open within the test's limit.
+
+## Start condition
+
+T-319 is done: the HTTP road's split and serial forms exist.

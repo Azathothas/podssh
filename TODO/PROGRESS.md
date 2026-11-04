@@ -199,7 +199,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 584 entries: 90 open, 5 partial, 2 blocked, 487 done.
+`TODO/INDEX.md` holds 590 entries: 96 open, 5 partial, 2 blocked, 487 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -261,6 +261,11 @@ this order:
    and Nostr's meeting point (T-545, parked); the other last fallbacks of Q78 (T-549, T-565 to
    T-573 and T-575 to T-579; T-566, T-567 and T-575 parked); and the roads over UDP (T-580, T-581,
    T-582). These are features of a tester's report and of the sweep, done after the defects (Q85).
+   Then what the archive of forward carriers (2026-11-04, `docs/research/forward-carriers.md`)
+   filed: the rates of `ppng.io`'s road and of the Wisp demo server through podssh (T-625), TURN
+   with RFC 6062 for a server that the user runs (T-621), the research of smee.io (T-623), of three
+   hosted tunnels (T-624) and of I2P, Nym and cjdns (T-626), and the HTTP road's one-POST form
+   (T-622, parked).
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
 Between entries: the `none` entries, the highest priority first, but for the testers' entries.
@@ -319,6 +324,7 @@ it can start.
 | T-566 | T-565 is done: the module for a tunnel of HTTP made by `ssh -R` exists |
 | T-567 | T-565 is done: the module for a tunnel of HTTP made by `ssh -R` exists |
 | T-575 | T-497 is done: the road has public servers in order |
+| T-622 | T-319 is done: the HTTP road's split and serial forms exist |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
 | T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 
@@ -336,6 +342,21 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 (Q90: T-574's built-in nodes, T-612, T-613 and T-614); four more live test targets (Q91: T-463,
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
+
+**For the operator to confirm (Q86), Q93 to Q95, from the draft of 2026-11-04 on the archive of
+forward carriers** (`docs/research/forward-carriers.md`, section 8; each call is in its entry's
+`## Decision`):
+
+- Q93, T-621: the TURN road opens a second connection, the data connection that RFC 6062 needs, to the
+  same server, and only when the user names one with `--turn`: a sixth exception of rule 2 of
+  `AGENTS.md`, as Q44 and Q67 are. Recommendation: allow it.
+- Q94, T-623 and T-624: short live tests against smee.io, hostc, Tunnelmole and Sandhole's public
+  server, which were not among the services that T-548 named when Q91 ruled. Recommendation:
+  allow them as Q91 allows those, with throwaway channels and tunnels given up at the end, once
+  each research entry has read the service's terms.
+- Q95, T-621 and T-622: the archive's two forwarders are not taken as forms of `--forwarder`; TURN is
+  a road of the user's own server with a file of credentials, and the HTTP form is a form of the
+  relay role's HTTP road, behind which T-319's forms stay. Recommendation: confirm.
 
 The operator settled Q67 to Q84 on 2026-11-02 (`docs/decisions.md`), after the triage of the
 testers' reports (GitHub #83 to #106, the bundle, the relay sweep) and of the drafts of M10:

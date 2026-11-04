@@ -4803,6 +4803,28 @@ Two of nwtgck's servers on the loopback, the first stopped: the node and the cli
 second. Live, short runs through both public servers (Q65). Planted: the client's bound at the
 first server removed, and the test waits past its limit.
 
+## Correction
+
+2026-11-04 (the drafting agent), from the operator's archive `ff-relay` of 2026-11-04
+(`docs/research/forward-carriers.md`, section 3.3). The archive paired two legs of curl on one
+path of `piping.onrender.com` through an HTTP CONNECT proxy, a line written each second on the
+POST: the lines came to the GET only after the POST's body ended, and the transfers completed
+(Read in its docs/carriers.md, "Pairing carriers", and its results/http-relay-hunt.json,
+"buffering"). A second Piping Server on the same platform did the same (counted; Q79). So the
+Premise's second server holds a streamed body until its end; which hop holds it was not measured
+(Inferred: the platform's front, or Cloudflare before it, as `docs/carriers.md:583` says "Render's
+origin behind Cloudflare"). On it the road's streamed link gets no answer, and a client takes
+numbered pieces once its wait ends (`crates/podssh-relay/src/piping/flow.rs:24` says "pub const
+HELLO_LIMIT: Duration = Duration::from_secs(15);"), again in each run
+(`crates/podssh-relay/src/piping/client.rs:66` says "this client's links go in numbered pieces
+from now on"). The Premise holds otherwise. The Approach gains:
+
+4. A server whose streamed link was held is kept so in the cache for a day, with the egress that
+   saw it (a digest of the proxy's host and port, or `direct`, as the rank of T-606 keeps one), so
+   that the next run's links to it start in numbered pieces with no wait.
+5. The Prove's second server stands behind a stand-in that holds each request's body, as T-437's
+   tests have one, so that the order of the servers and the numbered pieces are tested together.
+
 # T-498: frp's protocol: a podssh node behind the user's frps, and its visitor
 
 **Source:** T-442 (2026-11-02); the operator's ruling Q66.
@@ -6088,6 +6110,18 @@ forward of another port, and the test of the stand-in fails.
 
 T-565 is done: the module for a tunnel of HTTP made by `ssh -R` exists.
 
+## Correction
+
+2026-11-04 (the drafting agent), from the operator's archive `ff-relay` of 2026-11-04
+(`docs/research/forward-carriers.md`, section 3.6): two runs of `ssh -R` to tunnl.gg's server,
+from inside a WARP namespace, as the measuring host's proxy refused port 22. The first gave no
+public URL; the second gave an HTTPS URL whose fetch of 16 MiB stopped after 520,192 bytes in
+3.13 s, its HTTP/2 stream reset with `INTERNAL_ERROR` (Read in its results/reverse.json). One
+sample: a limit of the service, its edge, or the run. The Premise holds. Step 1 gains: whether a
+transfer past 512 KiB passes each way, by a short live run of 1 MiB each way (T-548's Decision); a
+cut at one size goes into `docs/carriers.md` as a limit, with its date, and the road's line names
+it.
+
 # T-568: localtunnel as a last fallback: the relay role behind `localtunnel.me`
 
 **Source:** the operator's ruling Q78 (2026-11-02).
@@ -6134,6 +6168,21 @@ Against localtunnel's own server (`localtunnel/server`) in a container, with a p
 `podssh node NAME TARGET` behind it and `podssh ssh node://NAME 'echo ok'` with the pair's road
 down. Live, short, through `localtunnel.me` (T-548's Decision). Planted: the header left out, and the live
 client meets the reminder page (the test names it).
+
+## Correction
+
+2026-11-04 (the drafting agent). `docs/carriers.md:957` says "request meets a reminder page unless
+it carries the header", which the operator's archive `ff-relay` of 2026-11-04 contradicts for one
+client (`docs/research/forward-carriers.md`, section 3.6): through `loca.lt`, curl fetched a file of
+16 MiB of random bytes with no `Bypass-Tunnel-Reminder` and got `200` and exactly 16,777,216
+bytes, at 1.80 MiB/s, so no page came before the file (Read in its results/reverse.json and
+tools/measure_reverse.py). Inferred: the page keys on a browser's `User-Agent`, which curl does not
+send. podssh sends `podssh/` and its version (`crates/podssh-ws/src/url.rs:25`), so its client may
+never meet the page, and the Prove's plant, the header left out, may pass unseen. Step 3 keeps the
+header, which costs nothing. The plant changes: the live client with the header left out and a
+browser's `User-Agent` meets the page, which the test names; where it still gets the tunnel's
+bytes, the run is written in `docs/carriers.md` with its date, and the plant moves to a check that
+each request of the client carries the header.
 
 # T-569: bore.pub as a last fallback: a raw TCP port for the node, reached by the client's other roads
 
@@ -6471,6 +6520,18 @@ and the test of the order fails.
 
 T-497 is done: the road has public servers in order.
 
+## Correction
+
+2026-11-04 (the drafting agent), from the operator's archive `ff-relay` of 2026-11-04
+(`docs/research/forward-carriers.md`, section 3.3). The archive reached serv00's Piping Server at
+the name with `www.` before the Premise's (`docs/carriers.md:962` says "The last runs on serv00,
+whose terms forbid to"), and read that it completes transfers and holds a streamed body until its
+end (Read in its docs/carriers.md, "Pairing carriers", and its results/http-relay-hunt.json). So
+step 1's "whether it streams" has the archive's answer, no: the road there runs in numbered pieces,
+as on T-497's second server (its Correction). Step 1 stays, measured through podssh, and reads
+which of the two names serves; the Prove's third server stands behind a stand-in that holds each
+body.
+
 # T-576: HTTP Relay's demo server as a last fallback, in the Piping Server road's pieces
 
 **Source:** the operator's ruling Q78 (2026-11-02); T-442's verdict.
@@ -6650,6 +6711,15 @@ cargo todo check
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where libp2p's relays
 pass.
+
+## Correction
+
+2026-11-04 (the drafting agent). The operator's archive `ff-relay` of 2026-11-04 reads that
+libp2p's public bootstrap nodes refuse reservations (its docs/carriers.md, "Dead or absent"; no
+result file; `docs/research/forward-carriers.md`, section 3.9). The Premise holds. The public
+nodes of step 1 are then others than the bootstrap nodes: nodes that announce relay v2's protocol
+(`/libp2p/circuit/relay/0.2.0/hop`) on a public address on 443, found by a lookup of the DHT or in
+a list that their operators publish (Inferred; to read).
 
 # T-580: Hysteria 2 as a client road over QUIC, where a probe found that UDP passes
 
@@ -8056,3 +8126,332 @@ Against podssh's relay role on the loopback, a member of the net with the role `
 host in the document: a client with no `--relay-host` takes the role's signed list and reaches a
 server through it. Planted: the host read and the member's key not checked; the test of another
 key fails.
+
+# T-621: TURN with RFC 6062: a TURN server that the user runs, as a road with no relay
+
+**Source:** the operator's archive `ff-relay` of 2026-11-04 (its podssh-poc.patch, part 1, and its
+tools/turn6062.py), read by a drafting agent the same day: `docs/research/forward-carriers.md`,
+sections 3.7 and 6; the operator's ruling Q66.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A user who runs a TURN server, as many WebRTC deployments do (coturn beside a server of calls or
+chat), has a server on 443 that dials a TCP target that the client names: the TCP allocation of
+RFC 6062. podssh speaks no TURN, so that server is no road. The operator's archive of 2026-11-04
+carried an SSH session through coturn with a TURN client written against podssh-ws, directly and
+through an HTTP CONNECT proxy.
+
+## Premise
+
+- `docs/decisions.md:40` says "Q66: standard protocols, so that a server that a user runs is a
+  road".
+- `docs/carriers.md:364` says "no TCP relaying, no RFC 6062", of Cloudflare's TURN, and
+  `docs/carriers.md:911` says "OpenRelay, Metered's TURN", which needs an account: no public TURN
+  server with no account offers TCP allocations, so this road is for a server that the user runs.
+  The archive's patch says the same of Cloudflare's Realtime TURN and LiveKit's public TURN: each
+  answers a TCP allocation with `508` (Read in its comment; not measured here).
+- RFC 6062 carries the bytes on a second TCP connection to the server, bound by `ConnectionBind`,
+  while the control connection that holds the allocation stays open (Read in the archive's patch,
+  its file crates/podssh-ws/src/turn/mod.rs, and its docs/poc.md: "proxy logs 2 CONNECTs").
+  `AGENTS.md:276` says "Make one outbound connection", with five exceptions, none for this road.
+- podssh-ws holds the parts of TURN's long-term credential in pure Rust: `hmac`
+  (`crates/podssh-ws/Cargo.toml:17`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:45-46`);
+  and a resolver order of its own (`crates/podssh-ws/src/resolve.rs:2` says "resolver works. In
+  order"), as a Connect names an address, not a name.
+- No code of podssh names TURN: `crates/podssh-ws/src/forwarder/template.rs:65` says "a
+  forwarder's template is a ws:// or wss:// URL".
+
+## Approach
+
+1. Read first, through the services of web.pkgforge.dev: RFC 8656 (Allocate, Refresh, the
+   long-term credential, the error codes), RFC 6062 (Connect, ConnectionBind, ConnectionAttempt,
+   the bound on a pending connection, its codes), RFC 7065 (the `turn:` and `turns:` URIs), and
+   coturn's source for its defaults (`no-tcp-relay`, the peer ranges that it denies,
+   `use-auth-secret`).
+2. A module `turn` of podssh-ws, pure Rust (rule 4 of `AGENTS.md`, section 5), each file under 500
+   lines: the STUN codec, each attribute's length checked before it is read; the long-term
+   credential (MESSAGE-INTEGRITY over the MD5 key); Allocate with REQUESTED-TRANSPORT 6; Connect to
+   the target's address; ConnectionBind on the second connection; a Refresh before the
+   allocation's lifetime ends; the control connection kept while the data connection lives.
+3. The target's name resolved by podssh-ws's own order, not by the host's resolver alone, as a
+   host may have none.
+4. The command line: `--turn turns:HOST[:PORT]` (443 when none is named; `turn:` for a server with
+   no TLS, taken only when the user writes it), with the credentials from `--turn-auth-file FILE`,
+   `USER:PASSWORD` on one line in a file that others cannot read, as `--via-auth-file` reads its
+   file; never in the URI or in argv. `PODSSH_TURN` and `PODSSH_TURN_AUTH_FILE` as their
+   variables. A run has one road, as with `--via`; `ssh`, `proxy`, `pipe`, and `doctor --turn` with
+   a line of its own: the TURN server's software where it says it, the allocation, the Connect's
+   time, then GitHub's published host key through it.
+5. The refusals in their words: a TCP allocation refused (`442` or `508`: the server offers no
+   RFC 6062), a credential refused twice (`401`), a target refused by the server's policy (`403`),
+   a target that the server did not reach (`447`), each with an exit code as `--via`'s refusals
+   have.
+6. TLS checked for HOST with podssh's trust; through `HTTPS_PROXY` both connections are CONNECTs
+   to the same name.
+
+## Decision
+
+- **The second connection, the data connection that RFC 6062 needs, to the same server, only when
+  the user names a TURN server; for the operator to confirm (Q86, Q93).** It is a sixth exception of
+  rule 2 of `AGENTS.md`, as Q44 and Q67 are; the question goes to the operator with the draft
+  (`docs/research/forward-carriers.md`, section 8). Lost: a TURN road on one connection, which RFC
+  6062 does not have; and no road, which leaves the user's coturn unused.
+- **A road of its own (`--turn`), not a form of `--forwarder`; for the operator to confirm (Q86, Q95).** A forwarder is a public service
+  that the fallback tries unasked (Q56, Q65); a TURN server takes the user's credentials and two
+  connections, as `--via` and `--vless` take the user's own servers. Lost: the archive's
+  `turn://HOST:PORT` template of `--forwarder`, whose scheme is not RFC 7065's and whose
+  credentials come from the environment.
+- **`turns:` by default, TLS on 443**, which a host whose egress is HTTPS reaches.
+  `docs/carriers.md:738` says "HTTP, so a proxy that re-terminates TLS breaks it": such a proxy
+  stops this road, and `doctor` says so. Lost: `turn:` on 3478 first, which such a host refuses.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib turn
+cargo test -p podssh-cli --test turn_road
+```
+
+The codec against messages that coturn wrote, captured into the tests; then against coturn of its
+release in a container, TLS on 443 with a test CA, a plain squid as the host's proxy: `podssh ssh
+--turn turns:HOST --turn-auth-file FILE` to OpenSSH's sshd carries 1 MiB each way with equal
+digests, and the squid's log holds two CONNECTs to the same name; a coturn with `no-tcp-relay` is
+refused in the words of step 5; a wrong password is refused; an allocation of 60 s lives past 90 s
+by its Refresh. Planted: the Refresh left out, and the session of 90 s ends.
+
+# T-623: smee.io, a POST in and server-sent events out, as a carrier where a proxy refuses the upgrade: the research
+
+**Source:** the operator's archive `ff-relay` of 2026-11-04 (its results/http-relay-hunt.json),
+read by a drafting agent the same day: `docs/research/forward-carriers.md`, section 3.3; the
+operator's ruling Q78.
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+smee.io, a service that delivers webhooks, takes a POST to a channel's URL and sends it to each
+reader of that channel as server-sent events, with no account and no upgrade. The archive carried
+bytes both ways through it, two clients on one channel. Where a proxy refuses the WebSocket
+upgrade, podssh's carriers are Piping Server (T-437) and OpenTunnel's client's leg (T-530); smee.io
+would be another provider, which the record does not know.
+
+## Premise
+
+- Read in the archive's results/http-relay-hunt.json, 2026-11-04, through an HTTP CONNECT proxy:
+  a pairing carrier, "POST write, SSE read", a round trip of 441 ms and 143.9 KiB/s; its tool for
+  smee.io is not in the archive.
+- `docs/decisions.md:25` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:607` says "plain HTTPS by name on 443, with no upgrade: the one", of Piping
+  Server, the one carrier with no account that passed such a proxy when that page was read.
+
+## Approach
+
+1. Read first, through the services of web.pkgforge.dev: smee.io's operator, terms and limits;
+   its source and its license; how a channel is made and named (a random URL, which anyone who
+   knows it reads and writes); what a POST may carry (its types and size, and whether binary
+   passes or goes as base64 in JSON); whether a reader gets the events that came before it; how
+   long a stream of events lives; its rate limits; its category in a filter list.
+2. The shape for podssh: a link of two channels, one for each way, named from the pair's secret as
+   the Piping Server road names its paths (`crates/podssh-relay/src/piping/paths.rs`), under the
+   end-to-end channel and the resumable layer, as anyone with a channel's URL reads it.
+3. The verdict in `docs/carriers.md` with its sources: a feature entry, a last fallback (Q78) after
+   the Piping Server road, with the line of T-548's step 5; or out, for a reason that it names.
+
+## Decision
+
+- **Short live tests, for the operator to confirm (Q86, Q94).** Q91 allows them for the services that
+  T-548 named, and smee.io was not among them; the question goes to the operator with the draft
+  (`docs/research/forward-carriers.md`, section 8). Until the ruling, the research reads and runs
+  nothing against it. Lost: a short run now, which Q91's words do not cover.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where smee.io passes.
+
+# T-624: hostc, Tunnelmole and Sandhole's public server as last fallbacks of the reverse road: the research
+
+**Source:** the operator's archive `ff-relay` of 2026-11-04 (its results/reverse.json and
+tools/measure_reverse.py), read by a drafting agent the same day:
+`docs/research/forward-carriers.md`, section 3.6; the operator's rulings Q77 and Q78.
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The archive published a local HTTP server through hosted tunnels with no account, each by its own
+client, and fetched 16 MiB back through each. Three of them are not in podssh's record: hostc
+(`npx hostc`, names under `hostc.app`), whose fetch carried the 16 MiB at 4.05 MiB/s, the fastest
+of that run; Tunnelmole; and Sandhole's public server, reached by `ssh -R`. The last two gave no
+public URL in their one run. Each could be a last fallback of the reverse road (Q78), as the
+tunnels of T-548 and T-565 to T-569 are.
+
+## Premise
+
+- Read in the archive's results/reverse.json: hostc, 16,777,216 bytes in 3.95 s through the
+  measuring host's CONNECT proxy, `200`; Tunnelmole and Sandhole's server, "no public URL"; each
+  tunnel's client ran inside a WARP namespace of cfrs, as that host's proxy refused their ports
+  (its tools/measure_reverse.py).
+- `docs/decisions.md:25` says "Q78: each service is a last fallback, whatever its terms".
+- `TODO/serve.md:1185` says "EpicEric/sandhole: reverse proxying through a stock": the record
+  knows Sandhole as a project, not its public server as a carrier; it names neither hostc nor
+  Tunnelmole (a search of `TODO/` and `docs/` on 2026-11-04).
+
+## Approach
+
+1. Read first, through the services of web.pkgforge.dev, for each: its operator, terms and limits;
+   its client's protocol (the node's leg: raw TCP, SSH, or a WebSocket on 443, and through
+   `HTTPS_PROXY` or not); whether the client's leg is HTTPS by name and passes a WebSocket upgrade
+   or a streamed body, which the relay role behind it needs (as T-565's step 1 asks); its license,
+   and a server of its project to test against; its category in a filter list, never a domain
+   that looks taken over (Q79).
+2. Each that passes: a feature entry, a last fallback of the reverse road (Q78), in the shape of
+   the nearest one: T-565's module for a tunnel of HTTP made by `ssh -R`, or T-568's for a client
+   that asks for a tunnel over HTTPS.
+3. The verdict of each in `docs/carriers.md` with its sources.
+
+## Decision
+
+- **Short live tests, for the operator to confirm (Q86, Q94).** Q91 allows them for the services that
+  T-548 named, and these three were not among them; the question goes to the operator with the
+  draft (`docs/research/forward-carriers.md`, section 8). Until the ruling, the research reads and
+  runs nothing against them. Lost: a short run now, which Q91's words do not cover.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict of each and its sources in `docs/carriers.md`; a feature entry filed for each that
+passes.
+
+# T-625: The rates of the Piping Server road through `ppng.io` and of the Wisp demo server, measured through podssh
+
+**Source:** the operator's archive `ff-relay` of 2026-11-04 (its results/http-piping.json and
+results/wisp-throughput.json), read by a drafting agent the same day:
+`docs/research/forward-carriers.md`, sections 3.3 and 3.5.
+**Category:** measurement
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh tries `ppng.io` where a proxy refuses the WebSocket upgrade, and the Wisp demo server last
+among the forwarders, and its record has no rate of either measured through podssh. The archive
+measured both from one host: about 0.12 MiB/s for one transfer through `ppng.io`, and 486 kB/s for
+one stream of the demo server after its upgrade. A copy over either road, and what the documents
+say of it, need podssh's own number.
+
+## Premise
+
+- `docs/carriers.md:619` says "Limits: not published, and not determined."
+- `docs/carriers.md:226` says "500kB/s bandwidth", of the demo server, and
+  `crates/podssh-ws/src/forwarder/builtin.rs:43` says "500 kB/s for each address".
+- Read in the archive, 2026-11-04, through an HTTP CONNECT proxy: through `ppng.io`, with curl,
+  1 MiB in 5.08 s, 8 MiB at 0.12 MiB/s, four transfers at once 0.59 MiB/s in all, and one transfer
+  of 4 MiB that moved no byte (results/http-piping.json); through the demo server, one stream on
+  port 80 moved 5,054,472 bytes in its window, 903 ms of it the upgrade
+  (results/wisp-throughput.json).
+- T-437's live run measured no rate: `TODO/mesh.md:1505` says "carried 64 KiB each way each time
+  (about 4 s)".
+
+## Approach
+
+1. The Piping Server road: a live test of its own beside `piping_live`'s, short (Q65), from this
+   host through its proxy and from GitHub Actions: a session of a node and a client of one pair
+   through `ppng.io`, 4 MiB each way, in the streamed form and in numbered pieces, three runs of
+   each; each way's rate from its first byte to its last, the open timed apart, as T-157's method
+   leaves the setup out.
+2. The demo server: in GitHub Actions alone (Q56), to the operator's server of
+   `PODSSH_THROUGHPUT_SSH` (Q38): 4 MiB down by `head -c 4194304 /dev/zero` and up by
+   `cat > /dev/null` through `--forwarder wisp`, three runs, each timed against a run of `true`
+   on the same road (the open and the login), by `podssh ping` where it takes `--forwarder`, else
+   by `podssh ssh`.
+3. Each rate into `docs/carriers.md` (the Piping Server's limits, and the demo server's item) and
+   `docs/STATUS.md`, with its date, its command and the kind of its egress; a rate far below the
+   archive's is named with both.
+
+## Decision
+
+- **4 MiB, three runs**: a short run (Q65; Q88: a live run of a few minutes at most), long enough
+  that the open is a small part of it at 0.12 MiB/s. Lost: the archive's 1 MiB, whose rate is
+  mostly its fixed costs (`docs/research/forward-carriers.md`, section 4, item 5); 16 MiB, more
+  than two minutes each way through `ppng.io`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features piping --test piping_live -- --ignored
+```
+
+The rates of both forms through `ppng.io`, three runs each, written with their date; the demo
+server's runs in `.github/workflows/forwarder-live.yml`, by hand, written the same way.
+
+# T-626: I2P, Nym and cjdns: whether an overlay of peer addresses carries a podssh pair: the research
+
+**Source:** the operator's archive `ff-relay` of 2026-11-04 (its docs/carriers.md, "Dead or
+absent"), read by a drafting agent the same day: `docs/research/forward-carriers.md`, section 3.9;
+the operator's ruling Q77.
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The archive put I2P, Nym and cjdns out of its forward carriers, as each gives "peer addressing
+only, no destination dial". The reverse road needs no dial of a destination: two podssh ends meet
+by keys, so an overlay that addresses peers could carry a pair. The operator ruled that each
+overlay network gets a research entry; the sweep of 2026-11-02 named other overlays, and the
+record has no entry for these three.
+
+## Premise
+
+- `docs/decisions.md:26` says "Q77: use the fallbacks that exist".
+- Read in the archive's docs/carriers.md: "Nym, cjdns, I2P | peer addressing only, no destination
+  dial".
+- The record names none of the three (a search of `TODO/` and `docs/` on 2026-11-04); T-536 to
+  T-544 are the entries of the sweep's overlays, each of this shape.
+
+## Approach
+
+1. Read, for each, in its documents and source, through the services of web.pkgforge.dev: how a
+   peer joins (an account, a credential, a payment, or none); its transports (TCP or TLS on 443 by
+   name, a WebSocket, or UDP alone); its public entry points (I2P's reseed servers and routers,
+   Nym's gateways, cjdns's public peers); and how two peers reach each other by a key.
+2. Through a proxy: which part passes an HTTP CONNECT proxy to 443, one that waits for TLS, or one
+   that allows listed names; and where UDP passes (Q82).
+3. podssh's side: a maintained implementation in Rust, pure Rust for the library crates (rule 4 of
+   `AGENTS.md`, section 5), or the size of one; a router of another project is another program,
+   which rule 3 forbids podssh to start; a stream between two keys under the resumable layer.
+4. The verdict of each in `docs/carriers.md` with its sources: a feature entry where one passes,
+   tried unasked after podssh's own roads (Q77); else out, for need of an account or a payment, no
+   stream, or no port that the host reaches.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict of each and its sources in `docs/carriers.md`; a feature entry filed where one passes.

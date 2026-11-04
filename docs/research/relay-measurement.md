@@ -567,3 +567,18 @@ Each of these is UNVERIFIED in the draft:
 - The inferences of sections 3 and 4: the 5 s of the resolver (a run of the
   harness shows the CONNECT's time apart), and the IRC NOTICE before the
   client's bytes (a capture of an IRC server's first lines).
+
+## 11. The second version: forward carriers (2026-11-04)
+
+On 2026-11-04 the operator uploaded a new version of the same archive, one
+commit: "Public forward carriers: harness, measurements and two podssh
+forwarders". It measures HTTP forwarding and buffering on the loopback,
+Piping Servers and other pairing services, 71 Wisp servers (both legs, port
+80, concurrency), hosted reverse tunnels, TURN with RFC 6062 and a sweep of
+541 names; and proposes a patch of two forwarders for podssh-ws. Its
+reading, each claim tagged as the archive's, the findings against podssh's
+record, the patch read as a proposal, and the entries T-621 to T-626, are
+on their own page: [forward-carriers.md](forward-carriers.md). The new
+Wisp harness sends its requests as DATA packets, so its port-80 bytes
+settle item 5 of section 3: 29 of 32 servers carried port 80, the demo
+server among them at about its operator's 500 kB/s.

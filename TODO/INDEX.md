@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**584 entries: 90 open, 5 partial, 2 blocked, 487 done.**
+**590 entries: 96 open, 5 partial, 2 blocked, 487 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 27 | 2 | 0 | 236 | 265 |
-| P3 | 63 | 2 | 2 | 187 | 254 |
-| **All** | 90 | 5 | 2 | 487 | 584 |
+| P3 | 69 | 2 | 2 | 187 | 260 |
+| **All** | 96 | 5 | 2 | 487 | 590 |
 
 ## Entries
 
@@ -660,3 +660,9 @@ repository and CI).
 | [T-618](relay.md) | P2 | S | M10 | defect | open | `relay info` names neither `podssh relay rank` nor the order that this host's runs take, which T-610 left for T-606 and T-607 |
 | [T-619](relay.md) | P3 | S | M10 | docs | open | The note to the relay's operator asks nothing of `/relays.json`'s rank, which changes with the edge that answered |
 | [T-620](reverse.md) | P3 | S | M10 | defect | open | The stop token's rotation and the renewal follow the node's next pair at expiry |
+| [T-621](mesh.md) | P3 | M | M10 | feature | open | TURN with RFC 6062: a TURN server that the user runs, as a road with no relay |
+| [T-622](roads.md) | P3 | M | M10 | feature | open | The HTTP road's one-POST form: one request carries both ways, where the way streams a body |
+| [T-623](mesh.md) | P3 | S | M10 | research | open | smee.io, a POST in and server-sent events out, as a carrier where a proxy refuses the upgrade: the research |
+| [T-624](mesh.md) | P3 | S | M10 | research | open | hostc, Tunnelmole and Sandhole's public server as last fallbacks of the reverse road: the research |
+| [T-625](mesh.md) | P3 | S | M10 | measurement | open | The rates of the Piping Server road through `ppng.io` and of the Wisp demo server, measured through podssh |
+| [T-626](mesh.md) | P3 | S | M10 | research | open | I2P, Nym and cjdns: whether an overlay of peer addresses carries a podssh pair: the research |
