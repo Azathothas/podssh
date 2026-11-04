@@ -28,6 +28,8 @@ mod notes_doctor;
 mod notes_each;
 mod notes_edit;
 mod notes_grant;
+// The tokens of one leg and the stop token's rotation (T-615).
+mod notes_legs;
 mod notes_health;
 mod notes_job;
 mod notes_keygen;

@@ -270,6 +270,22 @@ Each rule is implemented.
   reaches a TARGET that has no login of its own; podssh's relay role makes
   a connect token of one upgrade where the pair asks for it (`relay pair
   --once`).
+- **On podssh's relay role, each leg after a session's first has a connect
+  token of its own, and the node rotates its stop token** (T-615). The
+  node gives each session that it lets in a random seed inside the
+  end-to-end channel, in its verdict, and each later leg's token comes from
+  it, so no token crosses a wire before its leg and a token that a proxy
+  logged from a leg's headers is spent already; the role keeps the
+  SHA-256 of each, which the node registers on its socket, takes each for
+  one upgrade while the node is joined, and refuses it after, also when it
+  is registered again. The node names the SHA-256 of its next stop token
+  to the role by the token now, keeps the new one in its store first, and
+  its first use ends the one before, each day: a stop token that leaked
+  ends at the next rotation, and no operator holds one. The window: a
+  restart of the role forgets which tokens it took, and the node registers
+  its own again, so a token that a leg spent while the node did not hear
+  of it is good once more until the session ends or a later one is taken;
+  it reaches the node's door at most, which the channel holds.
 - **A code of the pairing is a credential for 10 minutes, and gets one
   guess** (T-086). `podssh relay pair NAME --code` shows a nameplate and
   three words of the PGP list, 24 bits of secret, on its terminal alone,
@@ -384,8 +400,9 @@ security:
 - The tokens of a pair on the default relay are bearer tokens for up to 72
   h: whoever holds the connect token reaches the node's door, and its
   `stop_token` ends the pair. The node's `--allow`, its net and its grants
-  (T-226) hold the door behind it; a connect token of one upgrade comes from
-  podssh's relay role alone, as the default relay's contract has none.
+  (T-226) hold the door behind it; a connect token of one upgrade, a token
+  for each leg and a stop token that rotates come from podssh's relay role
+  alone (T-615), as the default relay's contract has none.
 - With `-A` (T-036), the server, and root on it, can use each key of the
   agent while the session lasts, as with OpenSSH. podssh binds the
   forwarded agent to the server's host key (`session-bind@openssh.com`,

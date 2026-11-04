@@ -4,7 +4,9 @@
 //! operator's binary frames are the payload alone, with no framing, and the
 //! role puts the id before each for the node. A text frame of the operator
 //! closes its socket with `1003`. A carrier's operator (T-595) has the same
-//! socket, a pipe in its own process, with no upgrade before it.
+//! socket, a pipe in its own process, with no upgrade before it. A leg that a
+//! token of one leg opened tells the node which one, before its `open`
+//! (T-615).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -35,9 +37,16 @@ enum Phase {
 }
 
 /// Join an operator of `pair` on `stream`, and carry its session until it
-/// ends.
-pub async fn join<S>(mut stream: S, head: Request, pending: Vec<u8>, pair: Arc<Pair>, cfg: Arc<Config>)
-where
+/// ends; `spent`, the digest of the token of one leg that its upgrade took
+/// (T-615).
+pub async fn join<S>(
+    mut stream: S,
+    head: Request,
+    pending: Vec<u8>,
+    pair: Arc<Pair>,
+    cfg: Arc<Config>,
+    spent: Option<[u8; 32]>,
+) where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let key = match server::check_upgrade(&head) {
@@ -47,12 +56,21 @@ where
     if stream.write_all(&server::switching(&key)).await.is_err() {
         return;
     }
-    leg(Arc::new(server::session(stream, pending, None)), pair, cfg).await
+    leg_spent(Arc::new(server::session(stream, pending, None)), pair, cfg, spent).await
 }
 
 /// An operator's socket that is a WebSocket already, carried until its
 /// session ends: the role's after the upgrade, and a carrier's leg (T-595).
 pub async fn leg<S>(session: Arc<RelaySession<S>>, pair: Arc<Pair>, cfg: Arc<Config>)
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    leg_spent(session, pair, cfg, None).await
+}
+
+/// [`leg`], whose upgrade took the token of one leg of `spent` (T-615): the
+/// node hears it before the session's `open`, and registers the next.
+async fn leg_spent<S>(session: Arc<RelaySession<S>>, pair: Arc<Pair>, cfg: Arc<Config>, spent: Option<[u8; 32]>)
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
@@ -82,6 +100,9 @@ where
         let _ = tokio::time::timeout(CLOSE_WAIT, outbox.ended()).await;
         return;
     };
+    if let Some(digest) = spent {
+        node.text(super::spent(&digest));
+    }
     node.text(open(&id));
     cfg.event("reverse open");
 

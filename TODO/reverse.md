@@ -3188,6 +3188,88 @@ it in `/relays.json`. A resume of the layer opens a new leg, which needs a token
    own at each start and each day, inside the private file of its pair; an operator never holds it.
 4. A node of a relay that offers neither keeps the pair's tokens, as now.
 
+## Decision
+
+2026-11-04 (the drafting agent). No row of `docs/decisions.md` settles these, and none changes one: Q4
+keeps the relay's tokens and the trust end to end, and Q63 makes the relay a role of podssh's, whose
+contract beside the default relay's is podssh's own. Each call is weighed against `SECURITY.md`: a token
+is a credential, never in a URL, a log, argv or a file of the relay's, and the relay sees no secret of
+the channel.
+
+1. **How the token reaches the operator: a seed in the node's verdict, and a token for each leg derived
+   from it**, HMAC-SHA256 under the seed of `podssh leg token, version 1` and the leg's number, 64 hex
+   digits (`crates/podssh-relay/src/e2e/legs.rs`). The verdict that lets a session in carries the seed as
+   an item after its code, which `frame::answer` of a podssh of before reads past
+   (`crates/podssh-relay/src/e2e/frame.rs`), so no word of either end is needed first, and no token
+   crosses a wire before its own leg. Lost: a message of the channel with each next token, as the
+   Approach had it, because an operator of before ends its session at a message type that it does not
+   know (`crates/podssh-relay/src/e2e/channel.rs`), so each end would first have to say that it reads it,
+   and a leg lost before the next token came would have none for its resume; a record of the layer,
+   which the relay reads, and so does a proxy that ends TLS, before the token's use; tokens derived from
+   the layer's secret, which needs no byte more but takes that secret out of the layer's code at both
+   ends, and serves `--no-e2e`, whose node has no door but the pair's token anyway.
+2. **The offer: two fields of the role's `hello`, `"legTokens": true` and `"stopRotation": true`, which
+   the node reads on the socket itself**; `/relays.json` says the same (`reverse.leg_tokens`,
+   `reverse.rotate`) for a client that asks. A node of before keeps the fields and reads nothing of them
+   (`crates/podssh-relay/src/reverse/control.rs`, `Hello::extra`). Lost: `/relays.json` alone, a second
+   request at each socket, which a host behind a balancer may answer apart from the one that holds the
+   socket. A carrier's role (T-595) offers neither: its stream is the door, and its legs take no token.
+3. **What the role keeps, and how many**: the SHA-256 of each token that the node registers, by a text
+   frame of its socket (`{"type":"token","digest":HEX,"expires":MS}`, an end of 0 withdraws one), never a
+   token; a window of 4 for each session, and at most 256 live and 256 spent ones for each pair (64
+   sessions of a node), those that end first making room
+   (`crates/podssh-relay/src/serve/reverse/legs.rs`). Lost: one token at a time, as a leg that the role
+   took while the node missed its word would leave none for the next; a window for each pair, for which
+   the sessions of one node would race; no bound, as a node's frames would grow the role without one.
+4. **Their life: a day at the role, from each registration**, which the node makes again at each token
+   taken and at each new socket, and which a session's end withdraws; at its use, the pair's end holds
+   too. Lost: the pair's life, as a crashed node's tokens would hold room for 72 h and more after a
+   renewal; minutes, as a session that runs an hour with no move would find none at its resume.
+5. **When a token is taken: at the upgrade, only while the node is joined with room for a session, which
+   hears `{"type":"spent","digest":HEX}` before the session's `open`; with no node, `503` and nothing
+   taken.** The role keeps each spent digest until its end, and refuses it when the node registers it
+   again. Lost: a token taken at each upgrade, as an operator that retries while its node connects again
+   would spend the whole window with no word to the node; no record of the spent ones, as a node that
+   registers its window again on its next socket would bring back a token that a leg spent while it was
+   away. The role's records live in memory: a node registers its own again on its next socket, after a
+   planned stop's `1012`. Lost: the file of `--pairs`, written whole at each leg, and up to 4096 pairs of
+   512 digests in it. The window that remains (`SECURITY.md`): after a restart of the role, a token that
+   a leg spent while the node did not hear of it is good once more, for the node's door alone, which the
+   channel holds.
+6. **The operator's side**: the first leg takes the pair's connect token, as no session exists before
+   it; each next leg (a resume, a move, a spare) takes the next token by
+   `podssh_relay::reverse::legs::start`, from the CLI's layered client and the race of `ssh node://`'s
+   roads (`crates/podssh-cli/src/layered.rs`, `crates/podssh-cli/src/ssh/roads.rs`). A 403 of a token is
+   no refusal of the pair: the next leg tries it once more, as the node may not have registered it again
+   after a restart, then the next one; after 8 in a row (twice the window) the legs take the pair's
+   token, as with a node that gave no seed. Lost: the pair's token at the first refusal, which ends a
+   session of a pair of `--once` at a restart of the role.
+7. **The stop token's rotation: the node draws the next token, names its SHA-256 at `POST
+   /v1/rotate/<name>` by the token now, keeps the new one in the store, then uses it once**, which makes
+   it the pair's and ends each before it (`crates/podssh-relay/src/pair/rotate.rs`,
+   `crates/podssh-cli/src/node_rotate.rs`). The role takes both the token now and the one to come until
+   that use, so a node that stops at any step keeps a token that the role takes, and the new token
+   crosses no wire before its first use; the file of `--pairs` keeps both. A 403 of the new one at its
+   first use (another rotation took its place) puts the one before back in the store. Lost: a new token
+   that the role draws and answers, as the Approach had it, because the answer crosses the wire, which a
+   proxy that ends TLS logs, and a node that stops before it kept the answer loses its stop token for
+   good.
+8. **Its period: at the node's first socket that heard the offer, and each 24 h after; an hour after a
+   try that did not take.** A node that missed a day (it was stopped) rotates at its next start; the role
+   forces none, so a token that no node rotates stays as before T-615. Lost: each start alone, as a node
+   that runs for weeks would keep one token; each hour, a write of the store each hour for a token that
+   no operator holds.
+9. **A pair of `--pair-file` keeps its stop token**, and the node says so once: its file is the user's,
+   which T-592 decided is never rewritten, and a copy of it elsewhere would stop working with no word.
+   Lost: rewriting it.
+10. **What a podssh of before does.** A relay of the contract offers neither: no registration, no
+    rotation, the pair's tokens as before. A node of before with this role registers none, and its
+    operators keep the pair's token. An operator of before with this node reads past the seed and takes
+    the pair's token; the node withdraws that session's 4 registrations at its end.
+11. **What gets a seed**: a session that the end-to-end channel lets in above the resumable layer, on any
+    road of the node, so that one that came by another road resumes on the pair's; none of `--plain`,
+    which has no later leg, or `--no-e2e`, which has no place for a seed.
+
 ## Prove
 
 ```sh
@@ -3198,3 +3280,87 @@ cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once
 Offline, through the role on the loopback: a leg's token takes one upgrade, a resume takes the next one
 that the node gave, and a replayed one is refused; a rotated stop token ends the old one. Planted: the
 role takes a spent token; the replay test fails.
+
+## Correction
+
+2026-11-04 (the drafting agent). The Premise holds at its files: the role keeps the SHA-256 of each of a
+pair's three tokens and spends the connect token of a pair of `once` at its first upgrade
+(`crates/podssh-relay/src/serve/reverse/pairs.rs`), and closes the node's socket with `1003 unknown
+control type` for a frame that is not `ready`, `reject` or `close`
+(`crates/podssh-relay/src/serve/reverse/node.rs`). Two parts of it give way. The token does not travel
+to the operator: its seed does, once, in the verdict (Decision 1). The offer that the node reads is its
+socket's `hello` (Decision 2). And the stop token is drawn by the node, not answered by the role
+(Decision 7).
+
+The new Approach, in place of the one above:
+
+1. The role: the fields of `hello` and of `/relays.json`; the node's `token` frame; an upgrade of
+   `/v1/connect/<name>` by a live token, taken only while the node is joined, the node told by `spent`
+   before the `open`, and a spent token refused, also when registered again; `POST /v1/rotate/<name>`
+   with the stop token and `{"digest": HEX}`, and the stop token to come, which its first use makes the
+   pair's.
+2. The node: a seed in the verdict of each session let in above the layer, its window of 4 registered
+   before the verdict goes, moved at each `spent`, withdrawn at the session's end, registered again at
+   each new socket; the rotation of a stored pair's stop token at its first socket that heard the offer
+   and each day.
+3. The operator: each leg after the first with the session's next token, the pair's token after 8
+   refusals in a row.
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --features pair --lib -- e2e:: reverse:: pair::rotate
+cargo test -p podssh-cli --lib -- node_expiry man::
+cargo test -p podssh-cli --test relay_serve_node
+```
+
+Offline, through the role on the loopback: a token that a node registered takes one upgrade, the node
+hears which before the `open`, and a replay is refused, also once registered again; a token waits while
+its node is away; through podssh's own node and operator, a session of a pair of `once` resumes on the
+next token that the node gave, and the one that it spent is refused after; a rotated stop token ends the
+one before at the first use of the new one, also across a restart of the role with `--pairs`. Planted:
+the role takes a spent token (`t615-leg-reused`), the replay test fails; the first use of the new stop
+token ends nothing (`t615-stop-unrotated`), the rotation's test fails; the operator reads no seed
+(`t615-seed-unread`), the resume's test fails; a spent token moves no window (`t615-window-unmoved`), the
+test of the window fails. OpenSSH's `ssh` with `podssh operator` as its ProxyCommand through a node of
+the role, which `relay_serve_node` runs, crosses the node's rotation at its start.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-615`, UNVERIFIED: the commit), unbuilt; the main session builds, runs, and
+fills each UNVERIFIED.
+
+- The seed and the tokens (`crates/podssh-relay/src/e2e/legs.rs`, its tests in
+  `crates/podssh-relay/src/e2e/legs_tests.rs`): the node's `Leases`, the operator's `Taker` inside
+  `legs::during`; the seed after the verdict's code (`crates/podssh-relay/src/e2e/frame.rs`,
+  `crates/podssh-relay/src/e2e/channel.rs`, `Asked::admit_with` of
+  `crates/podssh-relay/src/e2e/handshake.rs`); `ends::Node::leases`, a seed for each session let in, and
+  the operator's taker given the seed (`crates/podssh-relay/src/e2e/ends.rs`).
+- The node's socket: `Handler::attach`, `registers` and `spent` (`crates/podssh-relay/src/reverse/node.rs`),
+  forwarded by `Layered` and taken by `E2e`, `Routed` and the CLI's `Piped`; the `token` frames through
+  the writer, and the `spent` frame read (`crates/podssh-relay/src/reverse/serve.rs`,
+  `crates/podssh-relay/src/reverse/control.rs`); the operator's leg by its token and the offer of the
+  rotation heard (`crates/podssh-relay/src/reverse/legs.rs`).
+- The role: `crates/podssh-relay/src/serve/reverse/legs.rs`, beside `pairs.rs`, the `hello` and
+  `/v1/rotate/` of `crates/podssh-relay/src/serve/reverse/mod.rs`, the `token` frame of `node.rs`, the
+  `spent` frame of `operator.rs`, and `/relays.json` (`crates/podssh-relay/src/serve/docs.rs`).
+- The rotation: `crates/podssh-relay/src/pair/rotate.rs`, `crates/podssh-cli/src/node_rotate.rs`, and the
+  renewal's stop token now (`crates/podssh-cli/src/node_expiry.rs`).
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once`: UNVERIFIED (7 tests:
+  the 2 of T-226, and 5 of T-615).
+- `cargo test -p podssh-relay --features serve --lib serve::`: UNVERIFIED (among them the two new tests of
+  `pairs_tests.rs`, and the `hello` and `spent` of `serve::reverse::tests`).
+- `cargo test -p podssh-relay --features pair --lib -- e2e:: reverse:: pair::rotate`: UNVERIFIED (7 tests of
+  `e2e::legs`, 1 of `e2e::frame`, 1 of `reverse::legs`, 1 of `pair::rotate`).
+- `cargo test -p podssh-cli --lib -- node_expiry man::`: UNVERIFIED (the notes' flags and
+  variables, `man::notes_legs`).
+- `cargo test -p podssh-cli --test relay_serve_node`: UNVERIFIED (each node of the role rotates its stop
+  token at its start; `relay revoke` after it reads the new one).
+- The relay crate's whole suite with `pair,serve,plain-ws,grant,code`, target by target: UNVERIFIED.
+- Planted (`sh scripts/plant-each.sh --here t615-leg-reused t615-stop-unrotated t615-seed-unread
+  t615-window-unmoved`): UNVERIFIED.
+- `cargo clippy -p podssh-relay --features serve,plain-ws,quick,pair,grant,code --all-targets` and `-p
+  podssh-cli --all-targets`, with `-D warnings`, and `cargo fmt --check`: UNVERIFIED.

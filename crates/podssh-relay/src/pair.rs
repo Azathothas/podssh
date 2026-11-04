@@ -25,6 +25,8 @@ pub mod once;
 pub mod part;
 /// A pair that its owner renews in podssh's relay role, and its end (T-592).
 pub mod renew;
+/// A pair's stop token, rotated in podssh's relay role (T-615).
+pub mod rotate;
 
 /// A pair, as `POST /v1/pair` gives it.
 pub struct Pair {

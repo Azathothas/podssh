@@ -7,7 +7,8 @@
 //! sees which. Two ends that hold the net's document say which, and the
 //! newer one travels (T-429, [`super::net`]). The operator's proof may carry
 //! a grant used once (T-226), around the proof of each form, so that a node
-//! checks it with what the proof asks.
+//! checks it with what the proof asks. The verdict that lets in may give the
+//! seed of the session's tokens of one leg (T-615).
 
 use std::borrow::Cow;
 use std::future::Future;
@@ -259,8 +260,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
 
     /// Let the operator in: the verdict, then this node's document of the
     /// net when it is the newer one, then the channel.
-    pub async fn admit(mut self) -> Result<Channel<T>, Error> {
-        self.channel.send_verdict(&Ok(())).await?;
+    pub async fn admit(self) -> Result<Channel<T>, Error> {
+        self.admit_with(None).await
+    }
+
+    /// [`Asked::admit`], with `seed` in the verdict: the seed of the
+    /// session's tokens of one leg (T-615), which only this operator learns.
+    pub async fn admit_with(mut self, seed: Option<&[u8; 32]>) -> Result<Channel<T>, Error> {
+        self.channel.send_verdict_with(&Ok(()), seed).await?;
         if let Some(talk) = self.net {
             if let Some(bytes) = talk.gift(&self.peer) {
                 self.channel.send_net(&bytes).await?;

@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/reverse/legs.rs
++++ b/crates/podssh-relay/src/serve/reverse/legs.rs
+@@ -176,7 +176,7 @@ impl Pairs {
+             return Leg::NoNode;
+         }
+         let mut legs = lock(&pair.held.legs);
+-        match legs.live.remove(digest) {
++        match legs.live.get(digest).copied() {
+             Some(end) if end > now_ms => {
+                 legs.spent.insert(*digest, end);
+                 bound(&mut legs.spent);

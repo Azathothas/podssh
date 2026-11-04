@@ -332,6 +332,7 @@ where
             say: Arc::new(say.clone()),
             // Grants used once (T-226), as on the node's other roads.
             redeem: crate::grants::door(&label, me, allow.clone()),
+            leases: Default::default(),
         }),
         false => {
             let _ = writeln!(err, "podssh {verb}: {label}: no end-to-end channel (--no-e2e): the relay sees each byte");

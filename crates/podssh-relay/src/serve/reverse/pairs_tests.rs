@@ -129,6 +129,63 @@ fn the_file_keeps_digests_and_no_token() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// T-615: a rotation is kept in the file, so that after a restart the stop
+/// token before it and the one to come both take, until the first use of
+/// the new one ends the old; the file holds their digests alone.
+#[test]
+fn a_rotation_is_kept_and_the_first_use_of_the_new_stop_token_ends_the_old() {
+    let dir = std::env::temp_dir().join(format!("podssh-pairs-{}-{}", std::process::id(), line!()));
+    crate::cache::private_dir(&dir).unwrap();
+    let path = dir.join("pairs.json");
+    let now = super::super::super::tokens::now_ms();
+    let pairs = Pairs::open(Some(path.clone())).unwrap();
+    let made = pairs.make(now).unwrap();
+    let next = "e".repeat(64);
+    assert_eq!(pairs.rotate(&made.name, digest(&next), now), Ok(Some(())));
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains(&hex(&digest(&next))) && !text.contains(&next) && !text.contains(&made.stop), "{text}");
+    let again = Pairs::open(Some(path.clone())).unwrap();
+    let stop = |pairs: &Pairs, token: &str| pairs.find(&made.name, Role::Stop, Some(token), now).is_some();
+    assert!(stop(&again, made.stop.as_str()), "the one before, after a restart");
+    assert!(stop(&again, next.as_str()), "the new one's first use");
+    assert!(!stop(&again, made.stop.as_str()), "the one before, after it");
+    assert_eq!(again.rotate(&made.name, digest(&next), now), Ok(Some(())), "a rotation to itself keeps the use");
+    let kept = Pairs::open(Some(path)).unwrap();
+    assert!(!stop(&kept, made.stop.as_str()) && stop(&kept, next.as_str()), "after a second restart");
+    assert_eq!(kept.rotate("p-other", digest(&next), now), Ok(None), "no such pair");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T-615: a pair keeps [`MAX_LEGS`] tokens of one leg, the ones that end
+/// first going; one is taken only with a node joined, once, and a spent one
+/// is never registered again.
+#[tokio::test]
+async fn the_tokens_of_one_leg_are_bounded_and_a_spent_one_stays_spent() {
+    let pairs = Pairs::default();
+    let made = pairs.make(1_000).unwrap();
+    let pair = pairs.find(&made.name, Role::Node, Some(&made.node), 2_000).unwrap();
+    let token = |n: u64| format!("{n:064}");
+    for n in 0..MAX_LEGS as u64 + 10 {
+        assert!(pair.register_leg(&hex(&digest(&token(n))), 10_000 + n, 2_000));
+    }
+    assert!(!pair.register_leg("not 64 hex digits", 10_000, 2_000));
+    assert_eq!(pair.legs(), MAX_LEGS);
+    assert!(pairs.find_leg(&made.name, Some(token(0).as_str()), 2_000).is_none(), "the first to end went");
+    let last = token(MAX_LEGS as u64 + 9);
+    let (found, leg) = pairs.find_leg(&made.name, Some(last.as_str()), 2_000).expect("the last one registered");
+    assert_eq!(pairs.spend_leg(&found, &leg, 2_000), Leg::NoNode, "no node is joined: nothing is taken");
+    let (ours, _theirs) = tokio::io::duplex(1024);
+    let outbox = Outbox::start(Arc::new(podssh_ws::server::session(ours, Vec::new(), None)), pairs.writers.clone());
+    pair.lock().node = Some(NodeLink { serial: 1, outbox: Some(outbox) });
+    assert_eq!(pairs.spend_leg(&found, &leg, 2_000), Leg::Taken);
+    assert_eq!(pairs.spend_leg(&found, &leg, 2_000), Leg::Refused, "once");
+    assert!(pair.register_leg(&hex(&leg), 20_000, 3_000));
+    assert!(pairs.find_leg(&made.name, Some(last.as_str()), 3_000).is_none(), "a spent token, registered again");
+    assert!(pair.register_leg(&hex(&digest(&token(20))), 0, 3_000), "a withdrawal");
+    assert!(pairs.find_leg(&made.name, Some(token(20).as_str()), 3_000).is_none(), "a withdrawn token");
+    assert!(pairs.find_leg(&made.name, Some(token(21).as_str()), 30_000).is_none(), "past its end");
+}
+
 /// A pair of the role with one operator's socket on a pipe of 1 KiB, so
 /// that its frames wait in the queue, four of 16 KiB queued; the client's
 /// end of the socket.

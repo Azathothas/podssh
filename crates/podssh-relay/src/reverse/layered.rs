@@ -102,4 +102,14 @@ impl<H: Handler> Handler for Layered<H> {
     fn queue_bytes(&self) -> usize {
         2 * self.settings.replay_capacity
     }
+
+    /// A session of the layer has later legs: the channel above it registers
+    /// a token for each (T-615).
+    fn attach(&self, frames: Option<crate::e2e::legs::Frames>) {
+        self.inner.registers(frames);
+    }
+
+    fn spent(&self, digest: &str) {
+        self.inner.spent(digest);
+    }
 }

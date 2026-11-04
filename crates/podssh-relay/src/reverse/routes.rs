@@ -113,4 +113,14 @@ impl Handler for Routed {
         });
         Box::pin(async move { Ok(ours) })
     }
+
+    /// Each session that the channel lets in gets the seed of its tokens of
+    /// one leg, registered in `frames` (T-615).
+    fn registers(&self, frames: Option<crate::e2e::legs::Frames>) {
+        self.node.leases.attach(frames);
+    }
+
+    fn spent(&self, digest: &str) {
+        self.node.leases.spent(digest);
+    }
 }

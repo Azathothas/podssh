@@ -4,13 +4,14 @@
 //! gets the layer, and a lost leg is then replaced by a new one, whose
 //! handshake resumes the session where it was. A node with no layer gets the
 //! bytes as they are, on one leg, as before; so does a session of
-//! `--no-resume`, in the layer (T-612).
+//! `--no-resume`, in the layer (T-612). Each leg after the first takes the
+//! session's next token of one leg, where the node gave them (T-615).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use podssh_relay::reverse::closes::resumes;
-use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as LegOutcome, RelayClose};
+use podssh_relay::reverse::{legs, OperatorConfig, OperatorLimits, Outcome as LegOutcome, RelayClose};
 use podssh_relay::session::client::{self, Found, Outcome};
 use podssh_relay::session::resume::{self, Next, Note};
 use podssh_relay::session::{
@@ -331,15 +332,20 @@ pub async fn carry_keeping<A>(
 where
     A: crate::channel::Bytes + 'static,
 {
-    let me = channel.as_ref().map(|c| c.identity.clone());
-    let (stream, session) = crate::channel::around(app, channel, pin_say);
-    let stream = Counted::new(stream, shell.and_then(|shell| shell.flow).cloned());
-    let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say, shell).await };
-    let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say, shell), session);
-    if let Err(e) = outcome {
-        carried.channel = crate::channel::judged(&e, me.as_deref());
-    }
-    carried
+    // The session's tokens of one leg (T-615): its channel takes the node's
+    // seed of them, and each leg after the first takes the next.
+    legs::during(async move {
+        let me = channel.as_ref().map(|c| c.identity.clone());
+        let (stream, session) = crate::channel::around(app, channel, pin_say);
+        let stream = Counted::new(stream, shell.and_then(|shell| shell.flow).cloned());
+        let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say, shell).await };
+        let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say, shell), session);
+        if let Err(e) = outcome {
+            carried.channel = crate::channel::judged(&e, me.as_deref());
+        }
+        carried
+    })
+    .await
 }
 
 /// What the layer says of a session that did not end well: `None` for a
@@ -417,9 +423,10 @@ async fn next_leg(
         }
     }
     let (link, leg_end) = tokio::io::duplex(PIPE);
-    // A leg of the layer: the node ends it (T-388).
+    // A leg of the layer: the node ends it (T-388). It takes the session's
+    // next token of one leg, where the node gave them (T-615).
     let config = OperatorConfig { limits: OperatorLimits { node_ends: Some(NODE_ENDS), ..config.limits }, ..*config };
-    match operator::start(&config, leg_end).await {
+    match legs::start(&config, leg_end).await {
         Ok(handle) => {
             *lock(legs) = Some(handle);
             Next::Link(link)

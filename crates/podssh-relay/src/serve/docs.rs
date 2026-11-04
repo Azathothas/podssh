@@ -64,8 +64,9 @@ pub fn relays(cfg: &Config, head: &Request) -> Value {
         // Whether this host routes IPv6 out, as its role knows it (T-253).
         "egress": cfg.policy.ipv6.doc(&cfg.egress),
         // A pair whose connect token takes one upgrade, `POST /v1/pair?once=1`
-        // (T-226), beside the contract.
-        "reverse": { "pair_once": true },
+        // (T-226), tokens of one leg that a node registers and a stop token
+        // that it rotates, `POST /v1/rotate/<name>` (T-615), beside the contract.
+        "reverse": { "pair_once": true, "leg_tokens": true, "rotate": true },
         // The forward road in the resumable layer, `/v1/layer/HOST/PORT`
         // (T-173), beside the contract: a client asks for it only here.
         "forward": { "layer": true },
@@ -237,6 +238,7 @@ mod tests {
         );
         assert_eq!((&l["max_session_bytes"], &l["max_frame_bytes"]), (&json!(67108864), &json!(262144)));
         assert_eq!(doc["reverse"]["pair_once"], true, "pairs of one upgrade are offered (T-226)");
+        assert_eq!((&doc["reverse"]["leg_tokens"], &doc["reverse"]["rotate"]), (&json!(true), &json!(true)), "T-615");
         let body = doc.to_string();
         assert!(crate::forward_layer::offered(body.as_bytes()), "the resumable layer is offered (T-173): {body}");
         assert_eq!(health(&cfg())["service"], "tcp-ssh-relay");

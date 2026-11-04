@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/legs.rs
++++ b/crates/podssh-relay/src/e2e/legs.rs
+@@ -202,7 +202,7 @@ impl Leases {
+             inner.by_digest.remove(&digest);
+             say(frame(&digest, 0));
+         }
+-        window.low = window.low.max(index + 1);
++        window.low = window.low.max(index);
+         let ends = now_ms() + LIFE_MS;
+         for (digest, leg) in window.digests() {
+             inner.by_digest.insert(digest, (session, leg));

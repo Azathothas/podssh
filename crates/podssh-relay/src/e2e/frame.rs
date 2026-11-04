@@ -24,6 +24,11 @@ const OTHER: u8 = 3;
 /// The most bytes of a refusal's reason that travel.
 const MAX_REASON: usize = 1024;
 
+/// An item after the code of a verdict that lets in, its kind and its length
+/// in a byte each, then its bytes: the seed of the session's tokens of one
+/// leg (T-615). A podssh of before reads nothing past the code.
+const SEED: u8 = 1;
+
 /// Read the peer's magic. A peer that sends something else does not speak
 /// the channel: no more is read than the magic's length, and what came is
 /// named, made safe for a terminal.
@@ -83,6 +88,15 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, message: &[u8]) -> Re
 
 /// The body of a verdict.
 pub fn verdict(answer: &Result<(), Refusal>) -> Vec<u8> {
+    verdict_with(answer, None)
+}
+
+/// [`verdict`], with `seed` after the code of one that lets in: the seed of
+/// the session's tokens of one leg (T-615). A refusal carries none.
+pub fn verdict_with(answer: &Result<(), Refusal>, seed: Option<&[u8; 32]>) -> Vec<u8> {
+    if let (Ok(()), Some(seed)) = (answer, seed) {
+        return [&[LET_IN, SEED, 32][..], &seed[..]].concat();
+    }
     let (code, reason) = match answer {
         Ok(()) => (LET_IN, ""),
         Err(Refusal::NotAllowed) => (NOT_ALLOWED, ""),
@@ -106,5 +120,45 @@ pub fn answer(body: &[u8]) -> Result<Result<(), Refusal>, Error> {
         NO_TARGET => Ok(Err(Refusal::NoTarget(reason()))),
         OTHER => Ok(Err(Refusal::Other(reason()))),
         other => Err(Error::Malformed(format!("a verdict of code {other}"))),
+    }
+}
+
+/// The seed that a verdict which lets in carries among its items (T-615); an
+/// item of another kind is set aside, as a later podssh may add one.
+pub fn seed_of(body: &[u8]) -> Option<[u8; 32]> {
+    let (&code, mut rest) = body.split_first()?;
+    if code != LET_IN {
+        return None;
+    }
+    while let [kind, len, tail @ ..] = rest {
+        let (value, after) = tail.split_at_checked(usize::from(*len))?;
+        if *kind == SEED {
+            return value.try_into().ok();
+        }
+        rest = after;
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// T-615: a verdict that lets in with a seed reads as one that lets in to
+    /// a podssh of before, which reads the code alone, and gives its seed to
+    /// one that reads it; a refusal carries none.
+    #[test]
+    fn a_seed_rides_after_the_code_of_a_verdict_that_lets_in() {
+        let seed = [9u8; 32];
+        let body = verdict_with(&Ok(()), Some(&seed));
+        assert_eq!(answer(&body).unwrap(), Ok(()), "a podssh of before lets the session in");
+        assert_eq!(seed_of(&body), Some(seed));
+        assert_eq!(seed_of(&verdict(&Ok(()))), None, "a verdict of before");
+        let refused = verdict_with(&Err(Refusal::NotAllowed), Some(&seed));
+        assert_eq!((answer(&refused).unwrap(), seed_of(&refused)), (Err(Refusal::NotAllowed), None));
+        // An item of a later kind first, then the seed.
+        let later = [&[LET_IN, 7, 2, 0, 0, SEED, 32][..], &seed[..]].concat();
+        assert_eq!(seed_of(&later), Some(seed));
+        assert_eq!(seed_of(&[LET_IN, SEED, 32, 1, 2]), None, "a seed cut short");
     }
 }

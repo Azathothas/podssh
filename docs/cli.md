@@ -3378,11 +3378,32 @@ commands. The rules behind them:
 - **A connect token of one upgrade, on podssh's relay role** (T-226).
   `relay pair NAME --once` asks `POST /v1/pair?once=1`: the role's answer
   says `"once": true`, and its connect token takes the first operator's
-  upgrade alone, then is refused, the status too, so that one session, with
-  no resume, uses it (`crates/podssh-relay/src/pair/once.rs`). A relay that
-  makes none (the default relay's contract has no such pair) gives a pair
-  with no `once`, which is stopped, exit 69. `--once` with another
-  subcommand, or with `--renew`, is refused (64).
+  upgrade alone, then is refused, the status too, so that one session uses
+  it (`crates/podssh-relay/src/pair/once.rs`), which resumes on the tokens
+  of one leg that its node gives (T-615, below), and else has no resume. A
+  relay that makes none (the default relay's contract has no such pair)
+  gives a pair with no `once`, which is stopped, exit 69. `--once` with
+  another subcommand, or with `--renew`, is refused (64).
+- **A token for each leg, and a stop token that the node rotates, on
+  podssh's relay role** (T-615; [reverse.md](reverse.md), "Tokens of one
+  leg"). Where the node's socket heard the role's offer, each session that
+  the end-to-end channel lets in above the layer gets the seed of its
+  tokens of one leg in the node's verdict, and the node registers their
+  digests at the role (`crates/podssh-relay/src/e2e/legs.rs`). `operator`,
+  `proxy node://`, `ssh node://`, `pipe`'s `node:` side and each command
+  that rides them open each leg after the first with the session's next
+  token, by `podssh_relay::reverse::legs::start`
+  (`crates/podssh-relay/src/reverse/legs.rs`), from `crate::layered` and the
+  race of `ssh node://`'s roads; a refused token is tried once more, then
+  the next, and after eight refusals in a row the pair's token. With no
+  seed (a relay of the contract, a node of before, `--plain`, `--no-e2e`),
+  each leg takes the pair's token as before. The node rotates its stop
+  token at its first socket that heard the role's offer and each day
+  after (`crates/podssh-cli/src/node_rotate.rs`): `POST /v1/rotate/<name>`
+  with the digest of the next one, the store's copy rewritten, then the
+  new one's first use; its lines say each rotation, and its renewal takes
+  the token now. A pair of `--pair-file` keeps its stop token, and the node
+  says so once.
 - **A renewal, on podssh's relay role** (T-592, GitHub #117). `relay pair
   --renew NAME` renews the pair stored under NAME at the relay that made
   it (`crates/podssh-cli/src/relay_renew.rs`): `POST /v1/renew/<name>` with

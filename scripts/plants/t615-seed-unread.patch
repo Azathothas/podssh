@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/ends.rs
++++ b/crates/podssh-relay/src/e2e/ends.rs
+@@ -257,7 +257,7 @@ where
+         let channel = offered.accept_granted(route.as_deref(), grant.as_deref()).await?;
+         // The node's seed of the session's tokens of one leg (T-615), for
+         // the legs that resume it.
+-        if let (Some(seed), Some(taker)) = (channel.leg_seed(), legs::current()) {
++        if let (Some(seed), Some(taker)) = (channel.leg_seed().filter(|_| false), legs::current()) {
+             taker.give(seed);
+         }
+         channel.carry(app).await?;

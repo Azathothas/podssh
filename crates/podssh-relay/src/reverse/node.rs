@@ -53,6 +53,21 @@ pub trait Handler: Send + Sync + 'static {
     fn queue_bytes(&self) -> usize {
         QUEUE_BYTES
     }
+
+    /// The node's socket, whose role registers tokens of one leg (T-615), or
+    /// `None` once it ended; each socket says so at its `hello`. Only the
+    /// resumable layer passes it on ([`Handler::registers`]), as a session
+    /// with no layer has no later leg.
+    fn attach(&self, _frames: Option<crate::e2e::legs::Frames>) {}
+
+    /// Where the tokens of one leg of the sessions that this handler lets
+    /// in go: a handler of the end-to-end channel above the layer registers
+    /// them there.
+    fn registers(&self, _frames: Option<crate::e2e::legs::Frames>) {}
+
+    /// The role took the token of one leg of `digest` (hex) for an
+    /// operator's upgrade: the handler that registered it registers the next.
+    fn spent(&self, _digest: &str) {}
 }
 
 /// The bytes that may wait for a local side with no flow control of its own:

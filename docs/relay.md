@@ -615,6 +615,31 @@ through the default one:
   `once`, which `relay pair --once` stops and refuses (69). A grant used
   once (T-226, [reverse.md](reverse.md), "Grants used once") is checked at
   the node, on each road, and needs nothing of a relay.
+- Beside the contract, tokens of one leg and a stop token that the node
+  rotates (T-615, [reverse.md](reverse.md), "Tokens of one leg"). The
+  node's `hello` adds `"legTokens": true` and `"stopRotation": true`, and
+  `/relays.json` `"reverse": {"leg_tokens": true, "rotate": true}`; a
+  carrier's role offers neither. The node's text frame
+  `{"type":"token","digest":HEX,"expires":MS}` registers the SHA-256 of a
+  token until MS, held to a day, or withdraws it with an end that passed;
+  a frame that is not of this form closes the node's socket with `1003
+  invalid token frame`. Such a token takes one upgrade of
+  `/v1/connect/<name>`, never the status, while the node is joined with
+  room for a session; with no node, `503 reverse: node unavailable` with
+  `Retry-After: 1`, and nothing is taken. The node hears
+  `{"type":"spent","digest":HEX}` before that session's `open`, and a
+  spent token gets the `403` of each failed authentication after, also
+  once the node registers it again. A pair keeps 256 live tokens and 256
+  spent ones, those that end first making room, in memory alone: a node
+  registers its own again at its next socket. `POST /v1/rotate/<name>` with
+  the stop token and `{"digest": HEX}` answers `{"rotated": true}`: HEX is
+  the SHA-256 of the next stop token, which the node drew, and the first
+  request that the new token authenticates makes it the stop token and
+  ends each one before it; the file of `--pairs` keeps both. Another
+  token, and a pair that ended, get `403`; a body with no digest of 64 hex
+  digits, `400`; a method other than POST, `405`. A relay of the contract
+  answers the path as one it does not have, which the node reads as no
+  rotation.
 
 ## Tokens for the keys of a list (T-448)
 

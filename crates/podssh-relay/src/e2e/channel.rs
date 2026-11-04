@@ -11,12 +11,14 @@
 //!
 //! Between two ends that said they read the net's document (T-429), a
 //! message `NET` carries one; it goes to the binary's [`Docs`], never to
-//! the session's bytes.
+//! the session's bytes. A verdict that lets in may carry the seed of the
+//! session's tokens of one leg (T-615), which the operator's end keeps.
 
 use std::sync::Arc;
 
 use snow::StatelessTransportState;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use zeroize::Zeroizing;
 
 use super::frame::{self, DATA, END, NET, VERDICT};
 use super::net::Docs;
@@ -34,11 +36,14 @@ pub struct Channel<T> {
     /// Where a document of the net from the peer goes, and the peer's key,
     /// when both ends read them.
     net: Option<(Arc<dyn Docs>, PublicKey)>,
+    /// The seed of the session's tokens of one leg that the node's verdict
+    /// gave (T-615), at the operator's end.
+    seed: Option<Zeroizing<[u8; 32]>>,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     pub(super) fn new(transport: T, state: StatelessTransportState) -> Self {
-        Channel { transport, state, sent: 0, received: 0, net: None }
+        Channel { transport, state, sent: 0, received: 0, net: None, seed: None }
     }
 
     /// Both ends read the net's documents: one from the peer goes to `docs`.
@@ -65,7 +70,17 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     }
 
     pub(super) async fn send_verdict(&mut self, answer: &Result<(), Refusal>) -> Result<(), Error> {
-        send(&self.state, &mut self.sent, &mut self.transport, VERDICT, &frame::verdict(answer)).await
+        self.send_verdict_with(answer, None).await
+    }
+
+    /// [`Channel::send_verdict`], with `seed` in a verdict that lets in: the
+    /// seed of the session's tokens of one leg (T-615).
+    pub(super) async fn send_verdict_with(
+        &mut self,
+        answer: &Result<(), Refusal>,
+        seed: Option<&[u8; 32]>,
+    ) -> Result<(), Error> {
+        send(&self.state, &mut self.sent, &mut self.transport, VERDICT, &frame::verdict_with(answer, seed)).await
     }
 
     /// The node's verdict, the first message after the handshake.
@@ -73,9 +88,20 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
         let (mut cipher, mut plain) = (Vec::new(), vec![0u8; MAX_MESSAGE]);
         match receive(&self.state, &mut self.received, &mut self.transport, &mut cipher, &mut plain).await? {
             None => Err(Error::Cut),
-            Some((VERDICT, n)) => frame::answer(&plain[1..n])?.map_err(Error::Refused),
+            Some((VERDICT, n)) => {
+                // The seed of the session's tokens of one leg (T-615), where
+                // the node gave one.
+                self.seed = frame::seed_of(&plain[1..n]).map(Zeroizing::new);
+                frame::answer(&plain[1..n])?.map_err(Error::Refused)
+            }
             Some((kind, _)) => Err(Error::Malformed(format!("a message of type {kind} before the verdict"))),
         }
+    }
+
+    /// The seed of the session's tokens of one leg that the node's verdict
+    /// gave (T-615), for the legs that resume the session.
+    pub fn leg_seed(&self) -> Option<[u8; 32]> {
+        self.seed.as_deref().copied()
     }
 
     /// End both directions at once: a refused session.
@@ -90,7 +116,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     /// goes to `app`, whose writing side is shut at the peer's `END`. An
     /// error of either direction ends both.
     pub async fn carry<A: AsyncRead + AsyncWrite + Unpin>(self, app: A) -> Result<(), Error> {
-        let Channel { transport, state, mut sent, mut received, net } = self;
+        let Channel { transport, state, mut sent, mut received, net, .. } = self;
         let (mut from_peer, mut to_peer) = tokio::io::split(transport);
         let (mut from_app, mut to_app) = tokio::io::split(app);
         let state = &state;

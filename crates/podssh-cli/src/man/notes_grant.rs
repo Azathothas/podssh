@@ -50,7 +50,8 @@ pub(super) const PIPE: &str = "--grant FILE gives the first session of a node: s
 
 /// `relay pair --once`.
 pub(super) const RELAY: &str = "podssh relay pair NAME --once asks the relay for a pair whose connect token \
-     takes one upgrade alone: one operator's session, with no resume, after which the token is refused, \
+     takes one upgrade alone: one operator's session, whose later legs take the tokens of one leg that \
+     its node gives, where the node gives them, else with no resume, after which the token is refused, \
      also by the status, so that a token that leaks from a log after its use is worth nothing. podssh relay \
      serve makes one, and offers it in its /relays.json; a relay that makes none is said so (69), and the \
      pair that it made is stopped. The node's token and the stop token stay as they are; --renew is refused \

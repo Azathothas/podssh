@@ -1,0 +1,7 @@
+# T-615: the node's window of tokens of one leg stays at the token that the
+# role took, so it registers that one again and not the one after the window;
+# the test of a spent token, whose window must move past it, must fail.
+ENTRY=T-615
+GROUP=resume
+EXPECT='test e2e::legs::tests::a_spent_token_moves_the_window_past_it \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- e2e::legs::tests::a_spent_token_moves_the_window_past_it'

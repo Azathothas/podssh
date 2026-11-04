@@ -238,5 +238,6 @@ pub const RELAY: &[&str] = &[
      road, the documents and the probes are refused there (403), and go over TLS. --cleartext no serves TLS \
      alone. Over TLS, POST /v1/mint?once=1 mints the same token of one session.",
     super::notes_grant::RELAY,
+    super::notes_legs::RELAY,
     super::notes_doctor::RELAY_PROBES,
 ];
