@@ -27,6 +27,16 @@ use super::encoding::{
 pub fn server_for(
     dns_name: &str,
 ) -> Result<(tokio_rustls::TlsAcceptor, rustls::RootCertStore), String> {
+    server_for_groups(dns_name, None)
+}
+
+/// **[`server_for`], with `groups` alone for the key exchange** when given:
+/// a server that takes none of the client's first offer answers it with a
+/// HelloRetryRequest (T-664).
+pub fn server_for_groups(
+    dns_name: &str,
+    groups: Option<Vec<&'static dyn rustls::crypto::SupportedKxGroup>>,
+) -> Result<(tokio_rustls::TlsAcceptor, rustls::RootCertStore), String> {
     // **TWO certificates: an anchor and a leaf.** MEASURED 2026-10-02: the
     // first version minted ONE self-signed certificate and used it as both the
     // trust anchor and the server's certificate, and webpki refused the
@@ -65,6 +75,9 @@ pub fn server_for(
     // is untouched by this.
     let mut provider = podssh_ws::crypto::provider();
     provider.key_provider = &TestKeyProvider;
+    if let Some(groups) = groups {
+        provider.kx_groups = groups;
+    }
     let server_config = rustls::ServerConfig::builder_with_provider(Arc::new(provider))
         .with_protocol_versions(&[&rustls::version::TLS13])
         .map_err(|e| format!("TLS 1.3 is not offered: {e}"))?

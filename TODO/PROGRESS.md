@@ -190,7 +190,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   On 2026-11-04 (evening) a ninth round is being drafted, unbuilt, by agents of this cloud session,
   each in a worktree under `.claude/worktrees/` on a local branch `worktree-agent-*`: the triage of
   GitHub #127 to #148 (T-629 to T-650, `de2cc4e`, merged; its worktree and branch are gone), T-660 (measure what a user feels), T-661 and T-662
-  (the SSH client's flow control and windows), and T-663 (liveness in round trips). Each is merged
+  (the SSH client's flow control and windows), T-663 (liveness in round trips), and T-664 (a faster
+  cold connect: partial, its Done of UNVERIFIED filled at the merge; its patch of russh is
+  numbered 0003, after T-661's 0002). Each is merged
   one at a time, built and tested, in the order of the index; a branch is pushed as `draft/<branch>`
   before the session ends.
 
@@ -237,7 +239,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 626 entries: 116 open, 7 partial, 2 blocked, 501 done.
+`TODO/INDEX.md` holds 627 entries: 115 open, 8 partial, 3 blocked, 501 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -342,6 +344,7 @@ among them, after M10's entries of their priority; the work parked behind them (
 work") starts as its condition says. T-328 (a real export of FinalShell and of Termius) and
 T-376 (the operator's throwaway cloud accounts for the live run of the roads of iap:// and
 eice://) are no longer held, but still wait for those inputs, which only the operator has.
+T-672 (TLS tickets kept across runs) waits for a release of rustls that lets a client write one.
 
 ## Parked open work
 

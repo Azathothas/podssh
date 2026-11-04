@@ -118,6 +118,8 @@ static INSTALLED: Once = Once::new();
 /// reaches the relay does this before it dials, and the opener does too.
 pub fn install() {
     INSTALLED.call_once(|| resolve::set_remembered(Addresses::load().remembered()));
+    // The TLS groups that servers took, from the same cache (T-664).
+    crate::tls_groups::install();
 }
 
 /// A session through `host` reached `101` over `peer`: the address is kept

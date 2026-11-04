@@ -89,15 +89,16 @@ pub async fn attach(
     let mut pty = false;
     // The modes of the pty also give the keys that end su's read (T-501).
     let modes = if want_pty { terminal::pty_modes() } else { Vec::new() };
+    // The pty's answer read after the session's request is sent (T-664).
+    let together = want_pty && requests_together(opts);
     if want_pty {
         let size = terminal::size().unwrap_or_else(terminal::fallback_size);
         channel
             .request_pty(true, &terminal::term_name(), size.cols, size.rows, size.px_width, size.px_height, &modes)
             .await
             .map_err(|e| format!("could not request a pseudo-terminal: {e}"))?;
-        pty = wait_reply(&mut channel, &mut early).await?;
-        if !pty {
-            log.info("the server did not grant a pseudo-terminal; continuing without one");
+        if !together {
+            pty = granted(&mut channel, &mut early, log).await?;
         }
     }
     // `--expect` (T-191): its rules read what a pty shows, before the request
@@ -150,6 +151,10 @@ pub async fn attach(
         }
         Request::StdioForward(_) | Request::Nothing => unreachable!("not a session request"),
     };
+    // The replies come in the order of the requests: the pty's first.
+    if together {
+        pty = granted(&mut channel, &mut early, log).await?;
+    }
     if !wait_reply(&mut channel, &mut early).await? {
         return Err(format!("the server refused to start {what}"));
     }
@@ -235,6 +240,29 @@ async fn open_session(handle: &Handle<Client>, limit: Duration) -> Result<Channe
         Ok(Err(e)) => Err(crate::unopened::read(&e, handle).await.words("a session", true)),
         Ok(Ok(channel)) => Ok(channel),
     }
+}
+
+/// Whether the session's request goes before the pty's answer (T-664), as
+/// OpenSSH sends its requests: a round trip fewer before a shell. Not when
+/// anything reads that answer first: `--expect` runs nothing without a pty,
+/// `--sudo` and `--su` take their keys from it, and `-A`, `-X` and `--attach`
+/// wait for answers of their own between the two.
+fn requests_together(opts: &Options) -> bool {
+    opts.expect.is_none()
+        && opts.elevate.is_none()
+        && opts.forward_agent == Agent::Off
+        && opts.forward_x11.is_none()
+        && opts.keep.ask.is_none()
+}
+
+/// The answer to the pty's request: whether the server granted one, said
+/// when it did not.
+async fn granted(channel: &mut Channel<Msg>, early: &mut Vec<ChannelMsg>, log: &Log) -> Result<bool, String> {
+    let pty = wait_reply(channel, early).await?;
+    if !pty {
+        log.info("the server did not grant a pseudo-terminal; continuing without one");
+    }
+    Ok(pty)
 }
 
 /// The question for the password of `--sudo` or `--su` (T-032).

@@ -281,6 +281,13 @@ pub enum Method {
     PublicKey {
         key: PrivateKeyWithHashAlg,
     },
+    /// A key whose signature goes in the first request, with no query
+    /// first (RFC 4252, section 7): for a key that the server is known to
+    /// take. A server that does not take it answers with a failure, as to a
+    /// query. podssh's patch (vendor/patches/russh/).
+    PublicKeySigned {
+        key: PrivateKeyWithHashAlg,
+    },
     OpenSshCertificate {
         key: Arc<PrivateKey>,
         cert: Certificate,
@@ -321,6 +328,10 @@ impl std::fmt::Debug for Method {
                 .field("password", &"<redacted>")
                 .finish(),
             Method::PublicKey { key } => f.debug_struct("PublicKey").field("key", key).finish(),
+            Method::PublicKeySigned { key } => f
+                .debug_struct("PublicKeySigned")
+                .field("key", key)
+                .finish(),
             Method::OpenSshCertificate { key, cert } => f
                 .debug_struct("OpenSshCertificate")
                 .field("key", key)

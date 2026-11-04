@@ -301,13 +301,23 @@ pub fn client_config(roots: &TlsRoots) -> Result<Arc<ClientConfig>, WsError> {
 /// verifier and the same protocol versions, so that a test can offer one key
 /// exchange group alone and still prove the configuration that ships.
 pub fn client_config_with(roots: &TlsRoots, provider: CryptoProvider) -> Result<Arc<ClientConfig>, WsError> {
+    client_config_keeping(roots, provider, groups::process())
+}
+
+/// [`client_config_with`], whose store of sessions takes the groups that
+/// servers took from `kept`: the process's, or a test's run of its own.
+pub fn client_config_keeping(
+    roots: &TlsRoots,
+    provider: CryptoProvider,
+    kept: Arc<groups::Kept>,
+) -> Result<Arc<ClientConfig>, WsError> {
     let provider: Arc<CryptoProvider> = Arc::new(provider);
     let verifier =
         rustls::client::WebPkiServerVerifier::builder_with_provider(Arc::new(roots.roots.clone()), provider.clone())
             .build()
             .map_err(|e| WsError::Config(format!("server certificate verifier: {e}")))?;
 
-    let config = ClientConfig::builder_with_provider(provider)
+    let mut config = ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .map_err(|e| WsError::Config(e.to_string()))?
         .dangerous()
@@ -316,12 +326,20 @@ pub fn client_config_with(roots: &TlsRoots, provider: CryptoProvider) -> Result<
         // is a single hostname; a client that presents a client certificate
         // has nothing to present one for.
         .with_no_client_auth();
+    // The tickets stay in this configuration's memory, as rustls's default
+    // keeps them; the group that each server took outlives the run (T-664).
+    // No early data: `enable_early_data` stays off.
+    config.resumption = rustls::client::Resumption::store(Arc::new(store::Store::new(kept)));
 
     Ok(Arc::new(config))
 }
 
 // The configuration of each trust, kept for the process (T-444).
 mod kept;
+// The group that each server took, kept across runs, and the store of
+// sessions that offers it (T-664).
+pub mod groups;
+mod store;
 
 #[cfg(test)]
 mod tests {

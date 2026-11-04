@@ -1,0 +1,11 @@
+--- a/vendor/russh/src/client/encrypted.rs
++++ b/vendor/russh/src/client/encrypted.rs
+@@ -1452,7 +1452,7 @@
+         // RFC 4252, section 7: the signed request with no query first, the
+         // same bytes that answer a USERAUTH_PK_OK (podssh's patch,
+         // vendor/patches/russh/).
+-        if let auth::Method::PublicKeySigned { ref key } = *auth_method {
++        if let auth::Method::PublicKeySigned { ref key } = *auth_method && false {
+             debug!("write_auth_request: signed key - {:?}", key.algorithm());
+             let mut buffer = Vec::new();
+             self.client_send_key_signature(user, key, &mut buffer)?;

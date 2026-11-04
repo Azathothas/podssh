@@ -1391,6 +1391,58 @@ mod tests {
             );
         }
     }
+
+    /// podssh's patch: a key signed at once is one request, with TRUE and a
+    /// signature that verifies over the session's id and the request, as a
+    /// server checks it (RFC 4252, section 7); the same key queried is a
+    /// request with FALSE and no signature.
+    #[test]
+    fn a_key_signed_at_once_is_one_request_with_its_signature() {
+        let key = std::sync::Arc::new(
+            ssh_key::PrivateKey::random(&mut rand::rng(), ssh_key::Algorithm::Ed25519).unwrap(),
+        );
+        let with_hash = || crate::keys::PrivateKeyWithHashAlg::new(key.clone(), None);
+        let mut encrypted = test_encrypted();
+        let signed = auth::Method::PublicKeySigned { key: with_hash() };
+        assert!(encrypted.write_auth_request("alice", &signed).unwrap());
+        let sent = payloads(&encrypted.write);
+        assert_eq!(sent.len(), 1, "one request, no query before it");
+        let payload = sent[0];
+        let mut r = payload;
+        assert_eq!(u8::decode(&mut r).unwrap(), msg::USERAUTH_REQUEST);
+        assert_eq!(String::decode(&mut r).unwrap(), "alice");
+        assert_eq!(String::decode(&mut r).unwrap(), "ssh-connection");
+        assert_eq!(String::decode(&mut r).unwrap(), "publickey");
+        assert_eq!(u8::decode(&mut r).unwrap(), 1, "TRUE: a signature follows");
+        assert_eq!(String::decode(&mut r).unwrap(), "ssh-ed25519");
+        let blob = Vec::<u8>::decode(&mut r).unwrap();
+        assert_eq!(blob, key.public_key().to_bytes().unwrap());
+        let unsigned = payload.len() - r.len();
+        let signature = Vec::<u8>::decode(&mut r).unwrap();
+        ensure_end(&r).unwrap();
+        let signature = Signature::decode(&mut signature.as_slice()).unwrap();
+        let mut data = Vec::new();
+        b"session-id".as_slice().encode(&mut data).unwrap();
+        data.extend_from_slice(&payload[..unsigned]);
+        signature::Verifier::verify(key.public_key(), &data, &signature)
+            .expect("the signature verifies as a server checks it");
+
+        // The control: the same key queried, with FALSE and no signature.
+        let mut queried = test_encrypted();
+        let query = auth::Method::PublicKey { key: with_hash() };
+        assert!(queried.write_auth_request("alice", &query).unwrap());
+        let sent = payloads(&queried.write);
+        assert_eq!(sent.len(), 1);
+        let mut r = sent[0];
+        u8::decode(&mut r).unwrap();
+        for _ in 0..3 {
+            String::decode(&mut r).unwrap();
+        }
+        assert_eq!(u8::decode(&mut r).unwrap(), 0, "FALSE: a query");
+        String::decode(&mut r).unwrap();
+        Vec::<u8>::decode(&mut r).unwrap();
+        ensure_end(&r).unwrap();
+    }
 }
 
 impl Encrypted {
@@ -1399,6 +1451,15 @@ impl Encrypted {
         user: &str,
         auth_method: &auth::Method,
     ) -> Result<bool, crate::Error> {
+        // RFC 4252, section 7: the signed request with no query first, the
+        // same bytes that answer a USERAUTH_PK_OK (podssh's patch,
+        // vendor/patches/russh/).
+        if let auth::Method::PublicKeySigned { ref key } = *auth_method {
+            debug!("write_auth_request: signed key - {:?}", key.algorithm());
+            let mut buffer = Vec::new();
+            self.client_send_key_signature(user, key, &mut buffer)?;
+            return Ok(true);
+        }
         // The server is waiting for our USERAUTH_REQUEST.
         Ok(push_packet!(self.write, {
             self.write.push(msg::USERAUTH_REQUEST);
@@ -1418,7 +1479,8 @@ impl Encrypted {
                     password.encode(&mut self.write)?;
                     true
                 }
-                auth::Method::PublicKey { ref key } => {
+                // A signed key was written above, and never comes here.
+                auth::Method::PublicKey { ref key } | auth::Method::PublicKeySigned { ref key } => {
                     user.encode(&mut self.write)?;
                     "ssh-connection".encode(&mut self.write)?;
                     "publickey".encode(&mut self.write)?;
@@ -1582,21 +1644,8 @@ impl Encrypted {
         buffer: &mut Vec<u8>,
     ) -> Result<(), crate::Error> {
         match method {
-            auth::Method::PublicKey { key } => {
-                let i0 = self.client_make_to_sign(
-                    user,
-                    &PublicKeyOrCertificate::from(key),
-                    None,
-                    buffer,
-                )?;
-
-                // Extend with self-signature.
-                sign_with_hash_alg(key, buffer)?.encode(&mut *buffer)?;
-
-                push_packet!(self.write, {
-                    #[allow(clippy::indexing_slicing)] // length checked
-                    self.write.extend_from_slice(&buffer[i0..]);
-                })
+            auth::Method::PublicKey { key } | auth::Method::PublicKeySigned { key } => {
+                self.client_send_key_signature(user, key, buffer)?
             }
             auth::Method::OpenSshCertificate { key, cert } => {
                 let i0 = self.client_make_to_sign(
@@ -1618,6 +1667,27 @@ impl Encrypted {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    /// The signed publickey request of `key`: after a USERAUTH_PK_OK, or
+    /// first, with no query (RFC 4252, section 7).
+    fn client_send_key_signature(
+        &mut self,
+        user: &str,
+        key: &crate::keys::PrivateKeyWithHashAlg,
+        buffer: &mut Vec<u8>,
+    ) -> Result<(), crate::Error> {
+        let i0 =
+            self.client_make_to_sign(user, &PublicKeyOrCertificate::from(key), None, buffer)?;
+
+        // Extend with self-signature.
+        sign_with_hash_alg(key, buffer)?.encode(&mut *buffer)?;
+
+        push_packet!(self.write, {
+            #[allow(clippy::indexing_slicing)] // length checked
+            self.write.extend_from_slice(&buffer[i0..]);
+        });
         Ok(())
     }
 

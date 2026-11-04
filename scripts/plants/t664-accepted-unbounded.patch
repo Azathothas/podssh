@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/accepted.rs
++++ b/crates/podssh-ssh/src/accepted.rs
+@@ -110,7 +110,7 @@
+ 
+     /// At most [`MOST`]: the host that took its key longest ago goes.
+     fn bound(&mut self) {
+-        while self.hosts.len() > MOST {
++        while self.hosts.len() > usize::MAX {
+             let Some(oldest) = self.hosts.iter().min_by_key(|(_, (_, taken))| *taken).map(|(h, _)| h.clone()) else {
+                 break;
+             };

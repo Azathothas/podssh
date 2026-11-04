@@ -1,0 +1,9 @@
+# T-664: the store of sessions offers this process's group alone, and none
+# that a run before kept, so a later run offers X25519 again to a server that
+# takes P-256 alone; the test of two runs, which wants no HelloRetryRequest
+# in the second, must fail.
+ENTRY=T-664
+GROUP=resume
+EXPECT='test a_later_run_offers_the_group_that_the_server_took \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ws --test tls_group -- a_later_run_offers_the_group_that_the_server_took'
+LIMIT=1800

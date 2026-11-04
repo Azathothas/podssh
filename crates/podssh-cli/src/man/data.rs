@@ -214,7 +214,12 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 "The cache: the first of these directories that podssh can use. It holds one relay token for \
                  each relay deployment, with the host that minted it ({} for the default relay), the \
                  relay's list of hosts ({}), and the last addresses that carried a session to each relay host \
-                 ({}), which a run whose resolver fails asks before DNS over HTTPS. It holds each pair of the \
+                 ({}), which a run whose resolver fails asks before DNS over HTTPS. It holds the key exchange \
+                 group that each TLS server took ({}), which the next run offers first, and, for each host \
+                 that took a key, by a hash of its host key and the user, that key's fingerprint ({}): the \
+                 next login sends that key's signature in its first request, with no query before it, when \
+                 the key is a file that opens with no question and is not RSA or a security key's. Neither \
+                 holds a secret. It holds each pair of the \
                  reverse road under its label ({}), \
                  as podssh relay pair writes it, and, until a copy that broke is done, its side file \
                  (podssh-cp-*.resume: the offset, the temporary file's name and the source's state, never a \
@@ -234,6 +239,8 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),
                 podssh_relay::pool::file_name(podssh_relay::DEFAULT_RELAY_HOST),
                 podssh_relay::addresses::FILE,
+                podssh_relay::tls_groups::FILE,
+                podssh_ssh::accepted::FILE,
                 podssh_relay::pair::file_name("LABEL").unwrap_or_default()
             ),
         ),

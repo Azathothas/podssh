@@ -4770,7 +4770,7 @@ Partial, 2026-11-04, merged from its draft (`8d72e03`).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4786,19 +4786,155 @@ measures it.
 
 ## Approach
 
-1. TLS session tickets kept across runs in the private cache, mode 0600, as the relay's addresses
-   are; never 0-RTT.
-2. The key that a host last took is remembered by its host key, and its signature goes at once.
-3. Where russh allows, the session channel's open, its `pty-req` and its `exec` go without waits.
+As the Correction moved it:
+
+1. The key exchange group that each TLS server took, kept across runs in the private cache, mode
+   0600, as the relay's addresses are (`tls-groups.txt`), so that a later run offers it first and
+   meets no HelloRetryRequest; the tickets stay in memory (T-444), and T-672 keeps them across
+   runs once a release of rustls lets a client write one; never 0-RTT.
+2. The key that a host last took is remembered by its host key, and its signature goes at once, in
+   the place of `none` and of the query (a patch of the vendored russh).
+3. The session channel's `pty-req` and its `shell` or `exec` go with no wait between them; the
+   open still waits for its confirmation.
 4. Measure the mint's share of a first run.
+
+## Decision
+
+The draft's calls, 2026-11-04, each with what lost:
+
+1. **TLS tickets across runs: not here (T-672).** rustls 0.23.46 gives a client no way to write a
+   ticket or to make one again (Correction). Lost: a patch of rustls in `vendor/`, as russh's
+   (T-460): rustls is the TLS of each road, of the relay role's server and of the crates that link
+   it (tokio-rustls, quinn's iroh, h2's DNS over HTTPS), with a release about each month (0.23.42 of
+   2026-07-13 to 0.23.46 of 2026-10-14), and a fork would hold podssh behind each security release
+   of its TLS; and a ticket read out of rustls's `Debug`, which holds no secret by design.
+2. **The group of the key exchange is kept instead.** rustls asks its store for it
+   (`ClientSessionStore::kx_hint`, public in 0.23), and in TLS 1.3 it is what saves a round trip:
+   a server that takes none of the first offer (podssh's is X25519) answers with a
+   HelloRetryRequest. The store (`crates/podssh-ws/src/tls/store.rs`) keeps rustls's own cache in
+   memory for the tickets, one for each configuration, so T-444's rule holds (a ticket resumed
+   under the trust that verified it alone); the groups are the process's, shared by each trust, as
+   a group is no secret and checks nothing. The file is text of three fields a line, read with no
+   new crate (podssh-ws has no serde derive); 64 servers, 30 days, written again only for a new
+   group or once a day. A file that does not read is set aside whole, said once at `-v` where the
+   relay opened the session, and made again by the next group. Lost: JSON as
+   `relay-addresses.json` (a derive for one file); the cache in podssh-ws, which would repeat
+   podssh-relay's rules of a private file (owner, mode, links, Windows's access list): podssh-relay
+   gives the file as a `GroupFile` once a run, with the addresses (`addresses::install`).
+3. **The key at once, in the place of `none` too.** russh 0.65.0 queries each key first
+   (`vendor/russh/src/client/encrypted.rs`: "This is a probe"), so a patch adds
+   `Handle::authenticate_publickey_signed`
+   (`vendor/patches/russh/0003-publickey-signed-at-once.patch`, numbered after T-661's `0002`);
+   its request is built by the code that answers a `USERAUTH_PK_OK`, so its bytes are those of the
+   second request of a query. RFC 4252, section 5.2, makes `none` optional, and the failure of the
+   signed request lists the methods as `none`'s would: two round trips fewer, where the query alone
+   is one. The service's request still waits for its accept, as russh writes the first request
+   only then. Lost: `none` first and the signed key after it (one round trip); the query and the
+   signature in one flight (a refused key costs the same, and nothing is gained over the request
+   at once).
+4. **Which keys go at once.** A key file that opens with no question (no passphrase, or one that a
+   passphrase opened earlier in the run), not RSA, which signs through podssh's own signer (T-257),
+   and not a security key's, whose touch waits for the server's yes; publickey must be the first
+   method. An agent's key goes the usual way: russh signs with an agent after the `PK_OK`, and at
+   once it needs a second hook in the patch; the record keeps an agent's key all the same, for that
+   step. Lost: a passphrase asked before the first request, which a host that no longer takes the
+   key would have the user type for nothing.
+5. **The record of the keys.** A host is the SHA-256 of the user and of the host key's blob, so the
+   file names no host and no user, as OpenSSH hashes `known_hosts`; a key is its fingerprint; 128
+   hosts, 90 days, a write only for a new key or once a day. A refusal forgets the host's key, and
+   the usual way does not offer that key again (a refusal counts against the server's
+   `MaxAuthTries`). podssh-ssh holds the format (`crates/podssh-ssh/src/accepted.rs`); podssh-cli
+   gives the cache's file where each command starts (`crates/podssh-cli/src/pins.rs`), as
+   podssh-ssh has no cache. Lost: a field of `Options`, which each hop's options would carry for
+   one record a run.
+6. **The pty and the command together.** podssh waited for the pty's answer before the command's
+   request; now the command's goes first, as OpenSSH's client sends its requests, and the answers
+   are read in their order. Not with `--expect`, `--sudo` or `--su`, `-A`, `-X` or `--attach`: each
+   reads the pty's answer, or waits for an answer of its own, between the two. The open still
+   waits: a channel's request names the server's number of the channel, which its confirmation
+   gives (RFC 4254, section 5.1). Lost: a control master's sessions
+   (`crates/podssh-ssh/src/mux/msession.rs`), which skip both handshakes already.
 
 ## Prove
 
 ```sh
+cargo test -p podssh-ws --lib -- tls::groups
+cargo test -p podssh-ws --test tls_group
+cargo test -p podssh-ws --test tls_resume
+cargo test -p podssh-relay --lib -- tls_groups
 cargo test -p podssh-ssh --lib
+cargo test -p podssh-ssh --test cold_connect
+cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::encrypted::tests::a_key_signed_at_once
 ```
 
-T-660's `--connect-runs` at 120 ms: two round trips fewer than before.
+Planted: the eight plants of T-664 in `scripts/plants/`, each of which must fail its test. T-660's
+`--connect-runs` at 120 ms: two round trips fewer than before for a command, three for a shell.
+
+## Correction
+
+2026-11-04, the draft:
+
+- Item 1 cannot be done with rustls 0.23.46: `Tls13ClientSessionValue::new` is `pub(crate)`, its
+  fields are private and it has no encoding (read in cargo's copy of the crate, its module
+  `msgs::persist`), so a store sees tickets that it can neither write nor make again.
+  `rustls/rustls:rustls/src/msgs/persist.rs` changed on the line of 0.24 by rustls/rustls#2907
+  ("client: make client cache values serializable", merged 2026-02-06), which no release carries:
+  the newest is 0.23.46 of 2026-10-14 (read through <https://web.pkgforge.dev/llms.txt> on
+  2026-11-04; rustls/rustls#3103, closed as not planned, points to it).
+- Item 1's round trip: TLS 1.3 with no early data resumes in one round trip, as a full handshake
+  takes (RFC 8446, section 2.2), so a ticket kept across runs saves the certificate's bytes and
+  its check, and a round trip only with TLS 1.2 (a proxy that intercepts TLS); in TLS 1.3, the round
+  trip that item 1 can save is a HelloRetryRequest's, which the kept group saves. The study's "That
+  saves 1 RTT" (`docs/research/osewa-paper.md`, G4) holds for TLS 1.2 alone.
+- Item 3: the session's open cannot go with its requests, which carry the channel number that the
+  confirmation gives; the pty's request and the command's can, and go together.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-664`), UNVERIFIED: no command below ran in the draft.
+
+- TLS: the store of sessions (`crates/podssh-ws/src/tls/store.rs`) and the groups kept
+  (`crates/podssh-ws/src/tls/groups.rs`, with `client_config_keeping` in
+  `crates/podssh-ws/src/tls.rs`); the file of the cache, `tls-groups.txt`
+  (`crates/podssh-relay/src/tls_groups.rs`), installed with the addresses; the note of a file set
+  aside at `-v` (`crates/podssh-cli/src/ssh/transport.rs`). `cargo test -p podssh-ws --lib --
+  tls::groups`: UNVERIFIED (8 tests: the round trip, the writes, the bound, the age, a file refused
+  whole, a later run, a file set aside and said once, this process's group first). `cargo test -p
+  podssh-ws --test tls_group`: UNVERIFIED (3 tests against rustls's server with P-256 alone: a
+  second run's handshake `Full` where the first's is `FullWithHelloRetryRequest`; runs with no file
+  between them retry each time; a file that does not read is set aside). `cargo test -p podssh-ws
+  --test tls_resume` (T-444's, which the store must keep): UNVERIFIED. `cargo test -p podssh-relay
+  --lib -- tls_groups`: UNVERIFIED (3 tests: the file's mode 0600 and a later run; a file that does
+  not read; one that others can read, not read).
+- SSH: the patch (`vendor/patches/russh/0003-publickey-signed-at-once.patch`), its test
+  `client::encrypted::tests::a_key_signed_at_once_is_one_request_with_its_signature`: UNVERIFIED.
+  The record (`crates/podssh-ssh/src/accepted.rs`, its 6 tests), the key at once
+  (`crates/podssh-ssh/src/keys_at_once.rs`), the login's order (`crates/podssh-ssh/src/auth.rs`),
+  the cache's file (`crates/podssh-cli/src/pins.rs`). The pty and the command together
+  (`crates/podssh-ssh/src/session.rs`). `cargo test -p podssh-ssh --lib`: UNVERIFIED. `cargo test
+  -p podssh-ssh --test cold_connect`: UNVERIFIED (3 tests against russh's server: a second login
+  with no `none`; a host that took another key lets that one in, and the record moves; a server that
+  answers the pty only after the command's request runs the command within 10 s).
+- Planted (`sh scripts/plant-each.sh --here t664-...`), each must fail its test: the group of a run
+  before not offered (`t664-group-not-kept`), a file read in part (`t664-groups-half-read`), the file
+  readable by others (`t664-group-file-open`), the signed key sent as a query
+  (`t664-signed-is-a-query`), `none` first (`t664-none-first`), a refusal that ends the login
+  (`t664-refusal-ends`), the pty's answer waited for (`t664-pty-waits`), the record with no bound
+  (`t664-accepted-unbounded`): UNVERIFIED. T-460's `t460-published-russh` now takes the patch 0001
+  out of `vendor/russh`, as podssh no longer builds on the published crate: UNVERIFIED.
+- Against software podssh did not write, at the merge: OpenSSH's sshd takes the signed request
+  with no query (its `LogLevel DEBUG3` says `have_sig 1` with no `have_sig 0` before), in
+  `scripts/interop.sh` or by hand; a relay host's handshakes of two runs. UNVERIFIED.
+- T-660's `--connect-runs` at 120 ms, before and after; the mint's share of a first run (item 4):
+  UNVERIFIED, with T-660's harness.
+- The documents: the manual's cache (`crates/podssh-cli/src/man/data.rs`), `docs/architecture.md`,
+  `vendor/README.md`, the root and fuzz `Cargo.toml`'s comment, `AGENTS.md`'s map; `docs/STATUS.md`
+  at the merge. `cargo todo remap` of each edited file that entries cite (`AGENTS.md`,
+  `vendor/README.md`, `crates/podssh-ws/src/tls.rs`, `crates/podssh-ssh/src/auth.rs`,
+  `crates/podssh-ssh/src/keys.rs`, `crates/podssh-ssh/src/lib.rs`,
+  `crates/podssh-ssh/src/session.rs`, `crates/podssh-relay/src/lib.rs`,
+  `crates/podssh-cli/src/pins.rs`, `crates/podssh-cli/src/ssh/transport.rs`,
+  `vendor/russh/src/client/encrypted.rs`, `vendor/russh/src/client/mod.rs`): at the merge.
 
 # T-669: Compression of a terminal's output on the relay roads, measured against the session's 64 MiB
 
@@ -4875,6 +5011,42 @@ a slow link pays that much of the download.
    rise to the path's while the echo stays within twice the idle one.
 3. The test's bound goes back to 90% of today's, and its echo's bound stays.
 
+# T-672: TLS tickets kept across runs, once a release of rustls lets a client write one
+
+**Source:** T-664's draft, 2026-11-04 (the study of osewa, Q99; `docs/research/osewa-paper.md`, G4).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+A run's first TLS handshake with each relay host is a whole one: rustls keeps its tickets in the
+process's memory alone (T-444), so each run receives the certificate's chain again and checks it,
+and through a proxy that intercepts TLS with TLS 1.2 it pays the round trip that a resumption
+saves there. In TLS 1.3 with no early data, a resumption takes one round trip, as a whole
+handshake does (T-664's Correction), so the gain there is bytes and a check, not time on the path.
+
+## Premise
+
+- rustls 0.23.46 gives a client no way to write a ticket or to make one again:
+  `Tls13ClientSessionValue::new` is `pub(crate)`, and the type has no encoding (T-664's Correction).
+- rustls/rustls#2907 ("client: make client cache values serializable") was merged on 2026-02-06 on
+  the line of 0.24, and no release carries it (the newest, 0.23.46 of 2026-10-14, read on
+  2026-11-04).
+
+## Approach
+
+1. Once a release of rustls encodes a client's session value: rustls, tokio-rustls and the crates
+   that link them moved to it, as Dependabot moves a dependency.
+2. The store of sessions of T-664 (`crates/podssh-ws/src/tls/store.rs`) writes each TLS 1.3 ticket
+   to a private file of the cache, mode 0600, beside the groups: by the server's name and by the
+   trust that verified the session (T-444's rule: a resumed handshake checks no certificate), at
+   most a few tickets a server, each used once and removed when it is taken, none past its
+   lifetime; never early data. A ticket is a secret: never in a log, never in a `Debug`.
+3. A file that does not read is set aside, as the groups' is.
+
 ## Prove
 
 ```sh
@@ -4883,3 +5055,15 @@ cargo test -p podssh-ssh --lib pace::sim_tests
 
 On the slow path, the download at 90% of today's at least, the echo's p50 at most twice the idle
 echo; T-660's matrix on the slow link, before and after.
+
+cargo test -p podssh-ws --test tls_resume
+```
+
+Two processes against rustls's server: the second's first handshake is `Resumed`; under another
+trust, `Full`. Planted: a ticket written and not read, and the test fails.
+
+## Blocker
+
+rustls's maintainers: a release of rustls that carries rustls/rustls#2907, which podssh's
+dependencies then take. Nothing in podssh waits for it but this entry; T-664 keeps the group of
+the key exchange, which the release of 0.23 lets a store keep.

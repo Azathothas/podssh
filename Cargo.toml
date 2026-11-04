@@ -222,17 +222,18 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
-# russh 0.65.0 as published, with two patches of podssh's
+# russh 0.65.0 as published, with three patches of podssh's
 # (`vendor/patches/russh/`, `vendor/README.md`). T-460: the data of a reply
 # to a global request that the request needs none of is dropped, where russh
 # ended the whole connection on it; a server of Go's x/crypto/ssh sends such
 # data after a failure, and so after each keepalive that it does not know.
 # T-661: each channel's window goes to the target that the client's handler
 # gives at each data message, where russh used its configured window alone.
-# The version stays 0.65.0, so the requirements of the crates do not change;
-# an update of russh moves the patches first, and drops each once a release
-# does what it does (`scripts/check-repo.py` fails on a patch that the lock
-# does not use).
+# T-664: a public key's signature can go in the first request, with no query
+# first. The version stays 0.65.0, so the requirements of the crates do not
+# change; an update of russh moves the patches first, and drops each once a
+# release does what it does (`scripts/check-repo.py` fails on a patch that
+# the lock does not use).
 # iroh's relay client with podssh's patch (T-280,
 # `vendor/patches/iroh-relay/`): its relay dial speaks SOCKS5 too, where
 # iroh-relay 1.4.1 speaks HTTP CONNECT only, and iroh's HTTPS probe of the

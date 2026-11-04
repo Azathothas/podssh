@@ -102,6 +102,8 @@ pub mod reverse;
 #[cfg(feature = "serve")]
 pub mod serve;
 pub mod session;
+// The file of the TLS groups that servers took (T-664).
+pub mod tls_groups;
 pub mod token;
 pub mod transit;
 pub mod udp;

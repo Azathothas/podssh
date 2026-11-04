@@ -27,7 +27,11 @@
 //!   request on its connection ([`upgrade`]).
 //! - security keys (FIDO2 `sk-` keys): made, and signing in the device,
 //!   after a probe of the way to it ([`sk`]).
+//! - the key that each host took last, signed in the first request of the
+//!   next login ([`accepted`]).
 
+// The key that each host took last, kept across runs (T-664).
+pub mod accepted;
 mod agent_bind;
 // The lists of ssh_config's keywords of a restriction (T-505).
 mod agent_forward;
