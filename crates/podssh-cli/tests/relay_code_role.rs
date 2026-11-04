@@ -6,7 +6,8 @@
 //! the node's key and keeps the operator's part; the node's allowlist gets
 //! the operator's key; neither output of the operator holds the code; and
 //! the operator's host then asks the pair's status at the role by its label.
-#![cfg(unix)]
+//! Linux alone, as the pseudo terminal of `pty_harness` is Linux's.
+#![cfg(target_os = "linux")]
 
 mod live_harness;
 mod pty_harness;

@@ -231,13 +231,15 @@ fn probes_of(lines: &[String]) -> usize {
     let opened = lines.iter().find(|l| l.starts_with("connect ") && own(l)).map(|l| ms(l));
     let opened = opened.unwrap_or_else(|| panic!("no session: {lines:?}"));
     // The last end: a host of the race that opened too late was closed first.
-    let ended = lines.iter().rev().find(|l| l.starts_with("ended ") && own(l)).map(|l| ms(l));
+    // Its place in the log, as a probe and the end can share a millisecond.
+    let ended = lines.iter().rposition(|l| l.starts_with("ended ") && own(l));
     let ended = ended.unwrap_or_else(|| panic!("the session did not end: {lines:?}"));
     let (mut probes, mut open) = (Vec::new(), false);
-    for line in lines {
+    for (at, line) in lines.iter().enumerate() {
         if line.starts_with("connect ") && line.contains("dial=lazy") {
             assert!(line.ends_with(" /connect/github.com/22?dial=lazy"), "{line}");
             assert!(!open, "two probes at once: {lines:?}");
+            assert!(at < ended, "a probe after the session ended: {lines:?}");
             open = true;
             probes.push(ms(line));
         } else if line.starts_with("lazy closed ") {
@@ -251,7 +253,6 @@ fn probes_of(lines: &[String]) -> usize {
     for pair in probes.windows(2) {
         assert!(pair[1] - pair[0] >= GAP_MS - 200, "{} ms between two probes: {lines:?}", pair[1] - pair[0]);
     }
-    assert!(probes.iter().all(|p| *p < ended), "a probe after the session ended: {lines:?}");
     probes.len()
 }
 

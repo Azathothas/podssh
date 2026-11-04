@@ -1292,6 +1292,14 @@ sh scripts/plant-each.sh --here t086-third-side t086-code-said t086-version-unch
   relay join lab` on another, then `podssh operator lab` through `podssh node lab TARGET`, with the
   release's checks (Q88).
 
+Repaired after the merge (2026-11-04), as the gate of `1ca77a1` failed in three ways that the
+merge's runs did not reach: the row of `relay --allow` named `--allow FILE` in its own words, which
+the help's check of each flag refuses (`help::tests::no_flag_runs_into_its_description`; the CLI's
+whole `--lib` passed after, 837); `OperatorPart::from_wire`, read by the exchange alone, is dead in a
+build with `pair` and no `code` (clippy of `--features serve,plain-ws,quick`), and is now of the
+feature `code`; and `tests/relay_code_role.rs` used the pty harness, Linux's, on macOS, and is now
+Linux's too.
+
 # T-087: Node identity and access: a node key, an allowlist, an expected fingerprint, revocation
 
 **Source:** GitHub #18 (reports on iroh-ssh, GPU-Share, warren and zuko); read in the reports, not

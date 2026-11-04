@@ -3609,3 +3609,8 @@ each probe, source `background`, and the next session of the day goes on with a 
 
 No live run: the probes of Q89 are a user's choice, and the stand-ins prove the bounds; the live
 relay's `?dial=lazy` is the contract's (`docs/relay.md`, "Connect options").
+
+Repaired after the merge (2026-11-04): on Windows (the gate of `14b7943`) the last probe opened
+and closed in the millisecond of the session's end, and the test's check that no probe came after
+the end compared their milliseconds; it now compares their places in the stand-in's log, where the
+probe's lines come before the end's. `cargo test -p podssh-cli --test relay_rank`: 6 passed here.

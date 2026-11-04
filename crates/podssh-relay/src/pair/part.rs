@@ -67,7 +67,9 @@ impl OperatorPart {
         }
     }
 
-    /// A part of that form, checked at `now_ms`.
+    /// A part of that form, checked at `now_ms`: the exchange by a code is
+    /// its one reader.
+    #[cfg(feature = "code")]
     pub(crate) fn from_wire(stored: PartStored, now_ms: i64) -> Result<OperatorPart, PairError> {
         let PartStored { relay, name, connect_token, expires } = stored;
         OperatorPart::checked(&relay, name, Zeroizing::new(connect_token), expires, now_ms)
