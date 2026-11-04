@@ -1,9 +1,12 @@
-# T-460: the published russh 0.65.0 in place of vendor/russh (the patch's
-# line of [patch.crates-io] gone, the lock back on crates.io's source): a
-# failure with 15 bytes after the default keepalive ends the connection
-# again, so the quiet session against the stand-in of x/crypto/ssh must fail.
-# On the runner, not in the build image: the harness starts containers of
-# its own (Go's image, Alpine's).
+# T-460: russh 0.65.0's reading of a global request's reply in place of the
+# patch's (vendor/patches/russh/0001-reply-data.patch taken out of
+# vendor/russh, its other patches kept): a failure with 15 bytes after the
+# default keepalive ends the connection again, so the quiet session against
+# the stand-in of x/crypto/ssh must fail. Since T-664 podssh calls a method of
+# a later patch (0003), so the published crate in the copy's place no longer
+# builds; the patch 0001 taken out is the published reading. On the runner,
+# not in the build image: the harness starts containers of its own (Go's
+# image, Alpine's).
 ENTRY=T-460
 GROUP=host-gossh
 EXPECT='^FAIL +go-ssh\.quiet\.failure\.default '

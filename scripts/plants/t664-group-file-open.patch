@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/tls_groups.rs
++++ b/crates/podssh-relay/src/tls_groups.rs
+@@ -22,7 +22,9 @@
+ 
+     fn store(&self, text: &[u8]) {
+         // A file that cannot be kept costs a later run its hint alone.
+-        let _ = crate::cache::store_file_in_first(&self.0, FILE, text);
++        if let Some(dir) = self.0.first() {
++            let _ = std::fs::create_dir_all(dir).and_then(|()| std::fs::write(dir.join(FILE), text));
++        }
+     }
+ }
+ 

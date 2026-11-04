@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/auth.rs
++++ b/crates/podssh-ssh/src/auth.rs
+@@ -180,7 +180,7 @@
+     keys: &mut PublicKeys,
+     log: &Log,
+ ) -> Result<Option<Step>, AuthError> {
+-    let (Some(id), Some(Method::PublicKey)) = (id, opts.methods.first()) else { return Ok(None) };
++    let (Some(id), Some(Method::PublicKey), false) = (id, opts.methods.first(), true) else { return Ok(None) };
+     let fingerprint = match crate::accepted::last(id) {
+         Ok(Some(fingerprint)) => fingerprint,
+         Ok(None) => return Ok(None),

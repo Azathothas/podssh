@@ -1,19 +1,121 @@
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -240,5 +240,4 @@
- # patch unused, and cargo says so: carry the patch to that version first
- # (`vendor/README.md`).
- [patch.crates-io]
--russh = { path = "vendor/russh" }
- iroh-relay = { path = "vendor/iroh-relay" }
---- a/Cargo.lock
-+++ b/Cargo.lock
-@@ -5869,6 +5869,8 @@
- [[package]]
- name = "russh"
- version = "0.65.0"
-+source = "registry+https://github.com/rust-lang/crates.io-index"
-+checksum = "3bb77a4b259312b2abbc541bca1c13cb4e9b61c560a7fd894068c3b92e0c9dc3"
- dependencies = [
-  "aes 0.9.3",
-  "aws-lc-rs",
+--- a/vendor/russh/src/client/encrypted.rs
++++ b/vendor/russh/src/client/encrypted.rs
+@@ -59,20 +59,6 @@
+     Ok(())
+ }
+ 
+-/// The data of a global request's reply that its request needs none of.
+-/// RFC 4254, section 4, lets a success carry "response specific data", and
+-/// a server of Go's x/crypto/ssh puts data in a failure too
+-/// (`Request.Reply(false, payload)`). OpenSSH's client reads none of it and
+-/// keeps the connection, so the rest is dropped here, never an error.
+-fn drop_reply_data(reply: &str, r: &impl Reader) {
+-    if !r.is_finished() {
+-        debug!(
+-            "{reply}: {} bytes after the reply's type, dropped",
+-            r.remaining_len()
+-        );
+-    }
+-}
+-
+ impl Session {
+     pub(crate) async fn client_read_encrypted<H: Handler>(
+         &mut self,
+@@ -983,15 +969,15 @@
+                 trace!("Global Request Success");
+                 match self.open_global_requests.pop_front() {
+                     Some(GlobalRequestResponse::Keepalive) => {
+-                        drop_reply_data("keepalive success", &r);
++                        map_err!(ensure_end(&r))?;
+                         // ignore keepalives
+                     }
+                     Some(GlobalRequestResponse::Ping(return_channel)) => {
+-                        drop_reply_data("ping success", &r);
++                        map_err!(ensure_end(&r))?;
+                         let _ = return_channel.send(());
+                     }
+                     Some(GlobalRequestResponse::NoMoreSessions) => {
+-                        drop_reply_data("no-more-sessions success", &r);
++                        map_err!(ensure_end(&r))?;
+                         debug!("no-more-sessions@openssh.com requests success");
+                     }
+                     Some(GlobalRequestResponse::TcpIpForward(return_channel)) => {
+@@ -1001,8 +987,14 @@
+                         } else {
+                             match u32::decode(&mut r) {
+                                 Ok(port) => {
+-                                    drop_reply_data("tcpip-forward success", &r);
+-                                    Some(port)
++                                    if let Err(e) = ensure_end(&r) {
++                                        error!(
++                                            "Error parsing port for TcpIpForward request: {e:?}"
++                                        );
++                                        None
++                                    } else {
++                                        Some(port)
++                                    }
+                                 }
+                                 Err(e) => {
+                                     error!("Error parsing port for TcpIpForward request: {e:?}");
+@@ -1013,15 +1005,15 @@
+                         let _ = return_channel.send(result);
+                     }
+                     Some(GlobalRequestResponse::CancelTcpIpForward(return_channel)) => {
+-                        drop_reply_data("cancel-tcpip-forward success", &r);
++                        map_err!(ensure_end(&r))?;
+                         let _ = return_channel.send(true);
+                     }
+                     Some(GlobalRequestResponse::StreamLocalForward(return_channel)) => {
+-                        drop_reply_data("streamlocal-forward success", &r);
++                        map_err!(ensure_end(&r))?;
+                         let _ = return_channel.send(true);
+                     }
+                     Some(GlobalRequestResponse::CancelStreamLocalForward(return_channel)) => {
+-                        drop_reply_data("cancel-streamlocal-forward success", &r);
++                        map_err!(ensure_end(&r))?;
+                         let _ = return_channel.send(true);
+                     }
+                     Some(GlobalRequestResponse::HostKeysProve {
+@@ -1048,9 +1040,7 @@
+             }
+             Some((&msg::REQUEST_FAILURE, r)) => {
+                 trace!("global request failure");
+-                // A failure answers each kind of request: its data, Go's
+-                // words of the refusal, is no answer of any.
+-                drop_reply_data("global request failure", &r);
++                map_err!(ensure_end(&r))?;
+                 match self.open_global_requests.pop_front() {
+                     Some(GlobalRequestResponse::Keepalive) => {
+                         // ignore keepalives
+--- a/vendor/russh/src/client/mod.rs
++++ b/vendor/russh/src/client/mod.rs
+@@ -80,11 +80,6 @@
+ #[cfg(test)]
+ mod test;
+ 
+-// The replies to global requests with data after their type (podssh's
+-// patch, vendor/patches/russh/).
+-#[cfg(test)]
+-mod reply_data;
+-
+ /// Actual client session's state.
+ ///
+ /// It is in charge of multiplexing and keeping track of various channels
+@@ -2151,7 +2146,7 @@
+     use crate::sshbuffer::{IncomingSshPacket, PacketWriter, SSHBuffer};
+     use crate::{CryptoVec, cipher, mac};
+ 
+-    pub(super) struct TestHandler;
++    struct TestHandler;
+ 
+     impl Handler for TestHandler {
+         type Error = crate::Error;
+@@ -2164,7 +2159,7 @@
+         }
+     }
+ 
+-    pub(super) fn keyboard_interactive_session() -> (
++    fn keyboard_interactive_session() -> (
+         Session,
+         tokio::sync::mpsc::Sender<Msg>,
+         tokio::sync::mpsc::UnboundedReceiver<Reply>,

@@ -1,0 +1,8 @@
+# T-664: the command's request waits for the pty's answer, as before; a
+# server that answers the pty only once the command's request came keeps the
+# client 30 s, and the test of the two requests together, with 10 s, must fail.
+ENTRY=T-664
+GROUP=cli-tests
+EXPECT='test the_pty_and_the_command_go_together \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --test cold_connect -- the_pty_and_the_command_go_together'
+LIMIT=1800

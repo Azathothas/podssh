@@ -1,0 +1,8 @@
+# T-664: the file of the TLS groups is written as any file, readable by
+# others, where the cache's files are the user's alone (mode 0600); the test
+# that reads its mode must fail.
+ENTRY=T-664
+GROUP=cli-tests
+EXPECT='test tls_groups::tests::the_group_goes_to_a_private_file_and_back \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- tls_groups::tests'
+LIMIT=1800

@@ -217,6 +217,10 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     // In cleartext (T-326), or over HTTP/2 (T-321), named.
                     let road = opened.road();
                     log.verbose(&format!("the relay host {} opened the session{road}", opened.relay.host));
+                    // A cache of TLS groups that did not read, once (T-664).
+                    if let Some(note) = podssh_ws::tls::groups::take_note() {
+                        log.verbose(&note);
+                    }
                     podssh_ssh::outcome::relay_host(&opened.relay.host);
                     let (stream, status) = crate::relay_ends::spawn(opened.session, &opened.relay.host);
                     // The relay's silence, for the notice (T-307).

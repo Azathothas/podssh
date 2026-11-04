@@ -1,0 +1,9 @@
+# T-664: vendor/russh writes a key to sign at once as a query, with FALSE and
+# no signature, as russh 0.65.0 writes each key; the patch's test of the
+# request's bytes must fail. On the runner, with the copy's own manifest and
+# lock, in a target of its own, as T-460's plant.
+ENTRY=T-664
+GROUP=host-gossh
+EXPECT='test client::encrypted::tests::a_key_signed_at_once_is_one_request_with_its_signature \.\.\. FAILED'
+RUN='cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::encrypted::tests::a_key_signed_at_once'
+LIMIT=1800

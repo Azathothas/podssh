@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:364-365`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1095`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:161-476`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:161-483`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`).
 
 ## Decision
@@ -3428,7 +3428,7 @@ connection, answered with 200, and many sessions on one TLS connection.
 
 Read and verified at the cited lines (2026-10-30):
 
-- podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:315` says "no ALPN",
+- podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:325` says "no ALPN",
   and a caller's configuration that offers ALPN is refused
   (`crates/podssh-ws/src/tls.rs:86` says "alpn_protocols.is_empty()").
 - The upgrade is HTTP/1.1: `crates/podssh-ws/src/handshake.rs:37` builds
@@ -4886,7 +4886,7 @@ T-353.
   reverse engineer" it, and let Cloudflare "block certain kinds of usage"
   (https://www.cloudflare.com/application/terms/, last updated 2024-10-18).
 - Read: podssh-ws refuses a caller's ALPN and offers no client certificate
-  (`crates/podssh-ws/src/tls.rs:85-96`, `:315-318`); the WebSocket over HTTP/2 is T-321, which
+  (`crates/podssh-ws/src/tls.rs:85-96`, `:325-328`); the WebSocket over HTTP/2 is T-321, which
   waits for the relay.
 - Read in the study: with no IP stack, usque's L4 mode runs over QUIC only
   (https://github.com/Diniboy1123/usque/wiki/L4-proxy-mode); over HTTP/2 a client needs one.
@@ -4979,7 +4979,7 @@ ones.
 Read at `a3f948d` on 2026-10-31.
 
 - The Premise's lines of `crates/podssh-ws/src/tls.rs` hold: `Trust::caller` refuses ALPN at
-  `:85-96`, and the configuration takes no client certificate at `:315-318`.
+  `:85-96`, and the configuration takes no client certificate at `:325-328`.
 - Step 1 of the Approach, and the WARP item of `docs/carriers.md`, name HTTP/2's extended CONNECT.
   Read in usque's fork of connect-ip-go (`client_h2.go`, `DialH2`): over HTTP/2 the request is a
   classic CONNECT, `:authority cloudflareaccess.com:443`, the protocol in the header
@@ -5713,7 +5713,7 @@ does not depend on them.
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:290`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:299-343`) and a check of `--upgrade`
+  (`crates/podssh-cli/src/ssh/transport.rs:303-347`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:343-346`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
@@ -5724,7 +5724,7 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:279-289`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:359-373`, `crates/podssh-relay/src/open.rs:31`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:363-377`, `crates/podssh-relay/src/open.rs:31`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:192-199`, `:201-293`).
@@ -6212,7 +6212,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:163`).
+  port 443 answers (`docs/STATUS.md:164`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -6338,7 +6338,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:231-236`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
   (`crates/podssh-ws/src/client.rs:185-200`), with no ALPN and no client certificate
-  (`crates/podssh-ws/src/tls.rs:315-318`).
+  (`crates/podssh-ws/src/tls.rs:325-328`).
 - Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
   `SSL_CERT_FILE` (`docs/target-environment.md:61-70`), and reset SSH on port 443
   (`TODO/ws.md:1158-1161`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
@@ -8174,7 +8174,7 @@ puts the fallback in its `ok` column without a probe.
 - Read: the fallback follows each failure of the relay whose exit is 69 or 77
   (`crates/podssh-cli/src/forwarder/fallback.rs:91-111`), on by default
   (`crates/podssh-cli/src/forwarder/fallback.rs:55-67`), after the direct road
-  (`crates/podssh-cli/src/ssh/transport.rs:227-258`); the module's own words are that "a target
+  (`crates/podssh-cli/src/ssh/transport.rs:231-262`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
   (`crates/podssh-cli/src/proxy.rs:399-400`), and each other answer, the 502 of a target that the

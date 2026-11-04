@@ -27,10 +27,10 @@ Read:
 
 - `resolve` removes `publickey` from the methods when `PubkeyAuthentication`
   is `no` (`crates/podssh-cli/src/ssh/login.rs:59-67`). The chain then
-  never offers a key (`crates/podssh-ssh/src/auth.rs:112-114`).
+  never offers a key (`crates/podssh-ssh/src/auth.rs:124-126`).
 - The denial adds the notes of the keys with no condition
   (`crates/podssh-ssh/src/auth.rs` line 115 at `475aea9`). `PublicKeys::notes` writes "no key
-  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:146-159`).
+  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:150-163`).
 - The reporter's output (GitHub #7): the line
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
@@ -48,11 +48,11 @@ Read:
    "publickey was not tried: -o PubkeyAuthentication=no", or
    "PreferredAuthentications does not list publickey". The module's rule is
    that a refusal says what was tried and what helps
-   (`crates/podssh-ssh/src/auth.rs:8-9`).
+   (`crates/podssh-ssh/src/auth.rs:10-11`).
 3. When the server does not accept `publickey`, say nothing about keys:
    `-i FILE` cannot help.
 4. Give the note about skipped encrypted keys
-   (`crates/podssh-ssh/src/keys.rs:160-166`) the same condition as step 1.
+   (`crates/podssh-ssh/src/keys.rs:164-170`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:107`),
    so that only the notes change. No document changes: `docs/cli.md:5219-5277`
    already says that a refusal names the remedy.
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:713`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:714`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -263,7 +263,7 @@ Read:
   which only the SSH handshake prints (`crates/podssh-ssh/src/run.rs:403-420`).
   At that point no request has reached the server.
 - The command starts with the exec, shell or subsystem request
-  (`crates/podssh-ssh/src/session.rs:126-155`). `-W` reads stdin only after its
+  (`crates/podssh-ssh/src/session.rs:127-160`). `-W` reads stdin only after its
   channel opens (`crates/podssh-ssh/src/forward.rs:39-70`). `-N` never reads
   stdin (`crates/podssh-ssh/src/run.rs:213-255`).
 - Measured by the reporter (read in the reports, not verified here): on one
@@ -279,7 +279,7 @@ Read:
    that a failure reached: the handshake, the authentication, the session
    request sent, or data moved. Keep the exit codes of OpenSSH.
 2. In `connect_and_run` (`crates/podssh-cli/src/ssh/mod.rs`, lines 99-126 at `97146aa`, which
-   reaches the relay through `crates/podssh-cli/src/ssh/transport.rs:178-228`), open a
+   reaches the relay through `crates/podssh-cli/src/ssh/transport.rs:178-232`), open a
    new relay session and run again only when the failure came before the
    session request, and before `-W` read a byte of stdin.
 3. Decide by the close, with the classification of T-024. The link from the
@@ -1103,7 +1103,7 @@ acceptable.
 - Read: podssh asks for passwords on the terminal or through `SSH_ASKPASS`
   (`crates/podssh-ssh/src/prompt.rs:50-73`), and refuses when nobody can
   answer (`crates/podssh-ssh/src/prompt.rs:83-93`). A remote command is one
-  string for the remote shell (`crates/podssh-ssh/src/session.rs:131-146`).
+  string for the remote shell (`crates/podssh-ssh/src/session.rs:132-147`).
   Local stdin goes to the channel only after the exec request
   (`crates/podssh-ssh/src/io.rs`, lines 148-157 at `3e42773`).
 - Measured, offline: `podssh ssh --sudo example.invalid id` gives
@@ -1172,8 +1172,8 @@ M1, and the NOPASSWD check fails.
 
 2026-10-11. The markers, the command and the filter in
 `crates/podssh-ssh/src/elevate.rs:1-395`. The session wraps the command
-(`crates/podssh-ssh/src/session.rs:131-146`, the question at
-`crates/podssh-ssh/src/session.rs:240-249`), and the pump filters the output,
+(`crates/podssh-ssh/src/session.rs:132-147`, the question at
+`crates/podssh-ssh/src/session.rs:268-277`), and the pump filters the output,
 asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:178-192`,
 `crates/podssh-ssh/src/io.rs:405-412`). The flags at
 `crates/podssh-cli/src/flags.rs:221-226`, and their check in
@@ -1281,7 +1281,7 @@ byte boundary, and the UTF-8 test fails.
 
 2026-10-11. The recorder in `crates/podssh-ssh/src/record.rs:1-153`, which a
 session starts with the size of its start
-(`crates/podssh-ssh/src/session.rs:179-186`) and its output passes through
+(`crates/podssh-ssh/src/session.rs:184-191`) and its output passes through
 (`crates/podssh-ssh/src/io.rs:113-168`). The flag at
 `crates/podssh-cli/src/flags.rs:223-224`, its check and its file in
 `crates/podssh-cli/src/ssh/recording.rs:1-42`; the verb in
@@ -1338,9 +1338,9 @@ runs: with no user database entry, OpenSSH's programs stop at once
 - Read: podssh uses an agent that `SSH_AUTH_SOCK` names, today. On Unix it
   connects to that socket, or to `IdentityAgent PATH`; on Windows it tries
   the named pipe of `SSH_AUTH_SOCK`, then the pipe of the OpenSSH agent, then
-  Pageant (`crates/podssh-ssh/src/keys.rs:406-443`, `connect_agent`). It offers the agent's
-  keys first (`crates/podssh-ssh/src/keys.rs:208-277`), and skips the agent's
-  certificates (`crates/podssh-ssh/src/keys.rs:216-219`).
+  Pageant (`crates/podssh-ssh/src/keys.rs:410-447`, `connect_agent`). It offers the agent's
+  keys first (`crates/podssh-ssh/src/keys.rs:212-281`), and skips the agent's
+  certificates (`crates/podssh-ssh/src/keys.rs:220-223`).
 - Read: russh 0.64.1, which the binary links, has an agent server
   (`russh::keys::agent::server::serve`): identities, signatures, add and
   remove, lock, and the lifetime and confirm constraints. It has no handler
@@ -1538,7 +1538,7 @@ Read:
 2. Preferred change: wrap the direct stream in a writer that fails a write
    that makes no progress for 60 s, with the constant of the relay leg
    (`crates/podssh-ws/src/client.rs:34-35`). Only
-   `crates/podssh-cli/src/ssh/transport.rs:299-343` changes, and both roads behave
+   `crates/podssh-cli/src/ssh/transport.rs:303-347` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
    `crates/podssh-ssh/src/run_config.rs:73`. russh resets that timer only in a loop
@@ -1733,7 +1733,7 @@ gives the extension messages and the exit codes; the manual's EXIT STATUS has 65
   source; the tests of the password and of keyboard-interactive failed.
 - The doctor's tests failed in their first run on this host, where no agent runs: russh's stream
   to Pageant opens when no Pageant runs, and closes at the first request, so the line said FAIL.
-  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:428-432`), which also
+  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:432-436`), which also
   spares `podssh ssh` that stream, and reads an agent that closes the connection at the store's
   question as one with no store (`crates/podssh-ssh/src/credential_store.rs:354-361`). The
   doctor's tests: 10 passed, on Windows and in the build image.
@@ -1776,7 +1776,7 @@ with the key file of one, and has no agent to hold one.
   them (`crates/podssh-ssh/src/known_hosts.rs:416-417`), and `ssh-key`
   0.7.0-rc.11 has their algorithms.
 - Read: podssh offers each key that an agent lists
-  (`crates/podssh-ssh/src/keys.rs:208-277`), so an `sk-` key in OpenSSH's
+  (`crates/podssh-ssh/src/keys.rs:212-281`), so an `sk-` key in OpenSSH's
   `ssh-agent`, with its device present, can work today. Not measured.
 - Read: `-I` (PKCS#11) is refused by name
   (`crates/podssh-cli/src/flags.rs:269-270`).
@@ -2058,7 +2058,7 @@ Not measured: it needs a server that stalls.
    (line 148 at `8d668b7` there), keyboard-interactive (`crates/podssh-ssh/src/auth.rs`
    lines 162-165 and 194 at `8d668b7`) and the password (lines 214-218 at `8d668b7` there).
 3. Do not count a local prompt: each prompt runs before its request
-   (`crates/podssh-ssh/src/auth.rs:174-179`). Pitfall: an agent that asks its
+   (`crates/podssh-ssh/src/auth.rs:235-240`). Pitfall: an agent that asks its
    user to confirm a signature (`ssh-add -c`) runs inside the agent request.
 4. On expiry, end with 255, and name the step, as "HOST did not answer the
    publickey request within 60 s".
@@ -2573,7 +2573,7 @@ its caller for a signature, it takes the caller's messages until one is a signat
 other (lines 287-299).
 
 Read: podssh offers the next key after a signature that failed
-(`crates/podssh-ssh/src/keys.rs:274`).
+(`crates/podssh-ssh/src/keys.rs:278`).
 
 ## Approach
 
@@ -2598,7 +2598,7 @@ the agent's error, as now; the test fails.
 that each server decodes and none verifies, of the key's own kind: Ed25519 64 bytes of zero, RSA
 zeros of the modulus's length, ECDSA r and s of 1 (`crates/podssh-ssh/src/answer.rs:48-106`); an
 empty one, the first try, made russh's server close the session, as it cannot decode it. The login
-says why at `-v` and goes on with the next key (`crates/podssh-ssh/src/keys.rs:266`).
+says why at `-v` and goes on with the next key (`crates/podssh-ssh/src/keys.rs:270`).
 - `cargo test -p podssh-ssh --lib -- agent_sign`: 1 passed, on Windows: for an Ed25519, an ECDSA
   and an RSA key whose agent refuses to sign, russh's server in the process refused the signature
   that stood in, and a key file logged in at once on the same connection. Planted: the agent's
@@ -2619,7 +2619,7 @@ says why at `-v` and goes on with the next key (`crates/podssh-ssh/src/keys.rs:2
 ## Problem
 
 `podssh ssh -i FILE` asks for the passphrase of a key only when russh says that it is encrypted
-(`crates/podssh-ssh/src/keys.rs:306-307`). russh says so for a key of OpenSSH and for an RSA key
+(`crates/podssh-ssh/src/keys.rs:310-311`). russh says so for a key of OpenSSH and for an RSA key
 in PEM, but not for three others. An encrypted key of PKCS#8 (`BEGIN ENCRYPTED PRIVATE KEY`) is
 read as a plain one, and fails on its DER. An encrypted key of PuTTY fails with ssh-key's "private
 key is encrypted". A key in PEM encrypted with another cipher than AES-128-CBC is read as a plain
@@ -2669,7 +2669,7 @@ Plant: answer as russh does, with no look at the text; the tests of the question
 ## Done
 
 2026-10-11. `podssh_ssh::key_file` (`crates/podssh-ssh/src/key_file.rs:25-42`) reads each key
-file: `podssh ssh -i` (`crates/podssh-ssh/src/keys.rs:303-348`), `podssh agent add` and
+file: `podssh ssh -i` (`crates/podssh-ssh/src/keys.rs:307-352`), `podssh agent add` and
 `add-passphrase`, and `podssh keygen -p` and `-c`. It finds an encrypted key by its text (a PEM key
 with `Proc-Type: 4,ENCRYPTED`, `BEGIN ENCRYPTED PRIVATE KEY`, a PuTTY key whose `Encryption` is
 not `none`) and answers "encrypted" with no passphrase. It decrypts a PEM key of AES-128-CBC,
@@ -2961,7 +2961,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
   after the login, as the failure's decode ends it. #83's 15 bytes are a failure's too, then: a
   Go server that knows no `keepalive@openssh.com` refuses it.
 - Read: the project carries a patched crate in `vendor/` through `[patch.crates-io]`, iroh-relay's
-  (`vendor/README.md:147-166`, `Cargo.toml:243-245`), and watches its upstream (T-341); russh's
+  (`vendor/README.md:152-171`, `Cargo.toml:244-246`), and watches its upstream (T-341); russh's
   copy went with T-356, as 0.65.0 gave what its patch had added.
 
 ## Approach
@@ -3664,10 +3664,10 @@ Read with T-460's draft in the tree, 2026-11-02:
   test of Approach item 3.
 - The lock's russh is `vendor/russh` there, crates.io's 0.65.0 with T-460's patch, which adds 5
   lines to `src/client/mod.rs` above that code: the code that the Premise reads in cargo's copy is
-  at `vendor/russh/src/client/mod.rs:854-857` (`SendError`), `vendor/russh/src/client/mod.rs:773-776`
-  (`Disconnect`) and `vendor/russh/src/client/mod.rs:770-771` (`ChannelOpenFailure`).
+  at `vendor/russh/src/client/mod.rs:875-878` (`SendError`), `vendor/russh/src/client/mod.rs:794-797`
+  (`Disconnect`) and `vendor/russh/src/client/mod.rs:791-792` (`ChannelOpenFailure`).
 - russh closes the queue of the connection's requests before it calls the handler's
-  `disconnected` (`vendor/russh/src/client/mod.rs:1364-1371`): an open that fails with
+  `disconnected` (`vendor/russh/src/client/mod.rs:1385-1392`): an open that fails with
   `SendError` can come before the handler kept the cause. The reading waits for the cause, half a
   second at most.
 - `ChannelOpenFailure::Other` keeps the server's words of a reason that russh does not know
@@ -4534,7 +4534,7 @@ SSH, so it works against any sshd and through any relay, with nothing installed 
 - `crates/podssh-ssh/src/run.rs:30` says "pub(crate) const WINDOW: u32 = 512 * 1024;": one window for
   each channel, on each road.
 - russh's client asks its handler for each channel's next window target,
-  `vendor/russh/src/client/mod.rs:3168` says "fn adjust_window(&mut self, channel: ChannelId, window: u32) -> u32 {",
+  `vendor/russh/src/client/mod.rs:3189` says "fn adjust_window(&mut self, channel: ChannelId, window: u32) -> u32 {",
   and podssh's handler does not take that hook (no `fn adjust_window` under `crates/`).
 - osewa's own lab shows the gain is its flow control, not QUIC: over its TCP WebSocket the echo
   under load was lower than over QUIC (`docs/research/osewa-paper.md`, section 0, item 4).
@@ -4770,7 +4770,7 @@ Partial, 2026-11-04, merged from its draft (`8d72e03`).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4786,19 +4786,138 @@ measures it.
 
 ## Approach
 
-1. TLS session tickets kept across runs in the private cache, mode 0600, as the relay's addresses
-   are; never 0-RTT.
-2. The key that a host last took is remembered by its host key, and its signature goes at once.
-3. Where russh allows, the session channel's open, its `pty-req` and its `exec` go without waits.
+As the Correction moved it:
+
+1. The key exchange group that each TLS server took, kept across runs in the private cache, mode
+   0600, as the relay's addresses are (`tls-groups.txt`), so that a later run offers it first and
+   meets no HelloRetryRequest; the tickets stay in memory (T-444), and T-672 keeps them across
+   runs once a release of rustls lets a client write one; never 0-RTT.
+2. The key that a host last took is remembered by its host key, and its signature goes at once, in
+   the place of `none` and of the query (a patch of the vendored russh).
+3. The session channel's `pty-req` and its `shell` or `exec` go with no wait between them; the
+   open still waits for its confirmation.
 4. Measure the mint's share of a first run.
+
+## Decision
+
+The draft's calls, 2026-11-04, each with what lost:
+
+1. **TLS tickets across runs: not here (T-672).** rustls 0.23.46 gives a client no way to write a
+   ticket or to make one again (Correction). Lost: a patch of rustls in `vendor/`, as russh's
+   (T-460): rustls is the TLS of each road, of the relay role's server and of the crates that link
+   it (tokio-rustls, quinn's iroh, h2's DNS over HTTPS), with a release about each month (0.23.42 of
+   2026-07-13 to 0.23.46 of 2026-10-14), and a fork would hold podssh behind each security release
+   of its TLS; and a ticket read out of rustls's `Debug`, which holds no secret by design.
+2. **The group of the key exchange is kept instead.** rustls asks its store for it
+   (`ClientSessionStore::kx_hint`, public in 0.23), and in TLS 1.3 it is what saves a round trip:
+   a server that takes none of the first offer (podssh's is X25519) answers with a
+   HelloRetryRequest. The store (`crates/podssh-ws/src/tls/store.rs`) keeps rustls's own cache in
+   memory for the tickets, one for each configuration, so T-444's rule holds (a ticket resumed
+   under the trust that verified it alone); the groups are the process's, shared by each trust, as
+   a group is no secret and checks nothing. The file is text of three fields a line, read with no
+   new crate (podssh-ws has no serde derive); 64 servers, 30 days, written again only for a new
+   group or once a day. A file that does not read is set aside whole, said once at `-v` where the
+   relay opened the session, and made again by the next group. Lost: JSON as
+   `relay-addresses.json` (a derive for one file); the cache in podssh-ws, which would repeat
+   podssh-relay's rules of a private file (owner, mode, links, Windows's access list): podssh-relay
+   gives the file as a `GroupFile` once a run, with the addresses (`addresses::install`).
+3. **The key at once, in the place of `none` too.** russh 0.65.0 queries each key first
+   (`vendor/russh/src/client/encrypted.rs`: "This is a probe"), so a patch adds
+   `Handle::authenticate_publickey_signed`
+   (`vendor/patches/russh/0003-publickey-signed-at-once.patch`, numbered after T-661's `0002`);
+   its request is built by the code that answers a `USERAUTH_PK_OK`, so its bytes are those of the
+   second request of a query. RFC 4252, section 5.2, makes `none` optional, and the failure of the
+   signed request lists the methods as `none`'s would: two round trips fewer, where the query alone
+   is one. The service's request still waits for its accept, as russh writes the first request
+   only then. Lost: `none` first and the signed key after it (one round trip); the query and the
+   signature in one flight (a refused key costs the same, and nothing is gained over the request
+   at once).
+4. **Which keys go at once.** A key file that opens with no question (no passphrase, or one that a
+   passphrase opened earlier in the run), not RSA, which signs through podssh's own signer (T-257),
+   and not a security key's, whose touch waits for the server's yes; publickey must be the first
+   method. An agent's key goes the usual way: russh signs with an agent after the `PK_OK`, and at
+   once it needs a second hook in the patch; the record keeps an agent's key all the same, for that
+   step. Lost: a passphrase asked before the first request, which a host that no longer takes the
+   key would have the user type for nothing.
+5. **The record of the keys.** A host is the SHA-256 of the user and of the host key's blob, so the
+   file names no host and no user, as OpenSSH hashes `known_hosts`; a key is its fingerprint; 128
+   hosts, 90 days, a write only for a new key or once a day. A refusal forgets the host's key, and
+   the usual way does not offer that key again (a refusal counts against the server's
+   `MaxAuthTries`). podssh-ssh holds the format (`crates/podssh-ssh/src/accepted.rs`); podssh-cli
+   gives the cache's file where each command starts (`crates/podssh-cli/src/pins.rs`), as
+   podssh-ssh has no cache. Lost: a field of `Options`, which each hop's options would carry for
+   one record a run.
+6. **The pty and the command together.** podssh waited for the pty's answer before the command's
+   request; now the command's goes first, as OpenSSH's client sends its requests, and the answers
+   are read in their order. Not with `--expect`, `--sudo` or `--su`, `-A`, `-X` or `--attach`: each
+   reads the pty's answer, or waits for an answer of its own, between the two. The open still
+   waits: a channel's request names the server's number of the channel, which its confirmation
+   gives (RFC 4254, section 5.1). Lost: a control master's sessions
+   (`crates/podssh-ssh/src/mux/msession.rs`), which skip both handshakes already.
 
 ## Prove
 
 ```sh
+cargo test -p podssh-ws --lib -- tls::groups
+cargo test -p podssh-ws --test tls_group
+cargo test -p podssh-ws --test tls_resume
+cargo test -p podssh-relay --lib -- tls_groups
 cargo test -p podssh-ssh --lib
+cargo test -p podssh-ssh --test cold_connect
+cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::encrypted::tests::a_key_signed_at_once
 ```
 
-T-660's `--connect-runs` at 120 ms: two round trips fewer than before.
+Planted: the eight plants of T-664 in `scripts/plants/`, each of which must fail its test. T-660's
+`--connect-runs` at 120 ms: two round trips fewer than before for a command, three for a shell.
+
+## Correction
+
+2026-11-04, the draft:
+
+- Item 1 cannot be done with rustls 0.23.46: `Tls13ClientSessionValue::new` is `pub(crate)`, its
+  fields are private and it has no encoding (read in cargo's copy of the crate, its module
+  `msgs::persist`), so a store sees tickets that it can neither write nor make again.
+  `rustls/rustls:rustls/src/msgs/persist.rs` changed on the line of 0.24 by rustls/rustls#2907
+  ("client: make client cache values serializable", merged 2026-02-06), which no release carries:
+  the newest is 0.23.46 of 2026-10-14 (read through <https://web.pkgforge.dev/llms.txt> on
+  2026-11-04; rustls/rustls#3103, closed as not planned, points to it).
+- Item 1's round trip: TLS 1.3 with no early data resumes in one round trip, as a full handshake
+  takes (RFC 8446, section 2.2), so a ticket kept across runs saves the certificate's bytes and
+  its check, and a round trip only with TLS 1.2 (a proxy that intercepts TLS); in TLS 1.3, the round
+  trip that item 1 can save is a HelloRetryRequest's, which the kept group saves. The study's "That
+  saves 1 RTT" (`docs/research/osewa-paper.md`, G4) holds for TLS 1.2 alone.
+- Item 3: the session's open cannot go with its requests, which carry the channel number that the
+  confirmation gives; the pty's request and the command's can, and go together.
+
+## Done
+
+2026-11-04, merged from its draft (`a467f09`; its patch of russh made again at the merge against
+the tree with T-661's, `vendor/patches/russh/0003-publickey-signed-at-once.patch`, as the draft's
+was cut before it; the draft's entry of TLS tickets is T-672).
+
+- The key exchange's group that a relay host took is kept, mode 0600 (`tls-groups.txt`), so a later
+  run meets no HelloRetryRequest (`crates/podssh-ws/src/tls/groups.rs`,
+  `crates/podssh-relay/src/tls_groups.rs`); TLS tickets across runs wait for rustls (T-672). The key
+  that a host took is kept by a hash of the user and the host's key (`accepted-keys.txt`), and its
+  signature goes in the first request, with no `none` and no query (`crates/podssh-ssh/src/accepted.rs`,
+  `keys_at_once.rs`, the patch of russh); a host that no longer takes it lets the usual way go on.
+  The pty's request and the command's go together, but with `--expect`, `--sudo`, `--su`, `-A`,
+  `-X` or `--attach`.
+- `cargo test -p podssh-ws --lib -- tls::groups`: 8 passed; `--test tls_group --test tls_resume`: 3
+  and 3; `cargo test -p podssh-relay --lib -- tls_groups`: 3; `cargo test -p podssh-ssh --lib`: 333;
+  `--test cold_connect`: 3; the russh patch's tests (`--lib client::`, 35 passed with the patch's
+  own). `cargo test -p podssh-ssh -p podssh-cli -p podssh-ws --no-fail-fast` on a clean build:
+  2,753 passed, 0 failed. Plants: each of the eight `t664-*` caught.
+- At the merge, the test of the pty and the command together could not pass against russh's
+  server, which keeps one flag of a reply for each channel and drops a second answer that it holds
+  (`vendor/russh/src/server/session.rs`, `channel_success`): the server now answers each request at
+  once, its bytes reach the client 300 ms late, and it times the gap between the two requests (the
+  plant of a client that waits for the pty's answer is caught).
+- Measured, `python3 scripts/feel-matrix.py target/x86_64-unknown-linux-musl/release/podssh --runs 3
+  --roads openssh,direct,role,node --shapes none,cellular,far`, a cold connect and `true` (p50),
+  each login to OpenSSH 9.6p1's sshd, which takes the signed first request: cellular 517 to 391 ms
+  by `--direct`, 772 to 645 ms through the relay role, 897 to 814 ms through a node (OpenSSH's own
+  client 608 ms); far 993 to 747, 1,492 to 1,243 and 1,672 to 1,426 ms (OpenSSH 1,081 ms).
 
 # T-669: Compression of a terminal's output on the relay roads, measured against the session's 64 MiB
 
@@ -4883,3 +5002,54 @@ cargo test -p podssh-ssh --lib pace::sim_tests
 
 On the slow path, the download at 90% of today's at least, the echo's p50 at most twice the idle
 echo; T-660's matrix on the slow link, before and after.
+
+# T-672: TLS tickets kept across runs, once a release of rustls lets a client write one
+
+**Source:** T-664's draft, 2026-11-04 (the study of osewa, Q99; `docs/research/osewa-paper.md`, G4).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+A run's first TLS handshake with each relay host is a whole one: rustls keeps its tickets in the
+process's memory alone (T-444), so each run receives the certificate's chain again and checks it,
+and through a proxy that intercepts TLS with TLS 1.2 it pays the round trip that a resumption
+saves there. In TLS 1.3 with no early data, a resumption takes one round trip, as a whole
+handshake does (T-664's Correction), so the gain there is bytes and a check, not time on the path.
+
+## Premise
+
+- rustls 0.23.46 gives a client no way to write a ticket or to make one again:
+  `Tls13ClientSessionValue::new` is `pub(crate)`, and the type has no encoding (T-664's Correction).
+- rustls/rustls#2907 ("client: make client cache values serializable") was merged on 2026-02-06 on
+  the line of 0.24, and no release carries it (the newest, 0.23.46 of 2026-10-14, read on
+  2026-11-04).
+
+## Approach
+
+1. Once a release of rustls encodes a client's session value: rustls, tokio-rustls and the crates
+   that link them moved to it, as Dependabot moves a dependency.
+2. The store of sessions of T-664 (`crates/podssh-ws/src/tls/store.rs`) writes each TLS 1.3 ticket
+   to a private file of the cache, mode 0600, beside the groups: by the server's name and by the
+   trust that verified the session (T-444's rule: a resumed handshake checks no certificate), at
+   most a few tickets a server, each used once and removed when it is taken, none past its
+   lifetime; never early data. A ticket is a secret: never in a log, never in a `Debug`.
+3. A file that does not read is set aside, as the groups' is.
+
+## Prove
+
+```sh
+cargo test -p podssh-ws --test tls_resume
+```
+
+Two processes against rustls's server: the second's first handshake is `Resumed`; under another
+trust, `Full`. Planted: a ticket written and not read, and the test fails.
+
+## Blocker
+
+rustls's maintainers: a release of rustls that carries rustls/rustls#2907, which podssh's
+dependencies then take. Nothing in podssh waits for it but this entry; T-664 keeps the group of
+the key exchange, which the release of 0.23 lets a store keep.

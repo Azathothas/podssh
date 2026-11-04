@@ -187,12 +187,16 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-a866bb2e35c2100ff`, `cc54c09`, merged and closed after `b750af3`). Their worktrees
   and local branches are gone, and their `draft/` branches on GitHub can go.
 
-  On 2026-11-04 (evening) a ninth round is being drafted, unbuilt, by agents of this cloud session,
-  each in a worktree under `.claude/worktrees/` on a local branch `worktree-agent-*`: the triage of
-  GitHub #127 to #148 (T-629 to T-650, `de2cc4e`, merged; its worktree and branch are gone), T-660 (measure what a user feels), T-661 and T-662
-  (the SSH client's flow control and windows), and T-663 (liveness in round trips). Each is merged
-  one at a time, built and tested, in the order of the index; a branch is pushed as `draft/<branch>`
-  before the session ends.
+  On 2026-11-04 (evening and night) a ninth round was drafted by agents of this cloud session,
+  unbuilt, each branch pushed as `draft/worktree-agent-*`: the triage of GitHub #127 to #148, T-660,
+  T-661 and T-662, T-663, T-629 and T-635, T-630 and T-648, T-632 and T-664 (each merged), and still to merge: T-639 and T-645 (`worktree-agent-af1f8acf4f98d8f39`,
+  `10b37ef`, `e007213`), T-671 and T-647 (`worktree-agent-a2f3e5081af50102a`, `b84add1`,
+  `3957215`), T-634 and T-640 (`worktree-agent-aae99917a53f19e77`, `0e9152e`, `2ec6c95`), T-665 and
+  T-666 (`worktree-agent-ac3e65f272f8d068d`, `2ad81c5`, `05a7326`); T-670 is being drafted. A
+  merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
+  `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
+  applied in the tree then); and when the disk fills, remove `target/` whole, never files under
+  `target/debug/deps` (cargo's records then name outputs that are gone).
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -237,7 +241,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 626 entries: 116 open, 7 partial, 2 blocked, 501 done.
+`TODO/INDEX.md` holds 627 entries: 115 open, 7 partial, 3 blocked, 502 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -276,7 +280,7 @@ operator and the parked ones.
 **First tonight (2026-11-04, Q98 to Q100):** `v1.1.0-beta.2` is out (GitHub #126, the testers'
 P1 defect, is in it); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first; its iroh and DERP rows),
-T-662 (a copy through a shaped link; the SSH client's flow control and liveness in round trips are done), T-670, T-664, T-665,
+T-662 (a copy through a shaped link; the SSH client's flow control and liveness in round trips are done), T-670, T-665,
 T-666, T-667, T-668 and T-669; then GitHub #127 to #148 (`TODO/issues.md`) by
 their priority, the P2 one first (T-671, found by the draft of the layer's half-close),
 beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
@@ -342,6 +346,7 @@ among them, after M10's entries of their priority; the work parked behind them (
 work") starts as its condition says. T-328 (a real export of FinalShell and of Termius) and
 T-376 (the operator's throwaway cloud accounts for the live run of the roads of iap:// and
 eice://) are no longer held, but still wait for those inputs, which only the operator has.
+T-672 (TLS tickets kept across runs) waits for a release of rustls that lets a client write one.
 
 ## Parked open work
 

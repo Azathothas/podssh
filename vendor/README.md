@@ -99,9 +99,9 @@ Not done here: the home-region override, and connecting again after a drop
   that release, whose archive has the SHA-256 of `Cargo.lock`'s checksum
   (`3bb77a4b...`). The import is the published crate byte for byte, but
   `.cargo-ok`, a mark of cargo's own; the shipped tree is the import plus
-  the two patches `patches/russh/0001-reply-data.patch` and
-  `patches/russh/0002-window-target.patch` (T-661), in that order, and
-  nothing else.
+  the patches of `patches/russh/`, in the order of their numbers
+  (`0001-reply-data.patch`, `0002-window-target.patch` of T-661, and
+  `0003-publickey-signed-at-once.patch` of T-664), and nothing else.
 - **License**: Apache-2.0, as its `Cargo.toml` says.
 - **How podssh uses it**: the root `Cargo.toml` puts it in the place of the
   release with `[patch.crates-io]`, and excludes it from the workspace, so
@@ -111,10 +111,11 @@ Not done here: the home-region override, and connecting again after a drop
   package has none. `scripts/check-repo.py` fails when a lock leaves the
   patch unused, as it would after an update of russh that did not move it.
 
-### The patch
+### The patches
 
 | Patch | Files | Why |
 | --- | --- | --- |
+| `patches/russh/0003-publickey-signed-at-once.patch` | `src/auth.rs`, `src/client/encrypted.rs`, `src/client/mod.rs` | podssh T-664: russh's client sends each public key as a query first (`USERAUTH_REQUEST` with FALSE), and signs only after the server's `USERAUTH_PK_OK`: a round trip that RFC 4252, section 7, lets a client leave out for a key that the server takes. The patch adds `auth::Method::PublicKeySigned` and `Handle::authenticate_publickey_signed`, whose first request carries the signature, built by the code that answers a `USERAUTH_PK_OK` (`client_send_key_signature`), so its bytes are those of the second request of a query; a server that does not take the key answers with a failure, as to a query. OpenSSH's client sends such a request for a key file with no `.pub` beside it. podssh sends it for the key that a host took last (`crates/podssh-ssh/src/accepted.rs`). Proven by the test `client::encrypted::tests::a_key_signed_at_once_is_one_request_with_its_signature` (the request's bytes, and its signature checked as a server checks it), and in podssh by `crates/podssh-ssh/tests/cold_connect.rs` against russh's server. Since this patch, podssh calls a method that the published crate lacks, so T-460's plant `t460-published-russh` takes 0001 out of the copy in place of the published crate. |
 | `patches/russh/0001-reply-data.patch` | `src/client/encrypted.rs`, `src/client/mod.rs`, `src/client/reply_data.rs` (new) | podssh T-460, GitHub #83 and #85: russh's client ended the whole connection when a reply to a global request held data after its type: `ensure_end` on each failure, before it looked at which request the reply answers, and on a success of a keepalive, a ping, `no-more-sessions@openssh.com` or a cancel; and it read a success of `tcpip-forward` with more than a port as a refusal. RFC 4254, section 4, lets a success carry "response specific data", and Go's x/crypto/ssh sends data in a failure too (`Request.Reply(false, payload)`): its servers answer a keepalive that they do not know with one, so each quiet session on them died at the first keepalive, and `-R` that they refuse as a lost connection. OpenSSH's client reads none of such data. The patch drops the data that a request needs none of, with a debug line, and reads the port of a success of `tcpip-forward` before the rest. Proven by the tests of `src/client/reply_data.rs`, in russh's own way of crafted packets, and in podssh by `scripts/interop-go-ssh.sh` against a server of x/crypto/ssh. |
 | `patches/russh/0002-window-target.patch` | `src/client/encrypted.rs`, `src/client/mod.rs`, `src/client/window_target.rs` (new) | podssh T-661: russh's client adjusted each channel's window to its configured window alone; the target that its handler's `adjust_window` returned was kept in the session and never read, so no client could hold a bulk channel's window while the user types. The patch adds `Handler::window_target(channel, window) -> u32`, asked at each data message of a channel before russh decides whether to adjust its window: its answer is that channel's target, and the default, `window`, keeps russh's behaviour, as 0 does. A window already granted is never taken back (RFC 4254, section 5.2): a smaller target withholds the next adjusts. `adjust_window` still hears each adjust that went out. Proven by the tests of `src/client/window_target.rs`, in the way of crafted packets of `reply_data.rs`, and in podssh by `crates/podssh-ssh/src/pace/wire_tests.rs` against russh's server in the same process. |
 
@@ -122,12 +123,15 @@ No podssh build runs the crate's own tests. Run its tests of the patches
 with its manifest, in a target directory of their own (it fetches the
 crate's dev-dependencies, and uses the crate's own `Cargo.lock`):
 `cargo test --manifest-path vendor/russh/Cargo.toml --target-dir
-.work/russh-target --lib client::reply_data` and `... --lib
-client::window_target`.
+.work/russh-target --lib client::reply_data`, `... --lib
+client::window_target` and `... --lib
+client::encrypted::tests::a_key_signed_at_once`.
 
 The patches are for russh upstream too: sending them is the operator's, as
 no session changes another repository. Drop a patch when a release of russh
-does what it does, and this tree when both are gone.
+does what it does (reads such replies; adjusts a window to the handler's
+target; sends a signed request with no query first), and this tree with the
+last one.
 
 ### How to carry it to another version
 
@@ -138,17 +142,18 @@ rm -rf vendor/russh
 cp -r ~/.cargo/registry/src/index.crates.io-*/russh-NEW/. vendor/russh/
 rm -f vendor/russh/.cargo-ok
 
-# 2. The patches in order (each must exit 0), then the version of the
+# 2. The patches in their order (each must exit 0), then the version of the
 #    crates' requirement of russh, and the lock files, follow.
-git apply --directory=vendor/russh vendor/patches/russh/0001-reply-data.patch
-git apply --directory=vendor/russh vendor/patches/russh/0002-window-target.patch
+for p in vendor/patches/russh/*.patch; do
+    git apply --directory=vendor/russh "$p" || exit 1
+done
 ```
 
 Each patch is a unified diff of the tree before it (`a/`: the published
-crate, then the crate with the patches before it) against the tree after it
-(`b/`); `patch -p1 -d vendor/russh` takes each too. A release whose reading
-of a reply, or whose adjust of a window, changed needs its patch moved onto
-it, and its tests run again.
+crate for 0001, the crate with the patches before for each later one)
+against the tree after it (`b/`); `patch -p1 -d vendor/russh` takes them
+too. A release whose reading of a reply, adjust of a window or authentication changed
+needs the patches moved onto it, and their tests run again.
 
 ## iroh-relay
 

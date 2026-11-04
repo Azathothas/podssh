@@ -28,7 +28,24 @@ pub fn apply(flag: Option<&str>) -> Result<(), Refusal> {
     }
     podssh_ws::resolve::set_pins(pins);
     // The addresses that carried a session, which the dialer asks after the
-    // system resolver fails (T-344).
+    // system resolver fails (T-344), and the TLS groups that servers took.
     podssh_relay::addresses::install();
+    // The key that each host took last, for a login with no query (T-664).
+    podssh_ssh::accepted::keep_in(Box::new(AcceptedInCache));
     Ok(())
+}
+
+/// The record of the keys that hosts took, a private file of the cache as
+/// each of podssh's is: mode 0600, and one that others can read is not read.
+struct AcceptedInCache;
+
+impl podssh_ssh::accepted::KeptFile for AcceptedInCache {
+    fn load(&self) -> Option<String> {
+        podssh_relay::cache::load_file(podssh_ssh::accepted::FILE)
+    }
+
+    fn store(&self, text: &[u8]) {
+        // A record that cannot be kept costs the next login its round trips.
+        let _ = podssh_relay::cache::store_file(podssh_ssh::accepted::FILE, text);
+    }
 }

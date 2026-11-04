@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:5317-5438`, FILES (`crates/podssh-cli/src/man/data.rs:161-476`) and the
+7. Change `docs/cli.md:5317-5438`, FILES (`crates/podssh-cli/src/man/data.rs:161-483`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -677,7 +677,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65
 `crates/podssh-cli/src/proxy.rs:219-222`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
 `crates/podssh-cli/src/ssh/resolve.rs`, lines 328-331 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:165-180` and
 `crates/podssh-cli/src/proxy.rs`, lines 100-104 at `99743e6`. The pins of the flag and of the variable add up
-(`crates/podssh-cli/src/pins.rs:15-34`). The token cache uses the user's
+(`crates/podssh-cli/src/pins.rs:15-36`). The token cache uses the user's
 cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
 `crates/podssh-relay/src/cache/dirs.rs:145-241`). The decision named the
 configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:98`, T-243).
@@ -760,7 +760,7 @@ its places at `crates/podssh-cli/src/settings.rs:129-152`, its checks at
 failover below the flag and the variable at
 `crates/podssh-cli/src/relay_settings.rs:71-86` and
 `crates/podssh-cli/src/relay_settings.rs:127-137`, the pins and the refusal
-of a bad file at `crates/podssh-cli/src/pins.rs:13-34`, the CA file at
+of a bad file at `crates/podssh-cli/src/pins.rs:13-36`, the CA file at
 `crates/podssh-cli/src/settings.rs:316-326` and, for `podssh ssh`,
 `crates/podssh-cli/src/ssh/resolve.rs:158-162`; `status` at
 `crates/podssh-cli/src/status.rs:65` and

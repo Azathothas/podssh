@@ -1,0 +1,7 @@
+# T-664: the record of the keys that hosts took has no bound; the test of the
+# bound must fail.
+ENTRY=T-664
+GROUP=cli-tests
+EXPECT='test accepted::tests::the_hosts_are_bounded \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- accepted::tests'
+LIMIT=1800

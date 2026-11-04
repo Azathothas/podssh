@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/auth.rs
++++ b/crates/podssh-ssh/src/auth.rs
+@@ -104,7 +104,7 @@
+     let mut allowed: Vec<MethodKind> = match at_once(handle, user, id.as_deref(), opts, &mut keys, log).await? {
+         Some(Step::Success) => return Ok(Method::PublicKey.name()),
+         // Its answer lists what the server takes, as `none`'s would.
+-        Some(Step::Failure { remaining, .. }) => remaining,
++        Some(Step::Failure { .. }) => return Err(AuthError::Refused("the kept key was refused".into())),
+         Some(Step::Exhausted) | None => {
+             let none = within(limit, host, "the first request to log in", handle.authenticate_none(user)).await?;
+             match none {
