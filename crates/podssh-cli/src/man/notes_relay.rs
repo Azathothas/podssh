@@ -122,6 +122,17 @@ pub const RELAY: &[&str] = &[
      relay's host has no IPv6 route out, and a client tries its next relay host. A name of both \
      families keeps its IPv4 addresses; the loopback is the relay's own; through HTTPS_PROXY the \
      proxy decides. /relays.json says what the relay knows, as egress.ipv6: true, false, or null.",
+    "Beside the contract it serves /v1/layer/HOST/PORT, the forward road in the resumable layer, for a \
+     target that speaks no layer, a standard sshd among them (T-173): each WebSocket is one link, the \
+     relay dials the target once, after the layer's handshake of a new session, and keeps it while the \
+     client's link is lost, until a resume on a new link to this relay carries the session on, or 10 \
+     minutes pass and the target is shut. The token, the upgrade and the policy are checked as on \
+     /connect/, with the same refusals; the layer's secret never crosses the relay, as each resume \
+     proves it, and the path names the target alone. Each link keeps the limits of a session, and the \
+     client moves the session to a new link before them. The sessions hold 256 MiB of replay buffers at \
+     most, 4 MiB each; past it a new session is refused with what holds them, a line on stdout once a \
+     minute. /relays.json offers it as forward.layer: true, and podssh proxy takes it with \
+     PODSSH_RELAY_LAYER=yes. A restart forgets each session.",
     "It serves the reverse road too: /v1/pair, for whom it mints, /v1/node/NAME, /v1/connect/NAME, \
      /v1/status/NAME and /v1/stop/NAME, so that podssh relay pair --relay-host, podssh node and podssh \
      ssh node:// work through it with no other relay. A pair lives 72 hours, and /v1/renew/NAME, with \

@@ -3291,6 +3291,30 @@ commands. The rules behind them:
   podssh's role names, and refuses the part as expired (77) as before
   where the relay names none, refuses it, or is offline. `relay status`
   shows the end that the relay names, else the file's.
+- **A standard sshd's session outlives a drop, through podssh's relay role**
+  (T-173). `relay serve` serves `/v1/layer/HOST/PORT` beside the contract,
+  and offers it in `/relays.json` as `forward.layer: true`: the role is the
+  far end of the resumable layer for a target that speaks none, as a node is
+  for its TARGET (`crates/podssh-relay/src/serve/layer.rs`). Each WebSocket
+  is one link; the role dials the target once, after a new session's
+  handshake, and keeps it while the client's link is lost, until a resume on
+  a new link carries the session on or the layer's 10 minutes pass. The
+  token, the upgrade and the policy are checked as on `/connect/`, with the
+  same refusals; the layer's secret never crosses the role (each resume
+  proves it) and the path names the target alone. The sessions hold 256 MiB
+  of replay buffers at most, 4 MiB each; a new session past them gets a
+  `CLOSE` that says what holds them. `podssh proxy HOST PORT` takes the road
+  with `PODSSH_RELAY_LAYER=yes`, which the user sets, until a live run
+  measured it (T-173): it reads the first relay host's `/relays.json`,
+  and where it offers the road, sends each link of the session to that host
+  alone (`crates/podssh-cli/src/relay_layer.rs`), each loss and resume a line
+  on stderr; OpenSSH's SIGHUP at its exit is the end of the bytes, so the
+  role forgets the session at once. A host that offers none, or whose first
+  link fails as another host may not, takes the contract's road with one
+  line; a refusal that the contract's road would get too ends the run with
+  its code. Unset, empty or `no` is the contract's road with no request
+  more, and another word is refused (78). A role without a listener, behind
+  a quick tunnel (`node --relay`), serves the same path.
 - **One pair for each label.** A pair that has not expired is not replaced:
   a second pair would leave the first with no holder, for up to 72 hours.
   When a new pair cannot be stored, or its operator file cannot be written,

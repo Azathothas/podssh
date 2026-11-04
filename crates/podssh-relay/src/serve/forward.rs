@@ -4,6 +4,8 @@
 //! write waits for the reader on the other side, so no queue grows without a
 //! bound: a slow client slows the target's reads, as TCP would (T-336). The
 //! dial goes through the host's proxy when one is set (T-457, `egress`).
+//! The road with the resumable layer (T-173, `layer`) dials and pumps each
+//! of its links with the same functions.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -135,13 +137,13 @@ where
             Err(None) => return,
         },
     };
-    pump(session, tcp, early, cfg).await;
+    pump(session, tcp.into_split(), early, cfg).await;
 }
 
 /// The target `host` by `plan`, within the dial's limit in all; `Err` holds
 /// the client's words. The owner hears a proxy's fault, with where the
 /// proxy is, on the role's line.
-async fn dial(host: &str, plan: &Plan, cfg: &Config) -> Result<TcpStream, String> {
+pub(super) async fn dial(host: &str, plan: &Plan, cfg: &Config) -> Result<TcpStream, String> {
     match egress::dial(host, plan, &cfg.egress, &cfg.policy.ipv6, cfg.limits.connect).await {
         Ok((tcp, _)) => {
             // A slow target's unsent bytes, as a slow client's (T-336).
@@ -192,10 +194,18 @@ enum End {
     Close(u16, String),
 }
 
-/// Bytes both ways until one side ends or a limit is met.
-async fn pump<S>(session: Arc<RelaySession<S>>, tcp: TcpStream, early: Vec<u8>, cfg: Arc<Config>)
-where
+/// Bytes both ways between the client and the target's two halves until one
+/// side ends or a limit is met. The target is a TCP connection, or a link's
+/// end of the resumable layer (T-173).
+pub(super) async fn pump<S, R, W>(
+    session: Arc<RelaySession<S>>,
+    (mut from_target, mut to_target): (R, W),
+    early: Vec<u8>,
+    cfg: Arc<Config>,
+) where
     S: AsyncRead + AsyncWrite + Send + 'static,
+    R: AsyncRead + Unpin + Send,
+    W: AsyncWrite + Unpin + Send,
 {
     let started = Instant::now();
     let moved = Arc::new(AtomicU64::new(0));
@@ -203,7 +213,6 @@ where
     // pings do not count, as on the default relay.
     let heard = Arc::new(AtomicU64::new(0));
     let limits = cfg.limits.clone();
-    let (mut from_target, mut to_target) = tcp.into_split();
     let stamp = |heard: &AtomicU64| heard.store(started.elapsed().as_millis() as u64, Ordering::SeqCst);
 
     let up = {

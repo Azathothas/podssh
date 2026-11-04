@@ -105,6 +105,7 @@ pub(crate) fn role(args: &NodeArgs, label: &str, door: &Door, me: PublicKey) -> 
         egress,
         limits: Limits::default(),
         pairs,
+        resumes: Default::default(),
         answered: Default::default(),
         events: Some(events),
         brake: Default::default(),

@@ -129,8 +129,9 @@ pub fn filling(census: &Census, budget: usize) -> String {
     )
 }
 
-/// The sessions that hold the budget, in words.
-fn holders(census: &Census) -> String {
+/// The sessions that hold the budget, in words; the relay role's refusal
+/// names them too (T-173).
+pub(crate) fn holders(census: &Census) -> String {
     let waiting = match (census.waiting, census.first_free) {
         (0, _) => "none waiting for its client".to_string(),
         (1, Some(left)) => format!("1 waiting for its client, for {} more", left_words(left)),

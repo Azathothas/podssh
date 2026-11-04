@@ -11,7 +11,9 @@
 //! off a reply that is still on its way. Since T-175 it is the pipe of
 //! `stdio` and `relay:HOST:PORT`: one pump, and the relay's end of
 //! `crate::pipe::relay`. `node://NAME` is the pipe of `podssh operator NAME`
-//! (`crate::proxy_node`, T-587).
+//! (`crate::proxy_node`, T-587). With `PODSSH_RELAY_LAYER=yes`, a relay
+//! host that offers it carries the session in the resumable layer, which
+//! outlives a drop of this host's link (`crate::relay_layer`, T-173).
 
 use std::io::Write;
 
@@ -413,6 +415,11 @@ async fn session(
     idle: Option<std::time::Duration>,
     err: &mut dyn Write,
 ) -> i32 {
+    // The resumable layer at podssh's relay role, where PODSSH_RELAY_LAYER
+    // asks for it and the first host offers it (T-173); else the contract's.
+    if let Some(code) = crate::relay_layer::run(road.relays, road.trust, (host, port), err).await {
+        return code;
+    }
     let target = &podssh_ws::dial::authority(host, port);
     let request = Request { relays: road.relays, path, trust: road.trust, target, rounds: 1, failover: road.failover };
     let opened = podssh_relay::open(&request, &mut |note: &str| {

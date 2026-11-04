@@ -142,6 +142,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         egress,
         limits: Limits { keepalive, ..Limits::default() },
         pairs,
+        resumes: Default::default(),
         answered: Default::default(),
         brake: Default::default(),
         events: Some(events),

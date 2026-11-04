@@ -193,6 +193,7 @@ fn cfg() -> Arc<Config> {
         egress: Default::default(),
         limits: Default::default(),
         pairs: Default::default(),
+        resumes: Default::default(),
         answered: Default::default(),
         brake: Default::default(),
         events: None,

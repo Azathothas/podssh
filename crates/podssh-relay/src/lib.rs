@@ -11,6 +11,9 @@
 //!   kept in the cache for a run whose resolver fails (T-344);
 //! - [`mod@open`]: a forward session, failing over from host to host with backoff,
 //!   one bounded attempt per host;
+//! - [`forward_layer`]: a forward session in the resumable layer, whose far
+//!   end is podssh's relay role, so that a standard sshd's session outlives
+//!   a drop of the client's link (T-173);
 //! - [`keyed`]: a mint or a pair that the relay asks this client's key to
 //!   sign (T-448);
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
@@ -57,6 +60,7 @@ pub mod derp;
 pub mod e2e;
 pub mod failover;
 pub mod failures;
+pub mod forward_layer;
 #[cfg(feature = "grant")]
 pub mod grant;
 pub mod health;

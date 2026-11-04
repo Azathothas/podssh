@@ -3,7 +3,8 @@
 //! (T-437), the direct road after the relay hosts (T-363), the forwarders of
 //! other products (T-369), Wisp's among them (T-438), and their fallback
 //! (T-370), the forward proxy over TLS of --via (T-439), the wstunnel
-//! server of --wstunnel (T-441), and the OpenTunnel road (T-531).
+//! server of --wstunnel (T-441), the OpenTunnel road (T-531), and the
+//! resumable layer at podssh's relay role (T-173).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -51,6 +52,16 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           (64); an https://HOST[:PORT] URL: that service in place of OpenTunnel's, whose certificates the trust of \
           --ca-file checks; unset, empty or yes: the default. Another word is a configuration error (78), which \
           does not echo the value.",
+    ),
+    (
+        &["PODSSH_RELAY_LAYER"],
+        "yes: podssh proxy reads the /relays.json of the first relay host, and where it offers the resumable \
+          layer (forward.layer, which podssh relay serve gives), carries the session in it to that host alone: \
+          the relay keeps the connection to the target while this host's link is lost, for 10 minutes, and a new \
+          link resumes the session, which a line on stderr says (T-173). A host that offers none, or whose first \
+          link fails for a reason that another host may not share, takes the contract's road, with one line. \
+          Unset, empty or no: the contract's road, with no request more; another word is a configuration error \
+          (78).",
     ),
     (
         &["PODSSH_RELAY_RANK"],

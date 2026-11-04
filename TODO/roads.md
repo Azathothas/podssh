@@ -2584,6 +2584,57 @@ The part of podssh, when the start condition holds:
 6. When the relay's version changes, update the pinned contract and
    `docs/relay.md` in the same commit (`docs/relay.md:14-16`).
 
+## Decision
+
+2026-11-04 (the drafting agent), for the Approach of the Correction below:
+
+- **A path of its own, `/v1/layer/<host>/<port>`, asks for the layer**, in place of a header on
+  `/connect/`. A path needs no change of the WebSocket client that each road shares (its request
+  builder writes no header but the token's, `crates/podssh-ws/src/handshake.rs`, and its check of a
+  query takes the contract's knobs alone), and a proxy that re-terminates TLS can drop a header it
+  does not know, never a path; the contract's `/connect/` keeps its meaning for each client, and a
+  server that does not know the path answers 404, never a session whose bytes the client would
+  take for the layer's. Lost: a header `X-Relay-Layer` (the change of podssh-ws above, and a
+  header that a hop may drop); a query knob `?layer=1` (the knob list of podssh-ws, and a query
+  in each proxy's log). The secret is in neither: the path names the target alone, and each
+  resume proves the secret inside the layer's records.
+- **The role is a far end of role 2, a node's**, with the node's keeper, handshake and records
+  (`crates/podssh-relay/src/session/keep.rs`), so each client of 1.x speaks to it as to a node
+  in front of a TARGET. Lost: a role byte of its own (4), which a client of before would show
+  as "a podssh of role 4" and which changes nothing of what the layer does.
+- **Its budget is 256 MiB of replay buffers, 64 sessions of the default 4 MiB**, four times a
+  node's 64 MiB (`crates/podssh-relay/src/reverse/layered.rs`), as a relay's host serves more
+  clients than a cage; past it a new session is refused with the role's own words (what holds
+  the budget, and `PODSSH_RELAY_LAYER=no`). Lost: the node's 64 MiB, 16 sessions for each client
+  of a relay; no bound, which a run of short logins whose client went away would fill (GitHub
+  #112). A flag of `relay serve` for it is later work, as the node's `--resume-deadline` is.
+- **A link of the road is the transit road's byte stream over one WebSocket**
+  (`crates/podssh-relay/src/transit/link.rs`, `Link::start_by`, whose failures name "the relay"),
+  and the role's side pumps it with `/connect/`'s own pump, its limits and its bound on a slow
+  reader, made generic over the target's two halves (`crates/podssh-relay/src/serve/forward.rs`).
+  Lost: a third copy of the same two pumps.
+- **The client's links go through the forward opener with a list of one host**
+  (`crates/podssh-relay/src/forward_layer/client.rs`): its token from the environment, the cache
+  or a mint, its re-mint of a refused cached token, its record of failures, all as for a forward
+  session; never another host of a list, as only the process that opened the session holds it.
+  A refusal that a new link would get again (401, 403, 404, 410, and each failure that the opener
+  stops at) ends the session; each other failure is tried again with the layer's backoff until
+  the far end's deadline.
+- **`podssh proxy` takes the road on request, `PODSSH_RELAY_LAYER=yes`, in this first part**,
+  and reads the first relay host's `/relays.json` only then; unset, the run is as before, with no
+  request more. No live run measured the road (no workflow runs the role on a runner for it:
+  the entry's next part), and a read of the document at each run of each user of a named relay
+  would add a connection that the tests of `podssh proxy` through the stand-in and through the
+  role count; the default comes when the live run passed (the entry's next part). Lost: the road by default where the field is, now;
+  a flag of `proxy` (the flag table and the manual's parity for a setting that a ProxyCommand's
+  environment gives as well).
+- **The Prove's tests build with the features `serve` and `plain-ws`**, as each test of the role
+  does (`relay_serve_ipv6`, T-253); with none, the test target holds no test and passes. The
+  offline run of OpenSSH's client through `podssh proxy` and the role is a test of the binary,
+  in `podssh-cli` (`relay_serve`'s module `serve_layer`), with 16 MiB each way and 10 cuts, as a
+  debug build's TLS bounds it within the suite's 120 s; `podssh-relay`'s test runs OpenSSH's
+  client and server through the library's client with 20 cuts and 32 MiB each way.
+
 ## Prove
 
 ```sh
@@ -2650,6 +2701,88 @@ the SSH session lives on, the digests are equal, and no URL holds the layer's se
 the far end closes the target at a cut; the test fails. Live, on a GitHub runner where
 `podssh relay serve` runs: the same to the runner's sshd, with the client's link cut by
 `scripts/fake-proxy.py`.
+
+2026-11-04 (the drafting agent). Read at `6a62cdc`: the Premise holds at each line that it cites
+(`docs/design.md` lines 659-662, 702-706 and 1410-1413 at that commit; `docs/relay.md:329-331`;
+`crates/podssh-relay/src/pool.rs:139-148`), and so does the Correction above: the far end of the
+layer is `crates/podssh-relay/src/session/far.rs`, and the role's `/connect/` ends the target with
+its WebSocket (`crates/podssh-relay/src/serve/forward.rs`). Three parts of the Approach above
+change, by the `## Decision`: the layer is asked for by a path of its own,
+`/v1/layer/<host>/<port>`, not by a header on `/connect/` (item 1); a resume goes to the host, by
+its name and port, that opened the session, and the role names no host of its own in
+`/relays.json` beside its pool's entry (item 3; the name of each process behind one name is the
+next part); and `podssh proxy` asks for the road where the user sets `PODSSH_RELAY_LAYER=yes`
+(item 1). The Prove above names no feature, and its target then holds no test: the Prove below
+gives them.
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test session_relay_resume
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --lib -- forward_layer transit::
+cargo test -p podssh-cli --lib -- relay_layer man::
+cargo test -p podssh-cli --test relay_serve -- layer
+sh scripts/plant-each.sh --here t173-target-closed-at-cut
+```
+
+Offline: through a forwarder in front of the role that cuts the client's link at 20 points of its
+own, with no word to either end, while 32 MiB go each way, to a target that sends back each byte
+and to OpenSSH's sshd with OpenSSH's client (skipped where this host has no OpenSSH): the session
+lives on, the target is dialed once, the digests are equal, the role forgets the session at its
+end, and each link's request line names the target's path alone, with no form of the layer's
+secret. The role offers the road in `/relays.json`, and refuses a link before the upgrade as
+`/connect/` does (the token, the policy, a path with no port, no upgrade). Through the binary:
+OpenSSH's client with `podssh proxy` as its ProxyCommand and `PODSSH_RELAY_LAYER=yes`, through
+`podssh relay serve` to OpenSSH's sshd, its link cut 10 times by a stand-in of the host's proxy,
+16 MiB each way through `cat`, equal digests, a line for each resume; another word of the
+variable refused (78) before any connection. Planted: each link of the role with a keeper of its
+own, so that the target goes with the link at each cut; the test of 20 cuts fails.
+
+## Done
+
+2026-11-04, drafted, UNVERIFIED (not built, not run; the main session fills each result in): the
+first part of the entry, which stands alone.
+
+- The role's road: `crates/podssh-relay/src/serve/layer.rs` (`/v1/layer/<host>/<port>`, the
+  layer's far end with a keeper of the role's, its budget and its words), `/connect/`'s dial and
+  pump shared with it (`crates/podssh-relay/src/serve/forward.rs`), the route and the field
+  `resumes` of the role's configuration (`crates/podssh-relay/src/serve/mod.rs`), and the offer
+  `forward.layer: true` in `/relays.json` (`crates/podssh-relay/src/serve/docs.rs`).
+- The library's client: `crates/podssh-relay/src/forward_layer/` (the path, the offer of a host,
+  the links of one session to one host, the session across them), over the transit road's
+  link, which names its server now (`Link::start_by`).
+- `podssh proxy` on it with `PODSSH_RELAY_LAYER=yes`: `crates/podssh-cli/src/relay_layer.rs`,
+  with OpenSSH's SIGHUP taken as the end of the bytes (T-586); the manual (`proxy`, `relay`, and
+  the variable), `docs/cli.md`, `docs/relay.md` ("The relay role's resumable layer"),
+  `docs/design.md` (section 5, and question 1 of section 9) and the gate's step of the role.
+- `cargo test -p podssh-relay --features serve,plain-ws --test session_relay_resume`: UNVERIFIED
+  (3 tests; the OpenSSH one runs where this host has `ssh`, `sshd` and `ssh-keygen`).
+- `cargo test -p podssh-relay --features serve --lib serve::`: UNVERIFIED (the new tests
+  `serve::layer::tests`, 3, and `serve::docs` with the offer).
+- `cargo test -p podssh-relay --lib -- forward_layer transit::`: UNVERIFIED (5 new tests, and
+  the transit road's own over the link that names its server now).
+- `cargo test -p podssh-cli --lib -- relay_layer man::`: UNVERIFIED (2 new tests; the manual's
+  check of each variable and each name of a note).
+- `cargo test -p podssh-cli --test relay_serve -- layer`: UNVERIFIED (2 tests, `serve_layer`).
+- `sh scripts/plant-each.sh --here t173-target-closed-at-cut`: UNVERIFIED (must be caught, with
+  "did not live on its cuts").
+- clippy with `-D warnings` of `podssh-relay --features serve,plain-ws,quick --all-targets` and
+  of `podssh-cli`, and `cargo fmt --check`: UNVERIFIED.
+
+What remains of the entry, its next part:
+
+1. `podssh ssh` on the road, where it is asked for and offered, as `podssh proxy` is.
+2. The road by default where the first host offers it, once the live run passed, with the tests
+   of `podssh proxy` through the stand-in and the role that count its connections.
+3. Each host of the role names itself in `/relays.json` (a name of each process behind one
+   name), and a resume goes to it (Approach item 3 of the Correction above).
+4. The live run: a workflow on a GitHub runner where `podssh relay serve` runs, to the runner's
+   sshd, with the client's link cut by `scripts/fake-proxy.py`.
+5. A flag of `relay serve` for the budget and the deadline of its sessions, as a node's
+   `--resume-deadline`; a client that falls back to `/connect/` when the role refuses a new
+   session for its budget.
 
 # T-280: The iroh road through a SOCKS5 proxy
 

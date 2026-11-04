@@ -93,6 +93,7 @@ impl Run {
             egress: Default::default(),
             limits: Default::default(),
             pairs: serve::reverse::Pairs::open(Some(file.to_path_buf())).expect("the file of pairs"),
+            resumes: Default::default(),
             answered: Default::default(),
             brake: Default::default(),
             events: Some(events),

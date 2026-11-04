@@ -9,6 +9,10 @@
 //! bytes sends the Close, and what the far end sent before it still comes;
 //! the far end's Close is the end of the link, and a dead connection or a
 //! failure ends it with its reason, which a read then gives.
+//!
+//! A link of the forward road to the resumable layer of podssh's relay role
+//! (T-173, `crate::forward_layer`) is the same byte stream over one
+//! WebSocket, whose failures name the relay ([`Link::start_by`]).
 
 use std::io;
 use std::pin::Pin;
@@ -39,6 +43,15 @@ impl Link {
     where
         S: AsyncRead + AsyncWrite + Send + 'static,
     {
+        Link::start_by(session, first, "the transit relay")
+    }
+
+    /// [`Link::start`], whose failures name `who`, the server at the other
+    /// end of `session`.
+    pub fn start_by<S>(session: RelaySession<S>, first: Vec<u8>, who: &'static str) -> Link
+    where
+        S: AsyncRead + AsyncWrite + Send + 'static,
+    {
         let session = Arc::new(session);
         let why: Arc<Mutex<Option<String>>> = Arc::default();
         // Set once either pump ends: the other one stops too.
@@ -46,8 +59,8 @@ impl Link {
         let ended = Arc::new(ended);
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (from_pipe, to_pipe) = tokio::io::split(theirs);
-        tokio::spawn(up(session.clone(), from_pipe, why.clone(), ended.clone(), end.clone()));
-        tokio::spawn(down(session, to_pipe, first, why.clone(), ended, end));
+        tokio::spawn(up(session.clone(), from_pipe, why.clone(), ended.clone(), end.clone(), who));
+        tokio::spawn(down(session, to_pipe, first, why.clone(), ended, end, who));
         Link { pipe: ours, why }
     }
 
@@ -64,6 +77,7 @@ async fn up<S>(
     why: Arc<Mutex<Option<String>>>,
     ended: Arc<watch::Sender<bool>>,
     mut end: watch::Receiver<bool>,
+    who: &'static str,
 ) where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
@@ -80,7 +94,7 @@ async fn up<S>(
             return;
         }
         if let Err(e) = session.send_binary(&buf[..n]).await {
-            fail(&why, format!("sending to the transit relay failed: {e}"));
+            fail(&why, format!("sending to {who} failed: {e}"));
             let _ = ended.send(true);
             return;
         }
@@ -95,6 +109,7 @@ async fn down<S>(
     why: Arc<Mutex<Option<String>>>,
     ended: Arc<watch::Sender<bool>>,
     mut end: watch::Receiver<bool>,
+    who: &'static str,
 ) where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
@@ -132,12 +147,12 @@ async fn down<S>(
                     let (code, reason) = close_code_and_reason(&f.payload);
                     if !matches!(code, None | Some(1000)) {
                         let reason = podssh_ws::text::one_line(&reason);
-                        fail(&why, format!("the transit relay closed the link: {} {reason}", code.unwrap_or(0)));
+                        fail(&why, format!("{who} closed the link: {} {reason}", code.unwrap_or(0)));
                     }
                     return;
                 }
                 other => {
-                    fail(&why, format!("the transit relay sent an unexpected frame (opcode {other:#x})"));
+                    fail(&why, format!("{who} sent an unexpected frame (opcode {other:#x})"));
                     return;
                 }
             }

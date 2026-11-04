@@ -314,6 +314,7 @@ mod tests {
             egress: Default::default(),
             limits: Default::default(),
             pairs: Pairs::default(),
+            resumes: Default::default(),
             answered: Default::default(),
             brake: Default::default(),
             events: None,
