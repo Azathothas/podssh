@@ -188,6 +188,13 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-a866bb2e35c2100ff`, `cc54c09`, merged and closed after `b750af3`). Their worktrees
   and local branches are gone, and their `draft/` branches on GitHub can go.
 
+  On 2026-11-04 (evening) a ninth round is being drafted, unbuilt, by agents of this cloud session,
+  each in a worktree under `.claude/worktrees/` on a local branch `worktree-agent-*`: the triage of
+  GitHub #127 to #148 (entries T-629 and on), T-660 (measure what a user feels), T-661 and T-662
+  (the SSH client's flow control and windows), and T-663 (liveness in round trips). Each is merged
+  one at a time, built and tested, in the order of the index; a branch is pushed as `draft/<branch>`
+  before the session ends.
+
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them). At `d0dbb59` (run
