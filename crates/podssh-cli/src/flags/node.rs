@@ -200,6 +200,9 @@ pub const NET_FLAGS: &[FlagRow] = &[
         "add: the member's DERP ticket, which a client dials for node://NAME when each road before it failed", None),
     row(None, "routes", Some("RANGES"), FlagKind::Supported,
         "add: the private ranges that the member routes for the net, ADDR/BITS or one address, separated by commas, as its podssh node --exit --routes dials them; with the role exit; podssh ssh, proxy, pipe and exit find the node of an address by them with --exit auto", None),
+    // Where a relay member's role serves its signed list (T-617).
+    row(None, "relay-host", Some("HOST[:PORT]"), FlagKind::Supported,
+        "add: where the member's relay role (podssh relay serve --deployment) serves its signed list, one host; with the role relay; each run on the default list asks it once a day, and takes the list there only by the member's key", None),
     row(None, "days", Some("N"), FlagKind::Supported,
         "init, add, rm, renew, invite, policy set and policy clear: the days that the signed document lasts, 1 to 3650 (default 365); no end takes it after", None),
     row(None, "owner", Some("KEY"), FlagKind::Supported,

@@ -26,3 +26,16 @@ pub(super) const RELAY: &str = "A relay host outside the default's domain (ssh.r
      signs it again each day with a higher serial, for 90 days each time, and names the key's fingerprint on \
      its first line: give that fingerprint to each client, in PODSSH_RELAY_KEYS or RelayKeys, or name the \
      key as a member of your net with the role relay. Nothing of a request goes into what the role signs.";
+
+/// The net's relay members, asked for their lists with no --relay-host
+/// (T-617).
+pub(super) const MEMBERS: &str = "A member of your net with the role relay and a host in the net's document \
+     (see podssh net) is asked for its list with no --relay-host: before the race of a session on the default \
+     list, and before podssh relay status asks its hosts, a run asks that host's /relays.json, at most once a day \
+     for each member whatever it answered, 5 s for each and 8 s in all, with no token, through the proxy of the \
+     environment and with TLS checked by the host's name. Its list is taken only when the member's key signed it, \
+     by the rules above (PODSSH_RELAY_KEYS=none takes none), and its deployments then follow the default list in \
+     that run; a list there of another key is not the member's, also when another setting trusts that key. No run \
+     asks with PODSSH_RELAY_TOKEN, nor with a list that you name, nor when the cache keeps no file. The asks are \
+     kept in the cache (relay-members.json). podssh relay status names each relay member: its host, then its list \
+     taken with its serial, or why not, and when it was asked; --json gives them as members.";

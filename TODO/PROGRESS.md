@@ -199,7 +199,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 591 entries: 95 open, 5 partial, 2 blocked, 489 done.
+`TODO/INDEX.md` holds 591 entries: 94 open, 5 partial, 2 blocked, 490 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -245,7 +245,7 @@ this order:
    with `doctor`'s line of them, a client's lost link during a node's bulk, and the cleartext road
    on the relay's port are done.
 2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once, a copy's race of the roads, the pairing by a short code, a device's join by one, the signed list of deployments and the
-   tokens of one leg are done): T-106, T-617 and T-620.
+   tokens of one leg, and the hosts of the relay members, are done): T-106 and T-620.
 3. Exit, routes, share and funnel (the exit, `doctor --exit` and the net's routes are done): T-433,
    T-180, then T-434 and T-459 (the status of the net, `ping` of a node and doctor's sections are done).
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the
@@ -343,7 +343,7 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
 
-**For the operator to confirm (Q86), Q93 to Q96, from the draft of 2026-11-04 on the archive of
+**For the operator to confirm (Q86), Q93 to Q97, from the draft of 2026-11-04 on the archive of
 forward carriers** (`docs/research/forward-carriers.md`, section 8; each call is in its entry's
 `## Decision`):
 
@@ -362,6 +362,11 @@ forward carriers** (`docs/research/forward-carriers.md`, section 8; each call is
   it, so that the resumable layer is the default where the host offers it. Recommendation: allow it;
   it is a connection before the session's, never beside it, and the default relay's offer comes with
   its pool's refresh.
+- Q97, T-617: before the race of a session on the default list, podssh asks the `/relays.json` of
+  each relay member that the net names, once a day for each member whatever it answered, 5 s each
+  and 8 s in all, and takes a list there only by the member's own key. Recommendation: allow it;
+  it is one request a day to a host that the user's own net names, before the session's, never
+  beside it.
 
 The operator settled Q67 to Q84 on 2026-11-02 (`docs/decisions.md`), after the triage of the
 testers' reports (GitHub #83 to #106, the bundle, the relay sweep) and of the drafts of M10:

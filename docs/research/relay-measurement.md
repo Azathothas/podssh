@@ -327,7 +327,7 @@ hold podssh's own reading of each class.
 | The relay's side | `podssh relay trace` (the relay's dial and first byte), `relay status` (each host's `/health` and edge), `relay info` (the pool and the limits) | `crates/podssh-cli/src/relay_diag.rs:1-7` |
 | Throughput | `podssh ping DEST`: the login, the echo through `cat`, `--size` down and up; T-157's method: 5 runs a cell, the setup not counted | `crates/podssh-cli/src/ping/mod.rs:210-253`; `docs/STATUS.md`, "Throughput, measured" |
 | Concurrency | `cp --parallel K`, several relay sessions for one copy when the user asks (Q23, T-141) | |
-| The pool | `/relays.json`'s hosts, cached 7 days, six seeds before a cache; the default host and the first three of the pool | `crates/podssh-relay/src/pool.rs:24-36`, `crates/podssh-relay/src/pool.rs:110-125`, `crates/podssh-relay/src/relay.rs:104-125` |
+| The pool | `/relays.json`'s hosts, cached 7 days, six seeds before a cache; the default host and the first three of the pool | `crates/podssh-relay/src/pool.rs:25-37`, `crates/podssh-relay/src/pool.rs:111-126`, `crates/podssh-relay/src/relay.rs:104-125` |
 | The choice of a host | the race of the hosts (`staggered`, `parallel`, `serial`), and the record of failures and opens, which puts a host that failed last and one that opened first | `crates/podssh-relay/src/failover.rs:133-256`, `crates/podssh-relay/src/failures.rs:231-255` |
 | Forwarders, Wisp, WARP | `--forwarder` and its words, `doctor --forwarder`; the Wisp client; `warp://` | `crates/podssh-ws/src/forwarder/builtin.rs`, `crates/podssh-ws/src/wisp/handshake.rs:1-5`, `crates/podssh-warp/src/lib.rs` |
 

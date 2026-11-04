@@ -211,8 +211,8 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     crate::addresses::install();
     // A host that failed lately goes last (T-059), and one that opened first (T-563).
     let mut records = Records::load();
-    // The rank that this host measured places each host first (T-607).
-    let listed = crate::rank_list::placed_now(req.relays);
+    // The lists of the net's relay members, asked first (T-617), join the list that the rank places (T-607).
+    let listed = crate::rank_list::placed_now(&crate::pool::members::refreshed(req.relays, req.trust).await);
     let (order, moved) = failures::order(failures::WEBSOCKET, &listed, &records, crate::pool::now_ms());
     for note in moved {
         notes(&note);

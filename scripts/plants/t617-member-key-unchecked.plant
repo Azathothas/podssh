@@ -1,0 +1,11 @@
+# T-617: the host of a relay member is read and asked, but its list is taken
+# whatever trusted key signed it, not only by the member's key; the test of a
+# list of another key at the member's host, through the role on the loopback
+# (Python and openssl for the harness's certificates), must fail. The unit
+# test a_list_of_another_key_is_not_the_member_s_even_when_trusted fails too.
+ENTRY=T-617
+GROUP=resume-cli
+EXPECT='the_net_s_relay_member_gives_its_list_with_no_relay_host \.\.\. FAILED'
+SETUP='{ command -v python3 && command -v openssl; } >/dev/null || apk add --no-cache python3 openssl'
+RUN='cargo test --locked -p podssh-cli --test relay -- the_net_s_relay_member_gives_its_list_with_no_relay_host'
+LIMIT=1800

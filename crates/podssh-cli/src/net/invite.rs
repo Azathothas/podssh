@@ -197,6 +197,7 @@ fn admit(name: &str, roles: &[String], key: &PublicKey, days: i64, signing: &Sig
         roles: roles.to_vec(),
         tickets: Default::default(),
         routes: Vec::new(),
+        relay: None,
     };
     let issued = now();
     let next = match edit::with_member(doc, &member, issued, issued + days * 86_400) {

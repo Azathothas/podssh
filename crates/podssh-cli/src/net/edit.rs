@@ -111,7 +111,8 @@ fn default_key() -> Option<PathBuf> {
     Some(PathBuf::from(home).join(".ssh").join("id_ed25519")).filter(|path| path.exists())
 }
 
-/// `add NAME KEY`: the member, or a new key, roles or tickets of one.
+/// `add NAME KEY`: the member, or a new key, roles, tickets, routes or
+/// relay host of one.
 fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, String), Refusal> {
     let (name, word) = (&args.args[0], &args.args[1]);
     doc::check_name(name).map_err(|why| Refusal::usage(format!("the member's name {why}")))?;
@@ -124,6 +125,7 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
     not_auto(name)?;
     let roles = doc::parse_roles(args.roles.as_deref().unwrap_or("node")).map_err(Refusal::usage)?;
     let routes = routes(args.routes.as_deref(), &roles)?;
+    let relay = relay_host(args.relay_host.as_deref(), &roles)?;
     let mut tickets = BTreeMap::new();
     if let Some(text) = &args.derp_ticket {
         let ticket =
@@ -137,7 +139,7 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
         iroh_names(text, &key)?;
         tickets.insert("iroh".to_string(), text.clone());
     }
-    with_member(before, &Member { name: name.clone(), key, roles, tickets, routes }, issued, expires)
+    with_member(before, &Member { name: name.clone(), key, roles, tickets, routes, relay }, issued, expires)
 }
 
 /// The next document, with `member` added or in the place of the member of
@@ -188,6 +190,25 @@ fn routes(text: Option<&str>, roles: &[String]) -> Result<Vec<String>, Refusal> 
         }
     }
     Ok(words)
+}
+
+/// `--relay-host HOST[:PORT]` of `add` (T-617): where the member's relay role
+/// serves its signed list, one host as `--relay-host` takes it, written as
+/// `host` or `host:port`; only for a member with the role relay, as no other
+/// signs a list. One host: a client asks it once a day, and the role's own
+/// list names the hosts of its sessions.
+pub(super) fn relay_host(text: Option<&str>, roles: &[String]) -> Result<Option<String>, Refusal> {
+    let Some(text) = text else { return Ok(None) };
+    if !roles.iter().any(|role| role == "relay") {
+        return Err(Refusal::usage("--relay-host is where a relay role serves its list: give --roles with relay too"));
+    }
+    if text.contains(',') {
+        return Err(Refusal::usage(format!(
+            "--relay-host {text}: one host, HOST[:PORT], where the member's role serves its list"
+        )));
+    }
+    let relay = podssh_relay::relay::parse_relay(text).map_err(|why| Refusal::usage(format!("--relay-host: {why}")))?;
+    Ok(Some(podssh_relay::token::relay_name(&relay)))
 }
 
 /// `rm NAME`: the member gone; each end that holds the new document

@@ -9,6 +9,7 @@
 //! ([`signed`], kept by [`kept`], T-346), and mints a token of its own.
 
 pub mod kept;
+pub mod members;
 pub mod signed;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

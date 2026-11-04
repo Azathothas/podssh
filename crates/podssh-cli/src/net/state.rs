@@ -76,7 +76,14 @@ mod tests {
     fn lab() -> Member {
         let key = KeyName::parse(&Identity::from_seed(&[7; 32]).public().hex()).expect("a key");
         let tickets = BTreeMap::from([("derp".to_string(), "a ticket".to_string())]);
-        Member { name: "lab".into(), key, roles: vec!["node".into(), "exit".into()], tickets, routes: Vec::new() }
+        Member {
+            name: "lab".into(),
+            key,
+            roles: vec!["node".into(), "exit".into()],
+            tickets,
+            routes: Vec::new(),
+            relay: None,
+        }
     }
 
     /// A member that no race reached has no road; then the road that won,

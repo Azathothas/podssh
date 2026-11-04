@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**591 entries: 95 open, 5 partial, 2 blocked, 489 done.**
+**591 entries: 94 open, 5 partial, 2 blocked, 490 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 63 | 65 |
 | P2 | 26 | 2 | 0 | 237 | 265 |
-| P3 | 69 | 1 | 2 | 188 | 260 |
-| **All** | 95 | 5 | 2 | 489 | 591 |
+| P3 | 68 | 1 | 2 | 189 | 260 |
+| **All** | 94 | 5 | 2 | 490 | 591 |
 
 ## Entries
 
@@ -656,7 +656,7 @@ repository and CI).
 | [T-614](mesh.md) | P2 | M | M10 | feature | done | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |
 | [T-615](reverse.md) | P3 | M | M10 | feature | done | A connect token for each session, and a stop token that the node rotates, in podssh's relay role |
 | [T-616](mesh.md) | P3 | M | M10 | feature | done | `podssh net invite`: a new device joins the net by a short code |
-| [T-617](mesh.md) | P3 | S | M10 | feature | open | The net's document names each relay member's hosts, for its signed list |
+| [T-617](mesh.md) | P3 | S | M10 | feature | done | The net's document names each relay member's hosts, for its signed list |
 | [T-618](relay.md) | P2 | S | M10 | defect | open | `relay info` names neither `podssh relay rank` nor the order that this host's runs take, which T-610 left for T-606 and T-607 |
 | [T-619](relay.md) | P3 | S | M10 | docs | open | The note to the relay's operator asks nothing of `/relays.json`'s rank, which changes with the edge that answered |
 | [T-620](reverse.md) | P3 | S | M10 | defect | open | The stop token's rotation and the renewal follow the node's next pair at expiry |

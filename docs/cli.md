@@ -3346,6 +3346,18 @@ commands. The rules behind them:
   (`relay-list.key` in the cache, made when it is missing), whose
   fingerprint its first line names; `--list-key` with no `--deployment`,
   two deployments of one name and a bad host are usage errors (64).
+- **The net's relay members (T-617).** A member of the net with the role
+  `relay` whose host the net's document names (`podssh net add NAME KEY
+  --roles relay --relay-host HOST[:PORT]`) is asked for its list with no
+  `--relay-host`: before the race of a session on the default list, and
+  before `relay status` asks its hosts, a run asks that host's
+  `/relays.json`, once a day for each member whatever it answered, 5 s for
+  each and 8 s in all, with no token; the list is taken only when the
+  member's key signed it, and its deployments follow the default list in
+  that run. None is asked with `PODSSH_RELAY_TOKEN`, a list that you name,
+  or no cache; the asks are kept as `relay-members.json`. `relay status`
+  names each relay member, its host, and its list taken (its serial) or
+  why not, and when it was asked; `--json` adds `members`.
 - **`relay serve` offers HTTP/2 with extended CONNECT (T-321).** Its TLS
   offers `h2` before `http/1.1`; a client that chooses it gets SETTINGS that
   offer extended CONNECT (RFC 8441), 16 streams at once and windows of 1
@@ -3990,6 +4002,12 @@ that the owner's key signs, and that each end keeps.
   member; `rm NAME`; `renew`. A change finds the owner's key in
   `--owner-key`, else in the agent, else in `~/.ssh/id_*` by its public
   half; a passphrase is asked once.
+- **A relay member's host** (T-617): `add NAME KEY --roles relay
+  --relay-host HOST[:PORT]` writes the member's field `relay`, one host as
+  `--relay-host` takes it (64 without the role `relay`, or with two hosts);
+  each end that holds the net asks it for the role's signed list, with no
+  `--relay-host` of its own (see "The net's relay members" under `podssh
+  relay`).
 - **Each end's subcommands**: `ls` (a line for each member on stdout:
   name, roles, fingerprint, kinds of tickets, apart by tabs; the net in one
   line on stderr), `show` (the document's bytes as signed; `--signature`,

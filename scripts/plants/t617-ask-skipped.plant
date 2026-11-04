@@ -1,0 +1,10 @@
+# T-617: a session on the default list asks no relay member of the net, so a
+# client with no --relay-host never learns its role's list; the test through
+# the role on the loopback (Python and openssl for the harness's
+# certificates) must fail.
+ENTRY=T-617
+GROUP=resume-cli
+EXPECT='the_net_s_relay_member_gives_its_list_with_no_relay_host \.\.\. FAILED'
+SETUP='{ command -v python3 && command -v openssl; } >/dev/null || apk add --no-cache python3 openssl'
+RUN='cargo test --locked -p podssh-cli --test relay -- the_net_s_relay_member_gives_its_list_with_no_relay_host'
+LIMIT=1800

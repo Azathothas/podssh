@@ -35,6 +35,8 @@ fn a_document_that_openssh_signed_is_read_as_its_owner_wrote_it() {
     let laptop = doc.member("laptop").expect("laptop");
     assert!(laptop.key.fingerprint().starts_with("SHA256:"), "a member named by its fingerprint");
     assert!(laptop.has_role("exit"));
+    // A document of before T-617 names no relay host.
+    assert!(doc.members.iter().all(|m| m.relay.is_none()));
     // The signed form is the bytes, then the armour, and reads back whole.
     let again = sign::verify_signed(&signed.to_bytes()).expect("the signed form");
     assert_eq!((again.bytes.as_slice(), again.doc.serial), (DOC, 3));
@@ -76,9 +78,11 @@ fn podssh_signs_a_document_that_it_reads_back_and_each_change_raises_the_serial(
         roles: vec!["node".into()],
         tickets: Default::default(),
         routes: Vec::new(),
+        relay: None,
     };
     let value = doc::member_value(&member);
     assert!(value.get("routes").is_none(), "a member with no route is written as before T-432");
+    assert!(value.get("relay").is_none(), "a member with no relay host is written as before T-617");
     let next = first.next(1_793_577_700, 4_102_444_800, |list| list.push(value)).unwrap();
     assert_eq!((next.serial, next.members.len()), (2, 1));
     let read = sign::verify_signed(&sign::sign_with(&next, &signing).unwrap().to_bytes()).unwrap();
@@ -161,6 +165,7 @@ fn an_exit_s_routes_are_written_read_back_and_a_word_that_is_no_range_is_kept_un
         roles: vec!["node".into(), "exit".into()],
         tickets: Default::default(),
         routes: vec!["10.1.0.0/16".into(), "fd00::/8".into(), "a-later-form".into()],
+        relay: None,
     };
     let value = doc::member_value(&exit);
     assert_eq!(value["routes"], serde_json::json!(["10.1.0.0/16", "fd00::/8", "a-later-form"]));
@@ -175,4 +180,50 @@ fn an_exit_s_routes_are_written_read_back_and_a_word_that_is_no_range_is_kept_un
     assert!(Doc::parse(bad.to_string().as_bytes()).unwrap_err().contains("\"routes\" is not a list"));
     bad["members"][0]["routes"] = serde_json::json!([7]);
     assert!(Doc::parse(bad.to_string().as_bytes()).unwrap_err().contains("a route that is not text"));
+}
+
+/// T-617: a relay role's host is written only when given, read back as the
+/// owner wrote it, kept unused when this podssh does not read it as a host,
+/// and refused when it is not text.
+#[test]
+fn a_relay_member_s_host_is_written_read_back_and_a_word_that_is_no_host_is_kept_unused() {
+    let (_, first) = owned();
+    let relay = doc::Member {
+        name: "lab".into(),
+        key: podssh_relay::identity::KeyName::parse(&"ab".repeat(32)).unwrap(),
+        roles: vec!["relay".into()],
+        tickets: Default::default(),
+        routes: Vec::new(),
+        relay: Some("relay.example.org:8443".into()),
+    };
+    let value = doc::member_value(&relay);
+    assert_eq!(value["relay"], "relay.example.org:8443");
+    let next = first.next(1_793_577_700, 4_102_444_800, |list| list.push(value)).unwrap();
+    let read = Doc::parse(&next.to_bytes()).unwrap();
+    assert_eq!(read.member("lab").unwrap(), &relay, "read back as written");
+    let mut odd: Value = serde_json::from_slice(&next.to_bytes()).unwrap();
+    odd["members"][0]["relay"] = serde_json::json!("a later form!");
+    let kept = Doc::parse(odd.to_string().as_bytes()).expect("a host that this podssh does not read is kept");
+    assert_eq!(kept.member("lab").unwrap().relay.as_deref(), Some("a later form!"));
+    odd["members"][0]["relay"] = serde_json::json!(["relay.example.org"]);
+    assert!(Doc::parse(odd.to_string().as_bytes()).unwrap_err().contains("\"relay\" is not text"));
+}
+
+/// T-617: `add --relay-host` takes one host, as `--relay-host` reads it, and
+/// only with the role relay; it writes the host as `host` or `host:port`.
+#[test]
+fn the_relay_host_of_add_is_one_host_and_only_with_the_role_relay() {
+    let roles = |list: &[&str]| list.iter().map(|r| r.to_string()).collect::<Vec<_>>();
+    let relay = roles(&["node", "relay"]);
+    let host = |text: &str| super::edit::relay_host(Some(text), &relay);
+    assert_eq!(super::edit::relay_host(None, &relay).unwrap(), None);
+    assert_eq!(host("relay.example.org").unwrap().as_deref(), Some("relay.example.org"));
+    assert_eq!(host("relay.example.org:443").unwrap().as_deref(), Some("relay.example.org"));
+    assert_eq!(host("wss://Relay.Example.org:8443/").unwrap().as_deref(), Some("relay.example.org:8443"));
+    let no_role = super::edit::relay_host(Some("relay.example.org"), &roles(&["node", "exit"])).unwrap_err();
+    assert!(no_role.code == 64 && no_role.message.contains("give --roles with relay too"), "{no_role}");
+    let two = host("a.example.org,b.example.org").unwrap_err();
+    assert!(two.code == 64 && two.message.contains("one host"), "{two}");
+    let bad = host("not a host!").unwrap_err();
+    assert!(bad.code == 64 && bad.message.starts_with("--relay-host: "), "{bad}");
 }

@@ -1,0 +1,8 @@
+# T-617: a member with no relay host is written with "relay": null, which is
+# no longer the document of before, and which no podssh reads back; the test
+# of a member written as before must fail.
+ENTRY=T-617
+GROUP=cli-tests
+EXPECT='test net::tests::podssh_signs_a_document_that_it_reads_back_and_each_change_raises_the_serial \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib net::tests'
+LIMIT=1800
