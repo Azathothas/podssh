@@ -9,8 +9,13 @@
 //! reverse socket with `1012` first (T-255). The sessions of its forward
 //! road in the resumable layer take their budget, their deadline and this
 //! process's name from flags of their own (T-173, `relay_serve/resumes.rs`).
+//! Once its listener is bound, before the runtime starts a thread, it gives
+//! up the capabilities of its start (T-629, `relay_serve/harden.rs`).
 
 mod certs;
+mod harden;
+#[cfg(target_os = "linux")]
+mod harden_sys;
 mod list;
 mod resumes;
 
@@ -22,6 +27,7 @@ use std::time::Duration;
 use podssh_relay::identity::PublicKey;
 use podssh_relay::serve::egress::Egress;
 use podssh_relay::serve::listener::Door;
+use podssh_relay::serve::ranges::Range;
 use podssh_relay::serve::{self, Config, Limits, Mint};
 
 use crate::exitmap::sysexits::{EX_CONFIG, EX_UNAVAILABLE};
@@ -40,6 +46,8 @@ pub struct ServeArgs {
     pub port_file: Option<String>,
     pub mint: Option<String>,
     pub allow_private: bool,
+    /// The private ranges that it dials too, unparsed (T-635).
+    pub routes: Option<String>,
     pub keepalive: Option<String>,
     /// The file that keeps the pairs of the reverse road across a restart.
     pub pairs: Option<String>,
@@ -73,6 +81,7 @@ impl ServeArgs {
             port_file: get("port-file"),
             mint: get("mint"),
             allow_private: matches.try_get_one::<bool>("allow-private").ok().flatten().copied().unwrap_or(false),
+            routes: get("routes"),
             keepalive: get("keepalive"),
             pairs: get("pairs"),
             acme: get("acme"),
@@ -125,6 +134,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let listen = s.listen.as_deref().ok_or_else(|| {
         Refusal::usage("serve needs --listen ADDR:PORT, the address to serve on (127.0.0.1:0 takes a free port)")
     })?;
+    // The private ranges that it dials too (T-635), read before anything.
+    let routes = routes_of(s.routes.as_deref(), s.allow_private)?;
     let source = certs::Source::of(s, ca_file)?;
     // No key of its own: the net's `relay:*` names this role (T-455).
     let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"), None)?;
@@ -170,8 +181,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         (Some(file), n) => format!(", its pairs kept in {file} ({n} now)"),
         (None, _) => String::new(),
     };
-    let listener = std::net::TcpListener::bind(listen)
-        .map_err(|e| Refusal { message: format!("cannot listen on {listen}: {e}"), code: EX_UNAVAILABLE })?;
+    // The one call that may need a privilege, then none kept (T-629).
+    let (listener, dropped) = bind_then_drop(listen, |_| harden::give_up())?;
     let bound = listener.local_addr().map_err(|e| Refusal::config(e.to_string()))?;
     let events: serve::Events = Box::new(|line: &str| {
         let mut out = std::io::stdout().lock();
@@ -183,7 +194,11 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         version: format!("podssh {}", env!("CARGO_PKG_VERSION")),
         mint,
         tokens,
-        policy: serve::policy::Policy { private: s.allow_private, ..Default::default() },
+        policy: serve::policy::Policy {
+            private: s.allow_private,
+            ranges: routes.iter().map(|(_, range)| *range).collect(),
+            ..Default::default()
+        },
         egress,
         limits: Limits { keepalive, ..Limits::default() },
         pairs,
@@ -192,18 +207,33 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         brake: Default::default(),
         events: Some(events),
     };
-    let inside = if s.allow_private { ", private targets too" } else { "" };
+    let inside = inside_shown(s.allow_private, &routes);
     let clear = if cleartext { ", the cleartext road beside TLS" } else { ", TLS alone" };
     let h2 = if http2 { ", HTTP/2 with extended CONNECT" } else { ", no HTTP/2" };
+    let dropped = dropped.unwrap_or_default();
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}; {}",
+         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{dropped}; {}",
         serve::CONTRACT,
         certs.shown
     );
     let port_file = s.port_file.clone().map(|path| (path, bound.port()));
     let door = Door { acceptor, cleartext };
     Ok(Prepared { listener, door, cfg: Arc::new(cfg), certs, shown, port_file })
+}
+
+/// The listener of `listen`, then `give_up` once it is bound: the
+/// capabilities of the start go after the one call that needs them, and
+/// before the runtime makes a thread, which would keep the sets that it was
+/// made with.
+fn bind_then_drop(
+    listen: &str,
+    give_up: impl FnOnce(&std::net::TcpListener) -> Result<Option<String>, Refusal>,
+) -> Result<(std::net::TcpListener, Option<String>), Refusal> {
+    let listener = std::net::TcpListener::bind(listen)
+        .map_err(|e| Refusal { message: format!("cannot listen on {listen}: {e}"), code: EX_UNAVAILABLE })?;
+    let dropped = give_up(&listener)?;
+    Ok((listener, dropped))
 }
 
 /// The words of `--mint`, as a refusal names them.
@@ -259,6 +289,34 @@ pub(crate) fn egress_of() -> Result<Egress, Refusal> {
 /// the role dials directly.
 pub(crate) fn egress_shown(egress: &Egress) -> String {
     egress.shown().map(|words| format!(", {words}")).unwrap_or_default()
+}
+
+/// The private ranges of `--routes` (T-635), each read strictly, as an
+/// exit's: none without the flag; with `--allow-private`, which dials each
+/// address, a refusal (64), as the two say opposite things. The node behind
+/// a quick tunnel reads the same.
+pub(crate) fn routes_of(text: Option<&str>, private: bool) -> Result<Vec<(String, Range)>, Refusal> {
+    let Some(text) = text else { return Ok(Vec::new()) };
+    if private {
+        return Err(Refusal::usage(
+            "--routes names the private ranges that the relay dials, and --allow-private dials each address: give \
+             one of them",
+        ));
+    }
+    podssh_relay::serve::ranges::list(text).map_err(|why| Refusal::usage(format!("--routes {text}: {why}")))
+}
+
+/// The private targets of the first line, after a comma: each, those of
+/// the ranges, or none.
+pub(crate) fn inside_shown(private: bool, routes: &[(String, Range)]) -> String {
+    match (private, routes) {
+        (true, _) => ", private targets too".to_string(),
+        (false, []) => String::new(),
+        (false, routes) => {
+            let words: Vec<&str> = routes.iter().map(|(word, _)| word.as_str()).collect();
+            format!(", the private targets in {} too", words.join(", "))
+        }
+    }
 }
 
 /// The keys of the list in `file`, in the words of the first line.
@@ -363,5 +421,52 @@ async fn stopped() {
     #[cfg(not(unix))]
     {
         let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // T-629: the drop comes once, after the bind, on a listener that is
+    // bound; a bind that fails drops nothing; a drop that fails refuses the
+    // start and its words reach the first line.
+    #[test]
+    fn the_drop_happens_once_and_only_after_the_bind() {
+        let mut seen = Vec::new();
+        let (listener, words) = bind_then_drop("127.0.0.1:0", |bound| {
+            seen.push(bound.local_addr().map(|a| a.port() != 0).unwrap_or(false));
+            Ok(Some(", dropped".into()))
+        })
+        .unwrap();
+        assert_eq!(seen, [true], "one drop, on a bound listener");
+        assert_eq!(words.as_deref(), Some(", dropped"));
+        let taken = listener.local_addr().unwrap().to_string();
+        let mut called = false;
+        let refused = bind_then_drop(&taken, |_| {
+            called = true;
+            Ok(None)
+        })
+        .unwrap_err();
+        assert_eq!(refused.code, EX_UNAVAILABLE, "{refused:?}");
+        assert!(!called, "a bind that failed dropped nothing");
+        let refused = bind_then_drop("127.0.0.1:0", |_| Err(Refusal::config("capset after the bind: no"))).unwrap_err();
+        assert_eq!((refused.code, refused.message.as_str()), (EX_CONFIG, "capset after the bind: no"));
+    }
+
+    // T-635: the ranges of --routes, strictly, never with --allow-private,
+    // and named in the first line.
+    #[test]
+    fn the_routes_are_read_strictly_and_never_beside_allow_private() {
+        assert_eq!(routes_of(None, true), Ok(Vec::new()));
+        let routes = routes_of(Some("10.4.0.9, 10.4.1.0/24"), false).unwrap();
+        assert_eq!(inside_shown(false, &routes), ", the private targets in 10.4.0.9, 10.4.1.0/24 too");
+        assert_eq!(inside_shown(false, &[]), "");
+        assert_eq!(inside_shown(true, &[]), ", private targets too");
+        let wide = routes_of(Some("10.0.0.5/8"), false).unwrap_err();
+        assert_eq!(wide.code, crate::exit_codes::EXIT_USAGE);
+        assert!(wide.message.starts_with("--routes 10.0.0.5/8: ") && wide.message.contains("10.0.0.0/8"), "{wide}");
+        let both = routes_of(Some("10.4.0.9"), true).unwrap_err();
+        assert!(both.code == crate::exit_codes::EXIT_USAGE && both.message.contains("--allow-private"), "{both}");
     }
 }

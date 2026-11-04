@@ -252,7 +252,8 @@ pub(super) const NODE: &[&str] = &[
      the node's net, as its policy lets them reach relay:NAME (NAME the node's name in the net) or \
      relay:*, --mint anyone mints for each client, and --mint nobody for none. --pairs FILE keeps its \
      pairs across a restart, though the \
-     tunnel's name is new each run; --allow-private dials non-public targets too. The relay dials each \
+     tunnel's name is new each run; --allow-private dials non-public targets too, and --routes RANGES \
+     those inside its ranges alone, as podssh relay serve --routes. The relay dials each \
      target from this host, as podssh relay serve does: through HTTPS_PROXY when it is set, the proxy \
      that the node's dial of the edge takes too. Each mint, upgrade and step of the reverse road \
      is a line on stderr, and Ctrl-C or SIGTERM first closes each socket of the reverse road with 1012.",
@@ -268,7 +269,8 @@ pub(super) const NODE: &[&str] = &[
      each address, and dials those addresses alone, never the name again, so that a name that resolves anew \
      elsewhere reaches nothing that was not checked. A public address needs a rule to exit:NAME (or exit:* or *) \
      of the net's policy; a private one, loopback, link-local or another that the relay refuses needs one of \
-     podssh node --routes RANGES, ADDR/BITS or one address apart by commas, and a rule to its address. A name \
+     podssh node --routes RANGES, ADDR/BITS or one address apart by commas (a prefix that sets bits past \
+     it, as 10.0.0.5/8, is refused with the network that it names), and a rule to its address. A name \
      with one address that fails is refused whole. The net must give the node the role exit, signed by its \
      owner, else the node does not start (78); a key of --allow, or an operator of the connect token alone, \
      never reaches the exit. TARGET is then optional. It goes on the pair's, the iroh, the DERP, the transit and \

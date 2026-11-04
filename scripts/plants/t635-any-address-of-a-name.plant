@@ -1,0 +1,8 @@
+# T-635: a name is let through when one of its addresses is inside a range
+# of --routes, in place of each, so a name with one address outside each
+# range is dialed, and the dial can be steered to that address; the test of
+# each address must fail.
+ENTRY=T-635
+GROUP=resume
+EXPECT='test serve::policy::ranges_tests::each_address_of_a_name_is_checked_not_any_one \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib serve::policy'

@@ -21,6 +21,8 @@ fn the_exit_s_flags_go_with_a_road_of_the_channel() {
     let exit = NodeArgs { name: Some("lab".into()), exit: true, ..NodeArgs::default() };
     let routes = NodeArgs { routes: Some("10.0.0.0/8".into()), ..NodeArgs::default() };
     assert!(check(&routes).unwrap_err().message.contains("give --exit too"));
+    // With --relay they are the role's, which its own check reads (T-635).
+    assert!(check(&NodeArgs { relay: true, ..routes.clone() }).is_ok());
     for (args, words) in [
         (NodeArgs { no_e2e: true, ..exit.clone() }, "--no-e2e"),
         (NodeArgs { quick_tunnel: true, ..exit.clone() }, "quick tunnel"),
@@ -44,6 +46,9 @@ fn the_ranges_of_routes_are_those_of_the_policy() {
     assert!(read[0].1.contains("10.9.8.7".parse().unwrap()) && !read[0].1.contains("11.0.0.1".parse().unwrap()));
     assert!(read[1].1.contains("127.0.0.1".parse().unwrap()) && !read[1].1.contains("127.0.0.2".parse().unwrap()));
     assert!(ranges("10.0.0.0/8,").is_err(), "an empty range");
+    // A prefix that sets bits past it is refused with its network (T-635).
+    let wide = ranges("10.0.0.5/8").unwrap_err();
+    assert!(wide.code == 64 && wide.message.contains("the range is 10.0.0.0/8"), "{}", wide.message);
 }
 
 #[test]

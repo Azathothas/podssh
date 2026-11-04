@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**626 entries: 120 open, 7 partial, 2 blocked, 497 done.**
+**626 entries: 118 open, 7 partial, 2 blocked, 499 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
-| P2 | 30 | 4 | 0 | 241 | 275 |
+| P2 | 28 | 4 | 0 | 243 | 275 |
 | P3 | 90 | 1 | 2 | 191 | 284 |
-| **All** | 120 | 7 | 2 | 497 | 626 |
+| **All** | 118 | 7 | 2 | 499 | 626 |
 
 ## Entries
 
@@ -668,13 +668,13 @@ repository and CI).
 | [T-626](mesh.md) | P3 | S | M10 | research | open | I2P, Nym and cjdns: whether an overlay of peer addresses carries a podssh pair: the research |
 | [T-627](robustness.md) | P1 | S | M10 | defect | partial | The relay role's test of a resume by the next token of one leg timed out once in the relay crate's suite |
 | [T-628](mesh.md) | P1 | S | M10 | defect | done | The relay role's refusal of a target names the address that its name resolved to, so a holder of a token maps the role's network |
-| [T-629](relay.md) | P2 | S | M10 | feature | open | `podssh relay serve` keeps each capability of its start after the bind, while it serves each client |
+| [T-629](relay.md) | P2 | S | M10 | feature | done | `podssh relay serve` keeps each capability of its start after the bind, while it serves each client |
 | [T-630](reverse.md) | P2 | S | M10 | feature | open | The relay role's table of 4096 pairs keeps no share for each key, so one key of a list can take each place |
 | [T-631](serve.md) | P3 | S | backlog | feature | open | `podssh serve --listen`: a deadline from the accept for a client that never logs in, and a cap on those that have not |
 | [T-632](resume.md) | P2 | S | none | feature | done | The resumable layer has no record that ends one direction, so a half-close ends the whole session where no channel runs above it |
 | [T-633](reverse.md) | P3 | S | M10 | feature | open | No rule, written once, for a member of an answer that is absent where it carries a guarantee, and no helper that reads `None` and `false` alike |
 | [T-634](cli.md) | P3 | S | none | feature | open | A `PODSSH_*` variable that a release stopped reading is ignored in silence; there is no table of retired names |
-| [T-635](relay.md) | P2 | S | M10 | feature | open | `podssh relay serve` has no list of private targets between public ones alone and `--allow-private` |
+| [T-635](relay.md) | P2 | S | M10 | feature | done | `podssh relay serve` has no list of private targets between public ones alone and `--allow-private` |
 | [T-636](relay.md) | P3 | M | M10 | feature | open | The relay role counts no bytes for each key across its sessions, and keeps no count across a restart |
 | [T-637](relay.md) | P3 | M | M10 | feature | open | Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline |
 | [T-638](mesh.md) | P3 | M | M10 | feature | open | A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door |

@@ -9,7 +9,8 @@
 //! another list, the members of the node's net (T-455, as its policy lets
 //! them reach `relay:NAME`, the node's name in the net, or `relay:*`),
 //! anyone or no one when `--mint` says so. It dials its targets through the
-//! host's `HTTPS_PROXY` when one is set (T-457).
+//! host's `HTTPS_PROXY` when one is set (T-457), and private ones inside the
+//! ranges of `--routes` (T-635).
 
 use std::sync::Arc;
 
@@ -49,6 +50,10 @@ pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     // the node's key is known (T-455).
     if let Some(word) = args.mint.as_deref() {
         crate::relay_serve::mint_of(word, None)?;
+    }
+    // Its private ranges (T-635), as relay serve reads them (64).
+    if args.relay {
+        crate::relay_serve::routes_of(args.routes.as_deref(), args.allow_private)?;
     }
     Ok(())
 }
@@ -92,6 +97,7 @@ pub(crate) fn role(args: &NodeArgs, label: &str, door: &Door, me: PublicKey) -> 
         None => String::new(),
     };
     let through = crate::relay_serve::egress_shown(&egress);
+    let routes = crate::relay_serve::routes_of(args.routes.as_deref(), args.allow_private)?;
     // Each mint, upgrade, Close and step of the reverse road, a line of the
     // node's: stdout holds the tunnel's name alone.
     let label = label.to_string();
@@ -101,7 +107,11 @@ pub(crate) fn role(args: &NodeArgs, label: &str, door: &Door, me: PublicKey) -> 
         version: format!("podssh {}", env!("CARGO_PKG_VERSION")),
         mint,
         tokens,
-        policy: serve::policy::Policy { private: args.allow_private, ..Default::default() },
+        policy: serve::policy::Policy {
+            private: args.allow_private,
+            ranges: routes.iter().map(|(_, range)| *range).collect(),
+            ..Default::default()
+        },
         egress,
         limits: Limits::default(),
         pairs,
@@ -110,7 +120,7 @@ pub(crate) fn role(args: &NodeArgs, label: &str, door: &Door, me: PublicKey) -> 
         events: Some(events),
         brake: Default::default(),
     };
-    let who = if args.allow_private { format!("{who}, private targets too") } else { who };
+    let who = format!("{who}{}", crate::relay_serve::inside_shown(args.allow_private, &routes));
     Ok(Some(Role { cfg: Arc::new(cfg), who, kept, through }))
 }
 

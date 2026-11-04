@@ -3764,12 +3764,14 @@ commands. The rules behind them:
   for the members of the node's net as its policy lets them reach
   `relay:NAME`, the node's name in the net, or `relay:*` (T-455; a net that
   this host does not hold, or that ended, stops the start, 78). `--pairs
-  FILE` and `--allow-private` are `relay
+  FILE`, `--allow-private` and `--routes RANGES` (T-635) are `relay
   serve`'s too, and its keepalive is the default, an empty frame each 25 s.
   The role's events are lines on stderr, and Ctrl-C or SIGTERM
   closes each socket of its reverse road with `1012` before the tunnel
   unregisters. `--mint`, `--pairs` and `--allow-private` without `--relay`,
-  and `--relay` without `--quick-tunnel`, are usage errors (64); a list of
+  `--routes` without `--relay` or `--exit`, `--routes` beside
+  `--allow-private`, and `--relay` without `--quick-tunnel`, are usage
+  errors (64); a list of
   `--mint keys:FILE` that cannot be read stops the start (78). The role
   dials each target from this host, as `relay serve` does: through the
   host's `HTTPS_PROXY` when one is set, by each checked address, or by the

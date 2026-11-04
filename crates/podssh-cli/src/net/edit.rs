@@ -171,8 +171,9 @@ pub(super) fn not_auto(name: &str) -> Result<(), Refusal> {
 }
 
 /// `--routes RANGES` of `add` (T-432): each a range, as the exit's own
-/// `--routes` reads it, and only for a member with the role exit, as no other
-/// dials an address for the net.
+/// `--routes` reads it, a prefix that sets bits past it refused (T-635), and
+/// only for a member with the role exit, as no other dials an address for
+/// the net.
 fn routes(text: Option<&str>, roles: &[String]) -> Result<Vec<String>, Refusal> {
     let Some(text) = text else { return Ok(Vec::new()) };
     if !roles.iter().any(|role| role == "exit") {
@@ -180,10 +181,8 @@ fn routes(text: Option<&str>, roles: &[String]) -> Result<Vec<String>, Refusal> 
     }
     let mut words: Vec<String> = Vec::new();
     for word in text.split(',').map(str::trim) {
-        if super::policy_words::Range::parse(word).is_none() {
-            return Err(Refusal::usage(format!(
-                "--routes {text}: {word:?} is not a range: ADDR/BITS or one address, separated by commas"
-            )));
+        if let Err(why) = super::policy_words::Range::strict(word) {
+            return Err(Refusal::usage(format!("--routes {text}: {why}")));
         }
         if !words.iter().any(|w| w == word) {
             words.push(word.to_string());

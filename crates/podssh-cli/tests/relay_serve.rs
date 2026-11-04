@@ -8,11 +8,13 @@
 //! its certificate read again on SIGHUP (T-447, `serve_certs`), and its
 //! forward road in the resumable layer, which `podssh proxy` and `podssh
 //! ssh` take when asked, across cuts of their link, and its budget (T-173,
-//! `serve_layer`). The
+//! `serve_layer`), and what each of its threads holds after its bind (T-629,
+//! `serve_caps`). The
 //! suite of the stand-in also runs against the role with
 //! `PODSSH_RELAY_UNDER_TEST=podssh`.
 
 mod live_harness;
+mod serve_caps;
 mod serve_certs;
 mod serve_layer;
 mod serve_net;
@@ -188,7 +190,7 @@ fn status_info_and_trace_read_the_role_as_they_read_the_default_relay() {
 #[test]
 fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
     let s = Session::start("serve-usage");
-    let cases: [(&[&str], &str); 7] = [
+    let cases: [(&[&str], &str); 10] = [
         (&["relay", "serve", "--cert", "c.pem", "--key", "k.pem"], "needs --listen"),
         (&["relay", "serve", "--listen", "127.0.0.1:0"], "needs --cert FILE and --key FILE"),
         (
@@ -203,6 +205,14 @@ fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
         ),
         (&["relay", "serve", "--listen", "127.0.0.1:0", "--acme", "localhost"], "a DNS name of this host"),
         (&["relay", "info", "--acme", "relay.example.org"], "go with `podssh relay serve` only"),
+        // The private ranges of --routes (T-635): each read strictly, never
+        // beside --allow-private, and with serve alone.
+        (&["relay", "serve", "--listen", "127.0.0.1:0", "--routes", "10.0.0.5/8"], "the range is 10.0.0.0/8"),
+        (
+            &["relay", "serve", "--listen", "127.0.0.1:0", "--routes", "127.0.0.1", "--allow-private"],
+            "--allow-private dials each address",
+        ),
+        (&["relay", "status", "--routes", "10.0.0.0/8"], "go with `podssh relay serve` only"),
     ];
     for (args, says) in cases {
         let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
@@ -210,6 +220,29 @@ fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
         assert_eq!(out.status.code(), Some(64), "{args:?}: {}", said(&out));
         assert!(said(&out).contains(says), "{args:?}: {}", said(&out));
     }
+}
+
+// T-635: a private target that a range of --routes holds is reached through
+// the role, and another gets the words of a target that is not public.
+#[test]
+fn a_listed_private_target_is_dialed_through_the_role_and_another_refused() {
+    let s = Session::start("serve-routes");
+    let Some(cell) = role(&s, &["--routes", "127.0.0.1"]) else { return };
+    let target = banner_target("SSH-2.0-relay-role-routes\r\n");
+    let proxy = |host: &str| {
+        let mut args = vec!["proxy".to_string()];
+        args.extend(relay_flags(&cell));
+        args.extend([host.to_string(), target.to_string()]);
+        ran(s.command(&args))
+    };
+    let out = proxy("127.0.0.1");
+    assert!(said(&out).contains("SSH-2.0-relay-role-routes"), "the listed target: {}", said(&out));
+    let out = proxy("10.255.255.1");
+    let text = said(&out);
+    assert!(!out.status.success(), "a target outside each range: {text}");
+    assert!(text.contains("not in the ALLOW list") && !text.contains("not a public address"), "{text}");
+    let first = std::fs::read_to_string(s.home.join("fake-relay-normal-role.log")).unwrap_or_default();
+    assert!(first.contains("the private targets in 127.0.0.1 too"), "the first line names the ranges: {first}");
 }
 
 /// The SHA-256 of `path`, by the system's `sha256sum`.

@@ -144,6 +144,8 @@ fn the_owner_lists_routes_of_an_exit_alone_and_auto_is_no_member_s_name() {
     for (args, says) in [
         (vec!["net", "add", "gw", &key, "--routes", "10.0.0.0/8"], "give --roles with exit too"),
         (vec!["net", "add", "gw", &key, "--roles", "node,exit", "--routes", "10.0.0.0/33"], "is not a range"),
+        // As the exit's own --routes reads it (T-635).
+        (vec!["net", "add", "gw", &key, "--roles", "node,exit", "--routes", "10.1.2.3/16"], "the range is 10.1.0.0/16"),
         (vec!["net", "add", "auto", &key, "--roles", "node,exit"], "the word of --exit auto"),
     ] {
         let (rc, _, err) = net(&args);

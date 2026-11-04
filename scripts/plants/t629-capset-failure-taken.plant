@@ -1,0 +1,7 @@
+# T-629: a capset that fails with EPERM taken as done, as a drop from the
+# bounding set is, so a role that held a capability would serve with it and
+# say that it gave it up; the test of a failed capset must fail.
+ENTRY=T-629
+GROUP=cli-tests
+EXPECT='test relay_serve::harden::tests::a_failed_capset_is_fatal_even_when_the_set_went_quietly \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib relay_serve::harden'

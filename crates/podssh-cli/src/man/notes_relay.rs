@@ -133,7 +133,10 @@ pub const RELAY: &[&str] = &[
      --cert FILE and --key FILE (a P-256 key in PEM) or from --acme NAME, so that each podssh reaches \
      it with --relay-host and the CA that signed its certificate. It serves /health, /v1/mint, \
      /connect/HOST/PORT, /relays.json, /trace and /llms-full.txt, dials a target only once its name \
-     resolves to public addresses (--allow-private dials the others too), refuses port 25, answers a \
+     resolves to public addresses (--allow-private dials the others too; --routes RANGES, those inside \
+     its ranges alone, ADDR/BITS or one address, separated by commas, each address of a name checked, \
+     and never beside --allow-private; a prefix that sets bits past it, as 10.0.0.5/8, is refused with \
+     the network that it names), refuses port 25 in each case, answers a \
      name that does not resolve, or not to a public address, with one 403 that names no address (the \
      cause is a line on stdout), and keeps \
      the default relay's limits: 180 s with no payload, 12 hours and 64 MiB a session. --mint anyone \
@@ -141,6 +144,17 @@ pub const RELAY: &[&str] = &[
      another way. A token lives until the relay stops. Each mint, upgrade and client's Close is a line \
      on stdout. It listens because you ask it to, and PODSSH_LISTEN=no refuses it; Ctrl-C or SIGTERM \
      stops it.",
+    "On Linux the relay gives up, once its listener is bound and before it serves, each capability that \
+     it started with, as a port below 1024 needs one for its bind alone (a start as root, or the file \
+     capability cap_net_bind_service on the binary): no new privileges on an exec, the bounding set \
+     where the capability to change it is held, and the effective, permitted and inheritable sets, on \
+     each of its threads, which are then read again. Its first line on stderr says so; a start that \
+     held none says nothing. A step that fails, or a thread that keeps a capability, stops the start \
+     (78). The uid stays: a start as root stays uid 0, which may still write each file that root owns, \
+     and its first line says so; a user of its own with the file capability binds the port with none \
+     of root's. A file of another owner that the role reads again (its certificate on SIGHUP, the file \
+     of --pairs, the cache of ACME) must then let it read by its mode. Other systems have no such \
+     sets, and nothing is dropped there.",
     "Where HTTPS_PROXY (or https_proxy, all_proxy, ALL_PROXY) is set, the relay dials each target \
      through that proxy, as each client of podssh reaches its relay, by HTTP CONNECT or SOCKS5; the \
      loopback, and what NO_PROXY names, go directly. Its policy checks each address of a name as it \

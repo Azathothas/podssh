@@ -8,8 +8,6 @@
 //! address (the routes of T-432). A word of no such form reaches nothing, so
 //! that a later podssh's word lets in nobody here.
 
-use std::net::IpAddr;
-
 use super::doc::check_name;
 use super::policy::{Policy, Want};
 
@@ -120,61 +118,6 @@ impl<'a> Dest<'a> {
     }
 }
 
-/// A range of addresses: `ADDR/BITS`, or one address alone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Range {
-    addr: IpAddr,
-    bits: u8,
-}
-
-impl Range {
-    pub fn parse(word: &str) -> Option<Range> {
-        let (addr, bits) = match word.split_once('/') {
-            Some((addr, bits)) => (addr, Some(bits)),
-            None => (word, None),
-        };
-        let addr: IpAddr = addr.parse().ok()?;
-        let most = if addr.is_ipv4() { 32 } else { 128 };
-        let bits = match bits {
-            None => most,
-            // Digits alone: `u8`'s parser takes a sign too.
-            Some(text) if !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()) => {
-                text.parse::<u8>().ok().filter(|&bits| bits <= most)?
-            }
-            Some(_) => return None,
-        };
-        Some(Range { addr, bits })
-    }
-
-    /// How many first bits it fixes: the more, the narrower, so `--exit
-    /// auto` takes the narrowest of the net's routes that holds an address.
-    pub fn bits(&self) -> u8 {
-        self.bits
-    }
-
-    /// Whether it names `addr` alone, as an exit needs for its own
-    /// addresses and the loopback (T-432).
-    pub fn names_alone(&self, addr: IpAddr) -> bool {
-        self.addr == addr && self.bits == if addr.is_ipv4() { 32 } else { 128 }
-    }
-
-    /// Whether `addr` is in the range: of the same family, and the same in
-    /// the range's first bits.
-    pub fn contains(&self, addr: IpAddr) -> bool {
-        match (self.addr, addr) {
-            (IpAddr::V4(net), IpAddr::V4(one)) => same_prefix(&net.octets(), &one.octets(), self.bits),
-            (IpAddr::V6(net), IpAddr::V6(one)) => same_prefix(&net.octets(), &one.octets(), self.bits),
-            _ => false,
-        }
-    }
-}
-
-/// Whether `a` and `b` have the same first `bits` bits.
-fn same_prefix(a: &[u8], b: &[u8], bits: u8) -> bool {
-    let (whole, rest) = (usize::from(bits / 8), bits % 8);
-    if a[..whole] != b[..whole] {
-        return false;
-    }
-    let mask = 0xffu8.checked_shl(u32::from(8 - rest)).unwrap_or(0);
-    rest == 0 || a[whole] & mask == b[whole] & mask
-}
+/// A range of addresses: `ADDR/BITS`, or one address alone. The relay role's
+/// `--routes` reads it too (T-635), so it lives beside the role's policy.
+pub use podssh_relay::serve::ranges::Range;
