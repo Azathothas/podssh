@@ -583,7 +583,7 @@ sh scripts/dev.sh check                    # interop: the slow reader stays unde
 
 Each command exits 0. Planted defect: set `WINDOW`
 (`crates/podssh-ssh/src/run.rs:30`) to 64 MiB, and russh's queue of a
-channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:68-78`) to
+channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:68-81`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
 check at `crates/podssh-ws/src/session.rs:468-470`; the fragment test must
@@ -614,7 +614,7 @@ fail.
   ignored. The table says so.
 - The window is not the only bound of a reader that takes nothing: russh queues at most 100
   messages of a channel (`channel_buffer_size`, its default, which
-  `crates/podssh-ssh/src/run_config.rs:68-78` leaves), each of 32 KiB at most, and its task then reads
+  `crates/podssh-ssh/src/run_config.rs:68-81` leaves), each of 32 KiB at most, and its task then reads
   no more from the server. Measured in the build image on 2026-10-11, with the Prove's plant: the
   window at 64 MiB gave a peak of 8948 KiB, held by the queue; the queue at 2^20 messages as well
   gave 62708 KiB, and even a reader that took each byte held 62084 KiB, as the server outran the
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-32`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:700-720`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:701-721`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
@@ -977,7 +977,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io/msg.rs:35-42`, with `crates/podssh-ssh/src/io.rs:68-70`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:146`, `docs/STATUS.md:152`).
+  (`docs/STATUS.md:147`, `docs/STATUS.md:153`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:5139-5140` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the

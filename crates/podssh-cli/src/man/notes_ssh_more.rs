@@ -138,13 +138,16 @@ pub(super) const MORE: &[&str] = &[
      second start of the same service ends at once with 0.",
     "A key's echo while a download runs: for 2 s after a key on a session with a pty, podssh grants each \
      channel of the connection (the session's own, a forward of -L, -R or -D, SFTP, a command, the \
-     agent's) a window of what the path moves in its least round trip and 40 ms more, and twice a round \
-     trip's at least, 16 KiB at the least, so that a key waits behind little of the download; idle, 200 ms \
-     more. podssh measures the rate and the round trip on the connection itself, end to end, through any \
-     relay or proxy and against any sshd, and lets the windows drain for a moment at the first key and \
-     each 10 s of a download, to time the path and not its queue. Until it has measured them, a channel \
-     has the window of before, 512 KiB. Where nobody types, a window grows by the same rule, up to the \
-     cap of its road, as a window is what a road may hold for a slow reader: 16 MiB with --direct, on \
+     agent's) a window of what the path moves in its least round trip and 40 ms more, and a third more, \
+     as it tops a window up once a quarter of it is used; 16 KiB at the least, so that a key waits \
+     behind little of the download; idle, 200 ms more. Each channel takes messages of 8 KiB at most \
+     from the server, so that a slow path's window holds a few of them. podssh measures the rate and the \
+     round trip on the connection itself, end to end, through any relay or proxy and against any sshd, \
+     and lets the windows drain at the first key and each 10 s of a download, until a round trip is \
+     timed across an empty queue (10 s at most), to time the path and not its queue. Until it has \
+     measured them, a channel has the window of before, 512 KiB, topped up once half of it is used. \
+     Where nobody types, a window grows by the same rule, up to the cap of its road, as a window is \
+     what a road may hold for a slow reader: 16 MiB with --direct, on \
      the iroh road and at podssh's relay role (podssh relay serve), 1.5 MiB through the default relay, \
      768 KiB on a node's pair road, 512 KiB on each other; the channels that carry bulk share it, each \
      with 512 KiB at least, and the requests in flight of cp, scp and sftp follow it. podssh's own \

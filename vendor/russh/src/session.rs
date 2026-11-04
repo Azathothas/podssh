@@ -308,6 +308,21 @@ impl Encrypted {
         data: &[u8],
         target: u32,
     ) -> Result<bool, crate::Error> {
+        self.adjust_window_size_below(channel, data, target, target / 2)
+    }
+
+    /// As `adjust_window_size`, with the room left under which the window
+    /// goes back to `target` given by the caller (podssh's patch,
+    /// vendor/patches/russh/); russh's own is half the target. A room over
+    /// the target is the target, so an adjust never takes a window back.
+    pub fn adjust_window_size_below(
+        &mut self,
+        channel: ChannelId,
+        data: &[u8],
+        target: u32,
+        low: u32,
+    ) -> Result<bool, crate::Error> {
+        let low = low.min(target);
         if let Some(channel) = self.channels.get_mut(&channel) {
             trace!(
                 "adjust_window_size, channel = {}, size = {},",
@@ -318,7 +333,7 @@ impl Encrypted {
             if data.len() as u32 <= channel.sender_window_size {
                 channel.sender_window_size -= data.len() as u32;
             }
-            if channel.sender_window_size < target / 2 {
+            if channel.sender_window_size < low {
                 debug!(
                     "sender_window_size {:?}, target {:?}",
                     channel.sender_window_size, target

@@ -72,6 +72,9 @@ pub(super) fn client_config(opts: &Options, policy: &Policy) -> Config {
         keepalive_max: opts.keepalive_max,
         inactivity_timeout: None,
         window_size: WINDOW,
+        // The server's messages to podssh are no larger (T-670), so a window
+        // held to a slow path's round trip carries a few of them.
+        maximum_packet_size: crate::pace::PACKET,
         nodelay: true,
         preferred,
         ..Config::default()

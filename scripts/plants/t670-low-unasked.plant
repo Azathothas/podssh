@@ -1,0 +1,9 @@
+# T-670: vendor/russh adjusts a channel's data window at its own half of the
+# target again, whatever room podssh's handler gives, as russh 0.65.0 did;
+# the test of russh's own, a room of 48 KiB of a target of 64 that must
+# adjust once less than that is left, must fail.
+ENTRY=T-670
+GROUP=resume
+EXPECT='test client::window_target::a_handlers_room_adjusts_the_window_once_it_is_under_it \.\.\. FAILED'
+RUN='cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::window_target'
+LIMIT=1800

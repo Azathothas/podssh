@@ -91,6 +91,9 @@ fn the_banner_has_no_minus_sign_in_its_software_version() {
     let software = id.strip_prefix("SSH-2.0-").expect("protocol 2.0");
     assert!(!software.contains('-') && !software.contains(' '), "{id}");
     assert_eq!(software, format!("podssh_{}", env!("CARGO_PKG_VERSION").replace('-', "_")));
+    // The server's messages to podssh are of the pace's size at most (T-670):
+    // russh's 32 KiB would put a slow path's whole window in one message.
+    assert_eq!(config.maximum_packet_size, crate::pace::PACKET);
 }
 
 /// Each hop takes its own options when the caller resolved them, with the

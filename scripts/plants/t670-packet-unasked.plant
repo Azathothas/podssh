@@ -1,0 +1,10 @@
+# T-670: podssh's channels ask for russh's 32 KiB again, not the pace's
+# 8 KiB, so the server's messages are four times larger than the pace counts
+# on: the client's configuration no longer asks for them, and the test of
+# that configuration fails (russh's server in this process kept its own
+# messages small, so the wire's test did not see it).
+ENTRY=T-670
+GROUP=resume
+EXPECT='test run::tests::the_banner_has_no_minus_sign_in_its_software_version \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- run::tests'
+LIMIT=1800

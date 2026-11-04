@@ -1,0 +1,9 @@
+# T-670: measured, russh tops a window up at its own half again, not once a
+# quarter is used: the slow path's window of a round trip and 40 ms, held
+# while a key waits, then leaves the path idle while half of it comes, and
+# the download moves under 90% of today's.
+ENTRY=T-670
+GROUP=resume
+EXPECT='test pace::sim_tests::on_a_slow_long_path_too \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::sim_tests'
+LIMIT=1800

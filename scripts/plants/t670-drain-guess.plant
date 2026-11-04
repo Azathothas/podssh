@@ -1,0 +1,10 @@
+# T-670: a drain ends at T-661's guess of when what was in flight comes, from
+# the best rate and an unmeasured round trip, not at its first clean round
+# trip; on the slow link that loses a segment in a hundred, the guess ends
+# it before its queue came, the windows come back from that queue's round
+# trip, and each key after the drain waits seconds.
+ENTRY=T-670
+GROUP=resume
+EXPECT='test pace::sim_tests::on_a_slow_lossy_link_the_drain_waits_for_its_queue \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::sim_tests'
+LIMIT=1800
