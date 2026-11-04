@@ -92,6 +92,9 @@ where
     let mut buf = vec![0u8; 64 * 1024];
     // When the bytes not yet acknowledged must be.
     let mut ack_at: Option<Instant> = None;
+    // This link's round trip is its own: the last link's road may not be its
+    // road (T-663).
+    hearing.new_link();
     loop {
         loop {
             let record = match decoder.next() {
@@ -103,6 +106,11 @@ where
                 }
             };
             let acknowledges = matches!(record, Record::Ack { .. } | Record::Pong { .. });
+            if acknowledges {
+                for sample in outbox.answered(&record).into_iter().flatten() {
+                    hearing.timed(sample);
+                }
+            }
             // The bytes held are said under the same lock as the record, so
             // that no acknowledgement in between covers bytes not written.
             let event = {

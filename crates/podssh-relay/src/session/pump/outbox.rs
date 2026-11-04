@@ -10,6 +10,7 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::{mpsc, Notify};
@@ -18,6 +19,7 @@ use tokio::time::Instant;
 use super::super::hearing::Hearing;
 use super::super::link::Link;
 use super::super::record::Record;
+use super::super::round_trip::{data_end, Timing};
 use super::{lock, Watch};
 
 /// The last record that the pump asks the writer for, at a record boundary.
@@ -62,6 +64,9 @@ pub(super) struct Outbox {
     closed: AtomicBool,
     /// Wakes the writer for each of the above.
     wake: Notify,
+    /// The questions of this link that are timed, for its round trip
+    /// (T-663).
+    timing: Mutex<Timing>,
 }
 
 impl Outbox {
@@ -77,7 +82,14 @@ impl Outbox {
             finish: Mutex::new(None),
             closed: AtomicBool::new(false),
             wake: Notify::new(),
+            timing: Mutex::new(Timing::default()),
         }
+    }
+
+    /// The samples of the round trip that the far end's `record` gives,
+    /// as it came now.
+    pub(super) fn answered(&self, record: &Record) -> [Option<Duration>; 2] {
+        lock(&self.timing).answered(record, Instant::now())
     }
 
     /// When the writer last wrote, or the heartbeat last asked for a `PING`:
@@ -157,7 +169,8 @@ fn bytes_of(record: &Record) -> Vec<u8> {
 /// The writer: the pump's last record when it asks for one, else the small
 /// records that wait, else the application's next `DATA`; at the end of the
 /// application's bytes, `CLOSE`. A `PING`, and `DATA` that the peer
-/// acknowledges, are questions that the far end answers at once (T-302).
+/// acknowledges, are questions that the far end answers at once (T-302),
+/// and their answers time the link's round trip (T-663).
 pub(super) async fn write<W>(
     link: &mut W,
     data: &mut mpsc::Receiver<Vec<u8>>,
@@ -202,8 +215,9 @@ where
             if let Err(e) = put(link, &bytes_of(&record), outbox, watch).await {
                 return Written::Failed(e);
             }
-            if matches!(record, Record::Ping { .. }) {
+            if let Record::Ping { value } = record {
                 hearing.asked();
+                lock(&outbox.timing).pinged(value, Instant::now());
             }
             continue;
         }
@@ -217,6 +231,9 @@ where
                     }
                     if lock(state).acknowledges() {
                         hearing.asked();
+                        if let Some(end) = data_end(&bytes) {
+                            lock(&outbox.timing).sent(end, Instant::now());
+                        }
                     }
                 }
                 // The application ended its bytes: `CLOSE` after the last.

@@ -749,7 +749,7 @@ functions of bytes only.
 
 | Function of Mosh | In Mosh | In podssh |
 | --- | --- | --- |
-| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:60`); a spare link beside it opens once a question waited 3 s with no answer, or after 20 s of quiet, and takes the session when its far end greets first (T-305) |
+| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:60`); a spare link beside it opens once a question waited three round trips of the link with no answer, 1 s to 3 s (T-663), or after 20 s of quiet, and takes the session when its far end greets first (T-305); a host that wakes from a sleep asks at once |
 | Outages and sleep | The server keeps the session until its client comes back; `MOSH_SERVER_NETWORK_TMOUT` sets a limit, none by default (`src/frontend/mosh-server.cc:394-406`) | 10 minutes (`crates/podssh-relay/src/session/resume.rs:44`, T-153), or the node's `--resume-deadline`, 72 h at most, which it names to its client (T-306); a shell that `podssh serve` keeps longer (T-159) |
 | A heartbeat | An empty acknowledgement each 3 s, which also keeps a NAT's mapping (paper §2.3; `src/network/transportsender.h:51`) | Each 10 s on the layer (T-154; `crates/podssh-relay/src/session/pump.rs:57`); SSH's keepalives on the forward road |
 | Local echo | Each key is predicted; the predictions of an epoch show once one of them is confirmed; by default they show when the round trip passes 30 ms, or a prediction waited 250 ms, and are underlined past 80 ms (paper §3.2; `src/frontend/terminaloverlay.h:215-225`) | T-160, on request, above 120 ms |
@@ -973,10 +973,24 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   session of the pair with `1001`, which no resume carries on.
 - **A spare link** (T-305), in podssh's commands, unless
   `PODSSH_SPARE_LINKS=no`. When a question of the client (`DATA` that the
-  far end acknowledges, a `PING`) has waited 3 s with nothing from the far
-  end, or, with the heartbeat, nothing came for 20 s, the client opens a
-  new link beside the silent one, as for a move, one each 10 s at most,
-  and reads its `GREETING` alone. When the old link's bytes come first
+  far end acknowledges, a `PING`) has waited three round trips of the link
+  with nothing from the far end, 1 s at least and 3 s at most (T-663), or,
+  with the heartbeat, nothing came for 20 s, the client opens a new link
+  beside the silent one, as for a move, one each 10 s at most, sends a
+  `PING` on the old one, and reads the new one's `GREETING` alone. The
+  round trip is the layer's own: each link times one `PING` to its `PONG`
+  and one batch of `DATA` to the `ACK` or `PONG` that reaches its end, as
+  TCP times one segment (RFC 6298), and smooths them by an eighth; a
+  sample of `DATA` holds the 200 ms for which the far end may hold its
+  `ACK`, which is the wait that the bound must outlast. A new link starts
+  with no round trip, and its questions wait 3 s until its first answer.
+  The `PING` on the old link closes the spare within a round trip when the
+  old link only lagged, as behind a far end whose application holds its
+  `ACK`s. The bound is osewa's (`docs/research/osewa-code.md`, section
+  5.B), where podssh waited 3 s on any link: on a stand-in link of 50 ms,
+  the spare opens 1 s after a question that nothing answers (UNVERIFIED:
+  `cargo test -p podssh-relay --test session_round_trip`). When the old
+  link's bytes come first
   (each read wakes the watch at once, while the new link connects too),
   the new link closes before its handshake, and its far end dials nothing;
   when both came, the old link goes on. When the new link greets first,
@@ -985,11 +999,25 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   link is tried at once, as after a loss, which is said once): a new
   address of the client costs seconds, not the 30 s after which a silent
   link is dead. Measured through the stand-in proxy's `--move` on the
-  pair's road, 5 runs each: a resume 3.0 to 3.2 s after the move with a
-  spare link, 35.0 to 35.1 s with none. The iroh road opens no spare link:
+  pair's road, 5 runs each, with the fixed 3 s of T-305: a resume 3.0 to
+  3.2 s after the move with a spare link, 35.0 to 35.1 s with none; with
+  the bound in round trips, UNVERIFIED. The iroh road opens no spare link:
   its QUIC carried the session across the move with no resume of the layer
   in 5 runs of 5, and a spare there, a stream of the same connection, only
   added a resume, in 3 runs of 5.
+- **A wake of the host** (T-663). The bounds above count on the monotonic
+  clock, which stops while Linux or macOS sleeps, so with no check a link
+  that the sleep took would be asked only at the next key or heartbeat, up
+  to 10 s after the wake. Each link's heartbeat reads the clocks each second
+  (`podssh_ws::wake`, with no privilege): a tick more than 2 s late, by
+  tokio's clock (a process that stood still) or by the time that the host
+  slept (on Linux, the gap of `CLOCK_BOOTTIME` and `CLOCK_MONOTONIC`,
+  which no step of the wall clock moves; elsewhere the wall clock past
+  tokio's), sends a `PING` at once, at each end. With spare links, a link
+  that the sleep took gets its spare one bound after the wake; with none,
+  the notice of T-302 counts from the wake. The forward road through the
+  relay asks the same way with its WebSocket Ping (T-307). The dead bound
+  stays 30 s, as a spare link replaces a silent link before it.
 - **Kept shells** (T-158), when both sides name `keep.v1`: `podssh ssh`
   names it, and a far end that keeps a shell after its client leaves, as
   `podssh serve` will (T-159); a node never names it, as its SSH server is

@@ -3680,11 +3680,116 @@ wakes from sleep waits for those bounds too.
 3. podssh exceeds osewa where osewa cannot follow: the spare races podssh's roads and relay hosts,
    so the resume can come on another road (osewa redials its one host).
 
+## Decision
+
+2026-11-04 (the drafting agent). No row of `docs/decisions.md` settles these, and none changes one:
+the spare link is the exception of T-305 already (one at a time, one each 10 s), and the check of
+the clocks opens no connection.
+
+1. **The round trip is timed on the layer's own records, one question of each kind at a time**, as
+   TCP times one segment (RFC 6298): a `PING` to the `PONG` of its value, and a batch of `DATA` to
+   the `ACK` or `PONG` that reaches its end; smoothed by an eighth
+   (`crates/podssh-relay/src/session/round_trip.rs`). A sample of `DATA` holds the 200 ms for
+   which the far end may hold its `ACK`: it is the wait of such a question for its answer, which
+   the bound must outlast, so it is taken as it is. Lost: `PING` and `PONG` alone, as a `PING`
+   goes only after 10 s with nothing sent, so a session that types would never time one; the
+   handshake's round trip, as a new session's far end dials its target before its `ACCEPT`, and
+   the hearing is attached after the handshake; `DATA`'s samples less 200 ms, as an `ACK` at
+   64 KiB comes at once, and the round trip would then be too short and the spare too soon.
+2. **Each link times its own round trip** (`Hearing::new_link`, at the start of each link's
+   reader), and until its first answer a question waits the 3 s of before. Lost: the last link's
+   round trip carried on, as a spare or a move can take another road (iroh, DERP, another relay
+   host) whose round trip is many times longer; a bound from the faster road would open a spare
+   that the slow road's answer then closes.
+3. **The bound**: three smoothed round trips, 1 s at least (`SPARE_SOONEST`) and 3 s at most
+   (`SPARE_AFTER`, the constant of the Premise, now the ceiling). `SPARE_QUIET` (20 s),
+   `SPARE_EVERY` (10 s), the resume's `LOSS_GRACE` (3 s), `PING_EVERY` (10 s) and the dead bound
+   (30 s) are kept: a spare replaces a silent link long before the dead bound, and a shorter dead
+   bound would end links that the iroh road's QUIC carries across a move (T-305). The look at the
+   silence comes at the instant that a waiting question reaches its bound, where it came each
+   250 ms: with a bound of 1 s, a quarter of a second was a quarter of the bound.
+4. **The spare asks the old link too**: when it opens, the hearing asks the link's heartbeat for a
+   `PING` at once (`Hearing::ask_now`). With a floor of 1 s, a far end whose application holds its
+   `ACK`s (an `ACK` covers the bytes written, T-387) would open spares that cost a connect, and a
+   leg of the pair; the far end's reader answers a `PING` at once, so the answer closes the spare
+   within a round trip, before its handshake, and no resume follows. Lost: no `PING`, where the
+   spare waits for the held `ACK`, which a loaded host can hold for seconds (T-305's Decision); a
+   `PING` first and the spare a round trip later, which makes each dead link one round trip
+   slower to replace.
+5. **The wake check** (`crates/podssh-ws/src/wake.rs`): each link's heartbeat reads the clocks
+   each second; a tick more than 2 s late, by tokio's clock (a process that stood still) plus the
+   time that the host slept, is a wake, and a `PING` goes at once, at each end. The time slept is
+   the growth of the gap of `CLOCK_BOOTTIME` and `CLOCK_MONOTONIC` on Linux, which no step of the
+   wall clock moves, and elsewhere what the wall clock counted past tokio's; a read of a clock
+   that the kernel lacks gives none, and the wall clock stands in. Lost: the timer alone on tokio's
+   clock, which is std's monotonic clock and stops while Linux or macOS sleeps, so a timer fires
+   on time after a sleep and sees nothing; the wall clock on Linux, whose steps would ask for
+   nothing; a poll of the interface addresses each second (osewa-code's hint), as a sleep does not
+   always change an address, and a move with no sleep is found by its silent question within the
+   same bound. A false wake (a step of the wall clock where no boot clock is read) costs one
+   `PING`.
+6. **Where it lives**: the check is in podssh-ws, the crate that both the layer (podssh-relay)
+   and the forward road's relay stream (podssh-ssh) build on, and the wish to ask goes through the
+   hearing, which the watch beside the link and each link's heartbeat share. Lost: a field of the
+   pump's `Watch`, which is the link's own, as the watch beside the link then needs one more
+   handle; a wish that the next link's heartbeat takes costs one `PING`.
+7. **The forward road** (item 2's `--persist`, and each forward session through the relay): a
+   wake sends the relay stream's Ping of a question while none waits, so T-302's notice, which
+   T-307 gave that road, comes 5 s after the wake with no key typed. The link does not end
+   sooner: SSH there has no layer below it, so an early end costs a login (and, with `--persist`,
+   an attach of tmux), and a link that only lagged would be lost; the relay stream's pings still
+   end a dead link. `--direct` keeps T-332's question on a key alone: its question is SSH's own
+   keepalive, in russh's session loop, not a road's.
+8. **Item 3 needs no code**: a spare link is whatever the caller's `connect` gives, and on
+   `ssh node://` that is the race of the roads again (T-164). That a resume comes on another road
+   than the lost link's is not measured here.
+
 ## Prove
 
 ```sh
+export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features pair --lib session
+cargo test -p podssh-relay --test session_round_trip
+cargo test -p podssh-relay --test session_spare --test session_heartbeat
+cargo test -p podssh-ws --lib wake
+cargo test -p podssh-ssh --test relay_wake
 ```
 
 A stand-in of 50 ms whose link goes silent: the spare opens within 1.2 s (today 3 s); a planted
 fixed 3 s fails it. A live run on the relay with `--move` measures the resume.
+
+In `session_round_trip`, on tokio's paused clock: on a link of 50 ms the spare opens 1.0 to 1.2 s
+after a question that nothing answers; before any answer, 3.0 to 3.2 s; a link whose answers take
+1.1 s gets none; a tick of the clocks 3 s late sends a `PING` at once; a link that died in a sleep
+gets its spare 1.0 to 1.2 s after the wake. `relay_wake`: the forward road's Ping at a late tick,
+and the notice's question counted from it. The planted defects: `spare_after` that gives
+`SPARE_AFTER` always (the first test fails at 3 s); one that gives `SPARE_SOONEST` always (the
+slow link gets a spare); `Wake::tick` that gives `None` always (the last two tests, and
+`relay_wake`). The resume after the stand-in proxy's `--move` (T-305's measurement, 3.0 to 3.2 s
+with the fixed bound): `cargo test -p podssh-cli --test roam_at_once -- --ignored --test-threads 1
+--nocapture measure`.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-663`), UNVERIFIED: no command of the Prove ran in the draft.
+
+- `crates/podssh-ws/src/wake.rs`: the tick of the clocks and its reading (`Wake`, `Reading`,
+  `slept`), with unit tests of a late tick, a sleep that the boot clock counts, a sleep that the
+  wall clock counts, a step of the wall clock, and Linux's clocks read.
+- `crates/podssh-relay/src/session/round_trip.rs`: the smoothed round trip, the timing of one
+  `PING` and one batch of `DATA` (`Timing`), and the end of a batch (`data_end`); the pump's
+  writer times them (`pump/outbox.rs`) and its reader gives each answer to the hearing
+  (`pump/down.rs`), which keeps the link's round trip and the wish to ask
+  (`session/hearing.rs`). `session/beside.rs`: `spare_after`, the exact look, and the `PING` on
+  the old link when a spare opens. `session/pump.rs`: the heartbeat's tick and its `PING` at a
+  wake or at the hearing's wish.
+- `crates/podssh-ssh/src/relay_stream.rs`: the forward road's Ping at a wake, in a task that the
+  reader's end stops.
+- Tests: `crates/podssh-relay/tests/session_round_trip.rs` (5),
+  `crates/podssh-ssh/tests/relay_wake.rs` (1), and the lib's of `round_trip`, `beside`, `hearing`
+  and `wake`. UNVERIFIED, each; so are the plants of the Prove.
+- The manual (the notes of `ssh` on the spare link and the notice, `PODSSH_SPARE_LINKS`),
+  `docs/design.md` (section 5: the spare link, and a wake of the host), `docs/terminal.md`,
+  `docs/cli.md`, `docs/STATUS.md`.
+- At the merge: `cargo todo remap docs/design.md crates/podssh-ssh/src/relay_stream.rs`, as both
+  gained lines above cited ones; the other edited files keep their cited lines.

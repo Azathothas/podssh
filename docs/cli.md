@@ -127,13 +127,13 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   or move goes beside it, and the node forgets the session and its
   connection to TARGET as the link ends; `-v` says that the node took the
   ask, and a line that a node of an earlier podssh does not know it and
-  keeps the session as before. A link that goes
-  silent gets a spare link beside it once the node has not answered for
-  3 s, which resumes the session when it greets first: a new address of
-  this host costs seconds, not the 30 s after which a silent link is dead
-  (T-305); `-v` says each spare link, and `PODSSH_SPARE_LINKS=no` turns
-  them off. The iroh road opens none, as its QUIC carries the session
-  across a new address by itself.
+  keeps the session as before. A link that goes silent gets a spare link
+  beside it once the node has not answered for three round trips of the
+  link, 1 s to 3 s (T-663; a host that wakes from a sleep asks at once),
+  and the spare resumes the session when it greets first: a new address
+  costs seconds, not the 30 s after which a silent link is dead (T-305);
+  `-v` says each spare link, `PODSSH_SPARE_LINKS=no` turns them off, and
+  the iroh road opens none, as its QUIC moves the session by itself.
   `-J a,b` makes a chain of hops; `-J a -J b` is an error. Each hop checks
   its own host key, filed under its own name: `host`, or `[host]:port` off
   port 22 (T-030). `HostKeyAlias` names the destination's key alone, as it
