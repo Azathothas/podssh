@@ -362,3 +362,38 @@ async fn a_target_that_the_policy_refuses_is_refused_before_any_connect() {
     }
     assert!(stand_in.asked().is_empty(), "the proxy was asked: {:?}", stand_in.asked());
 }
+
+// GitHub #126: a name that does not resolve and one that resolves into the
+// role's own network get one answer, which names no address, so that a
+// holder of a token cannot map the role's network by names; the operator's
+// line keeps the cause.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_name_that_does_not_resolve_and_one_that_the_policy_refuses_answer_the_same() {
+    let (role, stand_in, token, _) = through("200 Connection Established", false, "").await;
+    let mut bodies = Vec::new();
+    for (host, family) in [("localhost", ""), ("no-such-name.invalid", ""), ("140.82.112.3", "?family=6")] {
+        let (status, body) = refusal(role.socket(&format!("/connect/{host}/22{family}"), &token).await);
+        assert_eq!(status, 403, "{host}: {body}");
+        assert!(
+            !body.contains("127.0.0.1") && !body.contains("::1") && !body.contains("not a public address"),
+            "{body}"
+        );
+        bodies.push(body.replace(host, "TARGET"));
+        // `/trace` asks no family: the public literal would be dialed.
+        if family.is_empty() {
+            let (status, trace) = role.http("GET", &format!("/trace?target={host}:22"), Some(token.as_str())).await;
+            assert!(
+                status == 200 && !trace.contains("127.0.0.1") && !trace.contains("not a public address"),
+                "{trace}"
+            );
+        }
+    }
+    assert!(bodies.windows(2).all(|w| w[0] == w[1]), "{bodies:?}");
+    assert!(bodies[0].contains("not in the ALLOW list"), "{bodies:?}");
+    let events = role.events.lock().unwrap().clone();
+    assert!(
+        role.said("refused localhost:22: it resolves to") && role.said("refused no-such-name.invalid:22: no address"),
+        "{events:?}"
+    );
+    assert!(stand_in.asked().is_empty(), "the proxy was asked: {:?}", stand_in.asked());
+}

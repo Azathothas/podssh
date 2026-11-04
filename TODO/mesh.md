@@ -3750,7 +3750,7 @@ nothing, works.
 ## Premise
 
 - `crates/podssh-relay/src/serve/forward.rs:144` dials the resolved addresses with
-  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:138` does the same for
+  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:143` does the same for
   `/trace`; neither reads `HTTPS_PROXY`.
 - Rule 2 of `AGENTS.md`: one outbound connection, through `HTTPS_PROXY` when it is set.
 
@@ -7577,7 +7577,7 @@ roads, and a carrier must be one of them.
   (`crates/podssh-cli/src/man/notes_pair.rs:274-275`), and needs the net's role exit, signed by
   its owner (`:272-273`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
-  (`docs/STATUS.md:95`).
+  (`docs/STATUS.md:96`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node
   of the exit runs there with `--carrier exec:...`, and the closed host runs the client,
   `podssh exit NAME --listen 127.0.0.1:1080 --carrier stdio`.
@@ -8654,3 +8654,86 @@ cargo todo check
 ```
 
 The verdict of each and its sources in `docs/carriers.md`; a feature entry filed where one passes.
+
+# T-628: The relay role's refusal of a target names the address that its name resolved to, so a holder of a token maps the role's network
+
+**Source:** GitHub #126 (Nemo-010, 2026-11-04).
+**Category:** defect
+**Milestone:** M10
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`podssh relay serve` refuses a target that resolves to an address that is not public with a `403`
+whose words name that address, and answers a name that does not resolve, or that has no address
+of the family asked for, with a `502` of other words. A caller that holds a token (any caller of
+a role with `--mint anyone`) can tell "no such name", "resolves into the role's own network" and
+"not of that family" apart, and so map the network of the role's host by names. The operator sees
+none of it in the role's lines.
+
+## Premise
+
+- Read at `909e4f5`: `crates/podssh-relay/src/serve/policy.rs`, the refusal of a name that is not
+  public, at its line 96, says "{target} not in the ALLOW list: it resolves to {}, which is not a
+  public address"; its line 75 makes a failed lookup `Refused::Unreachable`, and its line 87 a name
+  with no address of the family asked for. `crates/podssh-relay/src/serve/forward.rs` answers the
+  first with `403` "forward: ..." at its line 91 and the others with `502` "relay: ..." at its
+  line 94; the layer's path, the HTTP road and `/trace` do the same.
+- The issue's other claims hold: the token is checked first, and its refusal is one answer; a role
+  mints for no one by default, so the audience is the holders of its tokens.
+
+## Approach
+
+1. A third kind of refusal, `Refused::NotDialed { target, why }`, for each cause that depends on
+   what the role's resolver found: no address, none of the family asked for, or one that is not
+   public. Its answer is a `403` in one sentence, `HOST:PORT not in the ALLOW list: this relay
+   dials no address of it`, which the client reads as a policy refusal; `why` goes to the
+   operator's lines alone. The port's refusal stays `Refused::Policy` (its words are the same for
+   each target), and the role's own fault (no route out to IPv6, a failed dial) stays a `502`.
+2. Each path that checks a target (the forward road, the layer's, the HTTP road, `/trace`) takes
+   the status, the words and the operator's line from the refusal itself, so no path can name the
+   address again.
+3. `docs/relay.md` and the manual's note of `relay serve` say the sentence.
+
+## Decision
+
+- **A name that does not resolve is a `403` too, not the `502` that lets a client try another
+  relay host.** Lost: the `502` for a name that fails on one host's resolver alone, which another
+  host might resolve; it is the issue's own trade, and it keeps the answer to a guessed name the
+  same as the answer to a private one. The sentence says what is true of both causes ("dials no
+  address of it"), so a user who typed a name wrong is not told that a policy refused it.
+- **Not a delay that pads the two causes to one time.** A lookup that fails and one that finds a
+  private address take different times; the issue names it as open. Lost: a fixed wait on each
+  refusal, which would slow each refused session for a channel that needs many tries to read; the
+  brake of mint and pair (T-455) and the role's rate already bound the tries.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --features serve --lib serve::policy
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract --test http_road
+cargo test -p podssh-cli --test relay_serve --test man_page --test man_flag_parity
+```
+
+Planted: the old words (the cause in the caller's sentence) fail the new tests.
+
+## Done
+
+2026-11-04.
+
+- `crates/podssh-relay/src/serve/policy.rs`: `Refused::NotDialed` for a name with no address, with
+  none of the family asked for, or with one that is not public; its `403` says "this relay dials no
+  address of it", and the cause goes to the role's lines alone (`Refused::logged`). The forward
+  road, the layer's path, the HTTP road and `/trace` take the status and the words from the
+  refusal.
+- `cargo test -p podssh-relay --features serve --lib serve::policy`: 4 passed (2 new).
+  `--features serve,plain-ws --test relay_serve_contract --test http_road`: 14 and 8 passed; the new
+  `a_name_that_does_not_resolve_and_one_that_the_policy_refuses_answer_the_same` checks the three
+  causes answer the same, name no address, and that the role's lines keep each cause.
+  `cargo test -p podssh-cli --test relay_serve --test man_page --test man_flag_parity`: 21, 11 and
+  6 passed. Clippy clean with `serve,plain-ws`.
+- Planted, the cause put back in the caller's words: the new library test and the contract test
+  fail.
+

@@ -131,7 +131,8 @@ fn a_private_target_and_port_25_are_refused_by_the_policy() {
     let out = ran(s.command(&args));
     let text = said(&out);
     assert!(!out.status.success(), "a loopback target through a relay that dials public ones: {text}");
-    assert!(text.contains("ALLOW list") && text.contains("not a public address"), "{text}");
+    // GitHub #126: the words name no address that the name resolved to.
+    assert!(text.contains("ALLOW list") && !text.contains("not a public address"), "{text}");
     assert!(!text.contains("SSH-2.0-never-reached"), "{text}");
 
     let mut args = vec!["proxy".to_string()];

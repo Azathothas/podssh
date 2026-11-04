@@ -20,7 +20,7 @@ use tokio::net::TcpStream;
 use tokio::time::Instant;
 
 use super::egress::{self, Missed, Plan};
-use super::policy::{shown, Refused};
+use super::policy::shown;
 use super::{answer, Config};
 
 /// The longest wait of `?precheck` for the target's first bytes, as the
@@ -87,11 +87,11 @@ where
     let target = shown(&asked.host, asked.port);
     let plan = match cfg.policy.plan(&asked.host, asked.port, asked.family, &cfg.egress).await {
         Ok(plan) => plan,
-        Err(Refused::Policy(why)) => {
-            return answer(&mut stream, request::refusal(403, &format!("forward: {why}"), &[])).await
-        }
-        Err(Refused::Unreachable(why)) => {
-            return answer(&mut stream, request::refusal(502, &format!("relay: {why}"), &[])).await
+        Err(refused) => {
+            if let Some(line) = refused.logged() {
+                cfg.event(&line);
+            }
+            return answer(&mut stream, request::refusal(refused.status(), &refused.answer(), &[])).await;
         }
     };
     let mut early = Vec::new();

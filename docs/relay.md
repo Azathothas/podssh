@@ -66,7 +66,12 @@ VERSION`), `/v1/mint`, `/connect/<host>/<port>` with `?dial=lazy`,
 (the pinned copy). Its limits are the ones below. A target is dialed only
 once each address of its name is public, and port 25 is refused; a `403`
 names the target and "not in the ALLOW list", as the client reads a policy
-refusal. Each write waits for the reader on the other side, so no queue of a
+refusal. A name that does not resolve, that resolves to an address that is
+not public, or that has no address of the family asked for gets one
+sentence, `HOST:PORT not in the ALLOW list: this relay dials no address of
+it`, which names no address, so that a holder of a token cannot map the
+role's own network by names (GitHub #126); the role's line on stdout keeps
+the cause. Each write waits for the reader on the other side, so no queue of a
 session grows without a bound, and on Linux each socket of the role holds at
 most 128 KiB unsent (`TCP_NOTSENT_LOWAT`), so a slow reader ties a few
 hundred KiB of the host to its session, not the MiB of a send buffer that

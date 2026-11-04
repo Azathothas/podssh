@@ -32,7 +32,6 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use super::forward;
-use super::policy::Refused;
 use super::{answer, Config};
 use crate::forward_layer::PATH;
 use crate::relay::Relay;
@@ -166,11 +165,11 @@ where
     // A resume's path is checked too: the policy holds for each link.
     let plan = match cfg.policy.plan(&asked.host, asked.port, asked.family, &cfg.egress).await {
         Ok(plan) => plan,
-        Err(Refused::Policy(why)) => {
-            return answer(&mut stream, request::refusal(403, &format!("forward: {why}"), &[])).await
-        }
-        Err(Refused::Unreachable(why)) => {
-            return answer(&mut stream, request::refusal(502, &format!("relay: {why}"), &[])).await
+        Err(refused) => {
+            if let Some(line) = refused.logged() {
+                cfg.event(&line);
+            }
+            return answer(&mut stream, request::refusal(refused.status(), &refused.answer(), &[])).await;
         }
     };
     if stream.write_all(&server::switching(&key)).await.is_err() {

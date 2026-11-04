@@ -21,7 +21,7 @@ use serde_json::json;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
 use super::egress::{self, Missed};
-use super::policy::{shown, Refused};
+use super::policy::shown;
 use super::{forward, tokens, Config};
 use crate::http_road::{query, route, Kind, Route, BATCH_MAX, DOWN_MAX, KEY, OPEN, PREFIX, WAIT_MAX};
 use answers::{refuse, whole, write};
@@ -136,11 +136,11 @@ where
     let target = shown(&asked.host, asked.port);
     let plan = match cfg.policy.plan(&asked.host, asked.port, asked.family, &cfg.egress).await {
         Ok(plan) => plan,
-        Err(Refused::Policy(why)) => {
-            return write(stream, refuse(403, &format!("forward: {why}"), &[], keep), keep).await;
-        }
-        Err(Refused::Unreachable(why)) => {
-            return write(stream, refuse(502, &format!("relay: {why}"), &[], keep), keep).await;
+        Err(refused) => {
+            if let Some(line) = refused.logged() {
+                cfg.event(&line);
+            }
+            return write(stream, refuse(refused.status(), &refused.answer(), &[], keep), keep).await;
         }
     };
     // As the forward road dials: through the host's proxy when one is set,

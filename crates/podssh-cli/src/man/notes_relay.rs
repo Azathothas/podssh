@@ -133,7 +133,9 @@ pub const RELAY: &[&str] = &[
      --cert FILE and --key FILE (a P-256 key in PEM) or from --acme NAME, so that each podssh reaches \
      it with --relay-host and the CA that signed its certificate. It serves /health, /v1/mint, \
      /connect/HOST/PORT, /relays.json, /trace and /llms-full.txt, dials a target only once its name \
-     resolves to public addresses (--allow-private dials the others too), refuses port 25, and keeps \
+     resolves to public addresses (--allow-private dials the others too), refuses port 25, answers a \
+     name that does not resolve, or not to a public address, with one 403 that names no address (the \
+     cause is a line on stdout), and keeps \
      the default relay's limits: 180 s with no payload, 12 hours and 64 MiB a session. --mint anyone \
      mints a token for each client; by default it mints for no one (503), as its tokens are given \
      another way. A token lives until the relay stops. Each mint, upgrade and client's Close is a line \

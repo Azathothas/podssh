@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**591 entries: 91 open, 5 partial, 2 blocked, 493 done.**
+**592 entries: 91 open, 5 partial, 2 blocked, 494 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 2 | 0 | 63 | 65 |
+| P1 | 0 | 2 | 0 | 64 | 66 |
 | P2 | 25 | 2 | 0 | 238 | 265 |
 | P3 | 66 | 1 | 2 | 191 | 260 |
-| **All** | 91 | 5 | 2 | 493 | 591 |
+| **All** | 91 | 5 | 2 | 494 | 592 |
 
 ## Entries
 
@@ -667,3 +667,4 @@ repository and CI).
 | [T-625](mesh.md) | P3 | S | M10 | measurement | open | The rates of the Piping Server road through `ppng.io` and of the Wisp demo server, measured through podssh |
 | [T-626](mesh.md) | P3 | S | M10 | research | open | I2P, Nym and cjdns: whether an overlay of peer addresses carries a podssh pair: the research |
 | [T-627](robustness.md) | P1 | S | M10 | defect | partial | The relay role's test of a resume by the next token of one leg timed out once in the relay crate's suite |
+| [T-628](mesh.md) | P1 | S | M10 | defect | done | The relay role's refusal of a target names the address that its name resolved to, so a holder of a token maps the role's network |

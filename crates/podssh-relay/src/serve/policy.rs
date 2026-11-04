@@ -34,10 +34,55 @@ impl Default for Policy {
 /// the client reads a policy refusal ("not in the ALLOW list").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refused {
-    /// The policy's: `403`.
+    /// The policy's, in words that are the same for each target of its
+    /// kind (a port): `403`.
     Policy(String),
-    /// No address: `502`.
+    /// A name that the role does not dial for what its resolver found (no
+    /// address, none of the family asked for, or one that is not public):
+    /// `403`, in one sentence for each such cause, so that a caller cannot
+    /// map the role's network by names (GitHub #126). `why` is for the
+    /// operator's log alone.
+    NotDialed { target: String, why: String },
+    /// The role's own fault, which another relay host may not have: `502`.
     Unreachable(String),
+}
+
+impl Refused {
+    /// The status of the answer.
+    pub fn status(&self) -> u16 {
+        match self {
+            Refused::Policy(_) | Refused::NotDialed { .. } => 403,
+            Refused::Unreachable(_) => 502,
+        }
+    }
+
+    /// The words that the caller gets, after `road: `: never what the
+    /// resolver found for a name.
+    pub fn said(&self) -> String {
+        match self {
+            Refused::Policy(why) | Refused::Unreachable(why) => why.clone(),
+            Refused::NotDialed { target, .. } => {
+                format!("{target} not in the ALLOW list: this relay dials no address of it")
+            }
+        }
+    }
+
+    /// The answer's words with the road's word first: `forward:` for a
+    /// refusal, `relay:` for the role's own fault, as the client reads them.
+    pub fn answer(&self) -> String {
+        match self {
+            Refused::Unreachable(_) => format!("relay: {}", self.said()),
+            _ => format!("forward: {}", self.said()),
+        }
+    }
+
+    /// The operator's line, which keeps the cause that the caller loses.
+    pub fn logged(&self) -> Option<String> {
+        match self {
+            Refused::NotDialed { target, why } => Some(format!("refused {target}: {why}")),
+            _ => None,
+        }
+    }
 }
 
 impl Policy {
@@ -72,7 +117,7 @@ impl Policy {
             Ok(ip) => vec![SocketAddr::new(ip, port)],
             Err(_) => tokio::net::lookup_host((host, port))
                 .await
-                .map_err(|e| Refused::Unreachable(format!("cannot reach {target}: {e}")))?
+                .map_err(|e| Refused::NotDialed { target: target.clone(), why: format!("no address: {e}") })?
                 .collect(),
         };
         let wanted: Vec<SocketAddr> = found
@@ -84,7 +129,8 @@ impl Policy {
             })
             .collect();
         if wanted.is_empty() {
-            return Err(Refused::Unreachable(format!("cannot reach {target}: no address of the family asked for")));
+            let why = format!("no address of the family asked for, IPv{}", family.unwrap_or(0));
+            return Err(Refused::NotDialed { target, why });
         }
         if self.private {
             return Ok(wanted);
@@ -92,10 +138,8 @@ impl Policy {
         // Every address is checked: a name that gives one private address
         // among public ones is refused, as it could be steered to it.
         if let Some(inside) = wanted.iter().find(|a| !public(a.ip())) {
-            return Err(Refused::Policy(format!(
-                "{target} not in the ALLOW list: it resolves to {}, which is not a public address",
-                inside.ip()
-            )));
+            let why = format!("it resolves to {}, which is not a public address", inside.ip());
+            return Err(Refused::NotDialed { target, why });
         }
         Ok(wanted)
     }
@@ -213,10 +257,49 @@ mod tests {
         let port25 = policy.addresses("140.82.112.3", 25, None).await.unwrap_err();
         assert!(matches!(&port25, Refused::Policy(w) if w.contains("ALLOW list")), "{port25:?}");
         let inside = policy.addresses("10.0.0.1", 22, None).await.unwrap_err();
-        assert!(matches!(&inside, Refused::Policy(w) if w.contains("10.0.0.1")), "{inside:?}");
+        assert_eq!(inside.status(), 403, "{inside:?}");
+        assert!(inside.logged().is_some_and(|l| l.contains("10.0.0.1, which is not a public address")), "{inside:?}");
         let allowed = Policy { private: true, ..Policy::default() };
         assert_eq!(allowed.addresses("127.0.0.1", 22, None).await.unwrap().len(), 1);
         let family = allowed.addresses("127.0.0.1", 22, Some(6)).await.unwrap_err();
-        assert!(matches!(family, Refused::Unreachable(_)));
+        assert!(matches!(family, Refused::NotDialed { .. }), "{family:?}");
+    }
+
+    // GitHub #126: a name that does not resolve, one that resolves to a
+    // private address, and one of no address of the family asked for get
+    // the same words, which name no address; the operator's line keeps it.
+    #[tokio::test]
+    async fn a_private_target_and_a_missing_name_are_both_not_dialed() {
+        let policy = Policy::default();
+        let private = policy.addresses("localhost", 22, None).await.unwrap_err();
+        let missing = policy.addresses("no-such-name.invalid", 22, None).await.unwrap_err();
+        let family = policy.addresses("140.82.112.3", 22, Some(6)).await.unwrap_err();
+        for (refused, target) in
+            [(&private, "localhost:22"), (&missing, "no-such-name.invalid:22"), (&family, "140.82.112.3:22")]
+        {
+            assert_eq!(refused.status(), 403, "{refused:?}");
+            assert_eq!(
+                refused.answer(),
+                format!("forward: {target} not in the ALLOW list: this relay dials no address of it")
+            );
+            assert!(!refused.answer().contains("127.0.0.1") && !refused.answer().contains("public"), "{refused:?}");
+        }
+        assert!(private.logged().is_some_and(|l| l.contains("which is not a public address")), "{private:?}");
+        assert!(missing.logged().is_some_and(|l| l.contains("no address")), "{missing:?}");
+    }
+
+    #[test]
+    fn the_roles_own_fault_stays_a_502_with_its_words() {
+        let fault = Refused::Unreachable("cannot reach a.example:22: no route out to IPv6".into());
+        assert_eq!(
+            (fault.status(), fault.answer()),
+            (502, "relay: cannot reach a.example:22: no route out to IPv6".into())
+        );
+        assert!(fault.logged().is_none());
+        let port = Refused::Policy("a.example:25 not in the ALLOW list: port 25 is refused".into());
+        assert_eq!(
+            (port.status(), port.answer()),
+            (403, "forward: a.example:25 not in the ALLOW list: port 25 is refused".into())
+        );
     }
 }

@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use tokio::io::AsyncReadExt;
 
 use super::egress::{self, Plan};
-use super::policy::{shown, Refused};
+use super::policy::shown;
 use super::Config;
 
 /// The contract that the role serves, as podssh pinned it.
@@ -129,7 +129,12 @@ pub async fn trace(cfg: &Config, head: &Request) -> Vec<u8> {
     };
     let host = host.trim_start_matches('[').trim_end_matches(']').to_string();
     doc["target"] = match cfg.policy.plan(&host, port, None, &cfg.egress).await {
-        Err(Refused::Policy(why) | Refused::Unreachable(why)) => json!({ "error": format!("refused: {why}") }),
+        Err(refused) => {
+            if let Some(line) = refused.logged() {
+                cfg.event(&line);
+            }
+            json!({ "error": format!("refused: {}", refused.said()) })
+        }
         Ok(plan) => dial_for_trace(&host, port, &plan, cfg).await,
     };
     json(&doc)
