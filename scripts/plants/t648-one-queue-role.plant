@@ -1,0 +1,7 @@
+# T-648: podssh's relay role queues each session's frames to a node in one
+# line again, in the order they came; the test of a session's four bytes
+# beside another's backlog, which wait for one frame of it at most, must fail.
+ENTRY=T-648
+GROUP=resume
+EXPECT='test serve::reverse::outbox::tests::a_sessions_bytes_to_a_node_wait_for_one_frame_of_another_at_most \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib -- serve::reverse::outbox::tests::a_sessions_bytes_to_a_node_wait_for_one_frame_of_another_at_most'

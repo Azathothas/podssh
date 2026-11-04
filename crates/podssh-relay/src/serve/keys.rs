@@ -35,6 +35,10 @@ pub trait Members: Send + Sync {
     /// Whom it mints for, in the words of the role's first line; `Err` when
     /// it mints for nobody now, which stops the role's start.
     fn shown(&self) -> Result<String, String>;
+    /// How many members it may mint for now, for each key's share of the
+    /// pairs (T-630): a count too high makes each share smaller, and never
+    /// lets one key take another's; 0 when it mints for nobody now.
+    fn count(&self) -> usize;
 }
 
 /// Whom a keyed mint lets in: the keys of a list, the members of a net, or
@@ -58,6 +62,14 @@ impl<'a> Whom<'a> {
     /// The keys of the list in `file` alone.
     pub fn list(file: &'a Path) -> Whom<'a> {
         Whom { list: Some(file), net: None }
+    }
+
+    /// How many keys it lets in now, the list's and the net's, each read
+    /// again as for each request, for each key's share of the pairs (T-630);
+    /// a list that cannot be read counts none.
+    pub fn count(&self) -> usize {
+        let listed = self.list.and_then(|file| Allowlist::read(file).ok()).map_or(0, |list| list.len());
+        listed + self.net.map_or(0, |net| net.count())
     }
 
     /// Whether `key` is let in: `Ok` with the net's words for its member
@@ -320,6 +332,10 @@ mod tests {
         fn shown(&self) -> Result<String, String> {
             Ok("the members of the net home".into())
         }
+
+        fn count(&self) -> usize {
+            1
+        }
     }
 
     #[test]
@@ -378,6 +394,9 @@ mod tests {
             refused.contains("not on this relay's list, and the key") && refused.contains("not a member"),
             "{refused}"
         );
+        // The keys that each one's share of the pairs counts (T-630).
+        assert_eq!((whom.count(), Whom::list(&file).count()), (2, 1), "the list's key and the net's member");
+        assert_eq!(Whom::list(&file.with_file_name("none")).count(), 0, "a list that cannot be read");
         // Whom each mint asks a key of, and its word in /health.
         let both = Mint::Net(std::sync::Arc::new(OneMember(3)), Some(file.to_path_buf()));
         assert!(Whom::of(&both).is_some_and(|w| w.list.is_some() && w.net.is_some()));

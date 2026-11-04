@@ -698,9 +698,11 @@ through the default one:
   a name of 34 characters of `[-0-9a-z]`, three tokens of 64 characters of
   `[0-9a-z]`, 72 h of life, as the default relay's (measured 2026-10-09).
   A name in use gets `409`; past 4096 pairs, `429`; a body that is not `{}`
-  or nothing, `400`. `--pairs FILE` keeps the pairs in FILE, of mode 0600,
-  so that they outlive a restart; it holds the SHA-256 of each token, never
-  a token, and the role compares a token by its digest.
+  or nothing, `400`. A role that mints for keys keeps a share of the 4096
+  for each key (T-630, "A key's share of the pairs" below). `--pairs FILE`
+  keeps the pairs in FILE, of mode 0600, so that they outlive a restart; it
+  holds the SHA-256 of each token, never a token, and the role compares a
+  token by its digest.
 - `/v1/node/<name>`, `/v1/connect/<name>`, `GET /v1/status/<name>` and
   `POST /v1/stop/<name>`, each with its own token, from `X-Relay-Token` or
   `?token=`; a wrong one gets `403 reverse: forbidden`, a second node `409`
@@ -715,7 +717,12 @@ through the default one:
   operator: past it, the frame is dropped, the session ends with `1011
   relay backpressure`, and the node's other sessions go on (T-336). The
   role reads an operator only while the node's queue has room, so a slow
-  node slows its operators and loses nothing. A frame of the node for a
+  node slows its operators and loses nothing. The frames to a node wait in
+  a line for each session, a turn each (T-648): one session may hold the
+  1 MiB, another's empty line still takes a frame, and so an operator's
+  keystroke waits for one frame of each other session, not for an upload's
+  backlog; the text frames (`open`, `spent`) go before the sessions' bytes,
+  and a session's `close` after its own. A frame of the node for a
   session that ended in the last 2 s was on its way, and is dropped; one for
   an id never given, or closed long before, closes the node's socket with
   `1003 unknown session id` (T-421). A planned stop (Ctrl-C, SIGTERM)
@@ -825,6 +832,38 @@ does: the contract's token names no key.
   `PODSSH_NET=no`, does not start (78); once the net goes bad, each request
   gets a `403` that names no file, and `podssh net ls` on the host says
   why.
+
+## A key's share of the pairs (T-630)
+
+A role that mints for keys (`--mint keys:FILE`, `--mint net`, or both)
+lends each of them a part of its reverse road, and a pair lives 72 h: one
+key that pairs in a loop must not take each of the 4096 places and leave
+the others `429` for days. So the role keeps half of its table as a
+reserve, in equal parts for the keys that it mints for at that moment (the
+list's and the net's members, each read again for the request), one place
+at least; the other half goes to whoever asks first.
+
+- A key makes a pair within its reserve while the table has a place, and
+  past it while the places left after this one still hold each other key's
+  unused reserve. So a busy key among idle ones borrows past its own (with
+  4 keys, 2560 of 4096), and each other key still finds its reserve (512
+  each); a key alone takes the whole table.
+- Past that, `429` with `Retry-After: 60` and the key's own count and
+  reserve: `/v1/pair: this key holds N pairs, past its share of M while
+  others wait`, which names no other key and no other count. A full table
+  is still `/v1/pair: this relay keeps 4096 pairs already`. podssh's client
+  says the role's words after its own (`the relay is limiting new pairs;
+  try again in 60 s: ...`). The role says `/v1/pair: a key past its share
+  of M pairs` on its own lines, after the line that names the key.
+- A pair keeps the fingerprint of the key that made it, in memory and in
+  the file of `--pairs` (`"maker"`), so that the share holds across a
+  restart; a renewal keeps it, and a pair that is stopped or expires gives
+  its place back to its key. A file of before has no maker: its pairs, and
+  each pair of a role that mints for anyone, count against no key.
+- It is a share, not a defence: a holder of several keys of the list has a
+  reserve for each, and the reserve moves when the list or the net does. A
+  count of the net's members includes those that its policy refuses, which
+  makes each reserve smaller, never one key's larger than its part.
 
 ## The relay role behind a quick tunnel (T-428)
 

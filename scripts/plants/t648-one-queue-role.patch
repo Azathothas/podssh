@@ -1,0 +1,10 @@
+--- a/crates/podssh-relay/src/serve/reverse/outbox.rs
++++ b/crates/podssh-relay/src/serve/reverse/outbox.rs
+@@ -221,5 +221,5 @@
+     /// for: the node, whose one socket carries each session, a turn each.
+     pub async fn binary_waiting(&self, id: SessionId, frame: Vec<u8>) -> Result<(), Gone> {
+         let cost = cost(frame.len());
+-        self.lines.push(Some(id), Piece::Binary(frame), cost).await.map_err(|_| Gone)
++        self.lines.push(None, Piece::Binary(frame), cost).await.map_err(|_| Gone)
+     }
+

@@ -192,7 +192,8 @@ where
         (state.forget(&id).is_some(), state.node_outbox())
     };
     if let (true, Some(node)) = (gone, node) {
-        node.text(close(&id, None));
+        // After the session's last bytes (T-648).
+        node.text_after(id, close(&id, None));
     }
     outbox.abort(1011, "socket error");
 }
@@ -218,7 +219,7 @@ fn end(pair: &Pair, id: &SessionId, operator: &Outbox, why: (u16, &str)) {
         (state.forget(id), state.node_outbox())
     };
     if let (Some(_), Some(node)) = (session, node) {
-        node.text(close(id, Some(why.1)));
+        node.text_after(*id, close(id, Some(why.1)));
     }
     operator.close(why.0, why.1);
 }
@@ -226,7 +227,8 @@ fn end(pair: &Pair, id: &SessionId, operator: &Outbox, why: (u16, &str)) {
 /// One frame of the operator's payload, to the node with the session's id.
 /// The node is the receiver of each session, so the role waits for room in
 /// its queue rather than lose a session's bytes: a slow node slows its
-/// operators, and no queue for it passes the bound.
+/// operators, and no queue for it passes the bound. The wait is in the
+/// session's own line, a turn each (T-648).
 async fn carry(pair: &Pair, id: &SessionId, payload: &[u8]) -> Result<(), (u16, &'static str)> {
     if payload.is_empty() {
         return Ok(());
@@ -250,6 +252,6 @@ async fn carry(pair: &Pair, id: &SessionId, payload: &[u8]) -> Result<(), (u16, 
     let Some(node) = node else { return Err((1011, "node offline")) };
     let frame = encode_node_frame(id, payload).map_err(|_| (1009, "frame byte cap"))?;
     // A node gone in the wait closes this session with its cause.
-    let _ = node.binary_waiting(frame).await;
+    let _ = node.binary_waiting(*id, frame).await;
     Ok(())
 }

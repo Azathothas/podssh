@@ -58,7 +58,14 @@ session whose local side reads no more ends alone, with `close {id}` and the
 reason, so that the socket's reader never waits for it: 1 MiB may wait for a
 local side, and with the resumable layer twice its window, which its client
 sends with no acknowledgement, so that a slow local side is not taken for a
-stopped one (T-271). The node says `online` once the relay has its socket. A
+stopped one (T-271). Its control frames go before the sessions' bytes
+(T-410), and the bytes wait in a line for each session, a turn each
+(T-648): four reads of a local side may wait in its line, 256 in all, the
+one queue's room of before, and a line that holds nothing always takes one
+read. So an interactive session's echo waits for one read of each other
+session at most, not for a bulk copy's backlog on a slow egress, and a
+session's `close` still follows its last bytes. The node says `online` once
+the relay has its socket. A
 session over the limit gets `reject` at once, and the handler has 10 s to
 open the local side. It acts on each end by its code and reason: `409`,
 connect again for 30 s at the first registration (T-416), and after a loss

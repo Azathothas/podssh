@@ -1,0 +1,7 @@
+# T-648: podssh's node queues each session's bytes in one line of 256 reads
+# again, in the order they came; the test of a session's four bytes beside
+# another's backlog, which must go before 2 MiB more of it, must fail.
+ENTRY=T-648
+GROUP=resume
+EXPECT='test a_sessions_four_bytes_go_before_anothers_backlog \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair --test reverse_fair -- a_sessions_four_bytes_go_before_anothers_backlog'
