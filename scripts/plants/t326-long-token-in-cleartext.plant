@@ -1,0 +1,8 @@
+# T-326: the relay role's cleartext road takes a token of 72 h at /connect/,
+# where it takes a token of one session alone, as each hop reads the
+# header; the test's token of 72 h then upgrades in cleartext, where it must
+# be refused.
+ENTRY=T-326
+GROUP=resume
+EXPECT='a token of 72 h is refused in cleartext'
+RUN='cargo test --locked -p podssh-relay --features serve --test relay_serve_cleartext -- a_token_of_one_session_works_once'

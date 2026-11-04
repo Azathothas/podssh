@@ -7,9 +7,11 @@
 use std::sync::Arc;
 
 use podssh_ssh::Log;
-use podssh_ws::client::{ConnectError, RelayStream};
+use podssh_ws::client::ConnectError;
 use podssh_ws::iap::carry::{self, Dial, Dialing, Ended, Line, NotOpen, Say};
 use podssh_ws::iap::{self, close, Resume, Target};
+// The stream of a session to a relay: TLS here (T-326).
+use podssh_ws::url::Stream;
 use podssh_ws::{ProxyChoice, Trust};
 
 use super::google::{TokenFault, Tokens};
@@ -53,9 +55,9 @@ impl std::fmt::Display for Fault {
 
 /// The links of a session to `target`, each with a token of `tokens`,
 /// through the environment's proxy.
-pub fn dial(target: &Target, tokens: Arc<Tokens>, trust: &Trust) -> Dial<RelayStream, Fault> {
+pub fn dial(target: &Target, tokens: Arc<Tokens>, trust: &Trust) -> Dial<Stream, Fault> {
     let (target, trust) = (target.clone(), trust.clone());
-    Arc::new(move |resume: Option<Resume>| -> Dialing<RelayStream, Fault> {
+    Arc::new(move |resume: Option<Resume>| -> Dialing<Stream, Fault> {
         let (target, trust, tokens) = (target.clone(), trust.clone(), tokens.clone());
         Box::pin(async move {
             let token = tokens.token().await.map_err(Fault::Token)?;

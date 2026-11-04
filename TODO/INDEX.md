@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**579 entries: 95 open, 2 partial, 2 blocked, 480 done.**
+**579 entries: 94 open, 2 partial, 2 blocked, 481 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 29 | 1 | 0 | 234 | 264 |
-| P3 | 66 | 0 | 2 | 182 | 250 |
-| **All** | 95 | 2 | 2 | 480 | 579 |
+| P3 | 65 | 0 | 2 | 183 | 250 |
+| **All** | 94 | 2 | 2 | 481 | 579 |
 
 ## Entries
 
@@ -398,7 +398,7 @@ repository and CI).
 | [T-323](relay.md) | P3 | S | backlog | chore | done | A frame that `podssh ssh` sends to the relay stays under 64 KiB with room to spare |
 | [T-324](ws.md) | P3 | M | backlog | feature | done | `doctor` tells the three failures of the upgrade apart, and samples each probe |
 | [T-325](ws.md) | P3 | M | M10 | feature | done | `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit |
-| [T-326](ws.md) | P3 | M | M10 | feature | open | A cleartext road on port 443, probed after the TLS road fails |
+| [T-326](ws.md) | P3 | M | M10 | feature | done | A cleartext road on port 443, probed after the TLS road fails |
 | [T-327](config.md) | P3 | M | backlog | feature | done | `podssh config import` from mRemoteNG |
 | [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |
 | [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |

@@ -426,6 +426,29 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   with IPv6 egress (`-J node://NAME`), or `warp://[ADDR]`, which podssh
   never tries unasked. With a relay named, or `PODSSH_DIRECT=no`, the run
   ends with that note, as before.
+- **The cleartext road, the relay's last** (T-326, the operator's ruling
+  Q45, GitHub #56). When each relay host failed, and the TLS of one failed
+  on the way (a certificate that is not the relay's, as a proxy that
+  intercepts TLS by its SNI or its certificate presents its own; a reset or
+  a close in the handshake; or its bound), podssh tries that host once more
+  with no TLS, on its own port, through `HTTPS_PROXY` as each road dials:
+  the first host of each deployment alone, one at a time, 45 s each, before
+  the direct road and the forwarders. It asks for a token of one session,
+  `POST /v1/mint?once=1`, signed by the client's key where the relay asks
+  (T-448), then upgrades with it, in cleartext. Each hop reads the target
+  and that token, which lives minutes and which one upgrade spends; SSH
+  inside stays end to end. No other token goes there (not
+  `PODSSH_RELAY_TOKEN`, not the cache's), the token is never cached, and a
+  relay whose answer does not say `"once": true`, with an end within 10
+  minutes, gets no upgrade. One line says what goes, and one which host
+  carries the session; `-v` says that the session runs in cleartext, and
+  `doctor`'s line `forward` names it. Its failures are lines alone: the
+  run's failure, its code and the forwarders' fallback stay the TLS road's.
+  `podssh relay serve` serves the road ([relay.md](relay.md), "The
+  cleartext road"); the default relay's edge serves TLS alone on 443 and
+  refuses it. `ssh`, `proxy`, `pipe` and each command that reaches its
+  server as `ssh` does take it, a named relay too. `PODSSH_CLEARTEXT=no`
+  turns it off; another word is said in a line, and the road is not tried.
 - **`--forwarder TEMPLATES` reaches the first hop through other products'
   WebSocket forwarders, in place of the relay** (T-369, GitHub #60). A
   forwarder dials the host and the port that a client names and carries the
@@ -505,6 +528,11 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   forwarder. One line says that `HOST:PORT` goes to them and the bound of the wait; the carrier is named
   after each failure before it; when none carries, one line gives each one's reason, and the run ends with
   the relay's code. The order puts a second provider before a second copy of the first.
+  When none carries, their `ws://` form follows, last (T-326, GitHub #56): the host of each is probed with
+  no TLS on port 80, one at a time, 5 s each (the probe of `doctor`'s line `cleartext`), and the `ws://`
+  form of each that passed (an answer of HTTP that is neither a refusal of cleartext, nor a redirect, nor
+  a `403`) is tried in the same order, the line before them naming them and saying that each hop reads the
+  target; no relay token goes to a forwarder. `PODSSH_CLEARTEXT=no` turns that form off.
   `PODSSH_FORWARDER_FALLBACK=no` or `ForwarderFallback no` turns it off, and another word is refused (78);
   `doctor`'s line `fallback` says whether it is on, as `????` (it measured nothing), and asks none unless
   `--forwarder` names them. They serve their own products' users and publish no limit: ssheasy's code slows a connection to
@@ -2617,6 +2645,21 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   relay, or the pair), the channel (the exit let this key not in), the net's
   policy, the exit's check of an address, or its dial. `--exit-target` and
   `--client-key` with no `--exit` are 64.
+- **The line `cleartext`** (T-326, GitHub #56), in the section `relay`,
+  after `ipv6`: what a request with no TLS meets on the way to the first
+  relay host that answered, else to the first host, at its port and at port
+  80 beside 443, as the cleartext road would meet it once the TLS road
+  failed: the `CONNECT` that the proxy takes, then `GET /health` with no
+  token and no target, and what came back, named (a reset or a close with
+  no answer, as a hop that expects TLS cuts cleartext; a record of TLS; the
+  edge's refusal, a `400` that says a request of plain HTTP went to its
+  HTTPS port; a refusal by policy, `403`; a redirect; or an answer, the
+  relay's own `/health` named), then whether the road reaches the relay.
+  One probe after another, 10 s each. It is `ok`, a fact, as a reset is no
+  fault where TLS answers; `????` when the proxy setting cannot be read.
+  With `--forwarder`, the section of the forwarders has the same line for
+  each one's host, at 443 and 80, and says whether a `ws://` form of it can
+  pass.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,
@@ -3187,6 +3230,17 @@ commands. The rules behind them:
   a name that is no DNS name of two labels, and `--ca-file` with files are
   usage errors (64). `scripts/interop-acme.sh` runs it against Pebble, Let's
   Encrypt's server for tests (`.github/workflows/acme-interop.yml`).
+- **`relay serve` takes the cleartext road beside TLS (T-326).** Its
+  listener peeks at the first byte of each connection: a record of TLS's
+  handshake goes to TLS, as before; another is served with no TLS, for a
+  client whose proxy cuts TLS, and only with what a session needs with a
+  token of one session: `GET /health`; `POST /v1/mint?once=1`, for whom
+  `--mint` names and under the same brake, a token that lives 5 minutes,
+  with `"once": true`; and `/connect/HOST/PORT` with that token, which its
+  upgrade spends, whatever its end. A token of 72 h, its mint, the reverse
+  road, the documents and the probes get `403` there. `--cleartext no`
+  serves TLS alone; another word is a usage error (64). The first line says
+  which ([relay.md](relay.md), "The cleartext road").
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
   systemd when `systemctl --user` answers, else a LaunchAgent when

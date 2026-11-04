@@ -55,7 +55,7 @@ compiler.
    consumes at most its input, and a control frame has FIN and 125 bytes or
    fewer (fails until T-063); `forward_path` after `parse_relay_list` has the
    form `/connect/HOST/PORT`; `one_line` leaves no control character
-   (`SECURITY.md:167-170`); `Reassembler::push` stays under a stated limit
+   (`SECURITY.md:180-183`); `Reassembler::push` stays under a stated limit
    (fails until T-096); the command line target calls `parse`, never the
    dispatch, so no target reaches the network.
 3. Reach a private parser through a wrapper under `#[cfg(fuzzing)]`, which
@@ -335,7 +335,7 @@ Read:
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
-  peer (`SECURITY.md:167-170`).
+  peer (`SECURITY.md:180-183`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
   discipline (`docs/terminal.md:172-268`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
@@ -535,7 +535,7 @@ Read, the bounds today:
   (`crates/podssh-ssh/src/relay_stream.rs:36-39`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:23`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
-  `crates/podssh-relay/src/open.rs:30-34`, `crates/podssh-ssh/src/session.rs:22`.
+  `crates/podssh-relay/src/open.rs:31-35`, `crates/podssh-ssh/src/session.rs:22`.
 - No limit: a `known_hosts` file was read whole (`crates/podssh-ssh/src/known_hosts.rs`,
   lines 186-192 at `72ca309`); the IRC buffer (T-096).
 - Two texts disagreed until T-024. The comment on the SSH window
@@ -544,7 +544,7 @@ Read, the bounds today:
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
   now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:26-29`):
-  `docs/relay.md:422-434` says that backpressure closes with `1013` at
+  `docs/relay.md:427-439` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
 ## Approach
@@ -586,7 +586,7 @@ Each command exits 0. Planted defect: set `WINDOW`
 channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:68-78`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
-check at `crates/podssh-ws/src/session.rs:415-417`; the fragment test must
+check at `crates/podssh-ws/src/session.rs:428-430`; the fragment test must
 fail.
 
 ## Correction
@@ -598,7 +598,7 @@ fail.
 - The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
   `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
   (`crates/podssh-ws/src/handshake.rs:124`) bounds `handshake::handshake`, which no command calls.
-- The steps of the connection wait `CONNECT_TIMEOUT` each (`crates/podssh-relay/src/open.rs:30`).
+- The steps of the connection wait `CONNECT_TIMEOUT` each (`crates/podssh-relay/src/open.rs:31`).
   `DEFAULT_TIMEOUT` (`crates/podssh-ws/src/client.rs:21`) is a default for an embedder, which no
   command of podssh takes.
 - The IRC buffer has a bound since T-096: 8192 bytes for a line
@@ -606,7 +606,7 @@ fail.
 - `known_hosts` was read whole a second time, under the lock of a record (`append`); the bound
   covers both reads.
 - A pool body past its bound, and a file of the cache past its bound, are dropped with no word:
-  the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:388`), and the cache reads a
+  the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:400`), and the cache reads a
   file that it cannot use as none (`crates/podssh-relay/src/cache.rs:313-315`). Each is made again,
   so the table says so, and nothing is added.
 - `PODSSH_REPLAY_BUFFER` above 16 MiB gives 4 MiB, the default, not 16 MiB
@@ -643,7 +643,7 @@ whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
 - `cargo test -p podssh-ssh --test known_hosts`: 17 passed. A file of 16 MiB is read; one byte
   more is unreadable, with its reason, and a record into it is refused, the file unchanged.
 - Planted, natively: without the check of fragments
-  (`crates/podssh-ws/src/session.rs:415-417`), a message of 16777217 bytes came through, and the
+  (`crates/podssh-ws/src/session.rs:428-430`), a message of 16777217 bytes came through, and the
   test failed; without the bound of `known_hosts`, the larger file was read, and the test failed.
 - In the build image, `scripts/interop-limits.sh` alone with the Prove's plants: as the code is, a
   reader that took each byte peaked at 6884 KiB, and one that took nothing for 30 s at 7460 KiB,
@@ -677,8 +677,8 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 
 - WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:98`,
   `crates/podssh-ws/src/frame.rs:144`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:409-433`). It is
-  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:102`) takes
+- The joining of fragments (`crates/podssh-ws/src/session.rs:422-446`). It is
+  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:104`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:131-224`, `crates/podssh-ws/src/names.rs:8-85`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
@@ -979,7 +979,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:126`, `docs/STATUS.md:132`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:4790-4791` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:4844-4845` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -996,14 +996,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:4790-4791`). A difference that the table does not name fails,
+   `docs/cli.md:4844-4845`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:4790-4791` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:4844-4845` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed
@@ -1040,7 +1040,7 @@ for `podssh ssh`.
 (openssh-portable at its default branch, 2026-10-12; read, not run):
 `client_input_channel_req` in `clientloop.c` takes `exit-status` and no
 `exit-signal`, and `client_loop` starts its status at -1, so a signal gives
-255, as `docs/cli.md:4385-4386` says. `check_host_key` in `sshconnect.c`
+255, as `docs/cli.md:4439-4440` says. `check_host_key` in `sshconnect.c`
 goes on past a changed key under `StrictHostKeyChecking=no`: it turns off
 password and keyboard-interactive login and the forwardings, then accepts
 the key, so `ssh.hostkey.changed_refused` gives 0 with OpenSSH. In
@@ -1081,7 +1081,7 @@ has three rows.
   podssh 143), `changed_key` (OpenSSH 0, podssh 255) and
   `unreadable_known_hosts` (OpenSSH 0, podssh 255).
 - `crates/podssh-ssh/src/lib.rs:16` now agrees with
-  `docs/cli.md:4385-4386`: 128 plus the signal's number, where OpenSSH
+  `docs/cli.md:4439-4440`: 128 plus the signal's number, where OpenSSH
   gives 255. `docs/cli.md` names the two differences of the host keys
   beside their rules; `docs/development.md` (item 7 of the gate) says that
   each code is checked twice; `docs/STATUS.md` has a row for OpenSSH's
@@ -1089,7 +1089,7 @@ has three rows.
 
 A defect found and repaired: `ssh.hostkey.strict_known` gave
 `-o StrictHostKeyChecking=yes` to `p`, whose `accept-new` came first, and
-the first value of a keyword wins (`docs/cli.md:807` says "the first value
+the first value of a keyword wins (`docs/cli.md:835` says "the first value
 of each"), so the check ran under `accept-new`. It now names each option
 itself, through `direct_ref`, with the run's `known_hosts`, which OpenSSH
 reads too.

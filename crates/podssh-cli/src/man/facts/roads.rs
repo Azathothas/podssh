@@ -3,7 +3,8 @@
 //! (T-437), the direct road after the relay hosts (T-363), the forwarders of
 //! other products (T-369), Wisp's among them (T-438), and their fallback
 //! (T-370), the forward proxy over TLS of --via (T-439), the wstunnel
-//! server of --wstunnel (T-441), and the OpenTunnel road (T-531).
+//! server of --wstunnel (T-441), the OpenTunnel road (T-531), and the
+//! cleartext road on the relay's port (T-326).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -80,6 +81,16 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           -4 or -6 when one is given, also after a relay that closed a session to an IPv6 target before any \
           byte, through HTTPS_PROXY when one is set, and the server's version line must come within 10 s. The \
           settings file's Direct says the same, below the variable; another word is a configuration error (78).",
+    ),
+    (
+        &["PODSSH_CLEARTEXT"],
+        "no: no cleartext road (T-326): when each relay host failed, and the TLS of one failed on the way (its \
+          certificate, a reset or a close in the handshake, or its bound), podssh ssh, each command of its road, \
+          podssh proxy and podssh pipe end with the relay's failure, and the fallback to the forwarders that \
+          podssh names tries no ws:// form of them. Unset, empty or yes: the road is tried last, a host of each \
+          deployment once, through HTTPS_PROXY as each road dials: a token of one session, minted in cleartext \
+          (POST /v1/mint?once=1) and never cached, then the upgrade with it, which each hop can read; no other \
+          token goes there. Another word is said in a line, and the road is not tried.",
     ),
     (
         &["PODSSH_FORWARDER"],

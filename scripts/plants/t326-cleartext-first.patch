@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/open.rs
++++ b/crates/podssh-relay/src/open.rs
+@@ -229,6 +229,9 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
+     });
+     let gate = MintGate::default();
+     let rounds = req.rounds.max(1);
++    if let Some((relay, session)) = crate::cleartext::over(hosts.clone(), &shared.path, notes).await {
++        return Ok(opened(session, relay, &shared.primary, true));
++    }
+     for round in 1..=rounds {
+         if round > 1 {
+             let wait = backoff(round - 1);

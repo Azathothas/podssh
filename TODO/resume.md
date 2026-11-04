@@ -29,12 +29,12 @@ in a `session` module of `podssh-relay` (`docs/design.md:574-583`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
 (`crates/podssh-ssh/src/relay_stream.rs:182-292`). Frame boundaries mean nothing
-on the relay (`docs/relay.md:235-238`), and the relay reads each record and can
+on the relay (`docs/relay.md:237-240`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:200-204`) in a new module
+1. A sans-IO codec (`docs/architecture.md:211-215`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -315,7 +315,7 @@ GitHub #19 reports. Some closes mean "do not come back".
 ## Premise
 
 Read: the failover across relay hosts serves the first connection only
-(`crates/podssh-relay/src/open.rs:200-283`). `classify` maps each reverse close
+(`crates/podssh-relay/src/open.rs:203-285`). `classify` maps each reverse close
 to a retry class (crates/podssh-transport/src/closes.rs lines 154-229 at `e8bbd4d`), with
 `relay backpressure` as `Retry::Never`
 (crates/podssh-transport/src/closes.rs line 202 at `e8bbd4d`); a received Close lost its code
@@ -330,8 +330,8 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
 1. The client drives the resume. On a loss with no `CLOSE` record, it tries
    the roads of T-164 and each host of the `RelayList`
    (`crates/podssh-relay/src/relay.rs:88-102`), each within `HOST_DEADLINE`
-   (`crates/podssh-relay/src/open.rs:32-34`), with `open::backoff` between
-   rounds (`crates/podssh-relay/src/open.rs:392-406`). Do not fork it (T-077).
+   (`crates/podssh-relay/src/open.rs:33-35`), with `open::backoff` between
+   rounds (`crates/podssh-relay/src/open.rs:404-418`). Do not fork it (T-077).
 2. A `CLOSE` record never reconnects; each other loss reconnects first
    (ssh-obi's rule, read in GitHub #19, not verified here). Print one stderr
    line for each loss and each resume, and never a secret or a token.
@@ -806,16 +806,16 @@ always runs the layer. The flag's row, the manual's note of `node`,
 ## Problem
 
 The relay cuts a connection after 180 s with no payload, and its empty
-keepalive frames do not count (`docs/relay.md:242-243`, `docs/relay.md:341`). A
+keepalive frames do not count (`docs/relay.md:244-245`, `docs/relay.md:346`). A
 reverse socket gets no keepalive at all (`docs/reverse.md:37-47`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
 
 Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
-`crates/podssh-relay/src/open.rs:353`), a limit that counts on the relay's
+`crates/podssh-relay/src/open.rs:365`), a limit that counts on the relay's
 frame each 25 s. The ping watcher acts only after a first Pong
-(`crates/podssh-ws/src/session.rs:261-299`); Pongs and the idle cut on reverse
+(`crates/podssh-ws/src/session.rs:263-301`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:349-389`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
@@ -828,7 +828,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
    answers `PONG`. A record is payload, so it resets the relay's idle cut on
    each road.
 2. Any record counts as life, as for the ping watcher
-   (`crates/podssh-ws/src/session.rs:261-270`). After 3 silent intervals the
+   (`crates/podssh-ws/src/session.rs:263-272`). After 3 silent intervals the
    link is dead, and T-153 resumes: 30 to 40 s. Both ends send, so the read
    limit of 90 s also holds on reverse sockets.
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
@@ -925,7 +925,7 @@ close at the volume cap).
 ## Problem
 
 The relay ends a WebSocket session after 64 MiB, both directions together, or
-after 12 h (`docs/relay.md:342-343`). A long or large session on the layer
+after 12 h (`docs/relay.md:347-348`). A long or large session on the layer
 meets these limits, and an end at a limit costs a resume and its delay.
 
 ## Premise
@@ -1189,7 +1189,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
 (`docs/design.md:1256-1276`). A session carries 64 MiB at most, both directions
-together (`docs/relay.md:343`).
+together (`docs/relay.md:348`).
 
 ## Approach
 
@@ -1204,7 +1204,7 @@ together (`docs/relay.md:343`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:398-399`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
+   needs a token (`docs/relay.md:403-404`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.
@@ -1735,7 +1735,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:671-672`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:205-207`). The
+not know the protocol that they carry (`docs/architecture.md:216-218`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary

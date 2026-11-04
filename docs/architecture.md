@@ -16,6 +16,17 @@ stdin/stdout <-> pump <-> relay session <-> relay <-> HOST:PORT
                                -> TLS 1.3 -> WebSocket upgrade with X-Relay-Token
 ```
 
+When each relay host failed, and the TLS of one failed on the way (a
+proxy that intercepts TLS by its SNI or its certificate), the opener tries
+the cleartext road last (T-326, the operator's ruling Q45;
+`crates/podssh-ws/src/cleartext/`, `crates/podssh-relay/src/cleartext.rs`):
+the same CONNECT, then, with no TLS, the mint of a token of one session
+and the upgrade with it. The session's stream is TLS or TCP alone
+(`podssh_ws::url::Stream`), so each caller of the opener takes a session
+of either road unchanged. podssh's relay role serves the road on its own
+listener, by the first byte of each connection
+(`crates/podssh-relay/src/serve/listener.rs`).
+
 **`podssh ssh user@host`.** podssh is the SSH client. `russh` does the SSH
 protocol. podssh does each part around it.
 

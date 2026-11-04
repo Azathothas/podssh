@@ -14,7 +14,9 @@
 //! many TCP streams over one WebSocket (`wisp`, T-438), as a forwarder of
 //! `wisp+wss://` too. A VLESS server of the user's carries a target that
 //! VLESS's header names, over a WebSocket or XHTTP (`vless`, T-440), and a
-//! wstunnel server one that its token names (`wstunnel`, T-441).
+//! wstunnel server one that its token names (`wstunnel`, T-441). The same
+//! upgrade goes with no TLS on the relay's port (`cleartext`, T-326), last,
+//! for a proxy that cuts TLS that it does not know.
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -26,6 +28,8 @@
 //! check that could not run, which is never reported as passing.
 
 pub mod bundle;
+// The cleartext road on the relay's port, and the probe of GitHub #56 (T-326).
+pub mod cleartext;
 pub mod client;
 pub mod clock;
 mod close;

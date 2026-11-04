@@ -222,8 +222,13 @@ its client; this deployment serves them once its contract has them.
    token that the relay takes once, or that ends within minutes, would
    limit what a hop can do with it (#56): say in the contract whether a
    mint can ask for one. In podssh: T-326 takes the cleartext upgrade in
-   podssh's own relay role (T-169), on its own listener, with a token of
-   one session.
+   podssh's own relay role (T-169), on its own listener, by the first byte
+   of each connection, with a token of one session that `POST
+   /v1/mint?once=1` mints (`"once": true`, 5 minutes) and that one upgrade
+   spends ([relay.md](relay.md), "The cleartext road"): the form that a
+   mint of the contract could take. The client refuses a token that the
+   answer does not say is one, so the default relay's mint, which would give
+   a token of 72 h, gets no upgrade in cleartext.
 8. **Extended CONNECT** (T-321, [TODO/roads.md](../TODO/roads.md); [#51](https://github.com/Azathothas/podssh/issues/51)).
    A WebSocket as one stream of an HTTP/2 connection (RFC 8441), so that
    many sessions share one TLS connection. Measured on 2026-10-30: the

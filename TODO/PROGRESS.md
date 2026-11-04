@@ -136,7 +136,15 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `8f09eb3`, merged and closed); T-325 (`worktree-agent-ab532bbdaa9b8fe7b`, `fbda4ad`, merged and closed); T-608
   (`worktree-agent-ab7069457e3f92567`, `be90ae1`, merged and closed, `6060558`). Each is merged in
   that order, T-253 as partial on `main` (`5d0db76`); their worktrees and local branches are gone,
-  and their `draft/` branches on GitHub, with `draft/merge-253`, can go. No draft waits.
+  and their `draft/` branches on GitHub, with `draft/merge-253`, can go.
+
+  On 2026-11-04 a sixth round was drafted, unbuilt, one commit for each entry, each branch pushed as
+  `draft/worktree-agent-*` (the agents stopped at a limit of use at 00:50 UTC and were resumed):
+  T-326 (`worktree-agent-a8b2a4b9acf9c2a8f`, `27a97cf`, merged and closed); T-319
+  (`worktree-agent-a39b6bc24832c974f`, `3739bcf`, a first part); T-173
+  (`worktree-agent-a935f48070b310b7c`, `6165bbc`, a first part); T-551
+  (`worktree-agent-a5583c3e8856c1e14`, `b4568a4`); T-086 (`worktree-agent-aae965649ba432a53`,
+  `7a0c97f`, whose `Cargo.lock` the merge makes). They wait to be merged in that order.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -181,7 +189,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 579 entries: 95 open, 2 partial, 2 blocked, 480 done.
+`TODO/INDEX.md` holds 579 entries: 94 open, 2 partial, 2 blocked, 481 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -223,8 +231,9 @@ this order:
 0. A test that fails at random comes first: the relay suite's, named and repaired (done, 50 runs
    in a row here and on a runner).
 1. The relay role (its certificate from ACME, its brake of mint and pair, the role behind a node's quick tunnel, the net's members' mint, the role's dial through `HTTPS_PROXY`, its bound on a slow reader's bytes and its planned stop are done): what the role serves:
-   T-326, T-319, T-321 and T-173; `doctor`'s measure of a stream's path, the role's IPv6 targets,
-   with `doctor`'s line of them, and a client's lost link during a node's bulk are done.
+   T-319, T-321 and T-173; `doctor`'s measure of a stream's path, the role's IPv6 targets,
+   with `doctor`'s line of them, a client's lost link during a node's bulk, and the cleartext road
+   on the relay's port are done.
 2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door and the grants used once are done): T-086, T-615, T-346, T-106 and T-551.
 3. Exit, routes, share and funnel (the exit and `doctor --exit` are done): T-432, T-433,
    T-180, then T-434, T-435 and T-459.
@@ -456,7 +465,7 @@ session's host, and a node with no pair serves the DERP road unasked
 The operator settled Q44 to Q47 on 2026-10-30 (`docs/decisions.md`): the
 split HTTP road may open its second connection (T-319, which waits for the
 relay's endpoints); the cleartext road on port 443 runs last, with a token
-for one session (T-326, which waits for the relay's endpoint); mRemoteNG's
+for one session (T-326, which podssh's relay role serves since Q63); mRemoteNG's
 GPL test files may live beside their notice (T-327; FinalShell and Termius
 moved to T-328, which waits for exports); and podssh builds its quick
 tunnel (T-300).

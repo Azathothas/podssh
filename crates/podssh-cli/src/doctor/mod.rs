@@ -29,6 +29,8 @@ use podssh_ws::Trust;
 mod address;
 mod agent;
 pub(crate) mod clock;
+// What a request with no TLS meets on the way (T-326).
+mod cleartext;
 mod hop;
 // The DERP road's servers and its home (T-379).
 mod derp;

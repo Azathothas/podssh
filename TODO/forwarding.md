@@ -59,8 +59,8 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:350-356`), with the
-   limit of 20 s (`crates/podssh-relay/src/open.rs:28-30`).
+   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:351-357`), with the
+   limit of 20 s (`crates/podssh-relay/src/open.rs:29-31`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
 5. A failed dial closes that channel only, and says why on stderr: the
@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:940-963`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:968-991`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -492,7 +492,7 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:276-282` (no bind, no listen),
-  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:182-209` ("Nothing
+  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:195-222` ("Nothing
   listens") and `README.md:44-53` state the rule from before the ruling.
   `docs/design.md:1057-1059` already allows a local listener for `pipe` after
   a probe.
@@ -588,7 +588,7 @@ box fails.
 (`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
-`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:182-209` and
+`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:195-222` and
 `README.md:44-53` state the ruling now, as `AGENTS.md:276-282` and
 `docs/target-environment.md:99-103` did already.
 
@@ -679,7 +679,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).
 - Read: the relay's limits apply to the shared connection: all the sessions
-  of a master share one 64 MiB and one 12 h (`docs/relay.md:337-343`).
+  of a master share one 64 MiB and one 12 h (`docs/relay.md:342-348`).
 
 ## Approach
 
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:264`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:753-760` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:781-788` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1057,8 +1057,8 @@ sessions (GitHub #17).
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-78`,
 `crates/podssh-ssh/src/run.rs:213-255`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
-(`crates/podssh-relay/src/open.rs:200-283`,
-`crates/podssh-relay/src/open.rs:392-406`). With `-N`, no command runs, so a
+(`crates/podssh-relay/src/open.rs:203-285`,
+`crates/podssh-relay/src/open.rs:404-418`). With `-N`, no command runs, so a
 new connection has no side effect on the server. `docs/design.md:689-696`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
@@ -1640,7 +1640,7 @@ the SOCKS form gives a server whose egress is closed a way out through the clien
 
 - Read: `crates/podssh-cli/src/ssh/forward.rs` line 43 at `6f6eda2` says "a Unix socket is not
   carried yet", and its line 49 says "the server's SOCKS proxy (-R [bind_address:]port) is not
-  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:878-879` and
+  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:906-907` and
   `crates/podssh-cli/src/man/notes_ssh.rs:455-456` say so too. `TODO/forwarding.md:52-54` says
   "until a later step" of both, in T-035.
 - Read: `RemoteForward` holds a port and a `host:host_port` only

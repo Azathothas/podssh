@@ -12,7 +12,8 @@
 //! 502, or its refusal of the target by policy), which no forwarder mends:
 //! the fallback follows only a failure where no relay host answered about
 //! the target (Q69, T-509). Each forwarder has [`EACH_WAIT`]. No relay
-//! token goes to a forwarder.
+//! token goes to a forwarder. Last, the `ws://` form of each one whose host
+//! passed a probe with no TLS (T-326, [`super::cleartext`]).
 
 use std::io::Write;
 use std::sync::Arc;
@@ -156,12 +157,20 @@ pub async fn after_relay(
     for line in &failed.lines {
         log.error(line);
     }
-    log.info(&announce(&podssh_ws::dial::authority(host, port)));
+    let target = podssh_ws::dial::authority(host, port);
+    log.info(&announce(&target));
     let code = failed.code;
-    match super::reach::carry(&super::builtins(), trust, host, port, log, true).await {
-        Ok(reached) => Ok(reached),
-        Err(_) => Err(NotReached { lines: Vec::new(), code }),
+    if let Ok(reached) = super::reach::carry(&super::builtins(), trust, host, port, log, true).await {
+        return Ok(reached);
     }
+    // Their ws:// form, last, where a probe with no TLS passed (T-326).
+    let forms = super::cleartext::passed(&mut |line: &str| log.verbose(line)).await;
+    if forms.is_empty() {
+        return Err(NotReached { lines: Vec::new(), code });
+    }
+    log.info(&super::cleartext::announce(&target, &forms));
+    let carried = super::reach::carry(&forms, trust, host, port, log, true).await;
+    carried.map_err(|_| NotReached { lines: Vec::new(), code })
 }
 
 /// `podssh proxy`'s fallback: the pipe through the forwarders that the
@@ -178,14 +187,22 @@ pub async fn after_relay_pipe(
     if not_after(relays, None, code, answered).is_some() {
         return code;
     }
-    let _ = writeln!(err, "podssh: {}", announce(&podssh_ws::dial::authority(host, port)));
-    let opened = super::pipe::open(&super::builtins(), host, port, trust, true, &mut |line: &str| {
+    let target = podssh_ws::dial::authority(host, port);
+    let _ = writeln!(err, "podssh: {}", announce(&target));
+    let mut say = |line: &str| {
         let _ = writeln!(err, "podssh: {line}");
-    })
-    .await;
+    };
+    let mut opened = super::pipe::open(&super::builtins(), host, port, trust, true, &mut say).await;
+    if opened.is_err() {
+        // Their ws:// form, last, where a probe with no TLS passed (T-326).
+        let forms = super::cleartext::passed(&mut |_: &str| {}).await;
+        if !forms.is_empty() {
+            say(&super::cleartext::announce(&target, &forms));
+            opened = super::pipe::open(&forms, host, port, trust, true, &mut say).await;
+        }
+    }
     match opened {
         Ok((end, name)) => {
-            let target = podssh_ws::dial::authority(host, port);
             let _ = writeln!(err, "podssh: the forwarder {name} carries the pipe to {target}, in place of the relay");
             super::pipe::carry(end, err).await
         }

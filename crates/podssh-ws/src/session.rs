@@ -24,7 +24,7 @@ use crate::error::SessionError;
 use crate::frame::{self, Frame};
 use crate::wire::{next_event_from, write_frame_as};
 
-/// The stream a live session runs over.
+/// The TLS stream to the relay, as [`crate::client::open_tls`] gives it.
 pub type RelayStream = tokio_rustls::client::TlsStream<TcpStream>;
 
 /// The largest message reassembled from fragments. The relay's own frames
@@ -32,8 +32,10 @@ pub type RelayStream = tokio_rustls::client::TlsStream<TcpStream>;
 pub const MAX_MESSAGE: usize = 16 * 1024 * 1024;
 
 /// A WebSocket session. All methods take `&self`, so an `Arc<RelaySession>`
-/// can be read in one task and written in another.
-pub struct RelaySession<S = RelayStream> {
+/// can be read in one task and written in another. Unless named, its stream
+/// is TLS, or TCP alone on the cleartext road (T-326), so that a session of
+/// either road goes to each caller of the relay's session unchanged.
+pub struct RelaySession<S = crate::url::Stream> {
     reader: Mutex<Reader<S>>,
     writer: Mutex<WriteHalf<S>>,
     close_sent: AtomicBool,
@@ -391,12 +393,23 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     }
 }
 
-impl RelaySession<RelayStream> {
+impl RelaySession<crate::url::Stream> {
     /// A session over the relay's TLS stream, as [`crate::connect`] opens it,
     /// which keeps the address of its TCP connection ([`RelaySession::peer`]).
     pub fn over_tls(stream: RelayStream, pending: Vec<u8>, idle: Option<Duration>) -> Self {
         let peer = stream.get_ref().0.peer_addr().ok();
+        let stream = crate::url::Stream::Tls(Box::new(stream));
         let mut session = Self::new(stream, pending, idle, crate::client::WRITE_TIMEOUT);
+        session.peer = peer;
+        session
+    }
+
+    /// A session over TCP with no TLS, as the cleartext road opens it
+    /// ([`crate::cleartext::connect`], T-326), which keeps the address of its
+    /// connection too.
+    pub fn over_cleartext(tcp: TcpStream, pending: Vec<u8>, idle: Option<Duration>) -> Self {
+        let peer = tcp.peer_addr().ok();
+        let mut session = Self::new(crate::url::Stream::Plain(tcp), pending, idle, crate::client::WRITE_TIMEOUT);
         session.peer = peer;
         session
     }

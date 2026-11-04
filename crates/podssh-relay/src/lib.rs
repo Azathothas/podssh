@@ -11,6 +11,8 @@
 //!   kept in the cache for a run whose resolver fails (T-344);
 //! - [`mod@open`]: a forward session, failing over from host to host with backoff,
 //!   one bounded attempt per host;
+//! - [`cleartext`]: the road with no TLS on the relay's port, last, with a
+//!   token of one session, for a proxy that cuts TLS (T-326);
 //! - [`keyed`]: a mint or a pair that the relay asks this client's key to
 //!   sign (T-448);
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
@@ -52,6 +54,7 @@ pub mod addresses;
 #[cfg(feature = "blocking")]
 pub mod blocking;
 pub mod cache;
+pub mod cleartext;
 #[cfg(feature = "derp")]
 pub mod derp;
 pub mod e2e;

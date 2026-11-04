@@ -329,7 +329,7 @@ Read:
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:163-178`,
-  `scripts/gate.sh:381-383`). The help omits the work record, interop, the man
+  `scripts/gate.sh:386-388`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -349,7 +349,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:135-435`).
+   (`scripts/gate.sh:135-440`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -2023,7 +2023,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:317-319` states the rule with `CXX`, and
-  `docs/STATUS.md:805` records the measurement. Rule 4 of
+  `docs/STATUS.md:806` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2054,7 +2054,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:805`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:806`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2171,7 +2171,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:208-223` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:219-234` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:99-103`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -2256,7 +2256,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:208-223`,
+- The documents already state the rule as ruled (`docs/architecture.md:219-234`,
   `docs/target-environment.md:99-103`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32
@@ -2318,7 +2318,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:422-434` says
+  as the forward path's. For the forward path, `docs/relay.md:427-439` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.
@@ -2541,7 +2541,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:316-323`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:321-328`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -4897,7 +4897,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 - Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
   after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
-  (`docs/cli.md:1905`) and "did not act on yet" (`docs/cli.md:1532`).
+  (`docs/cli.md:1933`) and "did not act on yet" (`docs/cli.md:1560`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
   (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame

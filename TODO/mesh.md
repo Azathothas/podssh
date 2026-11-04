@@ -3230,10 +3230,10 @@ The draft's calls, 2026-11-02:
    each socket of both roads, which needs a token or a pair that the brake let through and is
    checked with a MAC or a digest and no state. Lost: a brake of the upgrades with no token, as
    the default relay counts them: the role's refusal of one costs less than the count.
-4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:197`), never a
+4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:207`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:160`),
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:164`),
    with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:52`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
@@ -3288,7 +3288,7 @@ name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:173`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:177`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -3546,7 +3546,7 @@ nothing, works.
 
 ## Premise
 
-- `crates/podssh-relay/src/serve/forward.rs:140` dials the resolved addresses with
+- `crates/podssh-relay/src/serve/forward.rs:142` dials the resolved addresses with
   `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:111` does the same for
   `/trace`; neither reads `HTTPS_PROXY`.
 - Rule 2 of `AGENTS.md`: one outbound connection, through `HTTPS_PROXY` when it is set.
@@ -6810,7 +6810,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 
 - Read: the node's side of the reverse road runs over any `RelaySession<S>`
   (`crates/podssh-relay/src/reverse/serve.rs:134`), and a `RelaySession` is made over any stream,
-  with no HTTP in it (`crates/podssh-ws/src/session.rs:98-102`).
+  with no HTTP in it (`crates/podssh-ws/src/session.rs:100-104`).
 - Read: podssh's relay role serves the relay's side of a node's socket and of an operator's
   (`crates/podssh-relay/src/serve/reverse/mod.rs:1-3`, T-427).
 - Read: `pipe`'s local addresses are `stdio` (or `-`), `fd:N` and `exec:CMD`, a program with no

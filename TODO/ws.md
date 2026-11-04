@@ -307,11 +307,11 @@ Read; the lines of `podssh-ws` are those of `c56792f`. `open_tls` builds the tru
 the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 at `723d90b`, through
 `crates/podssh-ws/src/tls.rs` lines 153-180 at `723d90b`). `WsClientConfig` carries only a `Trust`
 (`client.rs` lines 47-61 at `723d90b`). The same `Trust` goes through `podssh-relay`: `Request`
-(`crates/podssh-relay/src/open.rs:147-159`), `MintContext`
+(`crates/podssh-relay/src/open.rs:148-160`), `MintContext`
 (`crates/podssh-relay/src/token.rs:95-100`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:177-185`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:463`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:468`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -510,7 +510,7 @@ Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs` lines 
 `23b5d82`). `RelaySession` is
 generic over its stream (`crates/podssh-ws/src/session.rs:36`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
-`crates/podssh-relay/src/open.rs:161-166`). The tests use in-memory streams
+`crates/podssh-relay/src/open.rs:162-169`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
 (`crates/podssh-ws/src/dial.rs:133-141`).
@@ -704,7 +704,7 @@ socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
 (`crates/podssh-ws/src/dial.rs`, lines 53-63). `proxy_from_vars` reads `https_proxy`,
 `HTTPS_PROXY`, `all_proxy` and `ALL_PROXY` (lines 163 and 184), and parses the first that is set
 (line 192). `dial` makes the error `DialError::BadProxy` (line 232), which stops the failover at
-once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
+once (`crates/podssh-relay/src/open.rs:71`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:455`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
@@ -723,7 +723,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
-   (`crates/podssh-relay/src/open.rs:62-84`) and the exit codes of `podssh proxy`
+   (`crates/podssh-relay/src/open.rs:63-85`) and the exit codes of `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs:451-464`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (now
@@ -840,7 +840,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:375-382`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:377-384`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,
@@ -1399,7 +1399,7 @@ refuses from one that was slow, nor a steady path from a lossy one.
 - The meaning of a wrong accept is podssh-ws's
   (`crates/podssh-ws/src/handshake.rs:211`), so `podssh ssh` says it too; the
   death after a valid 101 is doctor's
-  (`crates/podssh-cli/src/doctor/relay_checks.rs:240`), as a session of
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:243`), as a session of
   `podssh ssh` already names the relay's end.
 
 ## Prove
@@ -1423,7 +1423,7 @@ failure. Against a stand-in that drops one probe in three, the loss reads
 gives an answer other than 101 its status and its text
 (`crates/podssh-ws/src/handshake.rs:185` says "if status != 101 {"), and a
 101 with a wrong or no `Sec-WebSocket-Accept` its own error, and the
-forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:186`).
+forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:190`).
 Measured against the stand-in relay before the change: a wrong accept read
 "Sec-WebSocket-Accept was ..., expected ...", with nothing of what it means,
 and a valid 101 that the stand-in ended 200 ms later read "the connection
@@ -1684,7 +1684,7 @@ sh scripts/plant-each.sh --here t325-chunk-times-ignored t325-parts-times-ignore
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1717,6 +1717,61 @@ no probe for it.
 2026-10-30, the operator (Q45, `docs/decisions.md`): the road is allowed,
 tried only after the TLS road failed, with a relay token minted for that
 one session and never cached; `doctor` names the road that answered.
+
+2026-11-04, the drafting agent, within Q45:
+
+1. **The session's type.** `RelaySession`'s default stream is now TLS or TCP alone
+   (`podssh_ws::url::Stream`, the enum of the URL road's), so that a session of either road goes to
+   each caller of `podssh_relay::open` (`ssh`, `proxy`, `pipe`, `cp`, `chat`, `doctor`, the blocking
+   facade) unchanged; the three roads that built a default session from TLS (`cloudflare`, `iap`,
+   `eice`) and `podssh ping` wrap it. Lost: a second `Opened` of another type (each caller twice); a
+   boxed stream behind a trait object (the address of the connection lost, and a second vtable on
+   each read and write of each session).
+2. **Where the road runs.** In `podssh_relay::open`, after the rounds of the TLS road and before its
+   failure returns (the end of `crates/podssh-relay/src/open.rs`), so that it is the relay's last road, before
+   the direct road (T-363) and the forwarders (T-370), which send the target to others. Its failures
+   are notes alone: the run's failure, its exit code and the forwarders' fallback (Q69) stay the TLS
+   road's. Lost: in the CLI's transport after the direct road (`proxy` and `pipe` would need it twice,
+   and the blocking facade not at all); its failures as attempts of the failure (a refusal in cleartext
+   by the default relay's edge would change the code and the fallback's rule).
+3. **Which hosts.** A host whose TLS failed in TLS itself (`podssh_ws::cleartext::tls_failed`: a
+   certificate that is not the relay's, a reset or a close in the handshake, or its bound), for the mint
+   or the upgrade; the first of each deployment alone, as the hosts of one deployment share their front;
+   one at a time, each within 45 s. Lost: each host (a pool of one front repeats one answer, a
+   connection each); the first host alone (a list of the user's roles of different owners); a dial's
+   failure too (its CONNECT is the same).
+4. **The token.** A token of one session that the relay mints in cleartext, `POST /v1/mint?once=1`
+   (the query of a pair of one upgrade, T-226), signed by the client's key where the relay asks
+   (T-448); the role's form `once1.<expiry-ms>.<nonce>.<mac>`, 5 minutes, spent at its first
+   `/connect/` whatever its end, 65536 spent tokens kept to their end and one more refused past them.
+   The client takes it only when the answer says `"once": true` with an end within 10 minutes, never
+   caches it, and sends no other token in cleartext, `PODSSH_RELAY_TOKEN`'s and the cache's included.
+   Lost: a mint over TLS (it fails where TLS fails); the cached token of 72 h (Q45 forbids it); a token
+   in the URL (logs); a token taken at the upgrade's success alone (a hop could replay one that met a
+   `502`).
+5. **The role serves it by default**, on the listener that the user asked for, by the first byte
+   (`crates/podssh-relay/src/serve/listener.rs`), and serves only `/health`, the mint of a token of
+   one session and `/connect/` with one there; `--cleartext no` serves TLS alone. Lost: off by
+   default (a user behind such a proxy would need the role's owner to know first; in cleartext the
+   role gives no more than one session for one mint); a second listener for cleartext (Q1: the user
+   asks for one).
+6. **The switch.** `PODSSH_CLEARTEXT=no` turns off the client's road and the forwarders' `ws://` form;
+   another word is said in a line and the road is not tried, as the opener is a library's with no exit
+   code. Lost: no switch (a user who refuses each cleartext road has none); a refusal of 78 at each
+   command's start (each command twice).
+7. **`doctor`.** The line `cleartext` in the section `relay`, after `ipv6`: the first host that
+   answered over TLS, else the first host, at its port and at 80 beside 443, one probe after another;
+   `ok`, a fact, and `????` when the proxy setting cannot be read; with `--forwarder`, the same line for
+   each forwarder's host. Lost: `FAIL` on a reset (a path where TLS answers needs no cleartext); the
+   forwarders' hosts with no `--forwarder` (T-509: doctor asks no forwarder unasked).
+8. **The forwarders' `ws://` form.** In the fallback, after each built-in forwarder's `wss://` failed:
+   a probe of each one's host on the port of its `ws://` form (80), one at a time, 5 s each, then the
+   `ws://` form of each that passed, in the same order. Lost: the upgrade with no probe (the target in
+   cleartext to a path that carries none); the probes at once (rule 2).
+9. **Rule 2 of AGENTS.md.** One outbound connection at a time, through `HTTPS_PROXY` when it is set:
+   the mint's connection, then the upgrade's; `doctor`'s probes one after another in its section; the
+   forwarders' probes one at a time. The client listens nowhere; the role's listener is the one that the
+   user asked for (Q1), and the cleartext road adds none.
 
 ## Prove
 
@@ -1780,6 +1835,74 @@ target; its token works once, and a second use is refused; through one that rese
 probe's lines for the default relay and the forwarders, and the road to `podssh relay serve` on
 the runner.
 
+2026-11-04 (the drafting agent). The Premise holds: the token goes in the `X-Relay-Token` header
+of the upgrade, `crates/podssh-ws/src/handshake.rs:45`, and nowhere else. The Prove above needs
+two repairs, and the Prove below takes them:
+
+- `relay_serve_cleartext` is compiled with the feature `serve` alone (`#![cfg(feature = "serve")]`),
+  so `cargo test -p podssh-relay --test relay_serve_cleartext` with no feature runs no test and
+  passes on nothing; the Prove names `--features serve`, as the gate does.
+- "OpenSSH's sshd as the target": at the relay's level the target sends OpenSSH 9.6p1's version
+  line, as captured (`relay_serve_cleartext`, as T-253's test does); end to end, `podssh ssh` runs
+  a session to the test's own SSH server through the road (`doctor_cleartext`). A run against
+  OpenSSH's sshd itself through the road is the live run's.
+
+The Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test cleartext_road
+cargo test -p podssh-ws --lib cleartext::
+cargo test -p podssh-relay --features serve --test relay_serve_cleartext
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --lib cleartext::
+cargo test -p podssh-cli --test doctor_cleartext
+cargo test -p podssh-cli --lib -- doctor::cleartext:: forwarder::cleartext:: man::
+sh scripts/plant-each.sh --here t326-cleartext-first t326-once-twice t326-long-token-in-cleartext \
+  t326-reset-unnamed t326-tls-failure-unread t326-doctor-reset-unnamed
+```
+
+## Done
+
+2026-11-04, drafted (DRAFT T-326, `27a97cf`) and merged by the main session:
+
+- The road (`crates/podssh-ws/src/cleartext/mod.rs`, `crates/podssh-relay/src/cleartext.rs`, the end
+  of `podssh_relay::open`): after the TLS road failed in TLS itself, a host of each deployment, a token
+  of one session minted in cleartext, then the upgrade with it; `Opened::cleartext`, `-v` and the line
+  `forward` name it. `RelaySession`'s default stream is TLS or TCP alone.
+  `cargo test -p podssh-ws --test cleartext_road`: 4 passed; `--lib`: 169 passed, `cleartext::` 3.
+- The role (`crates/podssh-relay/src/serve/listener.rs`, `serve/cleartext.rs`, `serve/tokens.rs`):
+  the first byte, the routes of the road, tokens of one session spent at their upgrade; `podssh relay
+  serve --cleartext no`. `cargo test -p podssh-relay --features serve --test relay_serve_cleartext`:
+  3 passed; `--features serve --lib serve::`: 55 passed; `--lib cleartext::`: 3 passed; each test of
+  the crate with `--features serve,plain-ws,quick,pair,grant`: no failure.
+- `doctor`'s line `cleartext` and the forwarders' `ws://` form (`crates/podssh-cli/src/doctor/cleartext.rs`,
+  `crates/podssh-cli/src/forwarder/cleartext.rs`). `cargo test -p podssh-cli --test doctor_cleartext`:
+  4 passed; `--lib`: 823 passed (`doctor::cleartext::` 2, `forwarder::cleartext::` 1); `forwarder_cli`
+  4, `doctor` 13, `doctor_tls` 3, `doctor_upgrade` 2, `doctor_ipv6` 3, `doctor_exit` 3, `relay` 12,
+  `relay_rank` 6, `relay_serve` 14, `relay_serve_node` 5, `relay_spec` 3, `faults` 1 (12 ignored),
+  `ipv6_fallback` 16, `direct_fallback` 4, `ssh_tls_hop` 5: passed. `doctor_jobs` 3, after its filter of a
+  host's own line skips the new `cleartext` line of a forwarder's host, as it skips the line `rank`.
+- Planted (`sh scripts/plant-each.sh --here t326-cleartext-first t326-once-twice
+  t326-long-token-in-cleartext t326-reset-unnamed t326-tls-failure-unread t326-doctor-reset-unnamed`):
+  6 caught, each as its EXPECT says.
+- Repairs at the merge: a local `opened` of T-563 in `podssh_relay::open` shadowed the draft's
+  function of that name (renamed `opened_host`); three `.err().expect(..)` of the tests, which clippy
+  refuses, are `let Err(..) = .. else` with the same words, which the plants expect.
+- `cargo clippy` of podssh-ws, podssh-relay (`--features serve,plain-ws,quick,pair,grant`) and
+  podssh-cli, each `--all-targets -D warnings`: clean; rustfmt: clean.
+- Live, 2026-11-04, `podssh doctor --quick` from this cloud container through its proxy: "in
+  cleartext, tcp.ssh.relay.ajam.dev:443: reset, with no answer: a hop that expects TLS cuts cleartext;
+  tcp.ssh.relay.ajam.dev:80: an answer: the relay's /health, tcp-ssh-relay 2026-10-03-r2; the TLS road
+  answered, and podssh needs no cleartext road here".
+- Not tested offline: the forwarders' `ws://` form in the fallback end to end (the stand-in proxy of
+  the forwarders' tests takes TLS on each tunnel, so no probe passes there); its probe and its forms
+  are tested apart.
+- Waits (Q88): the live run from a GitHub runner, the probe's lines for the default relay and the
+  forwarders' hosts at 443 and 80, what Cloudflare's edge answers to cleartext on 443 from a path with
+  no intercepting proxy, and the road to `podssh relay serve` on the runner with OpenSSH's sshd as the
+  target.
+
 # T-340: On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint
 
 **Source:** the audit of hardcoded assumptions of 2026-10-31, finding 5.
@@ -1807,7 +1930,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
   with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
   kept rustls's words. doctor adds a hint for the
   clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`), and its test
-  asserts none for `UnknownIssuer` (`:372`).
+  asserts none for `UnknownIssuer` (`:375`).
 - Read: the release builds two binaries for macOS and two for Windows
   (`.github/workflows/release.yml:286-297`, `:329-345`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
@@ -2147,12 +2270,12 @@ test of the order fails.
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:246`).
+(`docs/architecture.md:257`).
 
 ## Premise
 
 - Read: doctor's hint (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`) and its tests
-  (`:369-372`).
+  (`:372-375`).
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:134` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
@@ -2163,7 +2286,7 @@ and each other command print rustls's words alone. An error should tell what to 
   yet") holds for both.
 - Read: the expiry of a cached token is read against the local clock, and a token that the relay
   refuses is minted again once (`crates/podssh-relay/src/cache.rs:97`;
-  `crates/podssh-relay/src/open.rs:360-372`): that case needs no hint.
+  `crates/podssh-relay/src/open.rs:372-384`): that case needs no hint.
 
 ## Approach
 
@@ -2720,7 +2843,7 @@ met.
 ## Decision
 
 - After the counts, not above the failures: each line goes out as its check ends
-  (`crates/podssh-cli/src/doctor/mod.rs:317-321`), so a line about them all comes once they are
+  (`crates/podssh-cli/src/doctor/mod.rs:319-323`), so a line about them all comes once they are
   known. Holding each line back until the end lost: a check of a minute would look like a hang.
 - One reference name, `github.com`, which `doctor` uses already
   (`crates/podssh-cli/src/doctor/net.rs:20-23`). A list of names that an allowlist often holds

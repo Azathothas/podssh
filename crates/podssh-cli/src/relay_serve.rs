@@ -17,16 +17,13 @@ use std::time::Duration;
 
 use podssh_relay::identity::PublicKey;
 use podssh_relay::serve::egress::Egress;
+use podssh_relay::serve::listener::Door;
 use podssh_relay::serve::{self, Config, Limits, Mint};
-use podssh_ws::tls_server::ACME_TLS_1;
-use tokio::io::AsyncWriteExt as _;
 
 use crate::exitmap::sysexits::{EX_CONFIG, EX_UNAVAILABLE};
 use crate::relay_cmd::RelayArgs;
 use crate::relay_settings::Refusal;
 
-/// How long a client has to finish TLS.
-const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
 /// How long a planned stop waits for each reverse socket's Close to go out.
 pub(crate) const STOP_WAIT: Duration = Duration::from_secs(3);
 
@@ -46,6 +43,8 @@ pub struct ServeArgs {
     pub acme: Option<String>,
     /// The CA's directory, else Let's Encrypt's.
     pub acme_directory: Option<String>,
+    /// yes or no: the cleartext road beside TLS on the listener (T-326).
+    pub cleartext: Option<String>,
 }
 
 impl ServeArgs {
@@ -62,6 +61,7 @@ impl ServeArgs {
             pairs: get("pairs"),
             acme: get("acme"),
             acme_directory: get("acme-directory"),
+            cleartext: get("cleartext"),
         }
     }
 
@@ -85,7 +85,8 @@ pub fn run(args: &RelayArgs, err: &mut dyn Write) -> i32 {
 /// The role, ready to serve.
 struct Prepared {
     listener: std::net::TcpListener,
-    acceptor: podssh_ws::tls_server::TlsAcceptor,
+    /// TLS, and the cleartext road beside it unless --cleartext no.
+    door: Door,
     cfg: Arc<Config>,
     certs: certs::Certs,
     shown: String,
@@ -102,6 +103,12 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"), None)?;
     let who = minting_for(&mint)?;
     let egress = egress_of()?;
+    // The cleartext road beside TLS, with tokens of one session (T-326).
+    let cleartext = match s.cleartext.as_deref() {
+        None => true,
+        Some(word) => crate::forwarder::fallback::word(word)
+            .ok_or_else(|| Refusal::usage(format!("--cleartext {word:?}: yes or no")))?,
+    };
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
         Some(text) => match text.parse::<u64>() {
@@ -147,13 +154,16 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         events: Some(events),
     };
     let inside = if s.allow_private { ", private targets too" } else { "" };
+    let clear = if cleartext { ", the cleartext road beside TLS" } else { ", TLS alone" };
     let shown = format!(
-        "the relay's forward and reverse roads (contract {}) at {bound}, minting for {who}{inside}{kept}{through}; {}",
+        "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
+         {who}{inside}{kept}{through}{clear}; {}",
         serve::CONTRACT,
         certs.shown
     );
     let port_file = s.port_file.clone().map(|path| (path, bound.port()));
-    Ok(Prepared { listener, acceptor, cfg: Arc::new(cfg), certs, shown, port_file })
+    let door = Door { acceptor, cleartext };
+    Ok(Prepared { listener, door, cfg: Arc::new(cfg), certs, shown, port_file })
 }
 
 /// The words of `--mint`, as a refusal names them.
@@ -229,7 +239,7 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
             return EX_CONFIG;
         }
     };
-    let Prepared { listener, acceptor, cfg, certs: kept, port_file, .. } = prepared;
+    let Prepared { listener, door, cfg, certs: kept, port_file, .. } = prepared;
     // SIGHUP is taken before a harness learns the port, so that none sent
     // after it ends the role.
     let mut hangups = {
@@ -259,23 +269,9 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
                     let Ok((tcp, peer)) = accepted else { continue };
                     // What a slow client leaves unsent, bounded (T-336).
                     serve::sockets::bound_unsent(&tcp);
-                    let (acceptor, cfg) = (acceptor.clone(), cfg.clone());
-                    tokio::spawn(async move {
-                        if let Ok(Ok(mut tls)) = tokio::time::timeout(HANDSHAKE_WAIT, acceptor.accept(tcp)).await {
-                            // A CA's validation of TLS-ALPN-01 wants the
-                            // handshake alone (RFC 8737, section 3).
-                            if tls.get_ref().1.alpn_protocol() == Some(ACME_TLS_1) {
-                                let _ = tls.shutdown().await;
-                                return;
-                            }
-                            // The name that the client asked for, which a
-                            // key's signed mint must name (T-448).
-                            let sni = tls.get_ref().1.server_name().map(str::to_string);
-                            // The TCP peer, by whom the brake of mints and
-                            // pairs counts (T-454): no header of a client's.
-                            serve::serve_from(tls, cfg, sni, Some(peer.ip())).await;
-                        }
-                    });
+                    // TLS, with ACME's handshake alone, or the cleartext road
+                    // by the first byte (T-326).
+                    tokio::spawn(serve::listener::connection(tcp, peer.ip(), door.clone(), cfg.clone()));
                 }
                 () = hangups.next() => {
                     let _ = writeln!(said, "podssh relay serve: {}", kept.reload("SIGHUP"));

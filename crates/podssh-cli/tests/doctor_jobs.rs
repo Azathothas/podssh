@@ -204,8 +204,12 @@ fn the_sections_run_at_once_and_jobs_1_runs_them_one_after_another() {
         at_once.out.lines().filter(|l| ["egress", "relay", "forwarders", "via", "derp", "pairs"].contains(l)).collect();
     assert_eq!(sections, ["egress", "relay", "forwarders", "via", "derp", "pairs"], "{}", at_once.out);
     for host in [SLOW_RELAY, SLOW_FORWARDER, SLOW_VIA, SLOW_DERP] {
-        // The host's own check, not the line of the list's order (T-607).
-        let own = |l: &&str| l.contains(host) && !l.trim_start().starts_with("ok    rank ");
+        // The host's own check, not the line of the list's order (T-607)
+        // nor what a request with no TLS meets on the way to it (T-326).
+        let own = |l: &&str| {
+            let line = l.trim_start();
+            l.contains(host) && !line.starts_with("ok    rank ") && !line.starts_with("ok    cleartext ")
+        };
         let line = at_once.out.lines().find(own).unwrap_or_else(|| panic!("{host}: {}", at_once.out));
         assert!(line.starts_with("  FAIL") && line.contains("403"), "{line}");
     }

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/doctor/cleartext.rs
++++ b/crates/podssh-cli/src/doctor/cleartext.rs
+@@ -67,7 +67,7 @@ fn relay_of(heard: &Heard) -> Option<String> {
+ fn words(heard: &Heard) -> String {
+     match relay_of(heard) {
+         Some(version) => format!("an answer: the relay's /health, {SERVICE} {version}"),
+-        None => heard.words(),
++        None => "an answer".to_string(),
+     }
+ }
+ 

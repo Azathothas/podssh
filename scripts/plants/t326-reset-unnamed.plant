@@ -1,0 +1,7 @@
+# T-326: the probe of GitHub #56 reads a reset of its request as a silence,
+# so a proxy that cuts cleartext is not named as one; the test of a proxy
+# that resets cleartext then hears no reset.
+ENTRY=T-326
+GROUP=resume
+EXPECT='no answer within 20 s'
+RUN='cargo test --locked -p podssh-ws --test cleartext_road -- a_proxy_that_resets_cleartext'
