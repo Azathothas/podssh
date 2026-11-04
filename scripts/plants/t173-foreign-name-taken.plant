@@ -1,0 +1,8 @@
+# T-173: the client takes each name that a relay's offer gives for its
+# sessions, of any deployment, so a relay can send the client's links and
+# its token to a host that the user never named; the test of a name of
+# another deployment, which must not be taken, must fail.
+ENTRY=T-173
+GROUP=resume
+EXPECT='test forward_layer::offer::tests::a_name_of_another_deployment_or_no_host_is_not_taken \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- forward_layer::offer::tests::a_name_of_another_deployment_or_no_host_is_not_taken'

@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/layer.rs
++++ b/crates/podssh-relay/src/serve/layer.rs
+@@ -217,7 +217,7 @@ async fn serve_link<L, O, F>(
+     let room: far::Room<'_> =
+         &|| reserve(keeper, pending, each, budget, &say).map(|()| let_in.store(true, Ordering::SeqCst));
+     let accepted =
+-        far::accept_with_room(link, Role::NODE, settings, &keeper.sessions, &mut OsEntropy, Some(room)).await;
++        far::accept_with_room(link, Role::NODE, settings, &keeper.sessions, &mut OsEntropy, None).await;
+     // A session let in is counted until the keeper holds it, or it ended.
+     let counted = let_in.load(Ordering::SeqCst).then(|| Counted(pending));
+     let accepted = match accepted {

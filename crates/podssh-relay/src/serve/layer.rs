@@ -11,12 +11,19 @@
 //! on `/connect/`, with the same refusals. The layer's secret never crosses
 //! the role: each resume proves it, and the path names the target alone. A
 //! resume must reach this process, which holds the session, so a client
-//! sends each link of a session to the host that opened it. Each link keeps
-//! the contract's limits; the layer's heartbeat is payload, and the client
-//! moves the session before a link's 64 MiB or 12 h (T-155).
+//! sends each link of a session to the host that opened it, or to the name
+//! that this process gives itself in `/relays.json` ([`Resumes::offer`]),
+//! where several processes share one name. Each link keeps the contract's
+//! limits; the layer's heartbeat is payload, and the client moves the
+//! session before a link's 64 MiB or 12 h (T-155).
+//!
+//! A new session is let in before its `ACCEPT`, within the budget of replay
+//! buffers, which counts the sessions let in whose target is not dialed yet;
+//! one past it is refused in its handshake, before its client sent a byte of
+//! it, so that the client can take `/connect/` instead.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use podssh_ws::http::request::{self, Request};
@@ -28,6 +35,7 @@ use super::forward;
 use super::policy::Refused;
 use super::{answer, Config};
 use crate::forward_layer::PATH;
+use crate::relay::Relay;
 use crate::session::budget::{holders, Census};
 use crate::session::far::{self, TARGET_LIMIT};
 use crate::session::keep::Keeper;
@@ -49,6 +57,12 @@ pub struct Resumes {
     keeper: Arc<Keeper<TcpStream>>,
     settings: Settings,
     budget: usize,
+    /// The name of this process, for each link of a session, where several
+    /// processes share the name that a client was given.
+    name: Option<Relay>,
+    /// The new sessions let in whose target is not dialed yet: the budget
+    /// counts them, so that new sessions at once do not pass it together.
+    pending: Mutex<usize>,
     sweeping: AtomicBool,
 }
 
@@ -66,15 +80,44 @@ impl std::fmt::Debug for Resumes {
 
 impl Resumes {
     /// Sessions of `settings` (their replay buffer, their deadline), within
-    /// `budget` bytes of replay buffers in all.
+    /// `budget` bytes of replay buffers in all; 0 offers no session.
     pub fn new(settings: Settings, budget: usize) -> Resumes {
         let keeper = Arc::new(Keeper::new(settings.resume_deadline));
-        Resumes { keeper, settings, budget, sweeping: AtomicBool::new(false) }
+        Resumes { keeper, settings, budget, name: None, pending: Mutex::new(0), sweeping: AtomicBool::new(false) }
+    }
+
+    /// These sessions, with `name`, this process's own, in the offer: a
+    /// name of its certificate that reaches this process alone.
+    pub fn named(self, name: Relay) -> Resumes {
+        Resumes { name: Some(name), ..self }
     }
 
     /// The sessions kept with their target, with a link or waiting for one.
     pub fn kept(&self) -> usize {
         self.keeper.kept()
+    }
+
+    /// The bytes of replay buffers that the sessions may hold in all.
+    pub fn budget(&self) -> usize {
+        self.budget
+    }
+
+    /// How long a session whose link is lost is kept.
+    pub fn deadline(&self) -> Duration {
+        self.settings.resume_deadline
+    }
+
+    /// The name of this process in the offer, if its owner gave one.
+    pub fn name(&self) -> Option<&Relay> {
+        self.name.as_ref()
+    }
+
+    /// `forward` of `/relays.json`: whether a new session can have room at
+    /// all, and the name of this process for each link of one, `HOST` or
+    /// `HOST:PORT`, or null where its owner gave none.
+    pub fn offer(&self) -> serde_json::Value {
+        let host = self.name.as_ref().map(crate::token::relay_name);
+        serde_json::json!({ "layer": self.budget >= self.settings.replay_capacity, "host": host })
     }
 
     /// One task forgets the sessions whose deadline passed, and shuts their
@@ -153,8 +196,9 @@ where
 /// The layer on one link: its handshake, then a resume goes on with the
 /// target that its session kept, and a new session reaches its target with
 /// `open`, after the handshake, so a link that never completes one costs no
-/// dial. A new session past `budget` bytes of replay buffers, or whose
-/// target cannot be reached, ends at once, its reason in a `CLOSE`.
+/// dial. A new session past `budget` bytes of replay buffers is refused in
+/// its handshake ([`reserve`]); one whose target cannot be reached ends at
+/// once, its reason in a `CLOSE`.
 async fn serve_link<L, O, F>(
     link: L,
     settings: Settings,
@@ -167,9 +211,19 @@ async fn serve_link<L, O, F>(
     O: FnOnce() -> F,
     F: std::future::Future<Output = Result<TcpStream, String>>,
 {
-    let accepted = match far::accept(link, Role::NODE, settings, &keeper.sessions, &mut OsEntropy).await {
+    let (each, pending) = (settings.replay_capacity, &cfg.resumes.pending);
+    let let_in = AtomicBool::new(false);
+    let say = |line: &str| cfg.event(line);
+    let room: far::Room<'_> =
+        &|| reserve(keeper, pending, each, budget, &say).map(|()| let_in.store(true, Ordering::SeqCst));
+    let accepted =
+        far::accept_with_room(link, Role::NODE, settings, &keeper.sessions, &mut OsEntropy, Some(room)).await;
+    // A session let in is counted until the keeper holds it, or it ended.
+    let counted = let_in.load(Ordering::SeqCst).then(|| Counted(pending));
+    let accepted = match accepted {
         Ok(accepted) => accepted,
-        // A link that never completed its handshake: nothing to keep.
+        // A link that never completed its handshake, or had no room:
+        // nothing to keep.
         Err(_) => return,
     };
     if accepted.established().resumed {
@@ -178,21 +232,10 @@ async fn serve_link<L, O, F>(
         let _ = keeper.run_resumed(accepted).await;
         return;
     }
-    let each = settings.replay_capacity;
-    let census = keeper.census(each);
-    if census.held.saturating_add(each) > budget {
-        let reason = refusal(&census, budget);
-        // The owner hears it too, once a minute at most; the lock goes
-        // before any await.
-        let said = keeper.told().refusal(tokio::time::Instant::now());
-        if said {
-            cfg.event(&format!("layer: {reason}"));
-        }
-        accepted.close(&reason, &keeper.sessions).await;
-        return;
-    }
     match tokio::time::timeout(TARGET_LIMIT, open()).await {
         Ok(Ok(target)) => {
+            // The keeper charges it from here on.
+            drop(counted);
             keeper.run_new(accepted, target).await;
         }
         Ok(Err(why)) => {
@@ -205,13 +248,57 @@ async fn serve_link<L, O, F>(
     }
 }
 
+/// Room for one more new session of `each` bytes within `budget`: the
+/// sessions that `keeper` charges and those let in before whose target is
+/// not dialed yet (`pending`), one more of which it counts. Else the words
+/// of the refusal, which the owner hears too, by `say`, once a minute at
+/// most.
+fn reserve(
+    keeper: &Keeper<TcpStream>,
+    pending: &Mutex<usize>,
+    each: usize,
+    budget: usize,
+    say: &(dyn Fn(&str) + Sync),
+) -> Result<(), String> {
+    let mut waiting = pending.lock().unwrap_or_else(|e| e.into_inner());
+    let census = keeper.census(each);
+    let held = census.held.saturating_add(waiting.saturating_mul(each));
+    if held.saturating_add(each) <= budget {
+        *waiting += 1;
+        return Ok(());
+    }
+    let shown = Census { held, live: census.live + *waiting, ..census };
+    drop(waiting);
+    let reason = refusal(&shown, budget);
+    // The lock of the lines goes before the line is said.
+    let said = keeper.told().refusal(tokio::time::Instant::now());
+    if said {
+        say(&format!("layer: {reason}"));
+    }
+    Err(reason)
+}
+
+/// A new session let in, counted in the budget until the keeper charges it.
+struct Counted<'a>(&'a Mutex<usize>);
+
+impl Drop for Counted<'_> {
+    fn drop(&mut self) {
+        let mut waiting = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        *waiting = waiting.saturating_sub(1);
+    }
+}
+
 /// The refusal of a new session that `budget` has no room for, in the
-/// role's words: what holds it, and the road with no resume that is left.
+/// role's words: what holds it, and how its owner changes it. A client of
+/// podssh takes the contract's road then, with no resume.
 pub fn refusal(census: &Census, budget: usize) -> String {
+    const CHANGES: &str = "--resume-budget and --resume-deadline of podssh relay serve change it";
+    if budget == 0 {
+        return format!("this relay keeps no resumable session (--resume-budget 0); {CHANGES}");
+    }
     let n = census.sessions();
     format!(
-        "this relay keeps {n} resumable session{} ({} MiB of replay buffers): {}; with PODSSH_RELAY_LAYER=no a \
-         session goes on with no resume",
+        "this relay keeps {n} resumable session{} ({} MiB of replay buffers): {}; {CHANGES}",
         if n == 1 { "" } else { "s" },
         budget >> 20,
         holders(census)
@@ -231,20 +318,64 @@ mod tests {
     }
 
     #[test]
-    fn a_refusal_for_the_budget_names_what_holds_it_and_the_road_left() {
+    fn a_refusal_for_the_budget_names_what_holds_it_and_how_its_owner_changes_it() {
         let census = Census { held: 256 << 20, live: 60, waiting: 4, first_free: Some(Duration::from_secs(90)) };
         let words = refusal(&census, BUDGET);
         let head = "this relay keeps 64 resumable sessions (256 MiB of replay buffers): 60 with a link,";
         assert!(words.starts_with(head), "{words}");
         assert!(words.contains("4 waiting for their client, the first of them for 1 min 30 s more"), "{words}");
-        assert!(words.ends_with("with PODSSH_RELAY_LAYER=no a session goes on with no resume"), "{words}");
+        assert!(words.ends_with("--resume-budget and --resume-deadline of podssh relay serve change it"), "{words}");
+        let none = refusal(&Census::default(), 0);
+        assert!(none.starts_with("this relay keeps no resumable session (--resume-budget 0);"), "{none}");
     }
 
     #[test]
     fn the_default_keeps_a_session_for_the_layers_deadline_within_the_budget() {
         let resumes = Resumes::default();
         let deadline = crate::session::resume::RESUME_DEADLINE;
-        assert_eq!((resumes.budget, resumes.settings.resume_deadline), (BUDGET, deadline));
-        assert_eq!(resumes.kept(), 0);
+        assert_eq!((resumes.budget(), resumes.deadline()), (BUDGET, deadline));
+        assert_eq!((resumes.kept(), resumes.name()), (0, None));
+        assert_eq!(resumes.offer(), serde_json::json!({ "layer": true, "host": null }));
+    }
+
+    /// The process names itself in the offer, where its owner gave a name;
+    /// a budget with no room for one session offers no road (T-173).
+    #[test]
+    fn the_offer_names_this_process_and_a_budget_of_none_offers_nothing() {
+        let name = Relay { host: "relay-2.relay.example.org".into(), port: 443 };
+        let named = Resumes::default().named(name.clone());
+        assert_eq!(named.offer(), serde_json::json!({ "layer": true, "host": "relay-2.relay.example.org" }));
+        let on_a_port = Resumes::default().named(Relay { port: 8443, ..name });
+        assert_eq!(on_a_port.offer()["host"], "relay-2.relay.example.org:8443");
+        let body = on_a_port.offer().to_string();
+        let doc = format!(r#"{{"forward":{body}}}"#);
+        let asked = Relay { host: "relay.example.org".into(), port: 443 };
+        let read = crate::forward_layer::offer::of(doc.as_bytes(), &asked);
+        assert_eq!(read.holder(&asked), Relay { host: "relay-2.relay.example.org".into(), port: 8443 });
+        let none = Resumes::new(Settings::default(), 0);
+        assert_eq!(none.offer()["layer"], false);
+        let short = Resumes::new(Settings::default(), (4 << 20) - 1);
+        assert_eq!(short.offer()["layer"], false, "less than one buffer holds no session");
+    }
+
+    /// Two sessions let in at once do not pass the budget together: each
+    /// counts until the keeper charges it, and a refused one counts nothing.
+    #[test]
+    fn a_new_session_counts_until_its_target_is_dialed() {
+        let resumes = Resumes::new(Settings::default(), 8 << 20);
+        let (keeper, pending, each) = (&resumes.keeper, &resumes.pending, resumes.settings.replay_capacity);
+        let said = Mutex::new(Vec::new());
+        let say = |line: &str| said.lock().unwrap().push(line.to_string());
+        assert_eq!(reserve(keeper, pending, each, resumes.budget, &say), Ok(()));
+        let first = Counted(pending);
+        assert_eq!(reserve(keeper, pending, each, resumes.budget, &say), Ok(()));
+        let words = reserve(keeper, pending, each, resumes.budget, &say).unwrap_err();
+        let head = "this relay keeps 2 resumable sessions (8 MiB of replay buffers): 2 with a link";
+        assert!(words.starts_with(head), "{words}");
+        assert_eq!(*pending.lock().unwrap(), 2, "the refused one counts nothing");
+        assert_eq!(*said.lock().unwrap(), vec![format!("layer: {words}")], "the owner hears it");
+        drop(first);
+        assert_eq!(*pending.lock().unwrap(), 1);
+        assert_eq!(reserve(keeper, pending, each, resumes.budget, &say), Ok(()), "room again");
     }
 }

@@ -16,17 +16,26 @@
 # no platform restarts the relay's objects: a drop with no Close is the
 # path's.
 #
-# Usage: sh scripts/relay-serve-live.sh PODSSH [reverse|drops]
+# With `layer` (T-173): the role's forward road in the resumable layer, to
+# the runner's own sshd at PODSSH_LAYER_SSHD (127.0.0.1:PORT), which takes
+# the key of PODSSH_LAYER_KEY: OpenSSH's ssh with podssh proxy as its
+# ProxyCommand, then podssh ssh, each with PODSSH_RELAY_LAYER=yes and its
+# link through scripts/fake-proxy.py, which cuts each open tunnel every few
+# seconds (scripts/relay-serve-layer.sh).
+#
+# Usage: sh scripts/relay-serve-live.sh PODSSH [reverse|drops|layer]
 set -eu
 
-PODSSH=${1:?usage: relay-serve-live.sh PODSSH [reverse|drops]}
+PODSSH=${1:?usage: relay-serve-live.sh PODSSH [reverse|drops|layer]}
 MODE=${2:-forward}
 HERE=$(cd "$(dirname "$0")" && pwd)
 FK=$(mktemp -d)
 SAN="DNS:relay-a.test"
 ROLE=
+PROXY=
 cleanup() {
     [ -n "$ROLE" ] && kill "$ROLE" 2>/dev/null
+    [ -n "$PROXY" ] && kill "$PROXY" 2>/dev/null
     rm -rf "$FK"
 }
 trap cleanup EXIT INT TERM
@@ -34,8 +43,15 @@ trap cleanup EXIT INT TERM
 . "$HERE/interop-faults-certs.sh"
 [ "$FAULT_CERTS" = made ] || { echo "relay-serve-live: the test certificates were not made" >&2; exit 2; }
 
+# The road in the layer dials the runner's own sshd on the loopback, and
+# keeps a lost session for 5 minutes.
+EXTRA=
+if [ "$MODE" = layer ]; then
+    EXTRA="--allow-private --resume-deadline 5m"
+fi
+# shellcheck disable=SC2086  # $EXTRA is a list of flags
 "$PODSSH" relay serve --listen 127.0.0.1:0 --cert "$FK/relay.pem" --key "$FK/relay.key" \
-    --port-file "$FK/port" --mint anyone >"$FK/events" 2>"$FK/role.log" &
+    --port-file "$FK/port" --mint anyone $EXTRA >"$FK/events" 2>"$FK/role.log" &
 ROLE=$!
 i=0
 while [ ! -s "$FK/port" ]; do
@@ -45,6 +61,11 @@ while [ ! -s "$FK/port" ]; do
 done
 PORT=$(cat "$FK/port")
 echo "relay-serve-live: podssh relay serve at relay-a.test:$PORT"
+
+if [ "$MODE" = layer ]; then
+    . "$HERE/relay-serve-layer.sh"
+    exit 0
+fi
 
 if [ "$MODE" = drops ]; then
     export PODSSH_LIVE_RELAY="relay-a.test:$PORT" PODSSH_LIVE_RELAY_ADDR="relay-a.test=127.0.0.1" SSL_CERT_FILE="$FK/ca.pem"

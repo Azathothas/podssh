@@ -7,17 +7,24 @@
 //! no other host of a list is tried: a host that cannot be reached is tried
 //! again with the layer's backoff, until the far end's deadline. A refusal
 //! that a new link would only get again (the token, the policy, a host that
-//! no longer serves the path) ends the session with its words.
+//! no longer serves the path) ends the session with its words. Where the
+//! host's offer names the process that answered, each link goes to that
+//! name, the first too ([`super::offer`]).
+//!
+//! A host with no room for a new session refuses it in the first link's
+//! handshake, before any byte of the session went ([`no_room`]): its client
+//! takes the contract's road then.
 
 use podssh_ws::{ConnectError, Trust};
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use super::offer::Offer;
 use crate::failover::Mode;
 use crate::open::{self, Failure, OpenError, Request};
 use crate::relay::{Relay, RelayList};
-use crate::session::client::{Client, Outcome};
+use crate::session::client::{Client, ClientError, Outcome};
 use crate::session::resume::{self, Next, Note};
-use crate::session::{Ended, OsEntropy};
+use crate::session::{Ended, HandshakeError, OsEntropy, RefuseCode};
 use crate::transit::link::Link;
 
 /// Who a link's failure names.
@@ -58,6 +65,16 @@ pub enum Missed {
 /// A refusal that a new link of the same host gets again.
 fn refused_for_good(e: &ConnectError) -> bool {
     matches!(e, ConnectError::Refused { status: 401 | 403 | 404 | 410, .. })
+}
+
+/// The words of a host that had no room for a new session: its `REFUSE`
+/// (busy) in the first link's handshake, which came before this side sent a
+/// byte of the session, so the session can go on the contract's road.
+pub fn no_room(e: &ClientError) -> Option<&str> {
+    match e {
+        ClientError::Handshake(HandshakeError::Refused { code: RefuseCode::BUSY, reason }) => Some(reason),
+        _ => None,
+    }
 }
 
 impl Missed {
@@ -101,16 +118,38 @@ impl Dialer {
         Dialer::with(relay, host, port, Way::Tls(trust))
     }
 
+    /// The links of a session to `host:port` at the host that holds them,
+    /// as `offer`, the `/relays.json` of `asked`, names it: the process that
+    /// answered, where it named itself, else `asked`.
+    pub fn for_offer(asked: &Relay, offer: &Offer, host: &str, port: u16, trust: Trust) -> Result<Dialer, String> {
+        Dialer::new(offer.holder(asked), host, port, trust)
+    }
+
     /// The same over plain `ws://` to a role on the loopback, with `token`.
     #[cfg(feature = "plain-ws")]
     pub fn on_loopback(relay: Relay, host: &str, port: u16, token: &str) -> Result<Dialer, String> {
         Dialer::with(relay, host, port, Way::PlainLoopback(token.to_string()))
     }
 
+    /// [`Dialer::for_offer`] over plain `ws://` on the loopback.
+    #[cfg(feature = "plain-ws")]
+    pub fn on_loopback_for(asked: &Relay, offer: &Offer, host: &str, port: u16, token: &str) -> Result<Dialer, String> {
+        Dialer::on_loopback(offer.holder(asked), host, port, token)
+    }
+
     fn with(relay: Relay, host: &str, port: u16, way: Way) -> Result<Dialer, String> {
         let path = super::path(host, port)?;
         let target = podssh_ws::dial::authority(host, port);
         Ok(Dialer { relays: RelayList { hosts: vec![relay], explicit: true }, path, target, way })
+    }
+
+    /// Each link asks for the addresses of `family` alone (4 or 6), as the
+    /// forward path's `?family` does for `-4` and `-6`.
+    pub fn with_family(mut self, family: Option<u8>) -> Dialer {
+        if let Some(family) = family {
+            self.path.push_str(&format!("?family={family}"));
+        }
+        self
     }
 
     /// The host that holds the session.
@@ -224,6 +263,35 @@ mod tests {
         assert_eq!((dialer.relay(), dialer.path()), (&relay, "/v1/layer/2001:db8::1/22"));
         assert_eq!(dialer.target(), "[2001:db8::1]:22");
         assert!(dialer.relays.explicit, "the opener tries this host alone");
-        assert!(Dialer::new(relay, "a/b", 22, Trust::Default).is_err());
+        assert!(Dialer::new(relay.clone(), "a/b", 22, Trust::Default).is_err());
+        let six = Dialer::new(relay.clone(), "github.com", 22, Trust::Default).unwrap().with_family(Some(6));
+        assert_eq!(six.path(), "/v1/layer/github.com/22?family=6");
+        let any = Dialer::new(relay, "github.com", 22, Trust::Default).unwrap().with_family(None);
+        assert_eq!(any.path(), "/v1/layer/github.com/22");
+    }
+
+    /// Each link goes to the process that the offer names, the first too.
+    #[test]
+    fn a_dialer_for_an_offer_goes_to_the_host_that_it_names() {
+        let asked = Relay { host: "relay.example.org".into(), port: 443 };
+        let at = Relay { host: "relay-2.relay.example.org".into(), port: 443 };
+        let offer = Offer { layer: true, at: Some(at.clone()), refused: None };
+        let dialer = Dialer::for_offer(&asked, &offer, "github.com", 22, Trust::Default).unwrap();
+        assert_eq!(dialer.relay(), &at);
+        let unnamed = Offer { layer: true, ..Offer::default() };
+        assert_eq!(Dialer::for_offer(&asked, &unnamed, "github.com", 22, Trust::Default).unwrap().relay(), &asked);
+    }
+
+    /// Only the far end's `REFUSE` of a new session for its room is one
+    /// that the contract's road may carry instead.
+    #[test]
+    fn only_a_busy_refusal_in_the_handshake_is_no_room() {
+        let refused = |code| ClientError::Handshake(HandshakeError::Refused { code, reason: "256 MiB".into() });
+        assert_eq!(no_room(&refused(RefuseCode::BUSY)), Some("256 MiB"));
+        for code in [RefuseCode::UNKNOWN_SESSION, RefuseCode::BAD_PROOF, RefuseCode::OTHER, RefuseCode::PROTOCOL] {
+            assert_eq!(no_room(&refused(code)), None, "{code}");
+        }
+        assert_eq!(no_room(&ClientError::Handshake(HandshakeError::Closed("busy".into()))), None);
+        assert_eq!(no_room(&ClientError::Timeout), None);
     }
 }

@@ -14,14 +14,15 @@ pub const PROXY: &[&str] = &[
      RELAY). Once nothing crossed for all but 30 s of the relay's idle cut, podssh proxy says so on \
      stderr, which OpenSSH shows; --idle-warn SECONDS sets that lead, and 0 turns it off.",
     "With PODSSH_RELAY_LAYER=yes, and a first relay host that offers it in its /relays.json (podssh relay \
-     serve does), podssh proxy carries the session in the resumable layer, to that host alone: the relay \
-     keeps its connection to the target while this host's link is lost, and a new link resumes the \
-     session where it was, so that an OpenSSH session outlives a drop of this host's network, for 10 \
-     minutes at most (T-173). Each loss and resume is a line on stderr. OpenSSH's SIGHUP at its exit ends \
-     the session at the relay at once. A host that offers none takes the contract's road, with one line. \
-     Where podssh can run on the server's side, a roost in front of its sshd (podssh node --sshd, see \
-     podssh node) gives the same with no relay that keeps the session; this road is for an sshd where \
-     nothing else runs.",
+     serve does), podssh proxy carries the session in the resumable layer, to that host alone, or to the \
+     process that its /relays.json names as forward.host, of the same deployment: the relay keeps its \
+     connection to the target while this host's link is lost, and a new link resumes the session where \
+     it was, so that an OpenSSH session outlives a drop of this host's network, for as long as the relay \
+     keeps it, 10 minutes by default (T-173). Each loss and resume is a line on stderr. OpenSSH's SIGHUP \
+     at its exit ends the session at the relay at once. A host that offers none, or that has no room for \
+     a new resumable session, takes the contract's road, with one line. Where podssh can run on the \
+     server's side, a roost in front of its sshd (podssh node --sshd, see podssh node) gives the same \
+     with no relay that keeps the session; this road is for an sshd where nothing else runs.",
     "The session ends when the target closes the connection or when stdout closes; both are a success. \
      An error is one line on stderr; the codes are in EXIT STATUS.",
     "HOST can be an IPv6 address, bare (as OpenSSH gives %h) or in brackets. In one word, the form is \

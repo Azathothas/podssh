@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/forward_layer/client.rs
++++ b/crates/podssh-relay/src/forward_layer/client.rs
+@@ -72,7 +72,7 @@ fn refused_for_good(e: &ConnectError) -> bool {
+ /// byte of the session, so the session can go on the contract's road.
+ pub fn no_room(e: &ClientError) -> Option<&str> {
+     match e {
+-        ClientError::Handshake(HandshakeError::Refused { code: RefuseCode::BUSY, reason }) => Some(reason),
++        ClientError::Handshake(HandshakeError::Refused { code: RefuseCode::OTHER, reason }) => Some(reason),
+         _ => None,
+     }
+ }

@@ -1,0 +1,11 @@
+# T-173: podssh ssh never takes the relay role's resumable layer, though
+# PODSSH_RELAY_LAYER=yes asks and the role offers it, so its session goes on
+# the contract's road, which ends at the first cut of its link; the test of
+# podssh ssh across cuts must fail.
+ENTRY=T-173
+GROUP=cli-tests
+EXPECT='test serve_layer::ssh_layer::podssh_ssh_in_the_layer_lives_on_cuts_of_its_link \.\.\. FAILED'
+# The role's harness asks for Python and openssl, and the test OpenSSH's
+# sshd, which the build image lacks: with no SETUP the test did not run.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl openssh >/dev/null; fi'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- serve_layer::ssh_layer::podssh_ssh_in_the_layer_lives_on_cuts_of_its_link'

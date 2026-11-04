@@ -157,9 +157,15 @@ pub const RELAY: &[&str] = &[
      /connect/, with the same refusals; the layer's secret never crosses the relay, as each resume \
      proves it, and the path names the target alone. Each link keeps the limits of a session, and the \
      client moves the session to a new link before them. The sessions hold 256 MiB of replay buffers at \
-     most, 4 MiB each; past it a new session is refused with what holds them, a line on stdout once a \
-     minute. /relays.json offers it as forward.layer: true, and podssh proxy takes it with \
-     PODSSH_RELAY_LAYER=yes. A restart forgets each session.",
+     most, 4 MiB each (--resume-budget MIB; 0 serves none), and one whose link is lost is kept 10 \
+     minutes (--resume-deadline TIME). A new session past the budget is refused in the layer's \
+     handshake, before its client sent a byte of it, with what holds the budget, a line on stdout once \
+     a minute; podssh's client then takes /connect/, with no resume. /relays.json offers it as \
+     forward.layer: true, and podssh proxy and podssh ssh take it with PODSSH_RELAY_LAYER=yes. Where \
+     several processes serve one name, each gives --resume-host HOST[:PORT], a name of its own that its \
+     certificate holds: /relays.json names it as forward.host, and podssh's client sends each link of a \
+     session there, so that a resume reaches the process that holds the session; a name that is not of \
+     the deployment of the host that the client asked is not taken. A restart forgets each session.",
     "It serves the reverse road too: /v1/pair, for whom it mints, /v1/node/NAME, /v1/connect/NAME, \
      /v1/status/NAME and /v1/stop/NAME, so that podssh relay pair --relay-host, podssh node and podssh \
      ssh node:// work through it with no other relay. A pair lives 72 hours, and /v1/renew/NAME, with \

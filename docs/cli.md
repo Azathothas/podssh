@@ -3413,19 +3413,34 @@ commands. The rules behind them:
   token, the upgrade and the policy are checked as on `/connect/`, with the
   same refusals; the layer's secret never crosses the role (each resume
   proves it) and the path names the target alone. The sessions hold 256 MiB
-  of replay buffers at most, 4 MiB each; a new session past them gets a
-  `CLOSE` that says what holds them. `podssh proxy HOST PORT` takes the road
+  of replay buffers at most, 4 MiB each, and one whose link is lost is kept
+  10 minutes: `relay serve --resume-budget MIB` (4 to 16384, or 0 for none,
+  which offers no road) and `--resume-deadline TIME` (1 minute to 72 h, a
+  node's words) change them, and the first line says them
+  (`crates/podssh-cli/src/relay_serve/resumes.rs`). A new session past the
+  budget is refused in the layer's handshake, a `REFUSE` (busy) that says
+  what holds the budget, before its client sent a byte of it. Where several
+  processes serve one name, `--resume-host HOST[:PORT]` names this one in
+  `/relays.json` (`forward.host`), and the client sends each link of a
+  session there. `podssh proxy HOST PORT` and `podssh ssh` take the road
   with `PODSSH_RELAY_LAYER=yes`, which the user sets, until a live run
-  measured it (T-173): it reads the first relay host's `/relays.json`,
-  and where it offers the road, sends each link of the session to that host
-  alone (`crates/podssh-cli/src/relay_layer.rs`), each loss and resume a line
-  on stderr; OpenSSH's SIGHUP at its exit is the end of the bytes, so the
-  role forgets the session at once. A host that offers none, or whose first
-  link fails as another host may not, takes the contract's road with one
-  line; a refusal that the contract's road would get too ends the run with
-  its code. Unset, empty or `no` is the contract's road with no request
-  more, and another word is refused (78). A role without a listener, behind
-  a quick tunnel (`node --relay`), serves the same path.
+  measured it (T-173): each reads the first relay host's `/relays.json`,
+  and where it offers the road, sends each link of the session to the
+  process that it names, of its deployment, else to that host alone
+  (`crates/podssh-cli/src/relay_layer.rs`), each loss and resume a line on
+  stderr; OpenSSH's SIGHUP at its exit is the end of `proxy`'s bytes, so the
+  role forgets the session at once. `podssh ssh` runs the layer on a thread
+  of its own beside SSH (`crates/podssh-cli/src/relay_layer/ssh.rs`), holds
+  `-4` and `-6` on each link, and sends no SSH keepalive unless
+  `ServerAliveInterval` is given; the copies, `run`, `each` and `job`, which
+  log in as it does, take the road too, and `--no-resume` takes the
+  contract's road. A host that offers none, that refused a new session for
+  its budget, or whose first link fails as another host may not, takes the
+  contract's road with one line; a refusal that the contract's road would
+  get too ends the run with its code. Unset, empty or `no` is the contract's
+  road with no request more, and another word is refused (78). A role
+  without a listener, behind a quick tunnel (`node --relay`), serves the
+  same path.
 - **One pair for each label.** A pair that has not expired is not replaced:
   a second pair would leave the first with no holder, for up to 72 hours.
   When a new pair cannot be stored, or its operator file cannot be written,

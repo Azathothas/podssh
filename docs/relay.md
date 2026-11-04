@@ -985,20 +985,49 @@ a target that speaks none, as a node is for its TARGET
 - each link keeps the limits of a session (180 s with no payload, 12 h,
   64 MiB); the layer's heartbeat is payload, and the client moves the
   session to a new link at 48 MiB or 11 h (T-155);
-- the sessions hold 256 MiB of replay buffers at most, 4 MiB each; a new
-  session past them gets a `CLOSE` that names what holds them, and the
-  role's stdout says it once a minute at most;
+- the sessions hold 256 MiB of replay buffers at most, 4 MiB each
+  (`--resume-budget MIB`, from 4 to 16384, or 0 for none, which offers no
+  road), and one whose link is lost is kept 10 minutes
+  (`--resume-deadline TIME`, from 1 minute to 72 h, which the layer's
+  `GREETING` names to the client); a new session past the budget is
+  refused in its handshake, with the layer's `REFUSE` (busy, code 6) and
+  words that name what holds the budget, before its client sent a byte of
+  it, and the role's stdout says it once a minute at most; the budget
+  counts each new session from its admission, before its target is dialed,
+  so that new sessions at once do not pass it together;
 - a restart forgets each session: a resume then gets the layer's refusal
   of an unknown session, once its client minted a new token where the role
   mints for it, and else `403` for the old one; either ends the session.
 
-`/relays.json` offers it as `forward.layer: true`, and a client asks for it
-only there (`crates/podssh-relay/src/forward_layer/offer.rs`). The client of
-the library (`crates/podssh-relay/src/forward_layer/client.rs`) sends each
-link of a session to the host that opened it, never another of a list, as
-only that process holds the session; a refusal that a new link would get
+`/relays.json` offers it in `forward`: `layer`, `true` where a new session
+can have room, and `host`, the name of this process for each link of a
+session, `HOST` or `HOST:PORT`, which `--resume-host` gives, else `null`. A
+client asks for the layer only where `layer` is `true`
+(`crates/podssh-relay/src/forward_layer/offer.rs`). The client of the
+library (`crates/podssh-relay/src/forward_layer/client.rs`) sends each link
+of a session, the first too, to the host that `host` names, else to the
+host whose document it read, never another of a list, as only that process
+holds the session; it takes a `host` that is the host it asked, with any
+port, or a host of its deployment by the pool's rule (another host under
+its parent domain), and for an address the same address alone; another
+name is said in a line and not taken. A refusal that a new link would get
 again (`401`, `403`, `404`, `410`) ends the session, and each other failure
-is tried again with the layer's backoff until the deadline. `podssh proxy`
-takes it with `PODSSH_RELAY_LAYER=yes` ([cli.md](cli.md)). The default
-relay offers none ([relay-operator.md](relay-operator.md), item 16): a
-Durable Object of that deployment would be its far end.
+is tried again with the layer's backoff until the deadline; a `REFUSE`
+(busy) of the first link's handshake sends the session to the contract's
+`/connect/`, with no resume. `podssh proxy` and `podssh ssh`, and each
+command that reaches its server as `podssh ssh` does, take it with
+`PODSSH_RELAY_LAYER=yes` ([cli.md](cli.md)). The default relay offers none
+([relay-operator.md](relay-operator.md), item 16): a Durable Object of that
+deployment would be its far end.
+
+Where several processes of the role serve one name, behind a balancer or
+the addresses of one DNS name, each gives `--resume-host`, a name that
+reaches it alone and that its certificate holds, so that each resume
+reaches the process that holds its session; each link, the first too, gets
+its token at that name, as the forward opener mints at the host that it
+dials. The test of it (`crates/podssh-relay/tests/session_relay_resume.rs`)
+puts two processes behind one name that a balancer sends to each in turn.
+The live run of the road, on a GitHub runner to its own sshd with the
+client's link cut by `scripts/fake-proxy.py`, is
+`.github/workflows/relay-layer-live.yml`, started by hand alone, which runs
+`scripts/relay-serve-live.sh` with `layer`.

@@ -16,6 +16,7 @@ use std::time::{Duration, Instant};
 use podssh_relay::pair::{self, Pair};
 use podssh_relay::relay::Relay;
 use podssh_relay::serve::egress::Egress;
+use podssh_relay::serve::layer::Resumes;
 use podssh_relay::serve::policy::Policy;
 use podssh_relay::serve::{self, Config, Limits, Mint};
 use podssh_ws::session::RelaySession;
@@ -45,6 +46,12 @@ impl Role {
     /// The role with its policy of targets and its egress: through a proxy
     /// of the test's, for the role's dial through its host's (T-457).
     pub async fn configured(mint: Mint, policy: Policy, egress: Egress) -> Role {
+        Role::configured_with(mint, policy, egress, Default::default()).await
+    }
+
+    /// [`Role::configured`] with the sessions of its forward road in the
+    /// resumable layer: their budget, their deadline, its own name (T-173).
+    pub async fn configured_with(mint: Mint, policy: Policy, egress: Egress, resumes: Resumes) -> Role {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
         let port = listener.local_addr().unwrap().port();
         let events = Arc::new(Mutex::new(Vec::new()));
@@ -58,7 +65,7 @@ impl Role {
             egress,
             limits: Limits::default(),
             pairs: Default::default(),
-            resumes: Default::default(),
+            resumes,
             answered: Default::default(),
             brake: Default::default(),
             events: Some(say),

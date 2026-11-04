@@ -50,16 +50,32 @@ impl Cutter {
     /// each new link is cut once it carried a count of bytes, both ways
     /// together, from `least` to `least + spread`, by the xorshift of `seed`;
     /// each link after them passes whole.
-    pub async fn start(to: u16, cuts: usize, (least, spread): (usize, usize), seed: u32) -> Cutter {
+    pub async fn start(to: u16, cuts: usize, at: (usize, usize), seed: u32) -> Cutter {
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
+        Cutter::among(listener, vec![to], cuts, at, seed)
+    }
+
+    /// The same on `listener`, in front of each port of `to` in turn, by the
+    /// order of the connections: one name that several processes of the
+    /// role share, behind a balancer that sends each new connection to the
+    /// next one (T-173).
+    pub fn among(
+        listener: TcpListener,
+        to: Vec<u16>,
+        cuts: usize,
+        (least, spread): (usize, usize),
+        seed: u32,
+    ) -> Cutter {
         let port = listener.local_addr().unwrap().port();
         let (made, heads) = (Arc::new(AtomicUsize::new(0)), Arc::new(Mutex::new(Vec::new())));
         let (made_in, heads_in) = (made.clone(), heads.clone());
         tokio::spawn(async move {
-            let mut x = seed;
+            let (mut x, mut turn) = (seed, 0usize);
             while let Ok((client, _)) = listener.accept().await {
                 let cut = (made_in.load(Ordering::SeqCst) < cuts).then(|| least + next(&mut x) as usize % spread);
-                tokio::spawn(forward(client, to, cut, made_in.clone(), heads_in.clone()));
+                let next_one = to[turn % to.len()];
+                turn += 1;
+                tokio::spawn(forward(client, next_one, cut, made_in.clone(), heads_in.clone()));
             }
         });
         Cutter { port, cuts: made, heads }

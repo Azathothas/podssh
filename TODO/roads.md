@@ -2635,6 +2635,61 @@ The part of podssh, when the start condition holds:
   debug build's TLS bounds it within the suite's 120 s; `podssh-relay`'s test runs OpenSSH's
   client and server through the library's client with 20 cuts and 32 MiB each way.
 
+2026-11-04 (the drafting agent), for the entry's next part (items 1, 3 and 5 of its Done, and the
+workflow of item 4):
+
+- **Each process of the role names itself in `/relays.json`, `forward.host`, by `relay serve
+  --resume-host HOST[:PORT]`, and the client sends each link of a session there, the first too**
+  (`crates/podssh-relay/src/forward_layer/offer.rs`, `Dialer::for_offer`). The client reads the name
+  with the offer, which it reads anyway, and keeps it in its session's dialer, in memory, for the
+  session's life; the process that answered the offer is the one that its name reaches, so the
+  first link and each resume reach it with no race. With no flag the role names none (`null`) and
+  the client keeps the host that it asked, as one process at a name needs. Lost: the name of the
+  request's `Host` (the shared name, which reaches any process); a name in the layer's `GREETING`, a
+  feature `host.NAME` (a change of the layer's records for one road, and a name that no node would
+  give); a balancer's sticky routing (none is podssh's, and a cut client may come back from another
+  address).
+- **A name is taken only of the deployment of the host that the client asked**: that host with any
+  port, or another host under its parent domain, by the pool's rule
+  (`crate::pool::same_deployment`); for an address, the same address alone. Another name is said in
+  one line and not taken, and the links go to the asked host. Lost: any name (a relay's document
+  would send the client's links, and a token of `PODSSH_RELAY_TOKEN`, to a host that the user never
+  named); the contract's road on a foreign name (the asked host still holds a session, as before).
+- **`--resume-budget MIB`, 4 MiB for each session, from 4 to 16384, default 256; 0 serves none, and
+  the offer then says `layer: false`** (`crates/podssh-cli/src/relay_serve/resumes.rs`). Lost: a
+  count of sessions (the node's words count bytes, and a buffer of another size would make a count
+  lie); a size with units (one unit, as each buffer is 4 MiB); no upper bound (16 GiB bounds a
+  typo). **`--resume-deadline TIME`** takes a node's words and bounds, 1 minute to 72 h, as the
+  layer's `GREETING` holds a deadline to 72 h. Lost: a bound of its own (a second grammar of one
+  setting).
+- **A new session past the budget is refused in the layer's handshake, a `REFUSE` (busy) before its
+  `ACCEPT`** (`far::accept_with_room`), not with a `CLOSE` after it as in the first part: after the
+  `ACCEPT` the client's pump may have sent SSH's first bytes into the session, which a fallback
+  could not carry, and before it nothing of the session went, so the client takes `/connect/` with
+  one line (`forward_layer::no_room`). The budget counts each new session from its admission until
+  the keeper charges it, so that sessions let in at once do not pass it together. Lost: a status
+  before the upgrade (a resume must pass a full budget, and the role tells a resume from a new
+  session in the handshake alone); the census alone (a burst of new sessions passed it together, as
+  their slots come after the dial).
+- **`podssh ssh` takes the road by the same variable as `podssh proxy`, `PODSSH_RELAY_LAYER=yes`, and
+  where the road is asked for and not offered, or the role has no room, it says so in one line and
+  takes the contract's road with each of its fallbacks** (`crates/podssh-cli/src/relay_layer/ssh.rs`,
+  called from `crates/podssh-cli/src/ssh/transport.rs`). Lost: a refusal when it is not offered (a
+  user's ask of a better road should not cost the session); a line at `-v` alone (the user asked,
+  and hears why the road is not there); an `-o` keyword or a flag of `ssh` (OpenSSH knows no such
+  keyword, and the environment gives one setting to each command alike). The copies, `run`, `each`
+  and `job` reach their server by the same function and take the road too; `--no-resume` takes the
+  contract's road, as a session that ends with its link needs no layer; `-4` and `-6` hold on each
+  link (`?family`).
+- **`podssh ssh` runs the road on a thread of its own with a runtime of its own**, from the read of
+  the offer to the session's end, and SSH reads its end of a pipe. The forward opener's future holds
+  its `&mut dyn FnMut(&str)` of notes across its awaits, so it is not `Send`, and no task can take
+  it; the command's own task runs SSH meanwhile. Lost: a task of the command's runtime (refused by
+  the type); an opener whose notes are `Send` (each caller's notes, `proxy`'s that write to a `&mut
+  dyn Write` among them, would change).
+- **Item 2, the road by default where the first host offers it, waits for item 4's live run**, as
+  the first part's call above says: `.github/workflows/relay-layer-live.yml`, by hand alone.
+
 ## Prove
 
 ```sh
@@ -2740,6 +2795,47 @@ OpenSSH's client with `podssh proxy` as its ProxyCommand and `PODSSH_RELAY_LAYER
 variable refused (78) before any connection. Planted: each link of the role with a keeper of its
 own, so that the target goes with the link at each cut; the test of 20 cuts fails.
 
+2026-11-04 (the drafting agent, the next part). Read at `1ca77a1`: the first part's Done holds at
+each file that it names; the role offers `forward.layer: true`, refuses a new session past its
+budget, and sends each link of a session to the host that opened it. Two of its parts change, by
+the calls of this part in the `## Decision`. The refusal for the budget was a `CLOSE` after the
+session's `ACCEPT` (`serve_link` of `crates/podssh-relay/src/serve/layer.rs` at `1ca77a1`), whose
+words named `PODSSH_RELAY_LAYER=no`: a client that took `/connect/` after it could not carry the
+bytes that its pump had sent into the session meanwhile, so item 5's fallback needs the refusal
+before the `ACCEPT`, a `REFUSE` (busy), and its words now name the role's flags, as a client of
+podssh takes `/connect/` by itself. And Approach item 3 of the Correction of 2026-11-02 ("a resume goes to that
+host") holds for each link, the first too: the name comes with the offer, before the first link,
+so that the process that holds the session is the one that named itself. The Done's item 4 is a
+workflow on a runner that runs `scripts/relay-serve-live.sh` with `layer`, whose cuts come from a
+repeated `--cut-every` of `scripts/fake-proxy.py`, as its `--stop-after` cuts once.
+
+The new Prove of this part, beside the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test session_relay_resume
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --lib -- forward_layer session::far
+cargo test -p podssh-cli --lib -- relay_layer relay_serve man::
+cargo test -p podssh-cli --test relay_serve -- layer
+sh scripts/plant-each.sh --here t173-target-closed-at-cut t173-resume-to-the-shared-name \
+  t173-room-skipped t173-no-room-not-taken t173-ssh-contract-road t173-foreign-name-taken
+gh workflow run relay-layer-live.yml   # item 4, the live run, by hand; item 2 waits for it
+```
+
+Offline: two processes of the role behind one name that a balancer sends to each in turn, each
+named by its own door: the offer read through the shared name, each link of a session of 16 MiB
+each way and 10 cuts at the process that named itself, none at the other, one dial of the target;
+a budget of one session, whose second new session gets the `REFUSE` (busy) with the role's words
+and dials nothing while the first resumes across a cut; `podssh ssh` to OpenSSH's sshd through
+`podssh relay serve`, its link cut 6 times by a stand-in of the host's proxy, 8 MiB each way, equal
+digests and a line for each resume; `podssh proxy` past a role's budget of one session
+(`--resume-budget 4`), its bytes on `/connect/` with one line, and the role's first line naming its
+budget. Planted: links to the shared name (`t173-resume-to-the-shared-name`), no room asked
+(`t173-room-skipped`), the busy refusal not known by the client (`t173-no-room-not-taken`),
+`podssh ssh` on the contract's road (`t173-ssh-contract-road`), a name of any deployment taken
+(`t173-foreign-name-taken`): each of their tests fails.
+
 ## Done
 
 2026-11-04, drafted (`6165bbc`), merged and measured by the main session the same day: the
@@ -2786,6 +2882,52 @@ What remains of the entry, its next part:
 5. A flag of `relay serve` for the budget and the deadline of its sessions, as a node's
    `--resume-deadline`; a client that falls back to `/connect/` when the role refuses a new
    session for its budget.
+
+2026-11-04, drafted, not built (`DRAFT T-173`, its next part): items 1, 3 and 5, and item 4's
+workflow, by the calls of this part in the `## Decision` and the Correction of this part.
+
+- Item 1: `podssh ssh` on the road where `PODSSH_RELAY_LAYER=yes` asks and the first host offers it,
+  on a thread of its own with a runtime of its own (`crates/podssh-cli/src/relay_layer/ssh.rs`,
+  from `crates/podssh-cli/src/ssh/transport.rs`), the copies, `run`, `each` and `job` with it;
+  `-4` and `-6` on each link (`Dialer::with_family`); `--no-resume`, and each case where the road is
+  not there, on the contract's road with one line.
+- Item 3: `forward.host` of `/relays.json` (`Resumes::offer` of
+  `crates/podssh-relay/src/serve/layer.rs`, from `relay serve --resume-host`), read with the offer
+  under the deployment's rule (`crates/podssh-relay/src/forward_layer/offer.rs`), each link of a
+  session to it, the first too (`Dialer::for_offer`).
+- Item 5: `relay serve --resume-budget MIB` and `--resume-deadline TIME`
+  (`crates/podssh-cli/src/relay_serve/resumes.rs`), the first line naming them; a new session past
+  the budget refused before its `ACCEPT` (`far::accept_with_room` of
+  `crates/podssh-relay/src/session/far.rs`), counted from its admission until its target is
+  dialed; `proxy` and `ssh` on `/connect/` after it (`forward_layer::no_room`,
+  `crates/podssh-cli/src/relay_layer.rs`).
+- Item 4: `.github/workflows/relay-layer-live.yml` (`workflow_dispatch` alone), the runner's sshd
+  with a key of the run, `scripts/relay-serve-live.sh` with `layer` (`scripts/relay-serve-layer.sh`),
+  `scripts/fake-proxy.py --cut-every 8`; 48 MiB each way, a MiB each second, through OpenSSH's
+  `ssh` with `podssh proxy`, then `podssh ssh`. Not run: UNVERIFIED (its run id and each result).
+- The manual (`relay`'s flags and notes, `proxy`, `ssh`, the variable), `docs/cli.md`,
+  `docs/relay.md` ("The relay role's resumable layer"), `docs/design.md` (section 5) and
+  `docs/STATUS.md`.
+- `cargo test -p podssh-relay --features serve,plain-ws --test session_relay_resume`: UNVERIFIED (5
+  tests, `behind_one_name_each_link_goes_to_the_process_that_named_itself` and
+  `a_new_session_past_the_budget_is_refused_in_its_handshake_and_dials_nothing` new).
+- `cargo test -p podssh-relay --features serve --lib serve::`: UNVERIFIED (`serve::layer::tests`,
+  three new or changed).
+- `cargo test -p podssh-relay --lib -- forward_layer session::far`: UNVERIFIED (`forward_layer`'s
+  offer and client, five new or changed).
+- `cargo test -p podssh-cli --lib -- relay_layer relay_serve man::`: UNVERIFIED
+  (`relay_serve::resumes::tests` three new, `relay_layer::tests` one new).
+- `cargo test -p podssh-cli --test relay_serve -- layer`: UNVERIFIED (4, `serve_layer::ssh_layer`'s
+  two new).
+- Planted (`sh scripts/plant-each.sh --here` with each of `t173-resume-to-the-shared-name`,
+  `t173-room-skipped`, `t173-no-room-not-taken`, `t173-ssh-contract-road`,
+  `t173-foreign-name-taken`, and `t173-target-closed-at-cut` again): UNVERIFIED.
+- clippy with `-D warnings` of `podssh-relay --features serve,plain-ws,quick --all-targets` and of
+  `podssh-cli --all-targets`, and rustfmt: UNVERIFIED.
+
+What remains of the entry after this part: item 4's run (the workflow, by hand), then item 2, the
+road by default where the first host offers it, with the tests of `podssh proxy` and `podssh ssh`
+through the stand-in and the role that count their connections.
 
 # T-280: The iroh road through a SOCKS5 proxy
 

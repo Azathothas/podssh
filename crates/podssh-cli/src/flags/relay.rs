@@ -69,6 +69,13 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     // The cleartext road beside TLS on the listener (T-326).
     row(None, "cleartext", Some("WORD"), FlagKind::Supported,
         "serve: yes (the default) or no: on the listener, a request whose first byte begins no TLS handshake gets the cleartext road, for a client whose proxy cuts TLS: /health, a token of one session (POST /v1/mint?once=1, as --mint says) and /connect/ with it, which its upgrade spends; each other request there is refused (403)", None),
+    // The resumable sessions of the forward road (T-173).
+    row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
+        "serve: keep a session of /v1/layer/ whose link is lost for TIME, and tell its client so: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default 10m)", None),
+    row(None, "resume-budget", Some("MIB"), FlagKind::Supported,
+        "serve: the replay buffers of the sessions of /v1/layer/ in all, in MiB, 4 for each session: from 4 to 16384 (default 256, 64 sessions), or 0 for none, which offers no such road; a new session past it is refused in its handshake, and podssh's client takes /connect/ instead", None),
+    row(None, "resume-host", Some("HOST[:PORT]"), FlagKind::Supported,
+        "serve: the name of this process alone, which its certificate holds, where several processes serve one name: /relays.json names it as forward.host, and podssh's client sends each link of a session of /v1/layer/ to it, so that each resume reaches the process that holds the session (a host of the name's deployment)", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,

@@ -1,0 +1,8 @@
+# T-173: the relay role lets each new session of the resumable layer in,
+# whatever its budget holds, as if it asked for no room before the ACCEPT;
+# the test of a budget of one session, whose second session must be refused
+# in its handshake and dial nothing, must fail.
+ENTRY=T-173
+GROUP=resume
+EXPECT='let in past the budget'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test session_relay_resume -- past_the_budget'
