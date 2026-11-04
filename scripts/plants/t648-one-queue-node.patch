@@ -1,0 +1,18 @@
+--- a/crates/podssh-relay/src/reverse/serve.rs
++++ b/crates/podssh-relay/src/reverse/serve.rs
+@@ -120,13 +120,13 @@
+ /// The reads of a session's local side that may wait for the socket, and of
+ /// all its sessions: the one queue's 256 of before, shared out, so that a
+ /// node's memory stays as it was. A read is `CHUNK_BYTES` at most.
+-const SESSION_READS: usize = 4;
++const SESSION_READS: usize = 256;
+ const SOCKET_READS: usize = 256;
+ 
+ impl Outbox {
+     async fn send(&self, out: Out) -> Result<(), ()> {
+         match out {
+-            Out::Data(id, _) => self.data.push(id, out, 1).await.map_err(|_| ()),
++            Out::Data(_, _) => self.data.push(SessionId::parse(&[b'0'; 32]).unwrap(), out, 1).await.map_err(|_| ()),
+             // After the session's last bytes, with no wait for their room.
+             Out::LocalEnd(id) => self.data.push_last(id, out).map_err(|_| ()),
+             other => self.control.send(other).await.map_err(|_| ()),

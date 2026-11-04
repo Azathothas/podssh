@@ -260,7 +260,13 @@ fn control_frame(pair: &Pair, text: &[u8], cfg: &Config) -> Result<(), Fault> {
     // A `reject` or a `close` of an id that the relay forgot is the race of
     // a teardown, and only that.
     let Some(session) = state.forget(&id) else { return Ok(()) };
+    let node = state.node_outbox();
     drop(state);
+    // The operator's bytes that wait for it are for an id that the node
+    // ended (T-648).
+    if let Some(node) = node {
+        node.drop_session(&id);
+    }
     let shown = control::truncate_reason(&reason);
     if kind == "reject" {
         // The `reject` frame keeps the whole reason; the Close, its cut.
@@ -318,7 +324,7 @@ fn data(pair: &Pair, node: &Outbox, wire: &[u8], cfg: &Config) -> Result<(), Fau
         if let Some(session) = session {
             session.operator.close(1009, "session byte cap");
         }
-        node.text(close(&id, Some("session byte cap")));
+        node.text_after(id, close(&id, Some("session byte cap")));
         return Ok(());
     }
     if session.operator.binary_or_full(payload.to_vec()).is_err() {
@@ -330,7 +336,7 @@ fn data(pair: &Pair, node: &Outbox, wire: &[u8], cfg: &Config) -> Result<(), Fau
         if let Some(session) = session {
             session.operator.abort(1011, "relay backpressure");
         }
-        node.text(close(&id, Some("relay backpressure")));
+        node.text_after(id, close(&id, Some("relay backpressure")));
         cfg.event("reverse backpressure");
     }
     Ok(())

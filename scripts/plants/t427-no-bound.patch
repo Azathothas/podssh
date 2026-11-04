@@ -1,11 +1,11 @@
 --- a/crates/podssh-relay/src/serve/reverse/outbox.rs
 +++ b/crates/podssh-relay/src/serve/reverse/outbox.rs
-@@ -156,7 +156,7 @@
-     /// A binary frame, or [`Full`] when it would put more than [`BOUND`] in
-     /// the queue: the contract's `1011 relay backpressure`.
+@@ -229,7 +229,7 @@
+     /// ends, after its Close was asked for, takes it as each frame after a
+     /// Close: it is never written.
      pub fn binary_or_full(&self, frame: Vec<u8>) -> Result<(), Full> {
--        let room = self.room.clone().try_acquire_many_owned(permits(frame.len())).map_err(|_| Full)?;
-+        let room = self.room.clone().try_acquire_many_owned(0).map_err(|_| Full)?;
-         self.tx.send(Item::Binary(frame, room)).map_err(|_| Full)
-     }
- 
+-        let cost = cost(frame.len());
++        let cost = 0;
+         match self.lines.try_push(None, Piece::Binary(frame), cost) {
+             Ok(()) | Err(Refused::Shut) => Ok(()),
+             Err(Refused::Full) => Err(Full),

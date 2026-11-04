@@ -686,7 +686,12 @@ through the default one:
   operator: past it, the frame is dropped, the session ends with `1011
   relay backpressure`, and the node's other sessions go on (T-336). The
   role reads an operator only while the node's queue has room, so a slow
-  node slows its operators and loses nothing. A frame of the node for a
+  node slows its operators and loses nothing. The frames to a node wait in
+  a line for each session, a turn each (T-648): one session may hold the
+  1 MiB, another's empty line still takes a frame, and so an operator's
+  keystroke waits for one frame of each other session, not for an upload's
+  backlog; the text frames (`open`, `spent`) go before the sessions' bytes,
+  and a session's `close` after its own. A frame of the node for a
   session that ended in the last 2 s was on its way, and is dropped; one for
   an id never given, or closed long before, closes the node's socket with
   `1003 unknown session id` (T-421). A planned stop (Ctrl-C, SIGTERM)

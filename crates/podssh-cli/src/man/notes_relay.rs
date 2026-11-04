@@ -183,7 +183,9 @@ pub const RELAY: &[&str] = &[
      pairs in FILE, a file of mode 0600 that holds the digests of their tokens and never a token, so \
      that they outlive a restart. At most 1 MiB waits for a slow operator: past it, the session ends \
      with 1011 relay backpressure, and the node's other sessions go on; a node that reads slowly slows \
-     its operators instead. A frame of the node for a session that ended in the last 2 seconds was on \
+     its operators instead, each session's frames to it a turn each, so that one operator's upload \
+     never holds another's keystrokes behind it. A frame of the node for a session that ended in the \
+     last 2 seconds was on \
      its way, and is dropped; one for an id never given closes the node's socket with 1003, as the \
      contract says. Ctrl-C or SIGTERM first closes each socket of the reverse road with 1012, so that \
      each node connects again and each session resumes once the relay is back with its pairs: each \

@@ -8,6 +8,7 @@
 //! handler, and only its answer queues `ready` or `reject`. A role that
 //! registers tokens of one leg says so in its `hello`, and the handler sends
 //! its registrations through the writer too (T-615, `crate::e2e::legs`).
+//! The sessions' bytes wait in a line each, a turn each (T-648, `super::fair`).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -24,6 +25,7 @@ use tokio::sync::oneshot;
 
 use super::closes::RelayClose;
 use super::control::{self, NodeInbound, NodeLimits};
+use super::fair::Fair;
 use super::framing::legs::{chunk_for_node, decode_node_frame, CHUNK_BYTES};
 use super::framing::SessionId;
 use super::node::Handler;
@@ -106,16 +108,27 @@ const STALLED: &str = "the node's local side does not read";
 /// with `1003 unknown session id` (T-410); the relay's close drops the
 /// session's queued bytes before they go out for an id that it forgot. A
 /// session's bytes, and the `close` after its last ones, keep their order.
+/// Data waits in a line for each session, a turn each (T-648): an
+/// interactive session's echo waits for one read of each other session, not
+/// for a bulk copy's backlog.
 #[derive(Clone)]
 struct Outbox {
     control: mpsc::Sender<Out>,
-    data: mpsc::Sender<Out>,
+    data: Fair<SessionId, Out>,
 }
+
+/// The reads of a session's local side that may wait for the socket, and of
+/// all its sessions: the one queue's 256 of before, shared out, so that a
+/// node's memory stays as it was. A read is `CHUNK_BYTES` at most.
+const SESSION_READS: usize = 4;
+const SOCKET_READS: usize = 256;
 
 impl Outbox {
     async fn send(&self, out: Out) -> Result<(), ()> {
         match out {
-            Out::Data(..) | Out::LocalEnd(_) => self.data.send(out).await.map_err(|_| ()),
+            Out::Data(id, _) => self.data.push(id, out, 1).await.map_err(|_| ()),
+            // After the session's last bytes, with no wait for their room.
+            Out::LocalEnd(id) => self.data.push_last(id, out).map_err(|_| ()),
             other => self.control.send(other).await.map_err(|_| ()),
         }
     }
@@ -142,9 +155,9 @@ where
     F: Future<Output = ()> + Unpin,
 {
     let session = Arc::new(session);
-    let ((control, control_rx), (data, data_rx)) = (mpsc::channel(1024), mpsc::channel(256));
-    let tx = Outbox { control, data };
-    let mut writer = Writer(tokio::spawn(write(session.clone(), control_rx, data_rx)));
+    let ((control, control_rx), data) = (mpsc::channel(1024), Fair::new(SESSION_READS, SOCKET_READS));
+    let tx = Outbox { control, data: data.clone() };
+    let mut writer = Writer(tokio::spawn(write(session.clone(), control_rx, data)));
     let routes: Routes = Arc::default();
     let opening = Arc::new(AtomicUsize::new(0));
     let mut limits = NodeLimits::conservative();
@@ -220,6 +233,9 @@ where
     // The tokens of one leg wait for the next socket (T-615).
     handler.attach(None);
     routes.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    // No session's bytes join the queue now; a sender that waits for room
+    // hears it, as it heard the end of the one queue before.
+    tx.data.shut();
     drop(tx);
     // A stop's last frames (each session's `close`, the Close) go out
     // first. A socket that the relay closed, or that broke, takes nothing
@@ -359,18 +375,19 @@ async fn open<H: Handler>(
 async fn write<S>(
     session: Arc<RelaySession<S>>,
     mut control: mpsc::Receiver<Out>,
-    mut data: mpsc::Receiver<Out>,
+    data: Fair<SessionId, Out>,
 ) -> Result<(), SessionError>
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
     let mut sessions = Sessions::new();
     loop {
-        // Control first (`Outbox`); the loop ends once both queues closed.
-        let out = tokio::select! {
+        // Control first (`Outbox`), then one session's turn; the loop ends
+        // once both queues closed. A read keeps its room until it went out.
+        let (out, _room) = tokio::select! {
             biased;
-            Some(out) = control.recv() => out,
-            Some(out) = data.recv() => out,
+            Some(out) = control.recv() => (out, None),
+            Some(turn) = data.next() => (turn.piece, Some(turn.slot)),
             else => break,
         };
         match out {
@@ -400,7 +417,11 @@ where
                     session.send_binary(&frame).await?;
                 }
             }
-            Out::Closed(id) => sessions.closed(&id),
+            Out::Closed(id) => {
+                sessions.closed(&id);
+                // Its queued bytes are for an id that the relay forgot.
+                data.drop_line(&id);
+            }
             Out::LocalEnd(id) => {
                 if sessions.state(&id).is_some() {
                     if let Some(text) = json(control::close(&id, None)) {
@@ -416,6 +437,7 @@ where
                     }
                     sessions.closed(&id);
                 }
+                data.drop_line(&id);
             }
             Out::Text(text) => session.send_text(&text).await?,
             Out::Stop => {

@@ -3,8 +3,9 @@
 //! sessions at once carry their bytes whole; a slow operator meets the
 //! contract's bound, `1011 relay backpressure` at 1 MiB, while the node's
 //! other session goes on (T-336); a planned stop's `1012` sends the node
-//! back to its pair (T-255); and a role that mints for keys keeps a share of
-//! its pairs for each (T-630).
+//! back to its pair (T-255); a role that mints for keys keeps a share of its
+//! pairs for each (T-630); and the role's frames to a node give each session
+//! a turn (T-648).
 #![cfg(all(feature = "serve", feature = "plain-ws"))]
 
 mod role_harness;
@@ -18,8 +19,10 @@ use podssh_relay::identity::Identity;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::{self, operator, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits};
 use podssh_relay::reverse::{Outcome, SessionId, Settings, Wire};
-use podssh_relay::serve::reverse::Pairs;
+use podssh_relay::serve::reverse::{carrier, Pairs};
 use podssh_relay::serve::Mint;
+use podssh_ws::frame::{Frame, OPCODE_BINARY, OPCODE_TEXT};
+use podssh_ws::session::RelaySession;
 use podssh_ws::{ProxyChoice, Trust};
 use role_harness::{Role, LIMIT};
 use sha2::{Digest, Sha256};
@@ -361,4 +364,96 @@ async fn a_key_past_its_share_hears_its_own_words_and_each_other_key_still_pairs
     }
     let (status, body) = pair_by_key(&role, 3).await;
     assert_eq!((status, body.trim_end()), (429, "/v1/pair: this relay keeps 6 pairs already"));
+}
+
+/// The turns of the other tasks that a still count waits through: each step
+/// of a task on the test's one thread takes one.
+const QUIET_TURNS: usize = 1000;
+
+/// The node's next text or binary frame on its socket.
+async fn node_frame(node: &RelaySession<DuplexStream>) -> Frame {
+    loop {
+        let f = tokio::time::timeout(LIMIT, node.read_frame()).await.expect("a frame in time").expect("a frame");
+        if f.opcode == OPCODE_TEXT || f.opcode == OPCODE_BINARY {
+            return f;
+        }
+    }
+}
+
+async fn node_text(node: &RelaySession<DuplexStream>) -> serde_json::Value {
+    let f = node_frame(node).await;
+    assert_eq!(f.opcode, OPCODE_TEXT, "{:?}", String::from_utf8_lossy(&f.payload));
+    serde_json::from_slice(&f.payload).expect("JSON")
+}
+
+/// An operator's leg of the carrier's role, once the node readied its
+/// session: the leg, and the session's id as the node heard it.
+async fn leg(role: &carrier::Role, node: &RelaySession<DuplexStream>) -> (RelaySession<DuplexStream>, String) {
+    let path = podssh_relay::relay::operator_path(carrier::NAME).unwrap();
+    let leg = role.open(&path, LIMIT).await.expect("an operator's leg");
+    let open = node_text(node).await;
+    let id = open["id"].as_str().expect("an open with its id").to_string();
+    node.send_text(&format!(r#"{{"type":"ready","id":"{id}"}}"#)).await.unwrap();
+    let ready = tokio::time::timeout(LIMIT, leg.read_frame()).await.expect("ready in time").expect("ready");
+    assert_eq!(ready.opcode, OPCODE_TEXT, "the operator's ready");
+    (leg, id)
+}
+
+/// Until `count` stays still while each other task of this thread runs: its
+/// sender waits, as each queue on its way is full.
+async fn until_still(count: &AtomicUsize) {
+    let (mut last, mut still) = (count.load(Ordering::SeqCst), 0);
+    while still < QUIET_TURNS {
+        tokio::task::yield_now().await;
+        let now = count.load(Ordering::SeqCst);
+        (last, still) = if now == last { (last, still + 1) } else { (now, 0) };
+    }
+}
+
+/// T-648: the relay role's side of a node's socket, on pipes with no kernel
+/// between (a carrier's, T-595, which runs the role's own code), and a node
+/// that reads nothing while operator A uploads: A's frames fill the role's
+/// line to the node. Operator B's four bytes then reach the node before 512
+/// KiB more of A's; one queue for all held 1 MiB of A ahead of them.
+#[tokio::test]
+async fn an_operators_bytes_reach_a_slow_node_before_anothers_backlog() {
+    let role = carrier::Role::new("a test's pipe", None, None).expect("the carrier's role");
+    let (link, node_end) = tokio::io::duplex(64 * 1024);
+    role.attach(Box::new(link)).expect("the node's socket");
+    let node = carrier::node_socket(node_end);
+    carrier::greet(&node).await.unwrap();
+    assert_eq!(node_text(&node).await["type"], "hello");
+    let (a, id_a) = leg(&role, &node).await;
+    let (b, id_b) = leg(&role, &node).await;
+    let (a, sent) = (Arc::new(a), Arc::new(AtomicUsize::new(0)));
+    let flood = {
+        let (a, sent) = (a.clone(), sent.clone());
+        tokio::spawn(async move {
+            let payload = vec![b'a'; 60_000];
+            for _ in 0..64 {
+                if a.send_binary(&payload).await.is_err() {
+                    return;
+                }
+                sent.fetch_add(1, Ordering::SeqCst);
+            }
+        })
+    };
+    until_still(&sent).await;
+    let waited = sent.load(Ordering::SeqCst);
+    assert!(waited < 64, "A's sender never waited: the role took 3.8 MB for a node that reads nothing");
+    b.send_binary(b"to b").await.unwrap();
+    let mut before = 0;
+    loop {
+        let f = node_frame(&node).await;
+        assert_eq!(f.opcode, OPCODE_BINARY);
+        let (id, payload) = f.payload.split_at(32);
+        if id == id_b.as_bytes() {
+            assert_eq!(payload, b"to b");
+            break;
+        }
+        assert_eq!(id, id_a.as_bytes());
+        before += payload.len();
+        assert!(before < 512 * 1024, "{before} bytes of A came before B's four");
+    }
+    flood.abort();
 }
