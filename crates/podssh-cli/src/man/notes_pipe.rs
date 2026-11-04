@@ -66,6 +66,23 @@ pub const PIPE: &[&str] = &[
      it does not. podssh's frames are a server's, unmasked, and a client's unmasked frame closes the \
      session with 1002. One client by default, the first whose upgrade is good; --keep-listening takes \
      each in turn.",
+    "--cover DIR gives ws-listen: a page for a visit: a GET or HEAD that asks for no upgrade, as a browser's, \
+     gets the file of DIR that its path names, typed by its name, and index.html for / and for a directory, \
+     which is never listed; 404 when there is none. A path with .., a name that starts with . (.git, .env), \
+     an escape that hides a separator, or a link whose file is out of DIR gets 404, and so does a file over \
+     1 MiB or one that is not a regular file. Another method gets 405, and a request of HTTP/1.1 with no Host \
+     400. A page is no session: the connection closes after it, and the other side opens for an upgrade \
+     alone, with the refusals above. DIR must be a directory, and the flag is for ws-listen: alone (64).",
+    "--raw-upgrade lets ws-listen: answer an upgrade with no Sec-WebSocket-Key, the request of a client of \
+     WebTunnel's shape, as podssh's own: GET with a Host, Upgrade: websocket and Connection: Upgrade, and no \
+     key or version. It hears 101 with those two headers and no Sec-WebSocket-Accept, and then its bytes go \
+     both ways as tcp-listen: carries them, the ones it sent after its request first: no frames, so no close \
+     code and no Ping, and no idle bound; TCP alone finds a path that died. A request with a key is framed \
+     as above, its version and its key checked (a key that is not 16 bytes 400), and an Origin is 403 with \
+     or without a key, so no page reaches the other side. Without the flag a request with no key gets 426. \
+     What it admits: each program that sends such a GET reaches the other side, as at tcp-listen:, which \
+     has no check at all; ws-listen: has no authentication either way. There is no TLS on ws-listen:: a \
+     client of https:// needs a front that ends TLS before it. The flag is for ws-listen: alone (64).",
     "The hops of ssh: log in as podssh ssh logs in: through the relay, or with --direct, with -i and \
      -o; an -o of a session (RequestTTY, RemoteCommand) is refused. node: takes the pair stored under \
      NAME, or the one of --pair-file. iroh: takes this client's key of --iroh-key, and the relays of \

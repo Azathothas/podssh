@@ -1,0 +1,7 @@
+# T-639: the cover's path is resolved with no check that it is still under
+# DIR, so a link in DIR to a file outside it is served; the unit test of
+# the link out of DIR must fail.
+ENTRY=T-639
+GROUP=cli-tests
+EXPECT='test pipe::cover::tests::a_link_out_of_the_directory_is_never_followed \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib pipe::cover'
