@@ -207,6 +207,7 @@ impl StandIn {
         let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let addr = listener.local_addr()?;
+        crate::road::forget(addr);
         let seen = Arc::new(Seen::default());
         let (routes, counted) = (Arc::new(routes), seen.clone());
         let task = tokio::spawn(async move {

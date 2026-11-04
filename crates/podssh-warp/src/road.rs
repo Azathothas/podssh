@@ -152,6 +152,15 @@ pub fn intercepted(proxy: Option<&str>, endpoint: SocketAddr) -> Option<String> 
     met.iter().find(|(p, e, _)| p.as_deref() == proxy && *e == endpoint).map(|(_, _, issuer)| issuer.clone())
 }
 
+/// Forgets what this run met at `endpoint`: a stand-in edge on the
+/// loopback can take the port of one that an earlier test met behind a
+/// proxy of its own, and must not inherit that (a full run of the tests
+/// read a fresh edge as intercepted once).
+#[cfg(any(test, feature = "stand-in"))]
+pub(crate) fn forget(endpoint: SocketAddr) {
+    INTERCEPTED.lock().unwrap_or_else(PoisonError::into_inner).retain(|(_, at, _)| *at != endpoint);
+}
+
 /// The refusal of a road that met a proxy which re-terminates TLS earlier
 /// in this run.
 fn tried_before(proxied: Option<&str>, endpoint: SocketAddr) -> Result<(), Fault> {
