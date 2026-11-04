@@ -82,8 +82,12 @@ LISTENERS = {
     # probe (T-359), and the stand-in server of pkarr (T-350), as above. And
     # `podssh exit --listen` (T-431), which the user asks for: it binds
     # through `podssh pipe`'s listener, after PODSSH_LISTEN, on a loopback
-    # address alone, and the bind is its probe.
+    # address alone, and the bind is its probe. And the tests of a service's
+    # journal (T-640): a datagram socket in a scratch directory that stands
+    # for the journal's own and reads what the sink sent; the sink itself
+    # binds nothing.
     "bind(": [
+        "crates/podssh-cli/src/journal/tests.rs",
         "crates/podssh-cli/src/exit/listen.rs",
         "crates/podssh-cli/src/relay_serve.rs",
         "crates/podssh-iroh/src/test_pkarr.rs",

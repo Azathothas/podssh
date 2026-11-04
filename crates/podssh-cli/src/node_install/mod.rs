@@ -190,7 +190,12 @@ pub(crate) fn this_binary() -> Result<PathBuf, Refusal> {
 pub(crate) fn env_file(kind: Kind, name: &str, notes: &mut Vec<String>) -> Result<PathBuf, Refusal> {
     let (body, left) = env::body();
     for variable in left {
-        notes.push(format!("{variable} is set and is not carried: a service keeps no token of the environment"));
+        // A retired name says what replaced it (T-634); else it is a token.
+        let why = match crate::retired::named(crate::retired::RETIRED, &variable) {
+            Some(row) => row.refusal(),
+            None => "a service keeps no token of the environment".to_string(),
+        };
+        notes.push(format!("{variable} is set and is not carried: {why}"));
     }
     let file = podssh_relay::cache::store_file(&env::file_name(kind, name), body.as_bytes())
         .map_err(|e| Refusal::config(format!("the file of the service's variables: {e}")))?;

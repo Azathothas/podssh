@@ -432,7 +432,7 @@ fn finish(label: &str, exit: Exit, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh node: {label}: stopped");
         return 0;
     };
-    let _ = writeln!(err, "podssh node: {label}: {why}");
+    crate::journal::line(err, podssh_ssh::LogLevel::Error, &format!("podssh node: {label}: {why}"));
     fault.code()
 }
 

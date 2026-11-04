@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use super::Kind;
 use crate::relay_settings::Refusal;
+use crate::retired::{named, Retired, RETIRED};
 
 /// The variables of other programs that the node reads and that a service
 /// would not have: the proxy, the trust, the places of the user's files.
@@ -65,12 +66,18 @@ pub(super) fn body() -> (String, Vec<String>) {
 /// names. A value with a line break cannot be a line of the file, and is
 /// left out.
 pub(super) fn body_of(vars: impl Iterator<Item = (String, String)>) -> (String, Vec<String>) {
+    body_in(vars, RETIRED)
+}
+
+/// [`body_of`] with the table of retired names: a retired name is left out
+/// and said, as the file's reader would refuse it (T-634).
+pub(super) fn body_in(vars: impl Iterator<Item = (String, String)>, retired: &[Retired]) -> (String, Vec<String>) {
     let mut vars: Vec<(String, String)> = vars.filter(|(_, v)| !v.is_empty()).collect();
     vars.sort();
     let mut text = String::from("# The variables of a service of podssh: podssh --install wrote them.\n");
     let mut left = Vec::new();
     for (name, value) in vars {
-        if SECRET.contains(&name.as_str()) {
+        if SECRET.contains(&name.as_str()) || named(retired, &name).is_some() {
             left.push(name);
         } else if readable(&name) && !NOT_CARRIED.contains(&name.as_str()) && !value.contains(['\n', '\r', '\0']) {
             text.push_str(&format!("{name}={value}\n"));
@@ -83,6 +90,13 @@ pub(super) fn body_of(vars: impl Iterator<Item = (String, String)>) -> (String, 
 /// comments. A name that the node does not read, and a secret, are refused
 /// with their line.
 pub(super) fn parse(text: &str) -> Result<Vec<(String, String)>, String> {
+    parse_in(text, RETIRED)
+}
+
+/// [`parse`] with the table of retired names: one that the file sets is
+/// refused with its line and what replaced it, as a run refuses it (T-634);
+/// an empty value is unset, as there.
+pub(super) fn parse_in(text: &str, retired: &[Retired]) -> Result<Vec<(String, String)>, String> {
     let mut vars = Vec::new();
     for (i, line) in text.lines().enumerate() {
         let line = line.strip_suffix('\r').unwrap_or(line);
@@ -95,6 +109,9 @@ pub(super) fn parse(text: &str) -> Result<Vec<(String, String)>, String> {
         let name = name.trim();
         if SECRET.contains(&name) {
             return Err(format!("line {}: {name} is a token, and a service keeps none of the environment", i + 1));
+        }
+        if let Some(row) = named(retired, name).filter(|_| !value.is_empty()) {
+            return Err(format!("line {}: {}", i + 1, row.refusal()));
         }
         if !readable(name) {
             return Err(format!("line {}: {name} is not a variable that podssh reads", i + 1));

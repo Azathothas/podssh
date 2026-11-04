@@ -17,6 +17,7 @@ use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use crate::flags::VERB_OWNER;
 use crate::help;
 use crate::pager::Tty;
+use crate::retired::Retired;
 use crate::tree::Parsed;
 
 /// The two streams, as a pair of sinks, so a test can assert on both without
@@ -36,6 +37,23 @@ pub struct Streams<'a> {
 /// would block on a key nobody presses.
 pub fn run(p: &Parsed, s: &mut Streams<'_>) -> i32 {
     run_with(p, s, Tty::none())
+}
+
+/// [`run_with`], unless `vars` sets a name of `retired`, which a release
+/// stopped reading: that stops the run with 78 before anything is tried,
+/// and what only prints still answers (T-634). The table and the variables
+/// are parameters, so that a test needs a row of its own and no environment.
+pub fn run_unless_retired(
+    p: &Parsed,
+    s: &mut Streams<'_>,
+    tty: Tty,
+    retired: &[Retired],
+    vars: &[(String, String)],
+) -> i32 {
+    match crate::retired::check(p, retired, vars, s.err) {
+        Some(code) => code,
+        None => run_with(p, s, tty),
+    }
 }
 
 /// Run a parsed command line, with the terminal state the caller probed.
@@ -414,6 +432,9 @@ where
     // A program that the user names gets the report of a failure (T-195).
     let hook = crate::error_program::Hook::from_env(argv.first().map(|a| a.as_os_str()));
     let parsed = crate::tree::parse(argv);
+    // A PODSSH_ name that a release stopped reading stops the run (T-634).
+    let vars = crate::retired::environment();
+    let run = |s: &mut Streams<'_>| run_unless_retired(&parsed, s, Tty::probed(), crate::retired::RETIRED, &vars);
     // Unlocked handles: each write takes the lock briefly. Holding the lock
     // for the whole run would deadlock any verb that writes through
     // tokio's stdout, which locks from a helper thread.
@@ -421,11 +442,11 @@ where
     let mut err = std::io::stderr();
     let rc = if hook.is_some() {
         let mut tee = crate::error_program::Tee::new(&mut err);
-        let rc = run_with(&parsed, &mut Streams { out: &mut out, err: &mut tee }, Tty::probed());
+        let rc = run(&mut Streams { out: &mut out, err: &mut tee });
         tee.finish();
         rc
     } else {
-        run_with(&parsed, &mut Streams { out: &mut out, err: &mut err }, Tty::probed())
+        run(&mut Streams { out: &mut out, err: &mut err })
     };
     let _ = out.flush();
     let _ = err.flush();

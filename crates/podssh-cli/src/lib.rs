@@ -78,6 +78,8 @@ pub mod http_road;
 pub mod install_hint;
 // `podssh job`: jobs on a far host, each in its tmux (T-193).
 pub mod job;
+// A service's error lines at their priority in the journal (T-640).
+pub mod journal;
 pub mod keygen;
 pub mod keygen_cert;
 pub mod keygen_change;
@@ -189,6 +191,8 @@ pub mod relay_settings;
 pub mod relay_spec;
 // `podssh relay status NAME` and `--pair-file`: a pair's state and expiry (T-591).
 mod relay_status;
+// The PODSSH_ names that a release stopped reading, refused by name (T-634).
+pub mod retired;
 // `podssh session`: a session that outlives each call of an agent (T-186).
 pub mod session;
 // `podssh run`: copy a project, then run a command in it (T-192).

@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::env::{body_of, parse, CARRIED, SECRET};
+use super::env::{body_in, body_of, parse, parse_in, CARRIED, SECRET};
 use super::lock::{path_of, try_hold, Tried};
 use super::ssh::{service_words, SERVICE_OPTIONS};
 use super::text::{
@@ -268,4 +268,25 @@ fn the_file_of_variables_carries_the_proxy_and_never_a_token() {
     }
     assert_eq!(parse("# c\n\nPODSSH_RELAY=r.example:443\r\n").unwrap(), [pair("PODSSH_RELAY", "r.example:443")]);
     assert!(SECRET.iter().all(|s| !CARRIED.contains(s)));
+}
+
+/// A retired name in a service's file (T-634), on the row of the tests: the
+/// reader refuses it with its line and what replaced it, an empty value
+/// passes, and the install leaves it out.
+#[test]
+fn a_retired_variable_in_an_env_file_is_refused_with_its_line() {
+    use crate::retired::tests::ROW;
+    let pair = |n: &str, v: &str| (n.to_string(), v.to_string());
+    let text = "# c\nPODSSH_RELAY=r.example:443\nPODSSH_RETIRED_FOR_TESTS=yes\n";
+    let why = parse_in(text, &[ROW]).unwrap_err();
+    assert!(why.starts_with("line 3: PODSSH_RETIRED_FOR_TESTS is no longer read (since v0.0.0)"), "{why}");
+    assert!(why.contains("use PODSSH_RELAY instead; remove it"), "{why}");
+    let empty = parse_in("PODSSH_RETIRED_FOR_TESTS=\n", &[ROW]).unwrap();
+    assert_eq!(empty, [pair("PODSSH_RETIRED_FOR_TESTS", "")]);
+    // With the release's table, the same file reads as before.
+    assert_eq!(parse(text).unwrap().len(), 2);
+    let set = [pair("PODSSH_RETIRED_FOR_TESTS", "yes"), pair("PODSSH_CACHE_DIR", "/c")];
+    let (written, left) = body_in(set.into_iter(), &[ROW]);
+    assert!(!written.contains("PODSSH_RETIRED_FOR_TESTS") && written.contains("\nPODSSH_CACHE_DIR=/c\n"), "{written}");
+    assert_eq!(left, ["PODSSH_RETIRED_FOR_TESTS"]);
 }

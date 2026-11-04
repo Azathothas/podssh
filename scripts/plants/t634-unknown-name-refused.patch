@@ -1,0 +1,14 @@
+diff --git a/crates/podssh-cli/src/retired.rs b/crates/podssh-cli/src/retired.rs
+index 9db98f0..e99c8cb 100644
+--- a/crates/podssh-cli/src/retired.rs
++++ b/crates/podssh-cli/src/retired.rs
+@@ -73,7 +73,8 @@ pub fn named<'t>(table: &'t [Retired], name: &str) -> Option<&'t Retired> {
+ /// Each row of `table`, in its order, whose name `vars` sets to a value that
+ /// is not empty: an empty value is unset, as for each of podssh's variables.
+ pub fn set_in<'t>(table: &'t [Retired], vars: &[(String, String)]) -> Vec<&'t Retired> {
+-    table.iter().filter(|row| vars.iter().any(|(name, value)| name == row.name && !value.is_empty())).collect()
++    let unknown = vars.iter().any(|(n, v)| n.starts_with("PODSSH_") && !v.is_empty() && named(table, n).is_none());
++    table.iter().filter(|row| unknown || vars.iter().any(|(name, value)| name == row.name && !value.is_empty())).collect()
+ }
+ 
+ /// The variables of this process: a value that is not UTF-8 is set too.

@@ -1,0 +1,15 @@
+diff --git a/crates/podssh-cli/src/journal/sink.rs b/crates/podssh-cli/src/journal/sink.rs
+index 21bca0b..25f6148 100644
+--- a/crates/podssh-cli/src/journal/sink.rs
++++ b/crates/podssh-cli/src/journal/sink.rs
+@@ -78,8 +78,8 @@ impl Sink {
+ /// child that inherited the variable with another stderr, which the
+ /// variable alone cannot tell.
+ pub fn stream_is(value: &str, fd: BorrowedFd<'_>) -> Option<(u64, u64)> {
+-    let stream = stream_of(value)?;
+-    (id_of(fd)? == stream).then_some(stream)
++    let _ = fd;
++    stream_of(value)
+ }
+ 
+ /// The device and inode of `fd`, as `fstat` gives them, read on a copy of

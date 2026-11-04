@@ -2,6 +2,7 @@
 //! the manual names agrees with the source in both directions.
 
 use super::*;
+use crate::retired::{named, Instead, Retired, RETIRED};
 use std::path::{Path, PathBuf};
 
 fn crate_dir(name: &str) -> PathBuf {
@@ -129,7 +130,9 @@ fn each_variable_in_the_source_is_documented() {
     let mut missing = Vec::new();
     for (path, code) in sources() {
         for name in variables_read(&code) {
-            if !documented.contains(&name.as_str()) {
+            // A retired name is the manual's apart, and only its table names it (T-634).
+            let retired = path.ends_with("retired.rs") && named(RETIRED, &name).is_some();
+            if !documented.contains(&name.as_str()) && !retired {
                 missing.push(format!("{name} ({})", path.display()));
             }
         }
@@ -235,4 +238,51 @@ fn the_row_of_78_names_the_files_of_settings() {
     ] {
         assert!(what.contains(text), "{text}: {what}");
     }
+}
+
+/// What contradicts a table of retired names (T-634): a row whose name the
+/// manual lists as read, or that a source reads outside the table's file, or
+/// whose replacement is a variable that nothing reads.
+fn contradictions(table: &[Retired]) -> Vec<String> {
+    let (documented, src) = (documented(), sources());
+    let mut out = Vec::new();
+    for row in table {
+        if documented.contains(&row.name) {
+            out.push(format!("{} is retired and listed as read", row.name));
+        }
+        for (path, code) in &src {
+            if !path.ends_with("retired.rs") && variables_read(code).iter().any(|name| name == row.name) {
+                out.push(format!("{} is retired and read in {}", row.name, path.display()));
+            }
+        }
+        if let Instead::Use(what) = row.instead {
+            let variable = what.starts_with("PODSSH_") && !what.contains(' ');
+            if variable && !documented.contains(&what) {
+                out.push(format!("{} is replaced by {what}, which is not read", row.name));
+            }
+        }
+    }
+    out
+}
+
+/// No retired name is read, or listed as read, and each replacement that
+/// is a variable is read: a name read again loses its row (T-634).
+#[test]
+fn no_retired_name_is_a_variable_that_is_read() {
+    let found = contradictions(RETIRED);
+    assert!(found.is_empty(), "{found:?}");
+    let found = contradictions(&[crate::retired::tests::ROW]);
+    assert!(found.is_empty(), "the row of the tests: {found:?}");
+}
+
+/// The control of the test above: a row of a name that podssh reads, and
+/// one replaced by a name that it does not, are each found.
+#[test]
+fn a_row_of_a_name_that_is_read_is_found() {
+    let read = Retired { name: "PODSSH_RELAY", since: "v0.0.0", instead: Instead::Nothing, why: "planted" };
+    let found = contradictions(&[read]);
+    assert!(found.iter().any(|p| p.contains("listed as read")), "{found:?}");
+    assert!(found.iter().any(|p| p.contains("is retired and read in") && p.contains("status.rs")), "{found:?}");
+    let dead = Retired { name: "PODSSH_OLD", since: "v0.0.0", instead: Instead::Use("PODSSH_NO_SUCH_THING"), why: "x" };
+    assert_eq!(contradictions(&[dead]), ["PODSSH_OLD is replaced by PODSSH_NO_SUCH_THING, which is not read"]);
 }

@@ -22,6 +22,9 @@ fn main() {
     podssh_cli::detach::prepare_process(&args);
     // Each verb's descriptors within the hard limit, not the shell's soft one (T-564).
     podssh_cli::nofile::start();
+    // The journal, where stderr is its stream, gets each error line at its
+    // priority (T-640): found once, before a thread starts.
+    podssh_cli::journal::install();
     let kept = args.clone();
     let first = podssh_cli::first_thread::Waiter::new();
     let run = std::thread::Builder::new().stack_size(STACK).spawn(move || {
