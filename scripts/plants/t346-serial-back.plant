@@ -1,0 +1,8 @@
+# T-346: a list whose serial is below the list kept of its key replaces it,
+# so an older list that a key signed, replayed, takes the place of the
+# newer one; the test of a lower serial must fail.
+ENTRY=T-346
+GROUP=cli-tests
+EXPECT='test pool::signed::tests::a_lower_serial_keeps_the_list_kept \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib pool'
+LIMIT=1800

@@ -72,6 +72,8 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "podssh": crate::help::version(),
         "relays": relays.hosts.iter().map(|r| json!({ "host": r.host, "port": r.port })).collect::<Vec<_>>(),
         "relays_from": relays_from,
+        // Each deployment of the list, and whether its list was signed (T-346).
+        "deployments": crate::relay_deployments::status_value(&relays),
         "settings": settings.path.as_ref().map(|p| p.display().to_string()),
         "pool": pool_state(&relays),
         "token": token_state(&relays),

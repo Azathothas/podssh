@@ -124,6 +124,21 @@ pub fn select_relays(flag: Option<&str>, env: Option<String>, pool: &[String]) -
     Ok(RelayList { hosts, explicit: false })
 }
 
+/// The default list followed by `others`, the hosts of other deployments
+/// that a signed list names (T-346, [`crate::pool::kept::other_hosts`]),
+/// each once; a list that the user named stays the relay alone.
+pub fn with_others(mut list: RelayList, others: Vec<Relay>) -> RelayList {
+    if list.explicit {
+        return list;
+    }
+    for relay in others {
+        if !list.hosts.contains(&relay) {
+            list.hosts.push(relay);
+        }
+    }
+    list
+}
+
 /// An ordered list: hosts separated by commas, each as [`parse_relay`]
 /// accepts it. Commas only: splitting on spaces too would turn one mistyped
 /// value (`"not a host"`) into a list of plausible hosts. Duplicates are
@@ -280,6 +295,20 @@ mod tests {
         assert_eq!(list.primary().host, DEFAULT_RELAY_HOST);
         let alone = select_relays(None, Some("  ".into()), &[]).unwrap();
         assert_eq!(alone.hosts, vec![Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 }]);
+    }
+
+    /// T-346: the hosts of other deployments follow the default list, each
+    /// once; a list that the user named takes none.
+    #[test]
+    fn the_pool_then_other_deployments_follow_the_default_host() {
+        let other = |h: &str| Relay { host: h.into(), port: 443 };
+        let default = select_relays(None, None, &["a.ssh.relay.ajam.dev".into()]).unwrap();
+        let others = vec![other("relay.example.org"), other("a.ssh.relay.ajam.dev"), other("relay.example.org")];
+        let list = with_others(default, others);
+        let hosts: Vec<&str> = list.hosts.iter().map(|r| r.host.as_str()).collect();
+        assert_eq!(hosts, vec![DEFAULT_RELAY_HOST, "a.ssh.relay.ajam.dev", "relay.example.org"]);
+        let named = with_others(select_relays(Some("mine.example"), None, &[]).unwrap(), vec![other("b.example")]);
+        assert_eq!(named.hosts, vec![other("mine.example")], "a list that the user named is the relay alone");
     }
 
     #[test]

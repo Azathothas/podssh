@@ -108,7 +108,9 @@ The code is in `crates/podssh-relay/`.
    three hosts of its pool. The pool is the `pool[].host` list of
    `/relays.json`, cached on disk. Six measured hosts seed it until a cached
    pool exists. podssh reads the pool again in the background after a token
-   mint, when the cache is older than 7 days.
+   mint, when the cache is older than 7 days. Up to four hosts of other
+   deployments follow, from a signed list alone ("A signed list of
+   deployments", below; T-346).
 3. For each host, podssh gets a token, then opens the WebSocket. Each step
    has a limit of 20 s, and the whole attempt has a limit of 45 s.
 4. The hosts overlap, as `--relay-failover MODE`, `PODSSH_RELAY_FAILOVER` or
@@ -201,7 +203,8 @@ an exception of rule 2 of `AGENTS.md`, bounded as Q89 rules.
 A token is cached for its relay deployment, with the host that minted it.
 The hosts of the default deployment share one token: a pool host accepts the
 token of the default host (measured 2026-10-08). Any other host has its own
-token, under its name and its port when that is not 443. So podssh never
+token, under its name and its port when that is not 443, a host of another
+deployment of a signed list too (T-346). So podssh never
 sends a cached token to a deployment that did not mint it (T-057). A cache
 entry that does not name the host that minted it (written before
 2026-10-08) is not used.
@@ -232,6 +235,74 @@ move it, and podssh moves nothing. A new pin of pins found there goes into a
 copy in the user's own cache. `podssh status` (`cache.passed`) and `podssh
 doctor` name each place passed over, with why. On Windows,
 `LOCALAPPDATA` is used as it is.
+
+## A signed list of deployments (T-346)
+
+A host of `/relays.json` outside the default's parent domain
+(`ssh.relay.ajam.dev`) is dropped from the pool, as a token of the default
+deployment would go to it. A host of another deployment comes from a signed
+list alone, which `/relays.json` may carry beside the pool, as its field
+`signed` (the code: `crates/podssh-relay/src/pool/signed.rs` and
+`crates/podssh-relay/src/pool/kept.rs`):
+
+```json
+"signed": {"doc": "{\"deployments\":[{\"hosts\":[\"relay.example.org\"],\"name\":\"backup\"}],\"issued\":1793577600,\"not_after\":1801353600,\"podssh-relays\":1,\"serial\":1793577600}",
+           "key": "64 hex digits of an Ed25519 key",
+           "sig": "base64 of 64 bytes"}
+```
+
+- **The form.** `doc` is the document's exact text, so that no canonical
+  form of JSON is needed: `podssh-relays` (the form, 1; another is
+  refused), `serial` (it only grows for its key), `issued` and `not_after`
+  (seconds since 1970), and `deployments`, 1 to 16, each a `name` (letters,
+  digits, `-` and `_`) and 1 to 8 `hosts` as `--relay-host` takes them;
+  8 KiB at most. `sig` is the key's Ed25519 signature of `podssh-relays/1`,
+  a zero byte, and the text, so that a signature of the key serves no other
+  use of it. OpenSSL's `pkeyutl -sign -rawin` makes one that podssh takes.
+- **The keys that a binary trusts.** Those compiled in
+  (`podssh_relay::pool::signed::BUILT_IN`, the keys of the default
+  deployment's operator; none on 2026-11-04, [relay-operator.md](relay-operator.md),
+  item 14), those of `PODSSH_RELAY_KEYS` and of the settings file's
+  `RelayKeys` (each `SHA256:...`, as `ssh-keygen -l` shows an Ed25519 key,
+  or its 64 hex digits), and the key of each member of the net that this
+  host holds with the role `relay`, while the document holds.
+  `PODSSH_RELAY_KEYS=none` trusts no key, those compiled in too.
+- **The check.** A trusted key, its signature of the exact text, the form,
+  a `not_after` still ahead, a life of 400 days at most from `issued`, and
+  a serial not below the list kept of its key. A list that fails any of
+  them is not used, and the pool keeps the default's domain alone, as
+  before.
+- **The cache.** A list that holds is kept as `relay-deployments.json`, the
+  newest of each key (4 keys at most), with its signature, and checked again
+  at each read: a key no longer trusted, a list past its end, or a cache
+  file that changed stops counting at once. A list is learned from the
+  `/relays.json` that the pool's refresh reads after a mint, with no request
+  more, and from `podssh relay info`, which keeps the first host's list
+  when it holds.
+- **The list of deployments.** With no list named, the default host and
+  three hosts of its pool come first, then at most four hosts of the other
+  deployments, the first host of each deployment first. Each such host
+  mints a token of its own, which goes to no other host, and its TLS is
+  checked by its own name. A list that the user named takes none; nor does
+  a run with `PODSSH_RELAY_TOKEN`, as that token is the default
+  deployment's. Once the default's hosts fail, the record of failures
+  (T-059) tries them last, so in an outage of the default's domain the
+  other deployments go first.
+- **What the binary says.** `podssh relay info` names the first host's
+  list: none, the key, why it is trusted, the serial, the end and each
+  deployment, or why it is not used; `--json` adds `signed_list`. `podssh
+  relay status`, `podssh status` (`deployments`) and `podssh doctor` (a
+  line `deployments`) name each deployment of the list, and whether its
+  list was signed.
+- **podssh's relay role signs its own.** `podssh relay serve --deployment
+  NAME=HOST[:PORT][,HOST[:PORT]...]`, repeatable, puts a list of those
+  deployments in each `/relays.json`, signed by the key of `--list-key
+  FILE` (`relay-list.key` in the cache, made when it is missing), for 90
+  days and again each day with a higher serial; its first line names the
+  key's fingerprint, which each client trusts by `PODSSH_RELAY_KEYS`,
+  `RelayKeys` or the net. Nothing of a request goes into what it signs. A
+  member of a net with the role `relay` that signs with the key that the
+  net names for it is trusted by each member that holds the net.
 
 ## The forward path: what `podssh proxy` and `podssh ssh` use
 

@@ -120,6 +120,21 @@ Each rule is implemented.
   hold a release back, and cannot change one. It never goes to an older
   release than the running one unless `--version` names it, and a failure
   leaves the old binary as it was.
+- **A relay host outside the default's domain comes from a signed list
+  alone** (T-346). A host of `/relays.json` outside `ssh.relay.ajam.dev` is
+  used only when the list that names it carries an Ed25519 signature, of
+  its exact text, by a key that this binary trusts: one compiled in, one of
+  `PODSSH_RELAY_KEYS` or of the settings file's `RelayKeys`, or the key of
+  a member of the user's net with the role `relay`. A list of another key,
+  with a changed byte, past its `not_after`, living more than 400 days, or
+  older than the list kept of its key is not used. TLS to the relay
+  carries no part of this trust, so neither a relay in the path nor a proxy
+  that re-signs TLS can add a host, and a lapsed domain taken over cannot
+  either. Each host of another deployment mints its own token and gets no
+  other, also none of `PODSSH_RELAY_TOKEN`, and its TLS is checked by its
+  own name; a host so added sees what each relay sees, the target, the
+  time and the volume. The relay role signs only the deployments of its
+  own flags, never a text that a request shapes.
 - **Credentials are not shown.** A relay token, a tailnet auth key or a key
   never goes into output, logs, URLs or command lines. The types that hold a
   token or the tailnet key do not print it, and clear it from memory when
@@ -406,6 +421,14 @@ security:
   user who wants no third party names their own relay's mailbox.
 - The end-to-end channel is podssh's own framing over the `snow` crate. No
   third party has audited it (T-088).
+- A key that signs a list of relay deployments (T-346) is trusted until a
+  binary drops it: one compiled in leaves a binary in the field only with
+  a release, so a leaked key can name hosts for up to 400 days of each list
+  that it signs, each host a relay that sees what each relay sees. A user's
+  own role keeps its key in a private file of its host. No key of the
+  default deployment's operator was compiled in on 2026-11-04, so the
+  default list leaves `ssh.relay.ajam.dev` only for the keys that its user
+  or its net names.
 - The tokens of a pair on the default relay are bearer tokens for up to 72
   h: whoever holds the connect token reaches the node's door, and its
   `stop_token` ends the pair. The node's `--allow`, its net and its grants

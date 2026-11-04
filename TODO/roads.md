@@ -60,7 +60,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:201-228`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:216-243`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:370-371`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1033`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:161-455`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:161-465`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`).
 
 ## Decision
@@ -487,7 +487,7 @@ operator's Cloudflare account.
 Read: the decision of the operator (`docs/decisions.md`, 2026-10-08). The
 forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
-(`crates/podssh-relay/src/pool.rs:20-29`); the same shape fits the iroh
+(`crates/podssh-relay/src/pool.rs:24-33`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
 published (`docs/design.md:1278-1280`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
@@ -513,7 +513,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:319-486`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:319-488`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1156,13 +1156,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:411-432`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:482-503`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:356`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:427`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1211,7 +1211,7 @@ What the role serves: the contract `2026-10-03-r2`, so that each client of podss
 with `?dial=lazy`, `?precheck` and `?family`; `/relays.json` with the five limits of
 `crates/podssh-probe/facts/relay-limits.toml`; `/trace`; and `/llms-full.txt`, podssh's own copy
 of the contract. A target is dialed only after its name resolved to a public address (the ranges
-of `docs/relay.md:356`), and port 25 is refused; the limits are the contract's (an empty frame
+of `docs/relay.md:427`), and port 25 is refused; the limits are the contract's (an empty frame
 each 25 s, 180 s idle, 12 h, 64 MiB, frames of 262144 bytes), and so are the forward close
 codes; each queue has a bound (`1013` at 2 MiB, T-336), which a write that waits gives.
 
@@ -2575,10 +2575,10 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:340-342`).
+   URL or in output (`docs/relay.md:411-413`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
-   `crates/podssh-relay/src/pool.rs:139-148`).
+   `crates/podssh-relay/src/pool.rs:143-152`).
 5. Test against the relay's implementation, live, and against the stand-in
    relay with the same state machine.
 6. When the relay's version changes, update the pinned contract and
@@ -2703,8 +2703,8 @@ the far end closes the target at a cut; the test fails. Live, on a GitHub runner
 `scripts/fake-proxy.py`.
 
 2026-11-04 (the drafting agent). Read at `6a62cdc`: the Premise holds at each line that it cites
-(`docs/design.md` lines 659-662, 702-706 and 1410-1413 at that commit; `docs/relay.md:329-331`;
-`crates/podssh-relay/src/pool.rs:139-148`), and so does the Correction above: the far end of the
+(`docs/design.md` lines 659-662, 702-706 and 1410-1413 at that commit; `docs/relay.md:400-402`;
+`crates/podssh-relay/src/pool.rs:143-152`), and so does the Correction above: the far end of the
 layer is `crates/podssh-relay/src/session/far.rs`, and the role's `/connect/` ends the target with
 its WebSocket (`crates/podssh-relay/src/serve/forward.rs`). Three parts of the Approach above
 change, by the `## Decision`: the layer is asked for by a path of its own,
@@ -4288,7 +4288,7 @@ Endpoint puts a credential in its URL.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:238`); an RSA key signs through aws-lc-rs in the
   binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
-  the relay's caps (`docs/relay.md:367-373`), as an hour of EICE would need.
+  the relay's caps (`docs/relay.md:438-444`), as an hour of EICE would need.
 - Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
 
 ## Approach
@@ -5481,7 +5481,7 @@ relay's path and token.
   target over a WebSocket (`docs/carriers.md:22-23`); the three above publish no limit, and say
   nothing of other clients.
 - Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:56-62`), and its forward
-  path is `/connect/<host>/<port>` (`:139-152`); a run has one road, of five kinds
+  path is `/connect/<host>/<port>` (`:154-167`); a run has one road, of five kinds
   (`crates/podssh-cli/src/ssh/resolve.rs:23-76`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:66-105`, `:160-183`); a token goes only to the deployment that
@@ -5573,7 +5573,7 @@ are). Planted: the host put in with no check; the test of `&` fails.
 
 2026-10-31 (the drafting agent): four citations of the Premise name other lines, read at
 `a3f948d`. A relay is a host and a port at `crates/podssh-relay/src/relay.rs:80-86`, and its
-forward path is built at `crates/podssh-relay/src/relay.rs:163-176`; `:56-62` and `:139-152` hold
+forward path is built at `crates/podssh-relay/src/relay.rs:178-191`; `:56-62` and `:154-167` hold
 the byte budget and the parser of a relay list. A token goes only to the deployment that minted it
 at `docs/decisions.md:92` (T-057), and at Q49's row, `docs/decisions.md:46`; `docs/decisions.md:87`
 holds the exit codes. `Transport` in `crates/podssh-cli/src/ssh/resolve.rs` had six kinds, not five
@@ -5807,7 +5807,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:151`).
+  port 443 answers (`docs/STATUS.md:152`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not

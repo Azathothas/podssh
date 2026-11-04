@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**580 entries: 89 open, 4 partial, 2 blocked, 485 done.**
+**581 entries: 89 open, 4 partial, 2 blocked, 486 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 27 | 2 | 0 | 235 | 264 |
-| P3 | 62 | 1 | 2 | 186 | 251 |
-| **All** | 89 | 4 | 2 | 485 | 580 |
+| P2 | 26 | 2 | 0 | 236 | 264 |
+| P3 | 63 | 1 | 2 | 186 | 252 |
+| **All** | 89 | 4 | 2 | 486 | 581 |
 
 ## Entries
 
@@ -418,7 +418,7 @@ repository and CI).
 | [T-343](repo.md) | P3 | S | none | chore | done | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |
 | [T-344](ws.md) | P3 | M | backlog | feature | done | DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked |
 | [T-345](ws.md) | P3 | S | backlog | defect | done | Only `doctor` names the clock when a certificate has expired or is not valid yet |
-| [T-346](relay.md) | P2 | M | M10 | feature | open | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
+| [T-346](relay.md) | P2 | M | M10 | feature | done | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
 | [T-347](roads.md) | P2 | S | backlog | feature | done | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |
 | [T-348](roads.md) | P2 | M | backlog | feature | done | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
 | [T-349](roads.md) | P2 | L | backlog | feature | done | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
@@ -656,3 +656,4 @@ repository and CI).
 | [T-614](mesh.md) | P2 | M | M10 | feature | done | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |
 | [T-615](reverse.md) | P3 | M | M10 | feature | open | A connect token for each session, and a stop token that the node rotates, in podssh's relay role |
 | [T-616](mesh.md) | P3 | M | M10 | feature | done | `podssh net invite`: a new device joins the net by a short code |
+| [T-617](mesh.md) | P3 | S | M10 | feature | open | The net's document names each relay member's hosts, for its signed list |

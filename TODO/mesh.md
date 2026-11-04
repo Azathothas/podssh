@@ -3325,7 +3325,7 @@ The draft's calls, 2026-11-02:
    each socket of both roads, which needs a token or a pair that the brake let through and is
    checked with a MAC or a digest and no state. Lost: a brake of the upgrades with no token, as
    the default relay counts them: the role's refusal of one costs less than the count.
-4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:208`), never a
+4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:222`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
    `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:177`),
@@ -3642,7 +3642,7 @@ nothing, works.
 ## Premise
 
 - `crates/podssh-relay/src/serve/forward.rs:144` dials the resolved addresses with
-  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:114` does the same for
+  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:136` does the same for
   `/trace`; neither reads `HTTPS_PROXY`.
 - Rule 2 of `AGENTS.md`: one outbound connection, through `HTTPS_PROXY` when it is set.
 
@@ -8009,3 +8009,47 @@ sh scripts/plant-each.sh --here t616-owner-unchecked t616-member-replaced t616-k
   serve,plain-ws,quick,pair,grant,piping,code --all-targets`: clean once the callbacks were named;
   rustfmt: clean once it reflowed `net/invitation.rs`.
 - Waits (Q88): a join from end to end through the public mailboxes, on two hosts.
+
+# T-617: The net's document names each relay member's hosts, for its signed list
+
+**Source:** T-346's draft (2026-11-04): the net vouches for the key of a member with the role
+`relay`, and a client takes that role's signed list of deployments, but only from `relay info
+--relay-host` or a refresh of the pool that reaches the role.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A user's own relay role, a member of the net with the role `relay`, signs its `/relays.json`
+(T-346), and each end of the net trusts that key. But no end knows where the role is: the net's
+document names a member's key, roles, tickets and an exit's routes, and no host. A client must be
+told the role's host once by hand before the net's trust in its key is of any use.
+
+## Premise
+
+- Read: a member's object holds `name`, `key`, `roles`, `tickets` and `routes`
+  (`crates/podssh-cli/src/net/doc.rs`), and a key of a member with the role `relay` is trusted for
+  a signed list (`crates/podssh-cli/src/relay_deployments.rs`).
+
+## Approach
+
+1. `podssh net add NAME KEY --roles node,relay --relay-host HOST[:PORT]`: the member's `relay`
+   field, its host as `--relay-host` takes it, only with the role `relay`.
+2. Each command that reads the default list asks the role's `/relays.json` at that host, at most
+   once a day, as it reads the default host's, and takes its signed list by the member's key.
+3. `podssh relay status` names the member's role and whether its list was taken.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay
+```
+
+Against podssh's relay role on the loopback, a member of the net with the role `relay` and its
+host in the document: a client with no `--relay-host` takes the role's signed list and reaches a
+server through it. Planted: the host read and the member's key not checked; the test of another
+key fails.

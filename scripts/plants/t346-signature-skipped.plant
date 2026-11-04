@@ -1,0 +1,9 @@
+# T-346: the signature of a list is not checked, so a list whose text, or
+# whose signature, changed by one byte on the way is taken as its key's,
+# and its hosts join the default list; the test of the changed byte must
+# fail.
+ENTRY=T-346
+GROUP=cli-tests
+EXPECT='test pool::signed::tests::one_changed_byte_keeps_the_parent_domain_alone \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib pool'
+LIMIT=1800

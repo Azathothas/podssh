@@ -9,6 +9,8 @@
 //! (T-591). Those checks say that they did not run when this host has no
 //! Python or no openssl for the stand-in.
 
+// The signed list of deployments of podssh's relay role (T-346).
+mod relay_signed;
 mod ssh_harness;
 mod throughput_harness;
 

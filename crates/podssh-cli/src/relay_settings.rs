@@ -66,8 +66,10 @@ pub fn relays(flag: Option<&str>, env: Option<String>) -> Result<RelayList, Refu
     relays_from(flag, env, crate::settings::here())
 }
 
-/// [`relays`] with the settings given.
+/// [`relays`] with the settings given. The default list is followed by the
+/// hosts of other deployments that a signed list names (T-346).
 pub fn relays_from(flag: Option<&str>, env: Option<String>, file: &Defaults) -> Result<RelayList, Refusal> {
+    crate::relay_deployments::install(file)?;
     let pool = ranked(podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST), file);
     // select_relays reads the variable only when there is no flag, and an
     // empty variable as no variable.
@@ -77,13 +79,14 @@ pub fn relays_from(flag: Option<&str>, env: Option<String>, file: &Defaults) -> 
         return relay::select_relays(Some(&value.text), None, &pool)
             .map_err(|why| Refusal::config(format!("{}: RelayHost {}: {why}", value.at, value.text)));
     }
-    relay::select_relays(flag, env, &pool).map_err(|why| {
+    let list = relay::select_relays(flag, env, &pool).map_err(|why| {
         if from_env {
             Refusal::config(format!("{}: {why}", relay::RELAY_ENV))
         } else {
             Refusal::usage(format!("--relay-host: {why}"))
         }
-    })
+    })?;
+    Ok(crate::relay_deployments::joined(list))
 }
 
 /// The pool in the order that this host measured (T-607): by the rank of

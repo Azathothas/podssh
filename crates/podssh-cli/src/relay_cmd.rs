@@ -152,7 +152,7 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         return EXIT_USAGE;
     }
     if args.serve.any() && sub != Some("serve") {
-        let _ = writeln!(err, "podssh relay: --listen, --cert, --key, --acme, --acme-directory, --port-file, --mint, --allow-private, --keepalive, --pairs and --cleartext go with `podssh relay serve` only");
+        let _ = writeln!(err, "podssh relay: --listen, --cert, --key, --acme, --acme-directory, --port-file, --mint, --allow-private, --keepalive, --pairs, --cleartext, --deployment and --list-key go with `podssh relay serve` only");
         return EXIT_USAGE;
     }
     let name = args.args.first().map(String::as_str);

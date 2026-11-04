@@ -2793,7 +2793,10 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
 writes one line of JSON and exits 0 (GitHub #11). It is the cheap call
 before anything else; `podssh doctor` is the report that measures.
 
-- The line: `schema`, `podssh`, `relays` and `relays_from`, `settings`
+- The line: `schema`, `podssh`, `relays` and `relays_from`, `deployments`
+  (each deployment of the list, with its hosts and its signed list, or
+  `false` for the default's pool and null for a list that you named, and
+  each list kept that does not hold, with why; T-346), `settings`
   (the path of podssh's settings file, or null), `pool`,
   `token` (its source, the relay that it is for, its expiry, whether it can
   be used), `proxy` (the variable, `HOST:PORT` and the kind, `http` or
@@ -2806,7 +2809,8 @@ before anything else; `podssh doctor` is the report that measures.
   now, in its last 24 hours (T-395).
 - It never holds a token: it reads the cache entry without its token field
   (`cache::peek`). It shows no proxy credentials, opens no connection, asks
-  no DNS and writes nothing.
+  no DNS and writes nothing; it reads the signed lists kept, and checks each
+  again.
 - A bad flag or destination is 64, a bad variable 78, as for `doctor`.
 
 ## `podssh ping`
@@ -3283,6 +3287,25 @@ commands. The rules behind them:
   road, the documents and the probes get `403` there. `--cleartext no`
   serves TLS alone; another word is a usage error (64). The first line says
   which ([relay.md](relay.md), "The cleartext road").
+- **A signed list of deployments (T-346).** A relay host outside the
+  default's domain joins the default list from a list that `/relays.json`
+  carries, signed by a key that this binary trusts ([relay.md](relay.md),
+  "A signed list of deployments"): after the default host and three hosts of
+  its pool, at most four hosts of the other deployments, each minting its
+  own token; never in a list that the user names, nor with
+  `PODSSH_RELAY_TOKEN`. The keys: those compiled in, `PODSSH_RELAY_KEYS`
+  and the settings file's `RelayKeys` (`SHA256:...` or 64 hex digits, by
+  commas; `none` trusts no key), and the members of the net with the role
+  `relay`; a bad word is 78. `relay info` names the first host's list (the
+  key, whence it is trusted, the serial, the end, each deployment) or why it
+  is not used, and keeps a list that holds (`--json`: `signed_list`); `relay
+  status`, `status` (`deployments`) and `doctor` (`deployments`) name each
+  deployment of the list, and whether its list was signed. `relay serve
+  --deployment NAME=HOST[:PORT][,...]`, repeatable, signs a list of those
+  deployments in its `/relays.json` with the key of `--list-key FILE`
+  (`relay-list.key` in the cache, made when it is missing), whose
+  fingerprint its first line names; `--list-key` with no `--deployment`,
+  two deployments of one name and a bad host are usage errors (64).
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
   systemd when `systemctl --user` answers, else a LaunchAgent when
@@ -4857,8 +4880,10 @@ the home), `SessionLog` (as `PODSSH_SESSION_LOG`, below), `Direct` (yes
 or no, as `PODSSH_DIRECT`: the direct road after the relay hosts, T-363),
 `RelayRank` (yes, no or auto, as `PODSSH_RELAY_RANK`: the measured order of
 the default relay hosts, T-607, and with auto a rank in a session's
-background, T-608) and
-`DoctorJobs` (1 to 64, as `doctor --jobs`, T-511). It has `Keyword value` lines, `Keyword=value` too, and `#`
+background, T-608),
+`DoctorJobs` (1 to 64, as `doctor --jobs`, T-511) and `RelayKeys` (keys
+of a signed list of relay deployments, as `PODSSH_RELAY_KEYS`; each line
+adds, T-346). It has `Keyword value` lines, `Keyword=value` too, and `#`
 comments, read as an `ssh_config` line is; the first value of a keyword
 wins. The file is the one that `PODSSH_SETTINGS` names, an absolute path
 that must exist (`none` reads none); else the first that exists of

@@ -185,7 +185,7 @@ Read in the tools. Each stage is one pass: each cell is measured once.
   results/probe.json), so that Worker dials after its 101 (Inferred). The
   upgrade times of the two kinds are not the same measure. `podssh relay
   trace` gives the relay's own dial time, which tells the two legs apart
-  (`crates/podssh-cli/src/relay_diag.rs:168-241`).
+  (`crates/podssh-cli/src/relay_diag.rs:178-251`).
 - **The target's path with the relay.** The download goes to one mirror in
   the US on port 80. A pool host is the same Worker placed near a cloud's
   region ([carriers.md](../carriers.md), the pool), so its MiB/s is mostly
@@ -322,12 +322,12 @@ hold podssh's own reading of each class.
 | The archive's stage | podssh | Where |
 | --- | --- | --- |
 | The probe's upgrade and banner | `podssh ping`, the relay leg of each host: the token, TCP or CONNECT, TLS and the upgrade, each timed, then WebSocket pings with min, p50, p95 and max, one host after another; `--json` | `crates/podssh-cli/src/ping/relay.rs:102-150`, `crates/podssh-cli/src/ping/relay.rs:195-226`, `crates/podssh-cli/src/ping/mod.rs:156-161` |
-| The write leg (KEXINIT, IRC) | `doctor`'s `forward`: a forward session to `github.com:22` must show one of GitHub's published host keys, which needs the key exchange both ways and that nothing between answered in GitHub's place | `crates/podssh-cli/src/doctor/relay_checks.rs:205-236` |
+| The write leg (KEXINIT, IRC) | `doctor`'s `forward`: a forward session to `github.com:22` must show one of GitHub's published host keys, which needs the key exchange both ways and that nothing between answered in GitHub's place | `crates/podssh-cli/src/doctor/relay_checks.rs:207-238` |
 | One sample | `doctor`'s samples: nine tries over at least a second, best, median, p95, jitter and loss, a refusal counted apart | `crates/podssh-cli/src/doctor/samples.rs:1-25` |
 | The relay's side | `podssh relay trace` (the relay's dial and first byte), `relay status` (each host's `/health` and edge), `relay info` (the pool and the limits) | `crates/podssh-cli/src/relay_diag.rs:1-7` |
 | Throughput | `podssh ping DEST`: the login, the echo through `cat`, `--size` down and up; T-157's method: 5 runs a cell, the setup not counted | `crates/podssh-cli/src/ping/mod.rs:210-253`; `docs/STATUS.md`, "Throughput, measured" |
 | Concurrency | `cp --parallel K`, several relay sessions for one copy when the user asks (Q23, T-141) | |
-| The pool | `/relays.json`'s hosts, cached 7 days, six seeds before a cache; the default host and the first three of the pool | `crates/podssh-relay/src/pool.rs:20-32`, `crates/podssh-relay/src/pool.rs:106-121`, `crates/podssh-relay/src/relay.rs:104-125` |
+| The pool | `/relays.json`'s hosts, cached 7 days, six seeds before a cache; the default host and the first three of the pool | `crates/podssh-relay/src/pool.rs:24-36`, `crates/podssh-relay/src/pool.rs:110-125`, `crates/podssh-relay/src/relay.rs:104-125` |
 | The choice of a host | the race of the hosts (`staggered`, `parallel`, `serial`), and the record of failures and opens, which puts a host that failed last and one that opened first | `crates/podssh-relay/src/failover.rs:133-256`, `crates/podssh-relay/src/failures.rs:231-255` |
 | Forwarders, Wisp, WARP | `--forwarder` and its words, `doctor --forwarder`; the Wisp client; `warp://` | `crates/podssh-ws/src/forwarder/builtin.rs`, `crates/podssh-ws/src/wisp/handshake.rs:1-5`, `crates/podssh-warp/src/lib.rs` |
 

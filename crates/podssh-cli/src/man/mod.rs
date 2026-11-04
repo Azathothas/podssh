@@ -22,6 +22,8 @@ pub mod notes;
 mod notes_chat;
 mod notes_config;
 mod notes_containers;
+// relay's notes on the signed list of deployments (T-346).
+mod notes_deployments;
 mod notes_detached;
 // doctor's notes on the time of a run (T-511).
 mod notes_doctor;

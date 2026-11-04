@@ -4,8 +4,9 @@
 //! after them (T-319), the forwarders of other products (T-369), Wisp's
 //! among them (T-438), and their fallback (T-370), the forward proxy over TLS
 //! of --via (T-439), the wstunnel server of --wstunnel (T-441), the OpenTunnel
-//! road (T-531), the cleartext road on the relay's port (T-326), and the
-//! resumable layer at podssh's relay role (T-173).
+//! road (T-531), the cleartext road on the relay's port (T-326), the
+//! resumable layer at podssh's relay role (T-173), and the keys of a signed
+//! list of relay deployments (T-346).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -75,6 +76,16 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           background when no rank holds for this egress, once a day, 8 hosts, one probe each 10 s at most, \
           each with ?dial=lazy (Q89, T-608); never unless asked. The settings file's RelayRank yes, no or auto \
           says the same, below the variable: a variable that is set, and not empty, wins.",
+    ),
+    (
+        &["PODSSH_RELAY_KEYS"],
+        "More keys to trust for a signed list of relay deployments (T-346): KEY[,KEY...], each SHA256:... as \
+          ssh-keygen -l shows an Ed25519 key, or its 64 hex digits, such as the key that podssh relay serve \
+          --deployment names on its first line. They add to the keys compiled in, the settings file's \
+          RelayKeys and the members of your net with the role relay. A list that /relays.json carries, signed by \
+          one of them, adds its deployments' hosts after the default list, each with a token of its own; a list \
+          of another key, with a changed byte, past its not_after or older than the list kept is not used. none \
+          trusts no key, those compiled in too. A word that is no key is a configuration error (78).",
     ),
     (
         &["PODSSH_RELAY_RANK_PACE"],

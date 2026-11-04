@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/docs.rs
++++ b/crates/podssh-relay/src/serve/docs.rs
+@@ -100,7 +100,7 @@
+ /// `doc` with the signed list as `signed`, beside the pool, when the role
+ /// has one: each client that trusts its key takes the list's deployments.
+ fn signed_list(doc: &mut Value) {
+-    if let Some(signer) = LIST.get() {
++    if let Some(signer) = LIST.get().filter(|_| false) {
+         let now_s = i64::try_from(super::tokens::now_ms() / 1000).unwrap_or(0);
+         doc["signed"] = signer.current(now_s);
+     }

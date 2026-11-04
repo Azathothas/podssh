@@ -239,4 +239,5 @@ pub const RELAY: &[&str] = &[
      alone. Over TLS, POST /v1/mint?once=1 mints the same token of one session.",
     super::notes_grant::RELAY,
     super::notes_doctor::RELAY_PROBES,
+    super::notes_deployments::RELAY,
 ];
