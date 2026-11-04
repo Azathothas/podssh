@@ -45,7 +45,7 @@ pub fn check_upgrade(head: &Request) -> Result<String, Refused> {
     if head.minor < 1 || !head.has("host") {
         return refused(400, "a WebSocket opens with a request of HTTP/1.1 that names its Host", vec![]);
     }
-    if !head.has_token("upgrade", "websocket") || !head.has_token("connection", "upgrade") {
+    if !asks_upgrade(head) {
         let headers = vec![("Upgrade", "websocket"), ("Connection", "Upgrade")];
         return refused(426, "this is a WebSocket: Upgrade: websocket and Connection: Upgrade", headers);
     }
@@ -61,6 +61,13 @@ pub fn check_upgrade(head: &Request) -> Result<String, Refused> {
         return refused(403, "a request with an Origin is a browser's, which this pipe does not serve", vec![]);
     }
     Ok(key.to_string())
+}
+
+/// Whether a request asks for a WebSocket at all: `Upgrade: websocket` and
+/// `Connection: Upgrade`. One that does not is a browser's visit or another
+/// protocol's, which `ws-listen:`'s `--cover` may answer with a page (T-639).
+pub fn asks_upgrade(head: &Request) -> bool {
+    head.has_token("upgrade", "websocket") && head.has_token("connection", "upgrade")
 }
 
 /// The answer that opens the session (RFC 6455 section 4.2.2).
@@ -117,5 +124,16 @@ mod tests {
         assert_eq!(status(&format!("GET / HTTP/1.1\r\n{ok}{key}Origin: https://a.example\r\n\r\n")), 403);
         let refused = check_upgrade(&head("Origin: null\r\n")).unwrap_err();
         assert!(String::from_utf8(refused.answer()).unwrap().starts_with("HTTP/1.1 403 Forbidden: "));
+    }
+
+    /// A visit asks for no upgrade, and neither does a request with one of the
+    /// two tokens alone; any case and a list hold them (T-639).
+    #[test]
+    fn a_visit_asks_for_no_upgrade() {
+        let asks = |text: &str| asks_upgrade(&request::parse_request(text.as_bytes()).unwrap());
+        assert!(asks("GET / HTTP/1.1\r\nHost: h\r\nUpgrade: WebSocket\r\nConnection: keep-alive, upgrade\r\n\r\n"));
+        assert!(!asks("GET / HTTP/1.1\r\nHost: h\r\nAccept: text/html\r\n\r\n"));
+        assert!(!asks("GET / HTTP/1.1\r\nHost: h\r\nUpgrade: websocket\r\n\r\n"));
+        assert!(!asks("GET / HTTP/1.1\r\nHost: h\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n"));
     }
 }

@@ -47,6 +47,9 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
     super::via::VIA, super::via::VIA_AUTH_FILE, super::node::PIPE_EXIT,
     row(None, "proxy-auth-file", Some("FILE"), FlagKind::Supported,
         "http-listen: each client gives a USER:PASSWORD of FILE, a private file, one a line, in Proxy-Authorization; needed off loopback", None),
+    // A page of a directory for a visit to ws-listen: (T-639).
+    row(None, "cover", Some("DIR"), FlagKind::Supported,
+        "ws-listen: a GET or HEAD that asks for no upgrade gets a file of DIR, index.html for / and a directory, 1 MiB at most, else 404", None),
     // The bound on the open of a node: or relay: side (T-589), whose id is
     // ssh's, so that each hop of ssh: takes it as its ConnectTimeout too.
     super::operator::PIPE_CONNECT_TIMEOUT,

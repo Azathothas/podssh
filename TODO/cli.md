@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:5123-5124`).
+   (`docs/cli.md:5143-5144`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:5166` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:5186` needs no change.
 
 ## Decision
 
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:70-83`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:175-176`); `docs/cli.md:5269-5271`;
+   it (`crates/podssh-cli/src/flags.rs:175-176`); `docs/cli.md:5289-5291`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -988,7 +988,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
 3. `ONCE` and `repeated` refuse a second `-J`, `-W`, `--relay-host`,
    `--relay-addr` or `--ca-file` with exit 64 before anything connects
    (`crates/podssh-cli/src/ssh/args.rs:179-236`, called at
-   `crates/podssh-cli/src/tree.rs:452-456`).
+   `crates/podssh-cli/src/tree.rs:453-457`).
 4. `docs/cli.md:885-890` and a note of the manual
    (`crates/podssh-cli/src/man/notes_ssh_more.rs:62-64`) state the rule.
 
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:5123-5124` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:5143-5144` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:85`), called at
 `crates/podssh-ssh/src/auth.rs:190`, `crates/podssh-ssh/src/auth.rs:307`,
 `crates/podssh-ssh/src/keys.rs:335` and `crates/podssh-cli/src/keygen.rs:382`.
-Its refusals name the real remedies (`docs/cli.md:5228-5230`). Commands use
+Its refusals name the real remedies (`docs/cli.md:5248-5250`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:322-343`,
 `crates/podssh-cli/src/ts.rs:56-65`) and `refuse_jsonl_in_proxy`
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:399`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:400`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2727-2730`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:399`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:400`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -2691,7 +2691,7 @@ later, in a file, and `ssh -f`, OpenSSH's way, is refused.
 - Read: a run of `podssh ssh` reaches `Phase::Requested` after its login, with `-L` and `-D`
   bound before anything connects (`crates/podssh-ssh/src/retry.rs:16-26`,
   `crates/podssh-ssh/src/run.rs:209-216`); `podssh pipe` binds its listener in one place
-  (`crates/podssh-cli/src/pipe/serve.rs:87`).
+  (`crates/podssh-cli/src/pipe/serve.rs:93`).
 - Measured in the study: the Claude Code Bash tool's TaskStop kills each descendant of a living
   parent, a new session's included, and spares one that PID 1 adopted; Codex CLI kills a group
   whose pipes stay open; GitHub Actions kills, at a job's end, each process with its

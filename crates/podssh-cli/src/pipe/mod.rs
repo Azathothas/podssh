@@ -10,13 +10,15 @@
 //! a signal's too; `http-listen:` is an HTTP CONNECT proxy whose other side
 //! is a road that each request names (`web`, `http_listen`, `gateway`,
 //! T-367); `ws://`, `wss://` and `ws-listen:` speak WebSocket (`ws`,
-//! `ws_listen`, T-368). A road that failed gives the pipe's exit code, as
+//! `ws_listen`, T-368), whose visits get pages with `--cover` (`cover`,
+//! T-639). A road that failed gives the pipe's exit code, as
 //! `podssh proxy` gives it; else a child's status, B's when both are
 //! children, as a shell gives it; with neither, a clean end gives 0.
 
 use std::io::Write;
 
 pub mod address;
+pub mod cover;
 pub mod credentials;
 pub mod datagram;
 pub mod gateway;
@@ -53,6 +55,8 @@ pub struct PipeArgs {
     pub keep_listening: bool,
     /// `--proxy-auth-file`: the credentials of the clients of `http-listen:`.
     pub proxy_auth_file: Option<String>,
+    /// `--cover DIR`: the pages of `ws-listen:` for a visit (T-639).
+    pub cover: Option<String>,
     /// `--timeout DURATION`, another name of `--ConnectTimeout` (T-613),
     /// unparsed.
     pub timeout: Option<String>,
@@ -86,6 +90,11 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
     }
     let credentials = match http_listen::credentials([&a, &b], args.proxy_auth_file.as_deref()) {
         Ok(credentials) => credentials,
+        Err(refusal) => return refusal.report("pipe", err),
+    };
+    // --cover's DIR, checked before anything binds (T-639).
+    let ws = match ws_listen::answers([&a, &b], args.cover.as_deref(), args.ssh.quiet > 0) {
+        Ok(ws) => std::rc::Rc::new(ws),
         Err(refusal) => return refusal.report("pipe", err),
     };
     if listening {
@@ -132,7 +141,7 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         let quiet = args.ssh.quiet > 0;
         // A proxy takes each client: a program opens a tunnel for each host.
         let keep = args.keep_listening || matches!(listening, address::Address::HttpListen(_));
-        let serve = serve::Serve { listening, other, listener_is_a, keep, quiet, credentials };
+        let serve = serve::Serve { listening, other, listener_is_a, keep, quiet, credentials, ws };
         // A client's road through a node's layer ends with its CLOSE, the
         // last one's before the exit (T-331).
         runtime.block_on(crate::ssh::transport::settled(serve::run(serve, &settings, err)))

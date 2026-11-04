@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:399`).
+  do not run programs (`docs/STATUS.md:400`).
 
 ## Approach
 
@@ -161,7 +161,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:346-352`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:321`).
+  (`docs/STATUS.md:322`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:14-22`
   after the hops of `crates/podssh-ssh/src/run.rs:157-174`, but that code is
   private and gives only an exit code.
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:5133`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:5153`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:339-443` a typed error, so that 77 is not
    guessed from a message.
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:99-103` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:204-213`,
   `crates/podssh-cli/src/doctor/unix.rs:227-232`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:399`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:400`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -415,7 +415,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1100-1102`).
   `AGENTS.md:279-285`, `docs/architecture.md:257-272`,
   `docs/target-environment.md:99-103`, `SECURITY.md:233-260`, `README.md:44-53`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:399`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:400`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs` lines 137-231 at `48a8744`). A bind that works does
@@ -587,7 +587,7 @@ running on the server (`docs/design.md:695-699`).
   each session (`crates/podssh-ssh/src/session.rs:159-218`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:510-516`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:407-408`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:408-409`).
 - Read: tmux is never assumed (`docs/target-environment.md:116-118`).
 
 ## Approach
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:695-699`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:5228-5230`). After the attach, send the window size again.
+   (`docs/cli.md:5248-5250`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-491` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-138`), `docs/design.md:695-699`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -730,7 +730,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:448`), then Close 1009 (`docs/relay.md:514`); public
   targets only (`docs/relay.md:450`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:406`).
+  0.7 MB/s (`docs/STATUS.md:407`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -787,8 +787,8 @@ were found by their manuals (read on 2026-10-12, not run here): SSVNC's
 TigerVNC's `vncviewer` takes a Unix socket's path (its synopsis,
 `vncviewer [options] [unix socket]`). The second still needs a listener,
 but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
-(`docs/STATUS.md:396`); there OpenSSH's form a fails before it binds, as
-`ssh` finds no entry for the user (`docs/STATUS.md:401`).
+(`docs/STATUS.md:397`); there OpenSSH's form a fails before it binds, as
+`ssh` finds no entry for the user (`docs/STATUS.md:402`).
 
 ## Done
 
@@ -1232,10 +1232,10 @@ The calls made where the Approach left a choice:
   `torvalds/linux:tools/usb/usbip/src/usbip_attach.c`), so the device's
   traffic passes podssh for as long as the pipe's session lasts; the
   README says so. `usbip` dials TCP only, so a host that refuses an
-  AF_INET bind, as sandbox A does (`docs/STATUS.md:396`), cannot run the
+  AF_INET bind, as sandbox A does (`docs/STATUS.md:397`), cannot run the
   recipe, nor can one without the modules.
 - The row states the limit by the throughput measured through sandbox A's
-  proxy (`docs/STATUS.md:403`): 64 MiB is about 2 minutes of reads at
+  proxy (`docs/STATUS.md:404`): 64 MiB is about 2 minutes of reads at
   0.5 to 0.7 MB/s.
 
 What waits:
@@ -1843,12 +1843,12 @@ text, the same for each path. An owner who put a name on the port has no page to
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/pipe/ws_listen.rs:38` reads the head and checks it with
+- `crates/podssh-cli/src/pipe/ws_listen.rs:65` reads the head and checks it with
   `crates/podssh-ws/src/server.rs:41`, which refuses a request with no upgrade at `:50`, which says
   "this is a WebSocket: Upgrade: websocket and Connection: Upgrade".
-- The answer's writer always writes text: `crates/podssh-ws/src/http/request.rs:278` says
+- The answer's writer always writes text: `crates/podssh-ws/src/http/request.rs:286` says
   "Content-Type: text/plain; charset=utf-8".
-- Its reason phrases: `crates/podssh-ws/src/http/request.rs:242-259` has no arm for 404, 409, 411, 413
+- Its reason phrases: `crates/podssh-ws/src/http/request.rs:244-267` has no arm for 404, 409, 411, 413
   or 429, so each reads "Error"; the relay role sends four of them through it (`404` in
   `crates/podssh-relay/src/serve/reverse/mod.rs:98`, `409` and `429` in
   `crates/podssh-relay/src/serve/reverse/mod.rs:196-200`, `413` in
@@ -1856,7 +1856,7 @@ Read at `2042200`:
 - The check reads no path (`crates/podssh-ws/src/server.rs:41-63`), so a page is for a request that is
   no upgrade, whatever its path, as the issue corrects itself.
 - The flag's neighbours: `crates/podssh-cli/src/flags/pipe.rs:40` (`keep-listening`), refused with no
-  listening side in `crates/podssh-cli/src/pipe/mod.rs:72`; `crates/podssh-cli/src/pipe/serve.rs:33`.
+  listening side in `crates/podssh-cli/src/pipe/mod.rs:76`; `crates/podssh-cli/src/pipe/serve.rs:34`.
 
 ## Approach
 
@@ -1870,18 +1870,117 @@ Read at `2042200`:
 4. `request::reason` gets the phrases of 404, 409, 410, 411, 413 and 429.
 5. The manual and `docs/cli.md` (`pipe`).
 
+## Decision
+
+2026-11-04 (the drafting agent of T-639). The cover is a module of the pipe,
+`crates/podssh-cli/src/pipe/cover.rs`; `ws_listen` asks it before the check of an upgrade, and the relay
+role takes none, as its `404` is its contract's.
+
+1. A missing file is `404`, with the same short text for each path. Lost: the issue's fallback, the
+   root's `index.html` with `200` for each path that names no file: a `404` tells a typo from a page, a
+   client that reads statuses learns that nothing is there, and the Approach asks for it. Each unknown
+   path still gets the one answer, so none tells one unknown path from another.
+2. A visit is a request without both `Upgrade: websocket` and `Connection: Upgrade`, by one function,
+   `podssh_ws::server::asks_upgrade`, which `check_upgrade` uses for its `426` too, so that the two never
+   drift. A request with both tokens keeps each status of today (405, 400, 426, 403 for an `Origin`), as
+   the issue asks; only the `426` of a request that asks for no upgrade becomes a page. Lost: a page for
+   a broken upgrade too, which would hide a client's error behind a page.
+3. Another method of a visit gets `405` with `Allow: GET, HEAD`, the methods that the cover takes (RFC
+   9110 section 15.5.6), where an upgrade's says `GET`; a visit of HTTP/1.1 with no `Host` gets `400`
+   (RFC 9112 section 3.2), and one of HTTP/1.0 may name none.
+4. The walk: the path, its query set aside, is split at `/` before it is decoded, and each part is
+   decoded and checked alone. `..` and each part that starts with `.` give `404`, so the `.git`, `.env`
+   or `.htpasswd` of a careless DIR is never served. Lost: dot files served (`.well-known`), which a
+   WebSocket port's cover does not need. An escape that makes a `/`, `\`, `:` (a drive, or a stream of
+   NTFS) or a NUL inside a part, a `%` not followed by two hex digits, and bytes that are not UTF-8 give
+   `404`. Then the joined path is resolved with each link (`canonicalize`), and the result must be under
+   DIR's own resolved path, once for the path and once more for a directory's `index.html`: the checks
+   of the parts keep `..` from being opened, and the check after the resolve keeps a link from leading
+   out.
+5. A regular file alone: checked by its path before it is opened, as the open of a FIFO waits and that
+   of a device acts; then opened with `O_NONBLOCK | O_NOFOLLOW` on Unix and checked again on the handle,
+   so that a link or a FIFO put at the resolved path after the check is neither followed nor read. What
+   remains, a directory of the path swapped for a link between the resolve and the open, needs a write
+   to DIR, whose writer chooses what is served anyway. Lost: `openat2` with `RESOLVE_BENEATH`, Linux 5.6
+   and later, which a probe would have to find and a fallback replace on each other host.
+6. 1 MiB at most, checked on the handle's length and on the bytes read, `404` past it: a file that is not
+   served is not there for a visitor. A page is read whole, so the 8 clients of `--keep-listening` hold
+   8 MiB at most. Lost: a check of each file at the start ("refused at start", in the issue), which a
+   file changed later escapes; and a stream of a larger file, for a cover that is a page.
+7. A directory's `index.html` is served at the path asked, with no redirect from `/dir` to `/dir/`: a
+   `Location` built from a visitor's path is an open redirect when the path starts `//`. A page in a
+   directory links by absolute paths. Lost: the redirect that other static servers make.
+8. Types by the name, with `X-Content-Type-Options: nosniff`, and `application/octet-stream` for a name
+   of no known type, which a browser does not run. No cache header, no range and no conditional
+   request: one answer on a connection, then `Connection: close`, as each refusal of the listener.
+9. The file is read off the runtime's thread (`spawn_blocking`): a slow disk stalls no other client.
+10. A visit is no session, and writes one line, `GET /path: the cover answered 200`, its query left out
+    as it may be the visitor's; `-q` silences it, as a page is no failure, and the refusals keep theirs.
+11. `request::reason` takes RFC 9110's names (404 Not Found, 409 Conflict, 410 Gone, 411 Length
+    Required, 413 Content Too Large, 429 Too Many Requests); the relay role's refusals through it now
+    say them, and no client of podssh reads a phrase: each reads the status number. A page's `200` says
+    `OK`; `reason`'s 200 stays a CONNECT's `Connection Established`.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-ws --lib http::request
+cargo test -p podssh-ws --lib server
+cargo test -p podssh-cli --lib pipe::cover
+cargo test -p podssh-cli --lib man::
 cargo test -p podssh-cli --test pipe_ws
+cargo test -p podssh-cli --test man_flag_parity --test flag_table
+sh scripts/plant-each.sh --here t639-cover-link-followed t639-reason-of-429
 ```
 
 A path with `..`, one through a link out of DIR, and an absolute one get `404` and open nothing outside;
 `/` gets `index.html` and a directory is never listed; a `POST` gets `405`; an upgrade on a covered
 listener still opens the other side; `429` reads "Too Many Requests". Planted: the join with no check
-after it resolves, and the test of the link out of DIR fails.
+after it resolves, and the test of the link out of DIR fails; the phrase of 429 lost, and the test of
+the phrases fails.
+
+## Correction
+
+2026-11-04 (the drafting agent of T-639). `crates/podssh-cli/tests/pipe_ws.rs` is 376 lines, so the tests
+of the cover are a module of the same target, `crates/podssh-cli/tests/pipe_ws/cover.rs`, which
+`--test pipe_ws` runs; the walk's own tests are `crates/podssh-cli/src/pipe/cover_tests.rs`
+(`--lib pipe::cover`). The issue's `server.rs:52` for the version's refusal is the line after it; the
+Premise's line is right.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-639`), UNVERIFIED: no command below ran in the draft.
+
+- `crates/podssh-cli/src/pipe/cover.rs`: `Cover::open` (DIR resolved, 64 when it is no directory),
+  `Cover::visit` (405, 400, then the page or 404, off the runtime's thread), the walk of the parts,
+  the resolve under DIR, the regular file of 1 MiB at most, the types. `ws_listen`: `Answers` and
+  `answers` (`--cover` for a `ws-listen:` side alone, 64), the visit before `check_upgrade`, a line
+  that `-q` silences. `serve::Serve` carries the answers to the first client and to each of
+  `--keep-listening`. `podssh_ws::server::asks_upgrade`, which `check_upgrade` uses. `request::reason`'s
+  six phrases and `request::answer`, a page's writer with a type, a length and HEAD's empty body. The
+  flag's row, `PipeArgs::cover`, the manual's note and `docs/cli.md`.
+- `cargo test -p podssh-ws --lib http::request`: UNVERIFIED (each status's phrase, 429's in a
+  refusal; a page's head, a HEAD's with no body). `--lib server`: UNVERIFIED (a visit asks for no
+  upgrade; the refusals of an upgrade as before).
+- `cargo test -p podssh-cli --lib pipe::cover`: UNVERIFIED (18 paths above DIR or of no page refused;
+  `/`, a directory's index, a page with its query; a directory with no index never listed; a link out
+  of DIR, as a path and as a directory's index, refused, and one inside DIR served; 1 MiB served and one
+  byte more not, a socket not; DIR missing or a file, 64; GET, HEAD, HTTP/1.0, POST's 405, a missing
+  Host's 400). `--lib man::`: UNVERIFIED (each flag that the note names exists).
+- `cargo test -p podssh-cli --test pipe_ws`: UNVERIFIED (`/` with its type and body, HEAD with its
+  length and no body, a text page; a missing page, a directory with no index, `..`, `%2e%2e`, an escaped
+  `/` and a link out, each 404 with nothing of the secret; the line of a visit; then the first upgrade
+  echoes through the other side; POST 405 with `Allow: GET, HEAD`, no Host 400, an `Origin` 403, version
+  8 426, a short key 400; `--cover` beside `tcp-listen:`, a missing DIR and a file, each 64 before a
+  bind). `--test man_flag_parity --test flag_table`: UNVERIFIED.
+- Planted, the check after the resolve dropped (`t639-cover-link-followed`) and the phrase of 429 lost
+  (`t639-reason-of-429`): UNVERIFIED; `git apply --check` takes both, and `t177-listen-refused-77`, the
+  one other plant of a file of this change, still applies.
+- `cargo fmt --check`, `cargo clippy --all-targets -D warnings`, `cargo todo check` and
+  `python scripts/check-repo.py`: UNVERIFIED. The citations of the changed files are moved in each
+  document by a port of `cargo todo remap` run here; the main session runs `cargo todo remap` on each
+  changed file to confirm.
 
 # T-645: `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends
 
@@ -1908,8 +2007,8 @@ Read at `2042200`:
 - podssh's WebTunnel client sends no key and no version (`crates/podssh-ws/src/webtunnel.rs:1-6`), and
   takes a `101` with the two headers and no `Sec-WebSocket-Accept`
   (`crates/podssh-ws/src/webtunnel.rs:138-150`).
-- `crates/podssh-cli/src/pipe/ws_listen.rs:58` answers with the framed session; `tcp-listen:` already
-  carries raw bytes (`crates/podssh-cli/src/pipe/serve.rs:48`).
+- `crates/podssh-cli/src/pipe/ws_listen.rs:95` answers with the framed session; `tcp-listen:` already
+  carries raw bytes (`crates/podssh-cli/src/pipe/serve.rs:52`).
 - The relay role's roads call the same check, and their contract is framed:
   `crates/podssh-relay/src/serve/forward.rs:79`, `crates/podssh-relay/src/serve/layer.rs:154`,
   `crates/podssh-relay/src/serve/reverse/node.rs:40` and `crates/podssh-relay/src/serve/reverse/operator.rs:52`;

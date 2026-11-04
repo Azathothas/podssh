@@ -238,17 +238,25 @@ pub fn connect_target(target: &str) -> Result<(String, u16), String> {
     Ok((host.to_string(), port))
 }
 
-/// The reason phrase of each status that podssh's servers send.
+/// The reason phrase of each status that podssh's servers send, by RFC
+/// 9110's names; the relay role sends 404, 409, 413 and 429 through
+/// [`refusal`] too (T-639).
 pub fn reason(status: u16) -> &'static str {
     match status {
         101 => "Switching Protocols",
         200 => "Connection Established",
         400 => "Bad Request",
         403 => "Forbidden",
+        404 => "Not Found",
         405 => "Method Not Allowed",
         407 => "Proxy Authentication Required",
         408 => "Request Timeout",
+        409 => "Conflict",
+        410 => "Gone",
+        411 => "Length Required",
+        413 => "Content Too Large",
         426 => "Upgrade Required",
+        429 => "Too Many Requests",
         431 => "Request Header Fields Too Large",
         502 => "Bad Gateway",
         503 => "Service Unavailable",
@@ -279,6 +287,27 @@ pub fn refusal(status: u16, words: &str, headers: &[(&str, &str)]) -> Vec<u8> {
     }
     out.push_str(&format!("Content-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()));
     out.into_bytes()
+}
+
+/// A whole answer of `status` whose body `body` is of the type `kind`, after
+/// which the connection closes, as after [`refusal`]: the pages of
+/// `ws-listen:`'s `--cover` (T-639). With `head_only`, the answer to a HEAD:
+/// the same head, its length the body's, and no body (RFC 9110 section
+/// 9.3.2). `nosniff`, so that a browser takes the type that the name gave.
+pub fn answer(status: u16, kind: &str, body: &[u8], head_only: bool) -> Vec<u8> {
+    // [`reason`]'s 200 is a CONNECT's; a page's is OK.
+    let phrase = if status == 200 { "OK" } else { reason(status) };
+    let kind = crate::text::one_line(kind);
+    let mut out = format!(
+        "HTTP/1.1 {status} {phrase}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\n\
+         X-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",
+        body.len()
+    )
+    .into_bytes();
+    if !head_only {
+        out.extend_from_slice(body);
+    }
+    out
 }
 
 /// The answer to a CONNECT whose tunnel is open: no header, and no length,
@@ -395,5 +424,41 @@ mod tests {
             "HTTP/1.1 405 Method Not Allowed\r\nAllow: CONNECT\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
         );
         assert_eq!(established(), b"HTTP/1.1 200 Connection Established\r\n\r\n");
+    }
+
+    /// Each status that a server of podssh sends has its phrase of RFC 9110,
+    /// none "Error": the relay role's 404, 409, 413 and 429 among them.
+    #[test]
+    fn each_status_that_podssh_sends_has_its_phrase() {
+        let named = [
+            (404, "Not Found"),
+            (409, "Conflict"),
+            (410, "Gone"),
+            (411, "Length Required"),
+            (413, "Content Too Large"),
+            (429, "Too Many Requests"),
+        ];
+        for (status, phrase) in named {
+            assert_eq!(reason(status), phrase, "{status}");
+        }
+        let sent = [101, 200, 400, 403, 404, 405, 407, 408, 409, 410, 411, 413, 426, 429, 431, 502, 503, 504, 505];
+        for status in sent {
+            assert_ne!(reason(status), "Error", "{status} has no phrase");
+        }
+        let answer = String::from_utf8(refusal(429, "this relay keeps 64 pairs already", &[])).unwrap();
+        assert!(answer.starts_with("HTTP/1.1 429 Too Many Requests: this relay keeps"), "{answer}");
+    }
+
+    /// A page: 200 OK (not a CONNECT's words), its type, its length, and to
+    /// a HEAD the same head with no body.
+    #[test]
+    fn a_page_is_answered_with_its_type_and_length_and_a_head_with_no_body() {
+        let page = String::from_utf8(answer(200, "text/html; charset=utf-8", b"<p>hi</p>\n", false)).unwrap();
+        assert!(page.starts_with("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"), "{page}");
+        assert!(page.contains("\r\nContent-Length: 10\r\n") && page.contains("\r\nConnection: close\r\n"), "{page}");
+        assert!(page.contains("\r\nX-Content-Type-Options: nosniff\r\n") && page.ends_with("\r\n\r\n<p>hi</p>\n"));
+        let head = String::from_utf8(answer(404, "text/plain\r\nX: y", b"no such page\n", true)).unwrap();
+        assert!(head.starts_with("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain X: y\r\n"), "{head}");
+        assert!(head.contains("\r\nContent-Length: 13\r\n") && head.ends_with("\r\n\r\n"), "{head}");
     }
 }
