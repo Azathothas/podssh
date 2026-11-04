@@ -8780,3 +8780,81 @@ cargo test -p podssh-relay --features serve --lib
 ```
 
 A session through the role over QUIC on the loopback; with UDP refused, the race takes TCP.
+
+# T-638: A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door
+
+**Source:** GitHub #136 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each admission of a node is a file that lasts until the next edit: a key of `--allow` or a member of the
+net is let in from the moment it is written until someone removes it. An owner at the node cannot admit
+a device for while it is present, nor be asked at the moment a key comes.
+
+## Premise
+
+Read at `2042200`:
+
+- The admission is a function of a key and its ask
+  (`crates/podssh-relay/src/e2e/ends.rs:43`), read again for each session
+  (`crates/podssh-relay/src/identity/allow.rs:102-106`); the doors are made in
+  `crates/podssh-cli/src/net/admit.rs:114`, `crates/podssh-cli/src/net/admit.rs:225` and
+  `crates/podssh-cli/src/channel.rs:315`.
+- The verdict: a grant decides first (`crates/podssh-relay/src/e2e/ends.rs:144` says "A grant decides
+  alone"), and else the door (`crates/podssh-relay/src/e2e/ends.rs:156`).
+- The issue reads the grant's arm as a way past the door that widens a credential. It is not: the grant's
+  issuer must be let in by the same door for the same ask
+  (`crates/podssh-relay/src/grant/door.rs:63-65`), as `crates/podssh-relay/src/grant/door.rs:22` says
+  "reach itself, so that a grant never reaches more than its issuer."; that is T-226's Decision 4
+  (`TODO/reverse.md:1925` says "The issuers are the node's own key, and a key of").
+- The issue reads the role's forward token as too wide for a member: it names no target
+  (`crates/podssh-relay/src/serve/tokens.rs:61`), as the contract's token does; the node's door, end to
+  end, is what admits (Q4, `docs/decisions.md:81`).
+- The refusal says only that the key is not let in (`crates/podssh-relay/src/e2e/mod.rs:75`); the
+  reason stays in the node's line.
+
+## Approach
+
+1. `podssh node NAME --ask` (and the other roads of a node: exit, share): a gate around the verdict in
+   `serve_asked`, so that the grant's arm and the door's both cross it, which answers before the door:
+   a cover, else one question for each key at a time, else the door.
+2. The question goes to the node's terminal (stdin and stderr each a terminal, probed at the start; with
+   none, `--ask` is refused at the start with 78): the key's fingerprint, its member name, what it asks,
+   `y` or `n`, 100 s; no answer is a no.
+3. A yes covers the key while one of its sessions is open, and 120 s after its last; a no stands 15 s,
+   with no question; sessions of one key that come together wait for the one question.
+4. Each admission is a line of the node: the key, the ask, and by what (the door, a grant, a cover, an
+   answer). The manual and `docs/reverse.md` say it.
+
+## Decision
+
+2026-11-04 (the drafting agent of the triage).
+
+- **A gate that the node asks for (`--ask`), refused with no terminal.** Lost: a gate on by default,
+  which would ask at each new key of an allowlist that is meant to let it in, and would be a silent rate
+  limit in a sandbox, as the issue says; an abstention with no terminal, as a flag that asks for a
+  person and has none should say so at the start.
+- **For the operator to confirm (Q86): the relay role's forward token stays one for every target that
+  its policy dials, as the contract's token is, and a grant stays bounded by its issuer's door.** The
+  issue calls both a defect; the code above holds both by design (Q4, T-226). Lost: a token scoped to a
+  member's reach, a new form of token and a new dimension of the net's policy, which the node's door
+  makes needless for a node, and which does not exist for a public target.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test net
+cargo test -p podssh-relay --test e2e
+```
+
+With a terminal of the test (a pty, where the host gives one): two sessions of one key raise one
+question; a no stands 15 s; a yes covers the key while its session is open and 120 s after, then asks
+again; a key that brings a grant meets the same gate; a refusal reaches no target, and the operator
+hears that its key is not let in; `--ask` with no terminal exits 78. Planted: the gate around the door
+alone, and the test of a grant at the gate fails.

@@ -3686,3 +3686,66 @@ At the merge (2026-11-03): `cargo test -p podssh-cli --lib man`, 39 passed; `--l
 `--test man_json`, 4; `--test man_page`, 10; `--test man_flag_parity`, 6; `--test flag_table`, 9;
 the lib, 753; `cargo test -p podssh-relay --test identity_file`, 10. `cargo fmt --check` and
 clippy (all targets, `-D warnings`) on `podssh-cli` and `podssh-relay`: clean.
+
+# T-634: A `PODSSH_*` variable that a release stopped reading is ignored in silence; there is no table of retired names
+
+**Source:** GitHub #132 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh refuses a flag it does not take and a keyword it does not know, by name, with what to use
+instead. A variable that a release stops reading has no such refusal: a service whose file of variables
+still sets it starts, looks healthy, and does not do what its owner believes.
+
+## Premise
+
+Read at `2042200`:
+
+- A flag's refusal names its replacement: `crates/podssh-cli/src/refuse.rs:51` says
+  "pub fn refused(verb: &str, given: &str, instead: &str, reason: &str) -> String {".
+- A service's file of variables takes each `PODSSH_` name but the secrets:
+  `crates/podssh-cli/src/node_install/env.rs:42` says "name.starts_with(OWN) && !SECRET.contains(&name)",
+  and the install writes each such variable that is set (`crates/podssh-cli/src/node_install/env.rs:67-80`);
+  its reader refuses a secret and an unknown name with their line
+  (`crates/podssh-cli/src/node_install/env.rs:96-101`), so a retired name is a third case beside them.
+- No module holds retired names (no `retired` in `crates/podssh-cli/src/`), and no variable has been
+  retired, as the issue says: the table starts empty.
+- The manual's variables are checked both ways: `crates/podssh-cli/src/man/facts/tests.rs:113` (each
+  documented one is read) and `crates/podssh-cli/src/man/facts/tests.rs:127` (each read one is
+  documented). The issue says the second does not exist; it does, and a retired name written in the
+  source would trip it, so the table needs its own place in the manual.
+- The run's funnel `crates/podssh-cli/src/dispatch.rs` is 439 lines; `main_with_args` is at
+  `crates/podssh-cli/src/dispatch.rs:395`.
+
+## Approach
+
+1. A module of `podssh-cli` with the table (name, the release that retired it, the replacement or
+   none, why) and one lookup that takes the reader of variables, so that a test needs no environment; an
+   empty value is unset; a name not in the table passes, so this never becomes a list of allowed names.
+2. Called once in `main_with_args`, after the parse and before the verb runs, skipped for what only
+   prints (`--version`, `--help`, `man`): a set name refuses with 78 on stderr alone, in the words
+   "podssh: PODSSH_X is no longer read (since vN): use Y instead; remove it".
+3. In a service's file: the reader refuses it with its line and its replacement, and the install leaves
+   it out with a line.
+4. The manual gets a section of retired variables from the table, which the test of documented
+   variables reads apart; `docs/cli.md` says the rule.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib retired
+cargo test -p podssh-cli --lib node_install
+cargo test -p podssh-cli --lib man::
+```
+
+With a table of one test row: a set name stops a run with 78 before anything is tried, stdout empty; an
+empty value starts; an unknown `PODSSH_NO_SUCH_THING` passes; `podssh --version` answers; a service's
+file with the name is refused with its line; no row names a variable that the manual lists as read; each
+row names a replacement or says none. Planted: the lookup that refuses each unknown `PODSSH_` name, and
+the test of an unknown name fails.

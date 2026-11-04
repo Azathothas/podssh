@@ -195,6 +195,28 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #124 | A carrier over stdio or exec for a node and its client | closed 2026-11-03, its entries done | T-595, T-596 (the exit over it), T-614 (`--exit` beside `--carrier` in `ssh`, `proxy` and `pipe`, Q90) |
 | #125 | `relay info`: `score_ms` and `rank` are the edge's, so the pool's order changes between calls | deleted on GitHub by 2026-11-04 (it was closed 2026-11-03, T-610 done; its text is the operator's export of 2026-11-04, so no comment goes to it) | T-610; from the export, T-618 (`relay info` names `relay rank` and the order that a run takes, which T-610 left for T-606 and T-607) and T-619 (its remedy on the relay's side, an item of the note to the relay's operator). The rest the record had: the edge's order and the score that did not agree with latency (`docs/relay.md:549-550`, 2026-10-01); the export's figures of upgrades, from the archive's `results/podssh-roads.json`, read with their limits (8 hosts at a time, a delay of the proxy on 8 of 37, `docs/research/relay-measurement.md:172-178`) and measured again through podssh (T-605); a measured order of the pool (T-606, T-607, T-608) |
 | #126 | `relay serve`: a policy refusal names the address that a target resolved to | closed 2026-11-04 (`45a3447`), its entry done | T-628 |
+| #127 | `relay serve` keeps each capability of its start after the bind | open | T-629 (dropped by default after the bind, before the runtime; no flag to keep them) |
+| #128 | The relay role's 4096 pairs have no share for each key | open | T-630 (a reserve for each key that a busy key may borrow past, not the issue's ceiling) |
+| #129 | `serve --listen`: an absolute deadline from the accept | open | T-631 (backlog, as T-124, whose listener it bounds) |
+| #130 | A record of the resumable layer that ends one direction | open | T-632 (also the relay role's layer road for a standard sshd, which `proxy` takes unasked by Q96; consent by the layer's own features, not the node's `hello`) |
+| #131 | One rule for an absent member that carries a guarantee, and a helper | open | T-633 (each reader that exists is right; the rule and the helper are new) |
+| #132 | Refuse a retired `PODSSH_*` variable by name | open | T-634 (the manual's check of variables runs both ways already, which the issue missed) |
+| #133 | `relay serve`: a list of targets between public alone and `--allow-private` | open | T-635 (`--routes`, as an exit's, ranges and single addresses; a prefix with host bits refused, also for an exit) |
+| #134 | `relay serve`: no byte count for a token across sessions or a restart | open | T-636 (by the key that minted, not by the token, which names no one; a budget for a day) |
+| #135 | A gate for each relay origin shared by a process's sessions | open | T-637 (the longest wait 300 s, not 4 h) |
+| #136 | Node admission: one gate for each connection, asked of a person | open | T-638 (`--ask`; the issue's two defects are not supported: a grant's issuer crosses the door, T-226, and the role's token is the contract's, Q4) |
+| #137 | `ws-listen:` answers a request that is no upgrade with a page from a directory | open | T-639 (with the reason phrases of 404, 409, 411, 413 and 429, which read "Error") |
+| #138 | A service's lines keep their priority in the journal | open | T-640 |
+| #139 | `doctor`: a `nat` line, one mapping or one for each destination | open | T-641 (two public STUN servers by default, Q86) |
+| #140 | ECH from the name's HTTPS record | open | T-642 (behind a proxy no resolver runs, so the record is a read before the session; podssh's provider needs HPKE first) |
+| #141 | Protocol version negotiation on the reverse road and the channel | open | T-643 (a net offer answered plainly is T-429's design for an end outside the net or of before: said, not refused) |
+| #142 | `relay serve`: an SSH client shares the listener by its first bytes | open | T-644 (the listener decides by the first byte already, T-326: an SSH client meets the cleartext road, not TLS) |
+| #143 | `ws-listen:` answers a keyless upgrade, as WebTunnel's client sends it | open | T-645 |
+| #144 | `relay serve --mint keys:` from an `https://` URL | open | T-646 (`--mint net` is the signed way that exists) |
+| #145 | A pair halted without its end, its node's socket kept | open | T-647 (a planned stop already keeps the node, by `1012`, T-255) |
+| #146 | A node socket's data queue is one line for all its sessions | open | T-648 (the role's own socket in the same change) |
+| #147 | `relay serve` routes a published name by its ClientHello, TLS at the node | open | T-649 (the listener moved to `podssh-relay`; funnel at the edge is T-180) |
+| #148 | A pool of sessions opened ahead for each node | open | T-650 (only for a node that asks, by its own flag) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,

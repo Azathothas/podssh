@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**602 entries: 101 open, 5 partial, 2 blocked, 494 done.**
+**624 entries: 123 open, 5 partial, 2 blocked, 494 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
-| P2 | 29 | 2 | 0 | 238 | 269 |
-| P3 | 72 | 1 | 2 | 191 | 266 |
-| **All** | 101 | 5 | 2 | 494 | 602 |
+| P2 | 34 | 2 | 0 | 238 | 274 |
+| P3 | 89 | 1 | 2 | 191 | 283 |
+| **All** | 123 | 5 | 2 | 494 | 624 |
 
 ## Entries
 
@@ -668,6 +668,28 @@ repository and CI).
 | [T-626](mesh.md) | P3 | S | M10 | research | open | I2P, Nym and cjdns: whether an overlay of peer addresses carries a podssh pair: the research |
 | [T-627](robustness.md) | P1 | S | M10 | defect | partial | The relay role's test of a resume by the next token of one leg timed out once in the relay crate's suite |
 | [T-628](mesh.md) | P1 | S | M10 | defect | done | The relay role's refusal of a target names the address that its name resolved to, so a holder of a token maps the role's network |
+| [T-629](relay.md) | P2 | S | M10 | feature | open | `podssh relay serve` keeps each capability of its start after the bind, while it serves each client |
+| [T-630](reverse.md) | P2 | S | M10 | feature | open | The relay role's table of 4096 pairs keeps no share for each key, so one key of a list can take each place |
+| [T-631](serve.md) | P3 | S | backlog | feature | open | `podssh serve --listen`: a deadline from the accept for a client that never logs in, and a cap on those that have not |
+| [T-632](resume.md) | P2 | S | none | feature | open | The resumable layer has no record that ends one direction, so a half-close ends the whole session where no channel runs above it |
+| [T-633](reverse.md) | P3 | S | M10 | feature | open | No rule, written once, for a member of an answer that is absent where it carries a guarantee, and no helper that reads `None` and `false` alike |
+| [T-634](cli.md) | P3 | S | none | feature | open | A `PODSSH_*` variable that a release stopped reading is ignored in silence; there is no table of retired names |
+| [T-635](relay.md) | P2 | S | M10 | feature | open | `podssh relay serve` has no list of private targets between public ones alone and `--allow-private` |
+| [T-636](relay.md) | P3 | M | M10 | feature | open | The relay role counts no bytes for each key across its sessions, and keeps no count across a restart |
+| [T-637](relay.md) | P3 | M | M10 | feature | open | Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline |
+| [T-638](mesh.md) | P3 | M | M10 | feature | open | A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door |
+| [T-639](pipe.md) | P3 | S | none | feature | open | `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory |
+| [T-640](robustness.md) | P3 | M | none | feature | open | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |
+| [T-641](roads.md) | P3 | M | M10 | feature | open | `doctor` does not say whether this host's NAT keeps one mapping across destinations |
+| [T-642](ws.md) | P3 | L | none | feature | open | TLS sends each name in the clear: no Encrypted Client Hello from the name's HTTPS record |
+| [T-643](reverse.md) | P3 | M | M10 | feature | open | Neither end of the reverse road compares the `version` of the role's `hello`, and an operator's offer of the net answered plainly says nothing |
+| [T-644](relay.md) | P3 | M | M10 | feature | open | `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road |
+| [T-645](pipe.md) | P3 | M | none | feature | open | `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends |
+| [T-646](relay.md) | P3 | M | M10 | feature | open | `--mint keys:` takes a file alone, so a role in a read-only image changes whom it mints for only by a rebuild |
+| [T-647](reverse.md) | P3 | M | M10 | feature | open | A pair of the relay role is served or ended; no halt that keeps its name and its node's socket |
+| [T-648](reverse.md) | P2 | M | none | feature | open | A node's socket queues each session's bytes in one line of 256 places, so one session's backlog delays each other session's |
+| [T-649](relay.md) | P3 | L | M10 | feature | open | The relay role ends TLS for each name on its listener, so a node's own HTTPS service cannot be published by its name |
+| [T-650](reverse.md) | P3 | L | M10 | feature | open | Each operator's leg waits for its node's `ready` before its first byte: no session opened ahead for a node that asks for spares |
 | [T-660](machine.md) | P2 | M | M10 | measurement | open | What a user feels, measured on each road: a key's echo while a download runs, a cold connect and its first command, a bulk copy while one types |
 | [T-661](ssh.md) | P2 | M | M10 | feature | open | Typing-aware flow control in podssh's SSH client: a bulk channel's window held to a round trip and 40 ms while a key waits |
 | [T-662](ssh.md) | P2 | S | M10 | feature | open | SSH windows that grow to the path where nobody types, to a cap of each road |

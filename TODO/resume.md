@@ -3688,3 +3688,70 @@ cargo test -p podssh-relay --features pair --lib session
 
 A stand-in of 50 ms whose link goes silent: the spare opens within 1.2 s (today 3 s); a planted
 fixed 3 s fails it. A live run on the relay with `--move` measures the resume.
+
+# T-632: The resumable layer has no record that ends one direction, so a half-close ends the whole session where no channel runs above it
+
+**Source:** GitHub #130 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A client that writes a request, shuts its writing side and waits for the answer loses the answer on the
+resumable layer: the layer's only end is `CLOSE`, the end of the session, so the far end's reply after
+the end of the request is never carried. The channel above the layer has an end of one direction; the
+layer's own sessions with no channel do not.
+
+## Premise
+
+Read at `2042200`:
+
+- The channel's end of one direction: `crates/podssh-relay/src/e2e/frame.rs:13` says "The clean end of
+  one direction.", and `crates/podssh-relay/src/e2e/channel.rs:128` says "The stream stays open: the
+  peer's bytes may still come." The issue's line numbers of `channel.rs` are of an older tree.
+- The layer: `crates/podssh-relay/src/session/record.rs:61` says "pub const CLOSE: u8 = 0x0a;", the
+  end of the session; `crates/podssh-relay/src/session/pump/up.rs:84` says
+  "Ok(0) | Err(_) => return None,", and `crates/podssh-relay/src/session/pump.rs:327` says "The
+  application ended its bytes: the writer sends the", then `CLOSE`, which the peer answers with its
+  own: the peer's later bytes are not asked for.
+- Sessions of the layer with no channel above it: the relay role's road for a standard sshd
+  (`crates/podssh-relay/src/serve/layer.rs:1-8`), which `proxy` and `ssh` take unasked for a relay
+  host that the user named and that offers it (Q96, `docs/decisions.md:16`); and a node's sessions with
+  `--no-e2e` (`crates/podssh-cli/src/flags/node.rs:136`).
+- The plain forward road keeps a half-close: `crates/podssh-relay/src/serve/forward.rs:239-242` shuts
+  the target's writing side at the client's Close and goes on, as the default relay does
+  (`docs/relay.md:346-349`). So `podssh proxy` to a target that reads until its end loses the answer on
+  the layer road where it gets it on `/connect/` (Inferred from the code; not measured).
+- The layer names its features in its handshake (`crates/podssh-relay/src/session/record.rs:9-10`), and
+  `crates/podssh-relay/src/session/mod.rs:69` says "pub const FEATURES: &[&str]": a new record goes only
+  to a peer that names its feature. The issue proposes the node's `hello`, which is the reverse road's
+  control, not the layer's.
+
+## Approach
+
+1. A record `END` (`0x0c`), whose body is the offset of the end of this side's bytes, and a feature
+   `end.v1` in `GREETING` and `OPEN`; a peer that does not name it gets today's `CLOSE`.
+2. With both sides naming it, a read of 0 sends `END` after the last `DATA` and keeps the session; the
+   peer shuts its application's writing side at the `END` and goes on reading; when each side has sent
+   and received its `END`, the session ends with `CLOSE` as today.
+3. `END` is replayed as `DATA` is, from its offset, so that a resume after a loss carries it; a link that
+   ends with no `END` and no `CLOSE` stays a loss (`End::Lost`), as now.
+4. `docs/design.md` (section 5), the table of `crates/podssh-relay/src/session/record.rs`, and
+   `docs/relay.md` ("The relay role's resumable layer") say the record.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test session_end
+cargo test -p podssh-relay --test session_resume
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_contract
+```
+
+A side whose application ended its bytes still gets the peer's answer, then the session ends; a peer
+with no `end.v1` ends as before; an `END` lost with its link comes again after a resume; through the
+role's layer road, a request, its end and the reply after it reach a target that answers at its
+input's end. Planted: `END` read as `CLOSE`, and the test of the answer after the end fails.

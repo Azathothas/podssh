@@ -3036,3 +3036,69 @@ resolvers and n0's relays as roads. `resolve.rs` had 478 lines: the asking of on
   passed, one new (`the_resolvers_and_n0_s_relays_are_counted_as_roads`); `--test doctor_tls`: 3
   passed. Clippy `--all-targets -D warnings` on podssh-ws, podssh-warp, podssh-iroh and
   podssh-cli, and on podssh-cli's lib with `--features iroh`: clean.
+
+# T-642: TLS sends each name in the clear: no Encrypted Client Hello from the name's HTTPS record
+
+**Source:** GitHub #140 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Each handshake of podssh puts its server's name in the clear, which an allowlist of names or an
+inspecting middlebox reads before the session moves. Encrypted Client Hello hides it, with a list that
+the name's own `HTTPS` record publishes; podssh reads no such record and has no HPKE to use one.
+
+## Premise
+
+Read at `2042200`:
+
+- The resolver's answer is addresses: `crates/podssh-ws/src/resolve.rs:246-247` reads one type for each
+  call, `AAAA` or `A`; an `HTTPS` record (type 65) is never asked.
+- Behind a proxy no resolver runs: `crates/podssh-ws/src/resolve.rs:17` says "With an HTTP proxy none of
+  this runs for the target", and DNS over HTTPS is the fifth step, after the system's resolver
+  (`crates/podssh-ws/src/resolve.rs:10`). So the issue's "ride the query that the name already causes"
+  holds for few runs: in the target host, behind its proxy, no query is made at all.
+- TLS has podssh's own provider and no other: `Cargo.toml:87` says "default-features = false and NO
+  crypto provider feature."; its parts (`crates/podssh-ws/src/crypto/`) hold no HPKE, which rustls's ECH
+  needs, and aws-lc's is C, which `podssh-ws` may not hold (rule 4 of `AGENTS.md`).
+- The resolvers are compiled in (`crates/podssh-ws/src/resolve.rs:66`), and are asked through the proxy
+  (T-405).
+
+## Approach
+
+1. HPKE in podssh's provider, pure Rust (DHKEM X25519 with HKDF-SHA256, AES-128-GCM and
+   ChaCha20-Poly1305), checked against RFC 9180's vectors.
+2. A reader of the `HTTPS` record's `ech` parameter beside `parse_answer`, over the JSON and the wire
+   forms, with each length checked; a cache of each name's list for its TTL (30 s at least, 300 s when
+   none), and of a miss for 30 s.
+3. With ECH asked for, the record is read before the session's connection, through the same resolvers;
+   the handshake carries the list; a server's retry configs replace it once; a refusal with none goes
+   on with a plain hello and cools the name for 5 minutes; `doctor` says whether a name's ECH was used.
+4. `PODSSH_ECH=yes|no` and `-o ECH`, the manual and `docs/architecture.md`.
+
+## Decision
+
+2026-11-04 (the drafting agent of the triage). For the operator to confirm (Q86): ECH when the user asks
+for it, with the read of the record before the session's connection, at most once for each name and
+TTL, as a new exception of rule 2 of `AGENTS.md` beside Q96 and Q97. Lost: ECH by default, which would
+add a query to a public resolver before each session to a new name, where podssh behind a proxy asks
+none; ECH only where the resolver road runs anyway, which in the target host is never.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib crypto
+cargo test -p podssh-ws --lib resolve
+cargo test -p podssh-ws --lib ech
+```
+
+HPKE against RFC 9180's vectors; the reader against `HTTPS` records captured from a public resolver
+(a name of Cloudflare's that publishes `ech`), a parameter with no bytes, and a record cut short; the
+cache with an injected clock (a TTL of 5 s served 30 s, one query for two cold lookups, a refused name
+left 5 minutes, a retry config served at once); a handshake with a test server that holds an ECH key.
+Planted: the TTL's floor left out, and its test fails.

@@ -1622,3 +1622,66 @@ Partial, 2026-11-04: step 1. The echo's timeout now panics with the role's event
 (`crates/podssh-relay/tests/relay_serve_once.rs`, `echoed`). Not reproduced here: the test alone 24
 times, 8 at once, and its whole binary 32 times, 8 at once: each passed. It stays partial for the
 next failure's words.
+
+# T-640: A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them
+
+**Source:** GitHub #138 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A node or a tunnel installed as a unit of systemd writes its lines to stderr, which the journal files
+at one priority. The read that an owner makes of a service that does not work, the warnings and above,
+shows nothing that podssh said.
+
+## Premise
+
+Read at `2042200`:
+
+- podssh writes text with no level past its own process: `crates/podssh-ssh/src/line.rs:22-24` writes a
+  line to stderr, and `crates/podssh-ssh/src/log.rs:12-17` holds a level and stderr or a file; the
+  level stops in the process.
+- `crates/podssh-cli/src/flags.rs:290` says "podssh does not write to syslog", for `-y`.
+- The unit that the install writes restarts the node (`crates/podssh-cli/src/node_install/text.rs:139`)
+  and stops on 64 and 78 (`crates/podssh-cli/src/node_install/text.rs:141` says
+  "RestartPreventExitStatus=64 78"): a fault of the journal must never become one of those.
+- No source reads `JOURNAL_STREAM` (searched).
+
+## Approach
+
+1. A module of `podssh-ssh`, Linux alone: a probe that compares `JOURNAL_STREAM`'s device and inode with
+   those of descriptor 2, so that a child that inherited the variable does nothing; with a match, a
+   socket of `AF_UNIX` datagrams, bound to nothing, that sends each line to the journal's socket as one
+   entry: `PRIORITY` from the line's level (fatal 2, error 3, quiet and info 6, verbose and debug 7),
+   `SYSLOG_IDENTIFIER=podssh`, `MESSAGE` last, a value with a line break in the journal's binary form.
+2. `err_line` and `Log` keep their stderr first, and send to the journal after it, with their level; a
+   send that fails is dropped, and never an exit code.
+3. Installed once, in `main`, before a thread starts; no flag. `-y`'s row and the manual say that the
+   journal gets the levels where stderr is the journal's.
+
+## Decision
+
+2026-11-04 (the drafting agent of the triage). For the operator to confirm (Q86): a datagram to the
+journal's own socket, only where stderr is already that journal's stream, is no outbound connection of
+rule 2 of `AGENTS.md` and no helper: it reaches the same service that each line reaches now, on the
+host, and binds nothing. Lost: stderr alone (the defect); syslog's `/dev/log` (another protocol, which
+the `-y` row refuses for its own reasons); a flag that turns it on (a unit's owner would not know to
+set it, and a line's level is no secret).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib journal
+cargo test -p podssh-ssh --lib line
+```
+
+With a datagram socket of the test in a temporary directory and its device and inode given to the
+probe: each level's number; `PRIORITY` first and `MESSAGE` last; a message with a line break is one
+entry; a variable that does not match descriptor 2 installs nothing; a line reaches stderr and the
+journal, and stderr alone when the socket is gone. Planted: the probe that trusts the variable alone,
+and the test of the child that inherited it fails.

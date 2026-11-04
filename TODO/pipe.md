@@ -1824,3 +1824,121 @@ day.
 What waits, UNVERIFIED: each command of the Prove; `cargo fmt --check` and `cargo clippy`;
 `cargo todo check`; `python scripts/check-repo.py`; the plant
 (`sh scripts/plant-each.sh t483-no-target`).
+
+# T-639: `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory
+
+**Source:** GitHub #137 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A browser that opens the address of a `podssh pipe ws-listen:PORT` gets a protocol's reminder as plain
+text, the same for each path. An owner who put a name on the port has no page to say what it is for.
+
+## Premise
+
+Read at `2042200`:
+
+- `crates/podssh-cli/src/pipe/ws_listen.rs:38` reads the head and checks it with
+  `crates/podssh-ws/src/server.rs:41`, which refuses a request with no upgrade at `:50`, which says
+  "this is a WebSocket: Upgrade: websocket and Connection: Upgrade".
+- The answer's writer always writes text: `crates/podssh-ws/src/http/request.rs:278` says
+  "Content-Type: text/plain; charset=utf-8".
+- Its reason phrases: `crates/podssh-ws/src/http/request.rs:242-259` has no arm for 404, 409, 411, 413
+  or 429, so each reads "Error"; the relay role sends four of them through it (`404` in
+  `crates/podssh-relay/src/serve/reverse/mod.rs:98`, `409` and `429` in
+  `crates/podssh-relay/src/serve/reverse/mod.rs:196-200`, `413` in
+  `crates/podssh-relay/src/serve/mod.rs:355`). A small defect, found here (rule 8 of `AGENTS.md`).
+- The check reads no path (`crates/podssh-ws/src/server.rs:41-63`), so a page is for a request that is
+  no upgrade, whatever its path, as the issue corrects itself.
+- The flag's neighbours: `crates/podssh-cli/src/flags/pipe.rs:40` (`keep-listening`), refused with no
+  listening side in `crates/podssh-cli/src/pipe/mod.rs:72`; `crates/podssh-cli/src/pipe/serve.rs:33`.
+
+## Approach
+
+1. `--cover DIR` for a pipe with a `ws-listen:` side (else 64): a `GET` or `HEAD` that is no upgrade gets
+   a file of DIR, typed by its name, `index.html` for `/` and for a directory, `404` when there is none;
+   another method keeps today's `405`; a request with an upgrade goes on as today.
+2. The path is walked under DIR: `..`, an absolute part and a link out of DIR are refused (`404`); the
+   result is checked under DIR after it is resolved. A file over 1 MiB is not served; DIR is checked at
+   the start (64 when it is no directory).
+3. One answer writer beside `request::refusal`, with a status, a type and a body.
+4. `request::reason` gets the phrases of 404, 409, 410, 411, 413 and 429.
+5. The manual and `docs/cli.md` (`pipe`).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib http::request
+cargo test -p podssh-cli --test pipe_ws
+```
+
+A path with `..`, one through a link out of DIR, and an absolute one get `404` and open nothing outside;
+`/` gets `index.html` and a directory is never listed; a `POST` gets `405`; an upgrade on a covered
+listener still opens the other side; `429` reads "Too Many Requests". Planted: the join with no check
+after it resolves, and the test of the link out of DIR fails.
+
+# T-645: `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends
+
+**Source:** GitHub #143 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A client of WebTunnel's shape (a `GET` with `Upgrade: websocket`, `Connection: upgrade` and no key)
+expects a `101` and then raw bytes both ways. `ws-listen:` answers it `426`, so podssh speaks that shape
+as a client and cannot answer it.
+
+## Premise
+
+Read at `2042200`:
+
+- `crates/podssh-ws/src/server.rs:41-63` checks in a fixed order; the version comes before the key:
+  `crates/podssh-ws/src/server.rs:53` says "this server speaks version 13 of RFC 6455", and a request with
+  no key is refused at `:58`.
+- podssh's WebTunnel client sends no key and no version (`crates/podssh-ws/src/webtunnel.rs:1-6`), and
+  takes a `101` with the two headers and no `Sec-WebSocket-Accept`
+  (`crates/podssh-ws/src/webtunnel.rs:138-150`).
+- `crates/podssh-cli/src/pipe/ws_listen.rs:58` answers with the framed session; `tcp-listen:` already
+  carries raw bytes (`crates/podssh-cli/src/pipe/serve.rs:48`).
+- The relay role's roads call the same check, and their contract is framed:
+  `crates/podssh-relay/src/serve/forward.rs:79`, `crates/podssh-relay/src/serve/layer.rs:154`,
+  `crates/podssh-relay/src/serve/reverse/node.rs:40` and `crates/podssh-relay/src/serve/reverse/operator.rs:52`;
+  they keep it.
+- No TLS on `ws-listen:`: a WebTunnel client of a bridge speaks `https://`, so a front that ends TLS is
+  needed before this listener, as the issue says.
+
+## Approach
+
+1. A second entry point beside `check_upgrade`, which keeps its signature: the method, `Host` and the two
+   upgrade tokens as now; then the key decides, before the version: no key is the raw form; a key takes
+   the version and the key's checks as today (a key that is not 16 bytes stays `400`); `Origin` is
+   refused in both.
+2. `--raw-upgrade` for a pipe with a `ws-listen:` side (else 64): a request with no key gets `101`
+   with `Upgrade` and `Connection` and no accept, then the bytes past the head and the two ends as
+   `tcp-listen:` carries them; with no flag a keyless request keeps its `426`.
+3. The manual says that the raw form has no frames, no close code and no idle bound, and that TLS needs
+   a front.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib server
+cargo test -p podssh-cli --test pipe_ws
+```
+
+A keyless head is the raw form; a key of 5 bytes is `400`; an `Origin` is `403` with and without a key;
+`check_upgrade` still refuses a keyless head; through `pipe ws-listen:PORT tcp:...  --raw-upgrade`, a
+request as `crates/podssh-ws/src/webtunnel.rs` writes it gets a `101` with no accept, and bytes of each
+value cross both ways unmasked; with no flag it is refused; `--raw-upgrade` with no `ws-listen:` exits
+64. Planted: the version checked before the key, and the keyless test gets `426`.

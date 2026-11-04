@@ -9182,3 +9182,73 @@ cargo test -p podssh-iroh --lib
 ```
 
 T-660's echo under load with a copy beside the terminal: lower than on one stream.
+
+# T-641: `doctor` does not say whether this host's NAT keeps one mapping across destinations
+
+**Source:** GitHub #139 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`doctor` says whether a UDP socket binds and whether a datagram came back from one server, but not
+whether the NAT in front of the host gives one mapping for each destination. That decides whether a
+peer can reach this host with no relay, and an owner whose direct path fails cannot tell it from UDP
+that is closed.
+
+## Premise
+
+Read at `2042200`:
+
+- The section is opened at `crates/podssh-cli/src/doctor/mod.rs:211`; its network part is
+  `crates/podssh-cli/src/doctor/net.rs:164`.
+- The two lines of UDP that exist each ask one server: `crates/podssh-cli/src/doctor/quick.rs:55`
+  (`UDP out`, the quick tunnel's edge) and `crates/podssh-cli/src/doctor/iroh.rs:34` (`iroh UDP out`); a bind
+  that fails is a fact, not a failure (`crates/podssh-cli/src/doctor/iroh.rs:23`), by the rule of
+  `crates/podssh-cli/src/doctor/mod.rs:6`, which says "A condition podssh is built for (no listener, no
+  pty, no user database".
+- No code of podssh speaks STUN (searched); the TURN road would bring a STUN codec (T-621, its step 2).
+- The measured sandbox refuses UDP: `docs/target-environment.md:23` says "EPERM", so there the line is
+  unknown.
+- A socket that a source binds must be named in `scripts/repo_listeners.py` (`:64` for `UdpSocket`),
+  which `scripts/check-repo.py:282` reads.
+
+## Approach
+
+1. A line `nat` in the section, from a module of `doctor`: one UDP socket on port 0, kept for both
+   questions; a Binding Request of RFC 8489 to each of two servers in turn (3 tries of 1 s), an answer
+   taken only from the address asked and with the transaction's id; `XOR-MAPPED-ADDRESS` read with each
+   length checked.
+2. Fewer than two answers: unknown, naming the one that was silent; the host's own address: ok, "no
+   NAT"; two equal: ok, "one mapping for each destination"; two that differ: ok, "a mapping for each
+   destination (hole punching will not work here)"; never `FAIL`. The line names the servers that
+   answered.
+3. `PODSSH_STUN=HOST:PORT,HOST:PORT` names the servers, `no` turns the line off; offline, an unknown.
+   The STUN codec is shared with T-621's.
+4. The manual (a note of `doctor`), `docs/STATUS.md`, and the listener's list.
+
+## Decision
+
+2026-11-04 (the drafting agent of the triage). For the operator to confirm (Q86): the line runs unasked,
+with two public STUN servers as its default, `stun.cloudflare.com:3478` and `stun.l.google.com:19302`,
+each named in the manual with its source (Q79), as `doctor` already reaches `github.com` and n0's relays
+for its references; `PODSSH_STUN=no` turns it off. Lost: a line that waits for `PODSSH_STUN`, which the
+issue prefers and which almost no one would set; one server, which tells nothing (two answers are the
+whole signal).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib doctor::nat
+cargo test -p podssh-cli --test doctor
+```
+
+Against two stand-in servers on the loopback: one mapped address for both is one mapping; two ports
+differ; silence is unknown with exit 0; an answer with no mapped address is no verdict; a wrong
+transaction id and a stranger's datagram are skipped; offline, the count of unknowns grows by one.
+`python scripts/check-repo.py` names the new socket. Planted: the two questions on two sockets, and the
+stand-ins' test of one mapping reads two.

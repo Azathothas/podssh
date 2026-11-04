@@ -17,8 +17,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      mark each `unreleased` row of `docs/STATUS.md` up to that commit, and add the commit to the
      list of releases in `scripts/check-repo.py`, as beta.1's record did (`15819f9`).
      `v1.1.0-beta.3` follows at the end of the night with the night's work (Q98).
-  3. **GitHub #126 to #148** (Nemo-010, 2026-11-04) are new: each becomes an entry (Q100), #126
-     first, a P1 defect; `TODO/github.txt` and `TODO/issues.md` map them with the triage.
+  3. **GitHub #126 to #148** (Nemo-010, 2026-11-04): #126 is repaired (T-628) and closed; #127 to
+     #148 are T-629 to T-650, by a triage draft merged the same evening (Q100).
   4. **osewa** (Q99): two agents studied `rjyo/osewa`'s code and its paper
      (`docs/research/osewa.md`); its gaps are T-660 to T-669, ahead of the rest of M10.
   5. **Partial and watched:** T-465 (`pipe`'s end of input lost 2 runs in 50 on Windows and
@@ -190,7 +190,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   On 2026-11-04 (evening) a ninth round is being drafted, unbuilt, by agents of this cloud session,
   each in a worktree under `.claude/worktrees/` on a local branch `worktree-agent-*`: the triage of
-  GitHub #127 to #148 (entries T-629 and on), T-660 (measure what a user feels), T-661 and T-662
+  GitHub #127 to #148 (T-629 to T-650, `de2cc4e`, merged; its worktree and branch are gone), T-660 (measure what a user feels), T-661 and T-662
   (the SSH client's flow control and windows), and T-663 (liveness in round trips). Each is merged
   one at a time, built and tested, in the order of the index; a branch is pushed as `draft/<branch>`
   before the session ends.
@@ -238,7 +238,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 602 entries: 101 open, 5 partial, 2 blocked, 494 done.
+`TODO/INDEX.md` holds 624 entries: 123 open, 5 partial, 2 blocked, 494 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -278,8 +278,9 @@ operator and the parked ones.
 defect, is repaired); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first), T-661 and
 T-662 (the SSH client's flow control and windows), T-663 (liveness in round trips), T-664, T-665,
-T-666, T-667, T-668 and T-669; then GitHub #127 to #148 by their priority, beside the order of M10
-below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
+T-666, T-667, T-668 and T-669; then GitHub #127 to #148 (T-629 to T-650,
+`TODO/issues.md`) by their priority, the P2 ones first (T-629, T-630, T-632, T-635 and T-648),
+beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
 
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
 this order:
@@ -389,6 +390,22 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 (Q90: T-574's built-in nodes, T-612, T-613 and T-614); four more live test targets (Q91: T-463,
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
+
+**For the operator to confirm (Q86), from the triage of GitHub #127 to #148 and the study of osewa
+(2026-11-04)**; each call is in its entry's `## Decision`, and the work goes on with it:
+
+- T-638 (#136): a forward token of the relay role stays good for each target that its policy
+  dials, and a grant stays bound by its issuer's door (Q4, T-226); the issue calls both defects.
+- T-640 (#138): a node writes each line to the journal's own socket only when its stderr is that
+  journal's stream already: not an outbound connection under rule 2.
+- T-641 (#139): `doctor`'s line `nat` runs unasked against `stun.cloudflare.com:3478` and
+  `stun.l.google.com:19302`, off with `PODSSH_STUN=no`.
+- T-642 (#140): Encrypted Client Hello only when the user asks for it; the read of a name's HTTPS
+  record before the session is then a read before a session, as Q96 and Q97 are.
+- T-643 (#141): an operator that offers the net's document to a node that answers without it goes
+  on, with a line that says so, where the issue asks for a refusal.
+- T-667 (osewa): QUIC and a TCP road race to one host for a short time, as the race between relay
+  hosts does (rule 2), the loser closed at once.
 
 The operator settled Q93 to Q100 on 2026-11-04 (`docs/decisions.md`), each as recommended: the TURN
 road's second connection (Q93), short live tests against smee.io, hostc, Tunnelmole and Sandhole

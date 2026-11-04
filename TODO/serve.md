@@ -1642,3 +1642,69 @@ refuses, became two.
   2222:127.0.0.1:22 --persist me@example.org` wrote, with a stand-in `systemctl`: no finding.
 - Not measured here: `plutil -lint` of the plist and a real `launchctl bootstrap` (macOS), a real
   cron's watchdog after a kill, and the task of Windows; the record of each is T-251's.
+
+# T-631: `podssh serve --listen`: a deadline from the accept for a client that never logs in, and a cap on those that have not
+
+**Source:** GitHub #129 (Nemo-010, 2026-11-04); the operator's ruling Q100.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A listener's first callers are handshakes that never end. The plan of `podssh serve` asks russh for no
+inactivity cut, and russh's own bounds stop at the version line or count activity, so a client that
+connects and says nothing, or one that sends a byte now and then, holds a task and a descriptor for as
+long as it likes; a few of them fill a cap on connections.
+
+## Premise
+
+Read at `2042200`:
+
+- `TODO/serve.md:3` says "No server code exists yet.", and T-107's step 2 asks russh for
+  `TODO/serve.md:43-44`, which says "no inactivity cut (russh: 600 s)".
+- russh bounds the client's version line alone with its `inactivity_timeout`:
+  `vendor/russh/src/server/mod.rs:1143` says "tokio::time::timeout(t, read.read_client_ssh_id()).await??",
+  and the key exchange and the login run in the session that
+  `vendor/russh/src/server/mod.rs:1133` spawns.
+- In the session, the inactivity timer starts again at each event
+  (`vendor/russh/src/server/session.rs:836-840`): a cut for silence, not a deadline.
+- T-124's step 4 asks for a cap with no time: `TODO/serve.md:1293-1294` says "a cap on connections at
+  once and on connections that have not authenticated".
+- What a deadline needs is there: `vendor/russh/src/server/session.rs:457` (`Handle::disconnect`) and
+  `vendor/russh/src/lib_inner.rs:317` says "TooManyConnections = 12,".
+
+## Approach
+
+1. In the server of T-107 (crates/podssh-ssh/src/server/, as T-107 decides), a module of the limits:
+   one instant taken at the accept; a permit of a cap on connections not yet logged in, taken before a
+   byte is read, and past it `TooManyConnections` and the end.
+2. The deadline wraps `run_stream` and goes on into the session: a waiter on the same instant, which the
+   first successful authentication cancels, and which else sends `ByApplication` with one line that
+   names the limit, then drops the session; it ends with the session, so a login of 5 ms keeps no
+   sleeping task.
+3. `--login-timeout SECS` (default 60, as OpenSSH's `LoginGraceTime` is 120 and a sandbox's link is
+   short) and `--pending-max N` (default 16) on `podssh serve --listen`; each reaped connection is a
+   line of the server's log.
+4. `--stdio`, a node's sessions and the operator's road take no listener and keep their one client.
+
+## Decision
+
+2026-11-04 (the drafting agent of the triage). Milestone backlog, as T-124: the deadline is for
+`--listen` alone, whose entry is in the backlog, and a deadline in M5 would come before the listener
+that it bounds. Lost: M5, as the serve entries of the cage are, which would order it before T-124.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --test serve_listen
+```
+
+In T-124's new test of the listener, on the loopback: a client that says nothing is gone within the
+limit and a margin, and the line names the limit; one that sends a byte each second is gone at the
+same limit; a login inside the limit outlives it; one past `--pending-max` gets `TooManyConnections`
+before the key exchange; the count of the server's tasks comes back after each. Planted: the deadline
+as a timer of inactivity, and the test of the byte each second fails.
