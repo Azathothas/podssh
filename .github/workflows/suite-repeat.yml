@@ -9,6 +9,7 @@ name: suite repeat
 # once, as pipe's unix-connect did at 1a38dfa. Started by hand only:
 #   gh workflow run suite-repeat.yml -f runs=20 -f features=pair,quick,derp,serve,piping
 #   gh workflow run suite-repeat.yml -f runner=macos-15 -f package=podssh-cli -f test=pipe -f runs=50
+#   gh workflow run suite-repeat.yml -f runner=windows-2025 -f package=podssh-cli -f test=pipe -f runs=50
 
 on:
   workflow_dispatch:
@@ -25,6 +26,7 @@ on:
         options:
           - ubuntu-24.04
           - macos-15
+          - windows-2025
       package:
         description: "The package whose suite runs"
         required: true
@@ -55,6 +57,21 @@ jobs:
       CARGO_BUILD_JOBS: 4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # aws-lc on Windows wants NASM, else its prebuilt objects, as the gate's
+      # job windows takes them (T-465 repeats a test there).
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
+        if: runner.os == 'Windows'
+        continue-on-error: true
+      - name: NASM, or aws-lc's prebuilt objects
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          if command -v nasm > /dev/null 2>&1; then
+            nasm -v
+          else
+            echo "::warning::no NASM: aws-lc's prebuilt objects (AWS_LC_SYS_PREBUILT_NASM=1)"
+            echo "AWS_LC_SYS_PREBUILT_NASM=1" >> "$GITHUB_ENV"
+          fi
       # The inputs reach the shell through the environment, never through
       # its text, and each is checked before it is used.
       - name: the inputs
