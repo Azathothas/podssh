@@ -1,0 +1,8 @@
+# T-618: relay info reads each pool as the relay's estimate from an edge,
+# also the document of podssh's own relay role, which names no edge and
+# scores its one host 0; the unit test of the role's document must fail.
+ENTRY=T-618
+GROUP=cli-tests
+EXPECT='test relay_diag_text::tests::the_roles_document_gives_no_estimate \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib relay_diag_text'
+LIMIT=1800

@@ -36,26 +36,13 @@ pub(super) const GITHUB_KEYS: [&str; 3] = [
     "SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
 ];
 
-/// Which order the run's list takes, and why (T-607): the rank of `relay
-/// rank`, the times of earlier races, or the pool's; read from the cache,
-/// with no connection.
-fn order_line(relays: &RelayList) -> String {
-    let hosts: Vec<String> = podssh_relay::rank_list::placed_now(relays).into_iter().map(|r| r.host).collect();
-    let order = match (relays.explicit, podssh_relay::rank_list::order_now(&relays.primary().host)) {
-        (true, _) => "the order that you named",
-        (false, "rank") => "the order of the rank that podssh relay rank kept for this egress",
-        (false, "samples") => "the order that earlier runs timed, as no rank holds for this egress",
-        (false, "off") => "the relay's order, as RelayRank no or PODSSH_RELAY_RANK=no says",
-        (false, _) => "the relay's order: no rank holds for this egress, and podssh relay rank makes one",
-    };
-    crate::relay_rank_auto::doctor_line(relays, order, &hosts)
-}
-
 /// Skew beyond which this host's clock is called wrong.
 const CLOCK_LIMIT: i64 = 3600;
 
 pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, full: bool) {
-    report.ok("rank", order_line(relays));
+    // Which order the run's list takes, and why (T-607), in the words that
+    // `relay info` says too (T-618); read from the cache, with no connection.
+    report.ok("rank", crate::relay_rank_auto::doctor_line(relays));
     // Each deployment of the list, and its signed list (T-346).
     report.ok("deployments", crate::relay_deployments::doctor_line(relays));
     let mut answered: Option<(&Relay, Option<String>)> = None;

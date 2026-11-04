@@ -177,7 +177,9 @@ list that the user named keeps its order. `PODSSH_RELAY_RANK=no`, or the
 settings file's `RelayRank no`, gives the pool's order of `/relays.json`, as
 before; a variable that is set, and not empty, wins over the file.
 `podssh status` gives `relay_order` (`rank`, `samples`, `pool` or `off`),
-and `podssh doctor` a line `rank` with the list in that order.
+and `podssh doctor` a line `rank` with the list in that order; so does
+`podssh relay info`, after the relay's pool, and its `--json` gives
+`relay_order` and `relay_list` beside `pool_order` (T-618).
 
 A rank in a session's background (T-608) comes only when the user asks for
 it, with the settings file's `RelayRank auto` or `PODSSH_RELAY_RANK=auto`;

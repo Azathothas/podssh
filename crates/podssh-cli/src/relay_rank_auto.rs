@@ -13,7 +13,7 @@
 
 use podssh_relay::rank::{self, Rank};
 use podssh_relay::rank_auto;
-use podssh_relay::relay::{RelayList, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{Relay, RelayList, DEFAULT_RELAY_HOST};
 use serde_json::json;
 
 use crate::ping::relay::REFERENCE;
@@ -96,18 +96,49 @@ pub(crate) fn status_value() -> serde_json::Value {
     })
 }
 
+/// The order that a run of a list takes now (T-607), read from the cache
+/// with no connection, for `doctor` and `relay info` (T-618).
+pub(crate) struct RunOrder {
+    /// `podssh status`'s word for it (`rank`, `samples`, `pool` or `off`),
+    /// or `named` for a list that the user named.
+    pub word: &'static str,
+    /// The same in words.
+    pub words: &'static str,
+    /// The list in that order.
+    pub hosts: Vec<Relay>,
+}
+
+/// The order that a run of `relays` takes now, and its list.
+pub(crate) fn run_order(relays: &RelayList) -> RunOrder {
+    let word = match relays.explicit {
+        true => "named",
+        false => podssh_relay::rank_list::order_now(&relays.primary().host),
+    };
+    let background = word == "rank" && rank::load().as_ref().is_some_and(Rank::background);
+    RunOrder { word, words: order_words(word, background), hosts: podssh_relay::rank_list::placed_now(relays) }
+}
+
+/// An order's word in words, whose rank it is when a rank orders the list:
+/// one text for `doctor` and `relay info`, so both say the same.
+pub(crate) fn order_words(word: &str, background: bool) -> &'static str {
+    match word {
+        "named" => "the order that you named",
+        "rank" if background => "the order of the rank that podssh made in a session's background for this egress",
+        "rank" => "the order of the rank that podssh relay rank kept for this egress",
+        "samples" => "the order that earlier runs timed, as no rank holds for this egress",
+        "off" => "the relay's order, as RelayRank no or PODSSH_RELAY_RANK=no says",
+        _ => "the relay's order: no rank holds for this egress, and podssh relay rank makes one",
+    }
+}
+
 /// The doctor's line `rank` (T-607) with the background rank's words: whose
 /// rank orders the list, then whether a session ranks in its background,
 /// as which setting asks, and when it last did.
-pub(crate) fn doctor_line(relays: &RelayList, order: &str, hosts: &[String]) -> String {
-    let kept = rank::load();
-    let ours = !relays.explicit
-        && podssh_relay::rank_list::order_now(&relays.primary().host) == "rank"
-        && kept.as_ref().is_some_and(Rank::background);
-    let order =
-        if ours { "the order of the rank that podssh made in a session's background for this egress" } else { order };
-    let words = background_words(rank_auto::asked_by(), kept.as_ref(), crate::pairs::now_ms());
-    format!("{order}: {}; {words}", hosts.join(", "))
+pub(crate) fn doctor_line(relays: &RelayList) -> String {
+    let order = run_order(relays);
+    let hosts: Vec<&str> = order.hosts.iter().map(|r| r.host.as_str()).collect();
+    let words = background_words(rank_auto::asked_by(), rank::load().as_ref(), crate::pairs::now_ms());
+    format!("{}: {}; {words}", order.words, hosts.join(", "))
 }
 
 /// Whether a session ranks in its background, as `by` asks, in words.
@@ -146,5 +177,17 @@ mod tests {
         let on_demand = Rank { source: rank::ON_DEMAND.into(), ..kept };
         assert!(background_words(by, Some(&on_demand), 61_000).ends_with("the last made 60 s ago"));
         assert!(background_words(None, Some(&whole), 61_000).starts_with("no rank in a session's background"));
+    }
+
+    /// Each word of an order has its own words, and a rank's names whose
+    /// rank it is (T-618).
+    #[test]
+    fn each_order_has_its_words() {
+        assert_eq!(order_words("named", true), "the order that you named");
+        assert!(order_words("rank", false).contains("podssh relay rank kept"));
+        assert!(order_words("rank", true).contains("in a session's background"));
+        assert!(order_words("samples", false).starts_with("the order that earlier runs timed"));
+        assert!(order_words("off", false).contains("RelayRank no"));
+        assert!(order_words("pool", false).ends_with("podssh relay rank makes one"));
     }
 }

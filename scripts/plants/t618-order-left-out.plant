@@ -1,0 +1,8 @@
+# T-618: relay info leaves out the line of the order that a run from this
+# host takes, so that its reader finds the relay's order alone again (the
+# export of GitHub #125); the unit test of the text with each order must fail.
+ENTRY=T-618
+GROUP=cli-tests
+EXPECT='test relay_diag_text::tests::the_text_names_relay_rank_and_the_order_that_a_run_takes \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib relay_diag_text'
+LIMIT=1800

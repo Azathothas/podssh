@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/relay_diag_text.rs
++++ b/crates/podssh-cli/src/relay_diag_text.rs
+@@ -110,7 +110,7 @@
+         lines.push(MEASURED_HERE.into());
+     }
+     // With a pool or none: the order is this host's, not the document's.
+-    lines.push(run_line(runs));
++    let _ = run_line(runs);
+     let limits = &doc["limits"];
+     let mut parts = Vec::new();
+     for (key, label) in

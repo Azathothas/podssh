@@ -1,10 +1,14 @@
 //! The lines of `podssh relay info` and `trace` (T-058), from the relay's
-//! JSON. A field that the relay leaves out is left out of its line, so a
-//! relay with other fields still gives what it has. Each text from the relay
-//! is cleaned to one line first: a target's banner comes from anywhere.
+//! JSON, and the order that a run from this host takes, which the caller
+//! reads from the cache (T-618). A field that the relay leaves out is left
+//! out of its line, so a relay with other fields still gives what it has.
+//! Each text from the relay is cleaned to one line first: a target's banner
+//! comes from anywhere.
 
 use podssh_ws::dial::authority;
 use serde_json::Value;
+
+use crate::relay_rank_auto::RunOrder;
 
 fn text(v: &Value) -> Option<String> {
     v.as_str().map(podssh_ws::text::one_line).filter(|s| !s.is_empty())
@@ -30,9 +34,24 @@ fn size(bytes: u64) -> String {
     }
 }
 
-/// Where a user gets an order measured from this host, after the relay's.
-const MEASURED_HERE: &str =
-    "measured from this host: podssh relay status (the hosts that podssh tries), podssh ping --relay-host HOST (one)";
+/// Where a user gets an order measured from this host, after the relay's:
+/// the rank, which a run takes (T-606, T-607), first.
+const MEASURED_HERE: &str = "measured from this host: podssh relay rank (each host of the pool), podssh relay status \
+     (the hosts that podssh tries), podssh ping --relay-host HOST (one)";
+
+/// The order that a run from this host takes, which the caller read from
+/// the cache (T-618): a program that reads `relay info` for an order finds
+/// podssh's, beside the relay's.
+fn run_line(runs: &RunOrder) -> String {
+    let hosts: Vec<String> = runs.hosts.iter().map(podssh_relay::token::relay_name).collect();
+    format!("a run from this host takes {}; its list: {}", runs.words, hosts.join(", "))
+}
+
+/// Whether the relay estimates a round trip: an edge named, or a score
+/// above 0. podssh's own relay role does neither (T-618).
+fn estimates(doc: &Value, pool: &[Value]) -> bool {
+    text(&doc["you"]["edge_colo"]).is_some() || pool.iter().any(|e| e["score_ms"].as_f64().is_some_and(|s| s > 0.0))
+}
 
 /// Whose order the pool of `doc` is in, for `relay info --json`: the
 /// relay's, from the edge that answered; null with no pool.
@@ -44,8 +63,9 @@ pub fn pool_order(doc: &Value) -> Value {
 }
 
 /// The relay and its edge, the URL for the target when one was given, the
-/// pool in the relay's order, the limits and the relay's note.
-pub fn info_lines(host: &str, doc: &Value) -> Vec<String> {
+/// pool in the relay's order, the order that a run from this host takes
+/// (`runs`), the limits and the relay's note.
+pub fn info_lines(host: &str, doc: &Value, runs: &RunOrder) -> Vec<String> {
     let mut lines = Vec::new();
     let service = text(&doc["service"]).unwrap_or_else(|| "(no service)".into());
     let version = text(&doc["version"]).unwrap_or_else(|| "(no version)".into());
@@ -69,11 +89,16 @@ pub fn info_lines(host: &str, doc: &Value) -> Vec<String> {
         // is, lest it read as podssh's advice for this host.
         let from = text(&doc["you"]["edge_colo"]).map(|e| format!("edge {e}"));
         let from = from.unwrap_or_else(|| "the edge that answered".into());
-        lines.push(format!(
-            "pool, in the relay's order: {} hosts; the rank and the score are the relay's estimate from {from}, \
-             which changes with the edge, not a measure of this host's path",
-            pool.len()
-        ));
+        let n = pool.len();
+        lines.push(match estimates(doc, pool) {
+            true => format!(
+                "pool, in the relay's order: {n} hosts; the rank and the score are the relay's estimate from {from}, \
+                 which changes with the edge, not a measure of this host's path"
+            ),
+            // No edge and no score: an estimate that moves with the edge
+            // would not be true of it.
+            false => format!("pool, in the relay's order: {n} hosts; the relay gives no estimate of a round trip"),
+        });
         for entry in pool {
             let rank = entry["rank"].as_u64().map(|r| r.to_string()).unwrap_or_else(|| "-".into());
             let name = text(&entry["name"]).unwrap_or_else(|| "-".into());
@@ -84,6 +109,8 @@ pub fn info_lines(host: &str, doc: &Value) -> Vec<String> {
         }
         lines.push(MEASURED_HERE.into());
     }
+    // With a pool or none: the order is this host's, not the document's.
+    lines.push(run_line(runs));
     let limits = &doc["limits"];
     let mut parts = Vec::new();
     for (key, label) in
@@ -175,6 +202,14 @@ mod tests {
         assert_eq!(size(1000), "1000 bytes");
     }
 
+    /// The order of a run, as `relay_diag` reads it from the cache, with
+    /// three hosts, one of them on a port of its own.
+    fn runs(word: &'static str) -> RunOrder {
+        let hosts = ["tcp-b.example", "tcp.example", "tcp-a.example:8443"];
+        let hosts = hosts.iter().map(|h| podssh_relay::relay::parse_relay(h).unwrap()).collect();
+        RunOrder { word, words: crate::relay_rank_auto::order_words(word, false), hosts }
+    }
+
     /// Two answers of the relay, from two edges that rank the pool the other
     /// way round (GitHub #125): each says that its order is the relay's,
     /// from its edge, and where an order measured from this host is.
@@ -189,7 +224,7 @@ mod tests {
         for (edge, a, b) in [("NRT", 0, 1), ("SIN", 1, 0)] {
             let doc = json!({ "service": "tcp-ssh-relay", "version": "1", "you": { "edge_colo": edge },
                 "pool": pool(a, b) });
-            let lines = info_lines("relay.example", &doc);
+            let lines = info_lines("relay.example", &doc, &runs("pool"));
             assert_eq!(
                 lines[1],
                 format!(
@@ -201,9 +236,67 @@ mod tests {
             assert_eq!(lines[4], MEASURED_HERE, "{lines:?}");
             assert_eq!(pool_order(&doc), json!({ "by": "relay", "edge": edge, "measured_here": false }));
         }
-        let doc = json!({ "pool": [] });
-        assert!(info_lines("relay.example", &doc)[1].contains("estimate from the edge that answered"));
+        // Scores with no edge named: an estimate still, from an edge unnamed.
+        let doc = json!({ "pool": pool(0, 1) });
+        assert!(info_lines("relay.example", &doc, &runs("pool"))[1].contains("estimate from the edge that answered"));
         assert_eq!(pool_order(&json!({})), Value::Null);
+    }
+
+    /// T-618: the line of the measures names `podssh relay rank` first, and
+    /// the next line the order that a run from this host takes, in
+    /// `doctor`'s words, with its list; with no pool, the order still.
+    #[test]
+    fn the_text_names_relay_rank_and_the_order_that_a_run_takes() {
+        assert!(MEASURED_HERE.starts_with("measured from this host: podssh relay rank (each host of the pool), "));
+        let doc = json!({ "you": { "edge_colo": "NRT" },
+            "pool": [{ "rank": 0, "name": "a", "host": "tcp-a.example", "score_ms": 41 }] });
+        let list = "tcp-b.example, tcp.example, tcp-a.example:8443";
+        for (word, says) in [
+            ("rank", "the order of the rank that podssh relay rank kept for this egress"),
+            ("samples", "the order that earlier runs timed, as no rank holds for this egress"),
+            ("pool", "the relay's order: no rank holds for this egress, and podssh relay rank makes one"),
+            ("off", "the relay's order, as RelayRank no or PODSSH_RELAY_RANK=no says"),
+            ("named", "the order that you named"),
+        ] {
+            let lines = info_lines("relay.example", &doc, &runs(word));
+            let at = lines.iter().position(|l| l == MEASURED_HERE).unwrap_or_else(|| panic!("{word}: {lines:?}"));
+            let run = format!("a run from this host takes {says}; its list: {list}");
+            assert_eq!(lines.get(at + 1).map(String::as_str), Some(run.as_str()), "{word}: {lines:?}");
+        }
+        let lines = info_lines("relay.example", &json!({}), &runs("rank"));
+        assert!(lines.iter().any(|l| l.starts_with("a run from this host takes the order of the rank")), "{lines:?}");
+    }
+
+    /// T-618: podssh's own relay role names no edge and scores its one host
+    /// 0, so its pool says that the relay gives no estimate, not one that
+    /// changes with the edge; the stand-in's shape, which names an edge,
+    /// keeps T-610's line.
+    #[test]
+    fn the_roles_document_gives_no_estimate() {
+        use podssh_relay::serve::{self, Config, Mint};
+        let cfg = Config {
+            version: "test".into(),
+            mint: Mint::Nobody,
+            tokens: serve::tokens::Tokens::new([3; 32]),
+            policy: Default::default(),
+            egress: Default::default(),
+            limits: Default::default(),
+            pairs: Default::default(),
+            resumes: Default::default(),
+            answered: Default::default(),
+            brake: Default::default(),
+            events: None,
+        };
+        let head = b"GET /relays.json HTTP/1.1\r\nHost: relay-a.test:8443\r\n\r\n";
+        let doc = serve::docs::relays(&cfg, &podssh_ws::http::request::parse_request(head).unwrap());
+        let lines = info_lines("relay-a.test:8443", &doc, &runs("named"));
+        let none = "pool, in the relay's order: 1 hosts; the relay gives no estimate of a round trip";
+        assert_eq!(lines[1], none, "{lines:?}");
+        assert!(lines.iter().any(|l| l == MEASURED_HERE), "{lines:?}");
+        let stand_in = json!({ "you": { "edge_colo": "TEST" },
+            "pool": [{ "rank": 0, "name": "stand-in", "host": "relay-a.test", "score_ms": 0 }] });
+        let lines = info_lines("relay-a.test", &stand_in, &runs("named"));
+        assert!(lines[1].contains("the relay's estimate from edge TEST, which changes with the edge"), "{lines:?}");
     }
 
     /// The shape that the live relay answered on 2026-10-11, with the caller's

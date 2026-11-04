@@ -21,9 +21,10 @@ rc=$?
 rl info 127.0.0.1 2201 >"$FK/relay.out" 2>"$FK/relay.err" </dev/null
 rc=$?
 [ "$rc" = 0 ] && grep -q "^pool, in the relay's order: 1 hosts; the rank and the score are the relay's estimate from edge TEST, " "$FK/relay.out" \
-    && grep -q '^measured from this host: podssh relay status ' "$FK/relay.out" \
+    && grep -q '^measured from this host: podssh relay rank (each host of the pool), podssh relay status ' "$FK/relay.out" \
+    && grep -q "^a run from this host takes the order that you named; its list: relay-a.test:$(port a)$" "$FK/relay.out" \
     && grep -q "^for 127.0.0.1:2201: wss://relay-a.test:$(port a)/connect/127.0.0.1/2201$" "$FK/relay.out" \
-    && ok relay.info "the pool, and the URL for a target" \
+    && ok relay.info "the pool, the order of a run from this host, and the URL for a target" \
     || bad relay.info "exit $rc: $(cat "$FK/relay.out")" "$FK/relay.err"
 
 # The stand-in dials only with the token in its header, as the relay does.
