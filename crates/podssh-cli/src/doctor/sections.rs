@@ -31,6 +31,8 @@ pub(super) struct Checks<'a> {
     pub(super) road: Option<&'a crate::via::Road>,
     /// The servers of `--vless`, when it names a file.
     pub(super) links: Option<&'a crate::vless::Servers>,
+    /// The exit of `--exit NAME` (T-458).
+    pub(super) exit: Option<&'a super::exit::Plan>,
     /// `--quick`: the roads that the run did not ask for are left out.
     pub(super) quick: bool,
     /// How many sections start together.
@@ -51,6 +53,8 @@ pub(super) enum Kind {
     Shadowsocks,
     Via,
     Vless,
+    /// The exit of `--exit NAME` (T-458).
+    Exit,
     /// What the path does to a stream (T-325).
     Stream,
     #[cfg(feature = "iroh")]
@@ -73,6 +77,7 @@ impl Kind {
             Kind::Shadowsocks => "shadowsocks",
             Kind::Via => "via",
             Kind::Vless => "vless",
+            Kind::Exit => "exit",
             Kind::Stream => "stream",
             #[cfg(feature = "iroh")]
             Kind::Iroh => "iroh",
@@ -96,13 +101,13 @@ impl Kind {
 /// not ask for. The probes of a stream, with `--full`, come last: their
 /// quiet stream holds its part for minutes, and a part's lines wait for
 /// each part before it.
-pub(super) fn kinds(quick: bool, servers: bool, road: bool, links: bool, stream: bool) -> Vec<Kind> {
+pub(super) fn kinds(quick: bool, servers: bool, road: bool, links: bool, exit: bool, stream: bool) -> Vec<Kind> {
     let mut kinds = vec![Kind::Network];
     if !quick {
         kinds.push(Kind::QuickTunnel);
     }
     kinds.extend([Kind::Relay, Kind::Forwarders]);
-    let named = [(servers, Kind::Shadowsocks), (road, Kind::Via), (links, Kind::Vless)];
+    let named = [(servers, Kind::Shadowsocks), (road, Kind::Via), (links, Kind::Vless), (exit, Kind::Exit)];
     kinds.extend(named.into_iter().filter(|(on, _)| *on).map(|(_, kind)| kind));
     if !quick {
         #[cfg(feature = "iroh")]
@@ -121,7 +126,7 @@ pub(super) fn kinds(quick: bool, servers: bool, road: bool, links: bool, stream:
 /// its order; the lines of each section go out as `parts` lets them.
 pub(super) async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
     let (servers, road, links) = (checks.servers.is_some(), checks.road.is_some(), checks.links.is_some());
-    let kinds = kinds(checks.quick, servers, road, links, checks.stream.is_some());
+    let kinds = kinds(checks.quick, servers, road, links, checks.exit.is_some(), checks.stream.is_some());
     let json = report.json;
     let start = |i: usize, seat: Seat| part(kinds[i], seat, json, checks);
     let ended = parts::run(&mut *report.out, kinds.len(), checks.jobs, start).await;
@@ -173,6 +178,11 @@ async fn checks_of(kind: Kind, report: &mut Report<'_>, checks: &Checks<'_>) {
         Kind::Vless => {
             if let Some(servers) = links {
                 super::vless::check(report, servers, trust).await;
+            }
+        }
+        Kind::Exit => {
+            if let Some(plan) = checks.exit {
+                super::exit::check(report, plan, trust).await;
             }
         }
         Kind::Stream => {
@@ -246,17 +256,17 @@ mod tests {
     /// relay, the forwarders and each road that the run names.
     #[test]
     fn the_parts_are_in_the_order_of_the_report_and_quick_keeps_the_roads_named() {
-        let whole = kinds(false, false, false, false, false);
+        let whole = kinds(false, false, false, false, false, false);
         assert_eq!(whole[..4], [Kind::Network, Kind::QuickTunnel, Kind::Relay, Kind::Forwarders]);
         assert_eq!(whole[whole.len() - 2..], [Kind::Derp, Kind::Pairs]);
-        assert_eq!(kinds(true, false, false, false, false), [Kind::Network, Kind::Relay, Kind::Forwarders]);
-        let named = kinds(true, true, true, true, false);
-        assert_eq!(named[3..], [Kind::Shadowsocks, Kind::Via, Kind::Vless]);
-        let probed = kinds(false, false, false, false, true);
+        assert_eq!(kinds(true, false, false, false, false, false), [Kind::Network, Kind::Relay, Kind::Forwarders]);
+        let named = kinds(true, true, true, true, true, false);
+        assert_eq!(named[3..], [Kind::Shadowsocks, Kind::Via, Kind::Vless, Kind::Exit]);
+        let probed = kinds(false, false, false, false, false, true);
         assert_eq!(probed[probed.len() - 2..], [Kind::Pairs, Kind::Stream], "the long part last (T-325)");
         assert!(!named.contains(&Kind::Derp) && !named.contains(&Kind::QuickTunnel), "{named:?}");
         assert!(!named.contains(&Kind::OpenTunnel) && whole.contains(&Kind::OpenTunnel), "{whole:?}");
-        let sections: Vec<&str> = kinds(false, true, false, false, false).iter().map(|k| k.section()).collect();
+        let sections: Vec<&str> = kinds(false, true, false, false, false, false).iter().map(|k| k.section()).collect();
         assert_eq!(sections[..5], ["egress", "egress", "relay", "forwarders", "shadowsocks"]);
         assert!(!Kind::Network.opens() && !Kind::QuickTunnel.opens() && Kind::Relay.opens());
     }

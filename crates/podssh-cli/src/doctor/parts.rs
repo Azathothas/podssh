@@ -15,7 +15,7 @@ use std::rc::Rc;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
-use super::Line;
+use super::report::Line;
 
 /// What a part keeps once it has ended: its lines and their counts, for the
 /// counts of the report and for `--json`, and its handshakes, for the

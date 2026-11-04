@@ -2602,6 +2602,21 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   no IPv6 refuses it), then the table of IPv6 routes that Linux gives as a
   file, as the role reads it. It is `ok`, a fact; `????` when no relay host
   answered or its `/relays.json` cannot be read.
+- **`--exit NAME`** (T-458) checks the exit NAME of the user's net in a
+  section `exit`, among the roads that a run names (so with `--quick` too),
+  as `podssh proxy --exit NAME` reaches it. `exit net`: what the net held
+  says, that NAME is a member with the role `exit` and which rule of its
+  policy lets this client (`--client-key FILE`, else `client.key` in the
+  cache, as `proxy --exit` takes it) reach `exit:NAME`; `????` when this
+  host holds no net, as the exit's own net decides. `exit pair`: the pair
+  kept under NAME, its relay host and its expiry. `exit`: one session from
+  the exit to `--exit-target HOST:PORT` (default `github.com:22`, identified
+  by its published host key; another target by its first bytes, or none in
+  5 s), over the pair's road, with the time to the node's verdict. A
+  refusal says whose it is, by the words that each writes: the road (the
+  relay, or the pair), the channel (the exit let this key not in), the net's
+  policy, the exit's check of an address, or its dial. `--exit-target` and
+  `--client-key` with no `--exit` are 64.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,

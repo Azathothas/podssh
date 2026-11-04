@@ -234,7 +234,9 @@ carries sessions between two other members that no other road joins
   a carrier (T-596), `podssh exit --listen --carrier` is the client of
   `podssh node --exit --carrier`, each connection a leg of the one stream;
   so are `ssh`, `proxy` and `pipe` with `--exit NAME --carrier ADDR`
-  (T-614), each session a leg of the command's own stream.
+  (T-614), each session a leg of the command's own stream. `podssh doctor
+  --exit NAME` (T-458) says what the net held lets this client, the pair,
+  and one session from the exit, with whose a refusal is.
 - **Routes** (T-432). `--routes CIDR,...` lets the net's members reach the
   private networks that the node reaches, within the policy.
 - **Share** (T-433). `podssh share` adds, removes and lists the services of

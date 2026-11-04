@@ -175,6 +175,8 @@ pub enum Parsed {
         /// `--stream URL` and `--stream-idle SECONDS` (T-325).
         stream: Option<String>,
         stream_idle: Option<String>,
+        /// `--exit NAME`, `--exit-target` and `--client-key` (T-458).
+        exit: crate::doctor::ExitFlags,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// **`podssh ts`, and it is its own variant because it carries behaviour

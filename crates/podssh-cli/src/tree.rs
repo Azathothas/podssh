@@ -426,6 +426,11 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             jobs: get("jobs"),
             stream: get("stream"),
             stream_idle: get("stream-idle"),
+            exit: crate::doctor::ExitFlags {
+                name: get("exit"),
+                target: get("exit-target"),
+                client_key: get("client-key"),
+            },
             refused,
         };
     }

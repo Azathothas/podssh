@@ -134,6 +134,14 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
     super::shadowsocks::DOCTOR_SHADOWSOCKS,
     super::vless::DOCTOR_VLESS,
     super::via::DOCTOR_VIA, super::via::VIA_AUTH_FILE,
+    // The exit of the net, and one session from it (T-458).
+    row(None, "exit", Some("NAME"), FlagKind::Supported,
+        "also check the exit NAME of your net: what the net held says of it and of this client, the pair kept under \
+         NAME, and one session from it to --exit-target, with the node's verdict and whose a refusal is", None),
+    row(None, "exit-target", Some("HOST:PORT"), FlagKind::Supported,
+        "the target of the session from --exit NAME (default github.com:22, identified by its published host key)", None),
+    row(None, "client-key", Some("FILE"), FlagKind::Supported,
+        "the key of this client for --exit NAME (default: client.key in the cache, as podssh proxy --exit takes it)", None),
 ];
 
 /// `status`: the relay settings that it reports, as `doctor` takes them.

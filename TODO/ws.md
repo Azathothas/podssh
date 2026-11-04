@@ -2673,7 +2673,7 @@ met.
 - Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:57-72`),
   and DNS over HTTPS one line with each resolver's error
   (`crates/podssh-cli/src/doctor/names.rs:140`); the end of the report gives the counts alone
-  (`crates/podssh-cli/src/doctor/mod.rs:367-389`).
+  (`crates/podssh-cli/src/doctor/report.rs:124-146`).
 - Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
   (`crates/podssh-ws/src/client.rs` line 115 at `38f424c`), and `HealthError::Connect` the
   error's text (`crates/podssh-relay/src/health.rs` line 69 at `38f424c`). The kind of the I/O

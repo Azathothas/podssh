@@ -1,0 +1,10 @@
+--- a/crates/podssh-cli/src/doctor/exit.rs
++++ b/crates/podssh-cli/src/doctor/exit.rs
+@@ -187,7 +187,6 @@ fn whose(refused: &Refused) -> &'static str {
+         Kind::Failed => "the road (the relay, or the pair kept under the name)",
+         Kind::Unreachable => "the exit's dial, which reached no address of the target",
+         Kind::NotAllowed if line.contains("refused this client's key") => "the channel: the exit let this key not in",
+-        Kind::NotAllowed if line.contains("'s policy") => "the net's policy",
+         Kind::NotAllowed if line.contains("not a public address") => "the exit's check of the address",
+         Kind::NotAllowed => "the exit",
+     }

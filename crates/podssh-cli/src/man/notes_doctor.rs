@@ -1,8 +1,9 @@
 //! The notes of `podssh doctor` for the time of a run (T-511): its sections
 //! at once, `--jobs` and `--quick`; its diagnosis of the TLS handshakes
-//! (T-487); its line of IPv6 targets (T-253); and its probes of what a path
-//! does to a stream (T-325), with the relay role's side of them. Apart from
-//! the others so that each file stays short.
+//! (T-487); its line of IPv6 targets (T-253); its section of an exit
+//! (T-458); and its probes of what a path does to a stream (T-325), with the
+//! relay role's side of them. Apart from the others so that each file stays
+//! short.
 
 pub(super) const DOCTOR_AT_ONCE: &str = "The sections that connect run at once by default, each into its own part \
      of the report, and the report keeps its order: a section's lines go out once each section before it has ended, \
@@ -39,6 +40,15 @@ pub(super) const DOCTOR_IPV6: &str = "The line ipv6, in the section relay, says 
      which send nothing: through a proxy, the proxy's way out decides; else an IPv6 socket made and closed, then \
      this host's table of IPv6 routes where Linux gives one. The line is ok, a fact; ???? when no relay host \
      answered or its /relays.json cannot be read.";
+
+pub(super) const DOCTOR_EXIT: &str = "--exit NAME checks the exit NAME of your net (T-458), among the roads \
+     that the run names, with --quick too, as podssh proxy --exit NAME reaches it: exit net, what the net held \
+     says, NAME a member with the role exit and the rule of its policy that lets this client (--client-key FILE, \
+     else client.key in the cache) reach exit:NAME, ???? where this host holds no net; exit pair, the pair kept \
+     under NAME; exit, one session from the exit to --exit-target HOST:PORT (github.com:22 by default, identified \
+     by its published host key; another target by its first bytes), with the node's verdict. A refusal says whose \
+     it is: the road (the relay, or the pair), the channel, the net's policy, the exit's check of an address, or \
+     its dial.";
 
 pub(super) const DOCTOR_STREAM: &str = "--stream URL checks this host, then what the path to URL does to a \
      stream, and nothing else, one connection at a time: URL is https://HOST[:PORT][/PATH] (TLS checked with \

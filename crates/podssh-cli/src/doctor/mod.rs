@@ -23,7 +23,7 @@
 use std::io::Write;
 
 use podssh_relay::relay;
-use podssh_ws::{Trust, Verdict};
+use podssh_ws::Trust;
 
 // Whether the way out takes an address as well as a name (T-366).
 mod address;
@@ -32,6 +32,8 @@ pub(crate) mod clock;
 mod hop;
 // The DERP road's servers and its home (T-379).
 mod derp;
+// The exit of --exit NAME and one session from it (T-458).
+mod exit;
 mod opentunnel;
 // How each TLS handshake ended, and what they show together (T-487).
 mod diagnosis;
@@ -49,6 +51,8 @@ mod pairs;
 mod parts;
 mod quick;
 mod relay_checks;
+// The lines so far, their text and their JSON.
+mod report;
 mod samples;
 // Which sections connect, in their order, and how many start together.
 mod sections;
@@ -66,6 +70,9 @@ mod unix;
 mod via;
 // The servers of --vless (T-440).
 mod vless;
+
+pub use exit::Flags as ExitFlags;
+pub(crate) use report::Report;
 
 // The words of `DoctorJobs`, which the settings file checks as it is read.
 pub(crate) use sections::{count as jobs_count, MOST_JOBS};
@@ -105,6 +112,8 @@ pub struct DoctorArgs {
     /// `--stream URL` and `--stream-idle SECONDS`, as typed (T-325).
     pub stream: Option<String>,
     pub stream_idle: Option<String>,
+    /// `--exit NAME`, `--exit-target` and `--client-key` (T-458).
+    pub exit: ExitFlags,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
@@ -143,6 +152,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     };
     let links = match crate::vless::for_doctor(args.vless.as_deref()) {
         Ok(links) => links,
+        Err(refusal) => return refusal.report("doctor", err),
+    };
+    let exit = match exit::asked(&args.exit, args.ca_file.as_deref()) {
+        Ok(exit) => exit,
         Err(refusal) => return refusal.report("doctor", err),
     };
     let cert_env = std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty());
@@ -214,6 +227,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         if links.is_some() {
             report.unknown("vless", "not attempted: PODSSH_OFFLINE is set");
         }
+        if exit.is_some() {
+            report.unknown("exit", "not attempted: PODSSH_OFFLINE is set");
+        }
         if args.quick {
             sections::left_out_line(&mut report);
             return report.finish();
@@ -234,6 +250,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
                 servers: servers.as_ref(),
                 road: road.as_ref(),
                 links: links.as_ref(),
+                exit: exit.as_ref(),
                 quick: args.quick,
                 jobs,
                 stream: stream.section(),
@@ -249,176 +266,6 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         sections::left_out_line(&mut report);
     }
     report.finish()
-}
-
-/// One check, as the report keeps it for `--json`.
-struct Line {
-    section: String,
-    check: String,
-    status: &'static str,
-    detail: String,
-    /// A probe's tries as numbers (T-324).
-    samples: Option<serde_json::Value>,
-}
-
-/// The lines so far, and their counts. The text is printed as each check
-/// ends; with `json`, the lines are kept and written as one object at the
-/// end. One model and two renderers, as for `podssh man`.
-pub(crate) struct Report<'a> {
-    out: &'a mut dyn Write,
-    json: bool,
-    section: String,
-    lines: Vec<Line>,
-    /// Each TLS handshake of a road, and the reference's, for the diagnosis
-    /// after the counts (T-487).
-    handshakes: Vec<diagnosis::Handshake>,
-    ok: usize,
-    failed: usize,
-    unknown: usize,
-}
-
-impl<'a> Report<'a> {
-    fn new(out: &'a mut dyn Write) -> Self {
-        let (section, lines, handshakes) = (String::new(), Vec::new(), Vec::new());
-        Report { out, json: false, section, lines, handshakes, ok: 0, failed: 0, unknown: 0 }
-    }
-
-    fn section(&mut self, title: &str) {
-        self.section = title.to_string();
-        if !self.json {
-            let _ = writeln!(self.out, "\n{title}");
-        }
-    }
-
-    /// One check. The detail is made safe for a terminal here, once, because
-    /// it often carries text from a peer or from the environment.
-    pub(crate) fn line(&mut self, name: &str, verdict: Verdict) {
-        let label = verdict.label();
-        let detail = match &verdict {
-            Verdict::Ok { detail } => {
-                self.ok += 1;
-                detail
-            }
-            Verdict::Failed { detail } => {
-                self.failed += 1;
-                detail
-            }
-            Verdict::Unknown { why } => {
-                self.unknown += 1;
-                why
-            }
-        };
-        let detail = podssh_ws::text::one_line(detail);
-        let status = match verdict {
-            Verdict::Ok { .. } => "ok",
-            Verdict::Failed { .. } => "FAIL",
-            Verdict::Unknown { .. } => "unknown",
-        };
-        if !self.json {
-            let _ = writeln!(self.out, "  {label:<4}  {name:<14} {detail}");
-            // Network checks take seconds each: show every line as it is known.
-            let _ = self.out.flush();
-        }
-        self.lines.push(Line { section: self.section.clone(), check: name.to_string(), status, detail, samples: None });
-    }
-
-    /// [`Report::line`] for a probe that was tried several times; `--json`
-    /// gives its times and its losses as numbers too.
-    fn sampled(&mut self, name: &str, verdict: Verdict, samples: &samples::Samples) {
-        self.line(name, verdict);
-        if let Some(line) = self.lines.last_mut() {
-            line.samples = Some(samples.json());
-        }
-    }
-
-    pub(crate) fn ok(&mut self, name: &str, detail: impl Into<String>) {
-        self.line(name, Verdict::Ok { detail: detail.into() });
-    }
-
-    pub(crate) fn fail(&mut self, name: &str, detail: impl Into<String>) {
-        self.line(name, Verdict::Failed { detail: detail.into() });
-    }
-
-    pub(crate) fn unknown(&mut self, name: &str, why: impl Into<String>) {
-        self.line(name, Verdict::Unknown { why: why.into() });
-    }
-
-    /// How a road's TLS handshake with `name` ended, for the diagnosis.
-    fn handshake(&mut self, of: diagnosis::Of, name: &str, met: diagnosis::Met) {
-        self.handshakes.push(diagnosis::Handshake { of, name: name.to_string(), met, through: None });
-    }
-
-    /// A part's lines and counts, once its section has run (T-511).
-    fn ended(self) -> parts::Ended {
-        let (lines, handshakes) = (self.lines, self.handshakes);
-        parts::Ended { lines, handshakes, ok: self.ok, failed: self.failed, unknown: self.unknown }
-    }
-
-    /// The lines of a part that ran apart, in their order; its text went
-    /// out as the part ran.
-    fn absorb(&mut self, part: parts::Ended) {
-        self.lines.extend(part.lines);
-        self.handshakes.extend(part.handshakes);
-        self.ok += part.ok;
-        self.failed += part.failed;
-        self.unknown += part.unknown;
-    }
-
-    fn finish(self) -> i32 {
-        let found = diagnosis::diagnose(&self.handshakes);
-        if self.json {
-            let _ = writeln!(self.out, "{}", self.to_json(&found));
-        } else {
-            let _ = writeln!(
-                self.out,
-                "\n{} ok, {} FAIL, {} ???? (could not be checked)",
-                self.ok, self.failed, self.unknown
-            );
-            // After the counts, as a line about them all is known once they
-            // are; it counts as nothing (T-487).
-            for one in &found {
-                let _ = writeln!(self.out, "diagnosis: {}", podssh_ws::text::one_line(&one.detail));
-            }
-        }
-        let _ = self.out.flush();
-        if self.failed > 0 {
-            EXIT_FAILED
-        } else {
-            0
-        }
-    }
-}
-
-impl Report<'_> {
-    /// The report as one JSON object: the version and the platform, each
-    /// check with its section, the counts, and each diagnosis. The details
-    /// are the text's, so they hide credentials and tokens in the same way.
-    fn to_json(&self, found: &[diagnosis::Diagnosis]) -> String {
-        let checks: Vec<serde_json::Value> = self
-            .lines
-            .iter()
-            .map(|l| {
-                let mut item = serde_json::json!({
-                    "section": l.section, "check": l.check, "status": l.status, "detail": l.detail,
-                });
-                if let Some(samples) = &l.samples {
-                    item["samples"] = samples.clone();
-                }
-                item
-            })
-            .collect();
-        let findings: Vec<serde_json::Value> = found.iter().map(diagnosis::Diagnosis::json).collect();
-        let doc = serde_json::json!({
-            "schema": 1,
-            "podssh": crate::help::version(),
-            "os": std::env::consts::OS,
-            "arch": std::env::consts::ARCH,
-            "checks": checks,
-            "counts": { "ok": self.ok, "fail": self.failed, "unknown": self.unknown },
-            "diagnosis": findings,
-        });
-        serde_json::to_string_pretty(&doc).unwrap_or_default()
-    }
 }
 
 /// The line of the relay hosts that a run tries last now (T-059), for a
@@ -453,6 +300,8 @@ fn relay_record(report: &mut Report<'_>) {
 
 #[cfg(test)]
 mod tests {
+    use podssh_ws::Verdict;
+
     use super::*;
 
     fn finish(lines: &[Verdict]) -> (i32, String) {

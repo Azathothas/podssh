@@ -3679,7 +3679,7 @@ sh scripts/plant-each.sh --here t457-proxy-skipped
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3704,6 +3704,29 @@ a node today.
 2. A refusal says whose it is: the relay's, the channel's, the net's policy, or the exit's check
    of an address.
 
+## Decision
+
+2026-11-04, the main session (each call with the alternatives that lost):
+
+1. The checks are a section of their own, `exit`, among the roads that a run names (`--forwarder`,
+   `--shadowsocks`, `--via`, `--vless`), so `--quick` keeps it. Lost: lines in the section `relay`,
+   which an exit over another road does not use.
+2. The session is the one of `podssh proxy --exit NAME` (`crate::exit::open`), over the pair's
+   road: the node's verdict before any byte, as a client of the exit meets it. Lost: a race of the
+   roads as `ssh --exit` makes, whose winner would say less of the pair.
+3. GitHub's SSH port is the default target, identified by its published host key, as the relay's
+   forward check identifies it; another target by its first bytes in 5 s, or none. Lost: a page of
+   HTTP, which would need a public web server of the tests.
+4. Whose a refusal is comes of the kind of `exit::open::Refused` and of the words that each owner
+   writes (`crate::channel::judged`, `crate::net::policy::check`, `crate::node_exit::checked`),
+   tested against them. Lost: a new field of the refusal for `doctor` alone, which each client of
+   the exit would carry.
+5. `--client-key FILE` names this client's key, as `proxy --exit` takes it; the pair's file and
+   `--node-key` are left to `proxy --exit`. A host that holds no net gets `????` for the net's
+   line: the exit's own net decides.
+6. The offline check is a suite of its own, `crates/podssh-cli/tests/doctor_exit.rs`, as
+   `crates/podssh-cli/tests/exit.rs` has 434 lines.
+
 ## Prove
 
 ```sh
@@ -3714,6 +3737,34 @@ cargo test -p podssh-cli --test exit
 On the stand-in relay: doctor's line of an exit that lets this client out is ok, with the road;
 a member that the policy refuses gets FAIL with the policy's words; a node with no `--exit` gets
 FAIL that names it.
+
+## Done
+
+2026-11-04. `podssh doctor --exit NAME [--exit-target HOST:PORT] [--client-key FILE]`
+(`crates/podssh-cli/src/doctor/exit.rs`), the section `exit`: `exit net`, what the net held says
+(NAME a member with the role `exit`, this client a member, and the rule that lets it reach
+`exit:NAME`; FAIL for each that fails; `????` with no net); `exit pair`, the pair kept under NAME,
+its relay host and its expiry; `exit`, one session from the exit with the node's verdict, the road,
+the time, and GitHub's host key or the target's first bytes; a refusal names whose it is. To make
+room, `doctor`'s report moved to `crates/podssh-cli/src/doctor/report.rs` (`doctor/mod.rs` had 492
+lines). The manual's note (`DOCTOR_EXIT`) and three rows of its flags, `docs/cli.md` and
+`docs/mesh.md` say so.
+
+Measured, 2026-11-04, here:
+
+- `cargo test -p podssh-cli --test doctor_exit`: 3 passed (with the harness's own), against the
+  stand-in relay: `a` through `gw` to the tests' SSH server, `ok` on each line, "its first bytes:
+  SSH-2.0-russh_0.65.0"; `b`, "refused by the net's policy: the node refused: no rule of the net
+  home's policy (serial 6) lets b reach 127.0.0.1"; `a` to 10.255.255.1:9, "refused by the exit's
+  check of the address"; `lab`, a member with no role exit, FAIL on `exit net` ("gives lab no role
+  exit") and on `exit` ("refused by the channel"); the flags of the exit with no `--exit`, 64.
+- `cargo test -p podssh-cli --lib`: 820 passed (`doctor::exit` 3); `doctor` 13, `doctor_jobs` 3,
+  the manual (`man_page`, `man_json`, `man_flag_parity`, `flag_table`): passed.
+- Planted (`sh scripts/plant-each.sh --here t458-policy-unnamed`, the policy's refusal named as the
+  exit's): caught.
+- `cargo clippy -p podssh-cli --all-targets -D warnings` and rustfmt: clean.
+
+Waits: a run against the live relay and an exit with a public egress, from a runner (Q88).
 
 # T-459: The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`)
 

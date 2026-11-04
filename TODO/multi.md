@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:4773-4776`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:4788-4791`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4955-5064`); they cannot define a group.
+  (`docs/cli.md:4970-5079`); they cannot define a group.
 
 ## Approach
 
@@ -904,7 +904,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:142`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:347-349`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:349-351`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:338`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:4773-4776`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:4788-4791`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1812,9 +1812,9 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:90-110`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:393-434`.
+  `crates/podssh-cli/src/dispatch.rs:395-436`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:4773-4776`), which is not a failure of podssh.
+  status (`docs/cli.md:4788-4791`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2841,8 +2841,8 @@ relay reaches; nothing reports the far side.
 - Read: `doctor --hop` reaches the hop as `--direct` does, through `HTTPS_PROXY`
   (`crates/podssh-cli/src/doctor/hop.rs:1-8`), and logs in with a key made for the check, which
   the server refuses (`crates/podssh-cli/src/doctor/hop.rs:131-152`): no command runs there.
-- Read: `doctor` takes no option of `ssh` (`crates/podssh-cli/src/doctor/mod.rs:76-108`), and its
-  `--via` is the second proxy of T-439 (`crates/podssh-cli/src/doctor/mod.rs:96-97`), so the
+- Read: `doctor` takes no option of `ssh` (`crates/podssh-cli/src/doctor/mod.rs:83-117`), and its
+  `--via` is the second proxy of T-439 (`crates/podssh-cli/src/doctor/mod.rs:103-104`), so the
   issue's `doctor --via HOST` names a flag that exists.
 - Read: `podssh health` resolves the host as `ssh` does, logs in on the same road, and runs one
   exec (`crates/podssh-cli/src/health/mod.rs:170-208`, the login and the exec as this entry's
@@ -3522,7 +3522,7 @@ session on 2026-11-03.
   podssh-cli --test flag_table`: 9; `--lib session::`, 17; `--lib man`, 66; `--lib help`, 9.
 - Planted: `scripts/plants/t506-empty-silent.plant` (the line of an empty list never written):
   `sh scripts/plant-each.sh --here t506-empty-silent`: caught, the test of the empty list failed.
-- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:444-448`
+- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:449-453`
   (`TODO/cli.md`) and the citations of `docs/cli.md` were moved by hand; `cargo todo remap` from the
   tree before the draft confirmed them. rustfmt of `podssh-cli` (`exchange` of `session/client.rs`)
   and clippy of `podssh-cli` with `-D warnings`, all targets: clean.

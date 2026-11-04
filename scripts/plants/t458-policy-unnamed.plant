@@ -1,0 +1,8 @@
+# T-458: doctor --exit names no refusal of the net's policy as the policy's:
+# a member that the policy keeps from a target reads as refused by the exit,
+# and the test of whose each refusal is fails.
+ENTRY=T-458
+GROUP=cli-tests
+EXPECT='doctor_names_the_exit_its_net_its_pair_and_whose_a_refusal_is'
+RUN='cargo test --locked -p podssh-cli --test doctor_exit -- doctor_names'
+LIMIT=2400
