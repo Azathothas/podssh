@@ -148,7 +148,7 @@ pub(super) const MORE: &[&str] = &[
      the iroh road and at podssh's relay role (podssh relay serve), 1.5 MiB through the default relay, \
      768 KiB on a node's pair road, 512 KiB on each other; the channels that carry bulk share it, each \
      with 512 KiB at least, and the requests in flight of cp, scp and sftp follow it. podssh's own \
-     uploads (cp, sftp, the local side of -L, -R and -D, and -W) wait while a key waits for its echo, a \
-     second at most. On the direct road, the socket keeps 16 KiB unsent at most, where the system takes \
-     TCP_NOTSENT_LOWAT.",
+     uploads (cp, sftp, and the local side of each forward) wait while a key waits for its echo, a \
+     second at most. Each TCP socket that podssh dials keeps 16 KiB unsent at most, where the system \
+     takes that option (Linux and macOS).",
 ];

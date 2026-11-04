@@ -81,8 +81,13 @@ fn a_node_s_host_gives_its_pair_by_a_code_through_the_role_s_mailbox() {
     let (stdout, stderr) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
     assert_eq!(out.status.code(), Some(0), "podssh relay join: {stdout}{stderr}");
     assert!(stdout.starts_with("lab: joined the node lab (SHA256:"), "{stdout}");
-    for word in code.split('-').skip(1) {
-        assert!(!stdout.contains(word) && !stderr.contains(word), "a word of the code in the operator's output");
+    // The code is never echoed: neither it nor two of its words in a row. A
+    // word alone can be a word of podssh's own lines (the list is English),
+    // which failed this test once in a full run of the suite.
+    let words: Vec<&str> = code.split('-').collect();
+    let pieces = std::iter::once(code.clone()).chain(words.windows(2).map(|w| w.join("-")));
+    for piece in pieces {
+        assert!(!stdout.contains(&piece) && !stderr.contains(&piece), "the code's {piece:?} in the operator's output");
     }
     assert_eq!(giver.wait(LIMIT), Some(0), "podssh relay pair --code: {}", giver.text());
     assert!(giver.text().contains("lab: given to SHA256:"), "{}", giver.text());

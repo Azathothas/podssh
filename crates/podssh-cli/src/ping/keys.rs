@@ -52,6 +52,9 @@ pub async fn typed(
             _ = tokio::time::sleep_until(due.into()), if more => {
                 // Its time is taken before it goes, so its echo always finds it.
                 sent.push(Instant::now());
+                // A key, as a user's: the pace of the windows holds the
+                // download behind it (T-661).
+                podssh_ssh::pace::key();
                 if writer.data_bytes(vec![KEY]).await.is_err() {
                     return Err(Failed::Broke(format!("{COMMAND}: the channel closed")));
                 }
@@ -59,6 +62,7 @@ pub async fn typed(
             msg = tokio::time::timeout(STEP, reader.wait()) => match msg {
                 Ok(Some(ChannelMsg::Data { data })) => {
                     let now = Instant::now();
+                    podssh_ssh::pace::echo();
                     for _ in 0..data.len() {
                         if let Some(at) = sent.get(keys.len()) {
                             keys.push(Key { sent: at.duration_since(zero), echo: now.duration_since(*at) });
