@@ -59,6 +59,8 @@ pub async fn stdio(handle: &Handle<Client>, target: &StdioTarget, log: &Log) -> 
             match stdin.read(&mut buf).await {
                 Ok(0) | Err(_) => break,
                 Ok(n) => {
+                    // Behind a key that waits for its echo (T-661).
+                    crate::pace::turn().await;
                     if to_far.write_all(&buf[..n]).await.is_err() {
                         return;
                     }

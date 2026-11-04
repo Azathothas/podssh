@@ -128,10 +128,10 @@ pub async fn connect(resolved: &Resolved, log: &Arc<Log>) -> Result<Link, Failed
 /// Connect to `resolved`'s server for SFTP only, on the subsystem `name`
 /// (`podssh sftp`, `-s NAME`).
 pub async fn open_sftp(resolved: &Resolved, log: &Arc<Log>, name: &str) -> Result<Link, Failed> {
-    let (handles, relay, layer) = hops(resolved, log).await?;
+    let (handles, relay, layer, limits) = hops(resolved, log).await?;
     let handle = handles.last().expect("the destination's connection");
     let host = &resolved.options.destination.host;
-    match Sftp::open_named(handle, name, Limits::default()).await {
+    match Sftp::open_named(handle, name, limits).await {
         Ok(sftp) => Ok(Link { handles, road: Road::Sftp(sftp), meter: meter(resolved, relay), layer }),
         Err(e) => {
             podssh_ssh::run::disconnect_all(&handles).await;
@@ -145,9 +145,9 @@ pub async fn open_sftp(resolved: &Resolved, log: &Arc<Log>, name: &str) -> Resul
 }
 
 /// The connection to `resolved`'s server, each hop logged in; the relay
-/// leg's status when the relay carries it, and the layer's task when the
-/// layer does.
-type Hops = (Vec<Connection>, Option<RelayStatus>, Option<crate::ssh::transport::Carriage>);
+/// leg's status when the relay carries it, the layer's task when the layer
+/// does, and the SFTP session's room: the cap of its road's windows (T-662).
+type Hops = (Vec<Connection>, Option<RelayStatus>, Option<crate::ssh::transport::Carriage>, Limits);
 
 async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<Hops, Failed> {
     let reached = match &resolved.transport {
@@ -177,21 +177,23 @@ async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<Hops, Failed> {
             return Err(Failed::new(fault_of(not.code), message));
         }
     };
-    let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log).await.map_err(|e| {
+    let road = crate::ssh::window::road(&resolved.transport, &reached);
+    let opts = crate::ssh::window::on(&resolved.options, road);
+    let handles = podssh_ssh::run::connect_hops(reached.stream, &opts, log).await.map_err(|e| {
         podssh_ssh::outcome::failed(e.class());
         hop_failure(e)
     })?;
-    Ok((handles, reached.relay, reached.layer))
+    Ok((handles, reached.relay, reached.layer, Limits { in_flight: road.cap(), ..Limits::default() }))
 }
 
 /// Connect to `resolved`'s server and open the road of its files. With no
 /// SFTP, `exec` probes for a copy by exec, and says so once; without it the
 /// answer is `None`.
 pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Option<Link>, Failed> {
-    let (handles, relay, layer) = hops(resolved, log).await?;
+    let (handles, relay, layer, limits) = hops(resolved, log).await?;
     let handle = handles.last().expect("the destination's connection");
     let host = &resolved.options.destination.host;
-    let road = match Sftp::open(handle, Limits::default()).await {
+    let road = match Sftp::open(handle, limits).await {
         Ok(sftp) => Road::Sftp(sftp),
         Err(SftpError::NoSftp) if !exec => {
             podssh_ssh::run::disconnect_all(&handles).await;

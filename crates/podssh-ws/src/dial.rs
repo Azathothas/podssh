@@ -238,8 +238,11 @@ async fn dial_as(
         }
         Some(p) => (connect_via(&p, host, port, deadline, timeout).await?, proxied()),
     };
-    // A keystroke and an echo must not wait for Nagle.
+    // A keystroke and an echo must not wait for Nagle, nor behind the
+    // megabytes that the kernel would hold unsent (T-661): a probe, and a
+    // system that refuses the option keeps its buffer.
     let _ = stream.set_nodelay(true);
+    let _ = crate::lowat::set(&stream);
     Ok((stream, how))
 }
 

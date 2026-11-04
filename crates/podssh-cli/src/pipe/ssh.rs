@@ -71,8 +71,10 @@ pub async fn open(
         }
         not.code
     })?;
+    // The cap of the road's SSH windows (T-662).
+    let opts = crate::ssh::window::on(&resolved.options, crate::ssh::window::road(&resolved.transport, &reached));
     crate::ssh::transport::keep(reached.layer);
-    let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, &log).await.map_err(|e| {
+    let handles = podssh_ssh::run::connect_hops(reached.stream, &opts, &log).await.map_err(|e| {
         say(&e.to_string());
         hop_code(&e)
     })?;

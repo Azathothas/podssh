@@ -228,6 +228,10 @@ pub async fn pump(
                     };
                     if !data.is_empty() {
                         crate::outcome::stdin(data.len());
+                        // A key on a pty holds the bulk until its echo (T-661).
+                        if pty {
+                            crate::pace::key();
+                        }
                         match send(&writer, &mut reader, data, &mut status, &mut out, &mut through, log).await {
                             Ok(true) => {}
                             // The channel is closing; keep reading for its status.
@@ -277,6 +281,9 @@ pub async fn pump(
             },
             msg = reader.wait() => match msg {
                 Some(m) => {
+                    if pty && matches!(m, ChannelMsg::Data { .. }) {
+                        crate::pace::echo();
+                    }
                     if let Some(end) = handle_msg(m, &mut status, &mut out, &mut through, log).await {
                         return end;
                     }

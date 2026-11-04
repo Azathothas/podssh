@@ -2,9 +2,9 @@
 //! waits for each reply before its next request moves one request a round
 //! trip; through a proxy and the relay a round trip is long. Here up to
 //! [`Pipeline::requests`] requests are in flight, and never more bytes than
-//! [`IN_FLIGHT`], the SSH window that podssh gives a server: a download
-//! never has more in flight than that window, whatever is asked, and an
-//! upload keeps the same bound.
+//! the room of the session's road, which its SSH window grows to (T-662): a
+//! download never has more in flight than that window, whatever is asked,
+//! and an upload keeps the same bound.
 //!
 //! **In order.** Replies may come in any order; each block is handed on in
 //! the order of the file, so that a file is written front to back and the
@@ -31,17 +31,21 @@ use futures_util::stream::{FuturesOrdered, StreamExt};
 
 use super::{read_reply, FileHandle, Sftp, SftpError};
 
-/// The bytes in flight at most: the window that podssh gives a server. On
-/// the relay's forward path, 2 MiB that wait for a slow receiver close the
-/// session; a window of 512 KiB keeps far from that.
+/// The room of a session whose road is not known: the window of before
+/// T-662, where each window starts. On the relay's forward path, 2 MiB that
+/// wait for a slow receiver close the session; 512 KiB keeps far from that.
 pub const IN_FLIGHT: u32 = crate::run::WINDOW;
 
+/// The most room of any road: the largest window that podssh gives a server
+/// (`--direct`, T-662). The copy's memory is bounded by it.
+pub const MAX_IN_FLIGHT: u32 = crate::pace::road::DIRECT_CAP;
+
 /// The requests in flight at most, whatever is asked: OpenSSH's default for
-/// `sftp -R`.
+/// `sftp -R`. Of OpenSSH's blocks of 255 KiB they fill [`MAX_IN_FLIGHT`].
 pub const MAX_REQUESTS: usize = 64;
 
-/// The requests in flight of a copy that names none: as many as
-/// [`IN_FLIGHT`] holds of the blocks.
+/// The requests in flight of a copy that names none: as many as the room
+/// of its session holds of the blocks.
 pub const DEFAULT_REQUESTS: usize = MAX_REQUESTS;
 
 /// How a copy uses its session: the requests in flight, and the bytes of
@@ -53,14 +57,17 @@ pub struct Pipeline {
     /// The bytes of each request; 0 for the server's size
     /// ([`Sftp::read_len`], [`Sftp::write_len`]), which also bounds it.
     pub len: u32,
-    /// The bytes in flight at most, [`IN_FLIGHT`] at most: less when the
-    /// copy's tasks share the room of one relay session (T-141).
+    /// The bytes in flight at most, within the room of the session
+    /// ([`super::Limits::in_flight`]): less when the copy's tasks share it
+    /// (T-141).
     pub in_flight: u32,
 }
 
 impl Default for Pipeline {
+    /// As many requests as OpenSSH's, as much in flight as the session's
+    /// road takes.
     fn default() -> Self {
-        Pipeline { requests: DEFAULT_REQUESTS, len: 0, in_flight: IN_FLIGHT }
+        Pipeline { requests: DEFAULT_REQUESTS, len: 0, in_flight: MAX_IN_FLIGHT }
     }
 }
 
@@ -74,11 +81,17 @@ impl Pipeline {
     }
 
     /// The requests in flight for blocks of `len`: as many as asked, while
-    /// their bytes stay within [`Pipeline::in_flight`] and [`IN_FLIGHT`]; one
-    /// at least.
+    /// their bytes stay within [`Pipeline::in_flight`] and [`MAX_IN_FLIGHT`];
+    /// one at least.
     pub fn depth(&self, len: u32) -> usize {
-        let by_window = (self.in_flight.min(IN_FLIGHT) / len.max(1)).max(1) as usize;
+        let by_window = (self.in_flight.min(MAX_IN_FLIGHT) / len.max(1)).max(1) as usize;
         self.requests.clamp(1, MAX_REQUESTS).min(by_window)
+    }
+
+    /// This pipeline within `room`, the bytes in flight that a session's
+    /// road takes (T-662): SFTP's requests follow its window.
+    pub fn within(self, room: u32) -> Pipeline {
+        Pipeline { in_flight: self.in_flight.min(room), ..self }
     }
 }
 
@@ -110,8 +123,10 @@ pub struct Reads<'a> {
 }
 
 impl<'a> Reads<'a> {
-    /// Reads of `file` from `offset`, as `pipe` says.
+    /// Reads of `file` from `offset`, as `pipe` says, within the session's
+    /// room.
     pub fn new(sftp: &'a Sftp, file: &'a FileHandle, offset: u64, pipe: Pipeline) -> Reads<'a> {
+        let pipe = pipe.within(sftp.limits.in_flight);
         let len = pipe.len_under(sftp.read_len());
         Reads {
             sftp,
@@ -227,8 +242,10 @@ pub struct Writes<'a> {
 }
 
 impl<'a> Writes<'a> {
-    /// Writes of `file` from `offset`, as `pipe` says.
+    /// Writes of `file` from `offset`, as `pipe` says, within the session's
+    /// room.
     pub fn new(sftp: &'a Sftp, file: &'a FileHandle, offset: u64, pipe: Pipeline) -> Writes<'a> {
+        let pipe = pipe.within(sftp.limits.in_flight);
         let len = pipe.len_under(sftp.write_len());
         Writes {
             sftp,
@@ -266,6 +283,8 @@ impl<'a> Writes<'a> {
         while self.inflight.len() >= self.depth {
             self.ack().await?;
         }
+        // Behind a key that waits for its echo (T-661).
+        crate::pace::turn().await;
         let at = self.next;
         let end = at + data.len() as u64;
         self.next = end;
@@ -313,5 +332,42 @@ impl<'a> Writes<'a> {
         };
         while let Ok(Some(_)) = tokio::time::timeout(self.limit, self.inflight.next()).await {}
         Err(failed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pace::Road;
+
+    const KIB: u32 = 1024;
+
+    /// SFTP's requests follow the window of the session's road (T-662): of
+    /// OpenSSH's blocks of 255 KiB, 2 in today's 512 KiB, 64 on the direct
+    /// road's 16 MiB; of 32 KiB, 16, then the 64 that OpenSSH's client asks.
+    #[test]
+    fn the_requests_in_flight_follow_the_room_of_the_road() {
+        let pipe = Pipeline::default();
+        assert_eq!(pipe.within(IN_FLIGHT).depth(255 * KIB), 2);
+        assert_eq!(pipe.within(Road::Direct.cap()).depth(255 * KIB), 64);
+        assert_eq!(pipe.within(IN_FLIGHT).depth(32 * KIB), 16);
+        assert_eq!(pipe.within(Road::Direct.cap()).depth(32 * KIB), 64);
+        assert_eq!(pipe.within(Road::Relay.cap()).depth(32 * KIB), 48);
+        assert_eq!(pipe.within(Road::Pair.cap()).depth(32 * KIB), 24);
+    }
+
+    /// What a copy asked stays: fewer requests, a smaller share of a relay
+    /// session, and one request at least.
+    #[test]
+    fn a_pipeline_within_a_room_keeps_what_was_asked() {
+        let asked = Pipeline { requests: 4, len: 32 * KIB, in_flight: 128 * KIB };
+        assert_eq!(asked.within(Road::Direct.cap()), asked);
+        assert_eq!(asked.within(Road::Direct.cap()).depth(32 * KIB), 4);
+        assert_eq!(asked.within(64 * KIB).depth(32 * KIB), 2);
+        assert_eq!(asked.within(KIB).depth(32 * KIB), 1);
+        // No room past the largest window, whatever is asked.
+        let huge = Pipeline { in_flight: u32::MAX, ..Pipeline::default() };
+        assert_eq!(huge.depth(KIB), MAX_REQUESTS);
+        assert_eq!(huge.depth(MAX_IN_FLIGHT / 8), 8);
     }
 }

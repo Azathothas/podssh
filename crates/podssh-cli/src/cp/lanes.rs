@@ -17,7 +17,7 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use podssh_ssh::sftp::{Limits, Sftp};
+use podssh_ssh::sftp::Sftp;
 use podssh_ssh::{Connection, Log};
 
 use super::bysftp;
@@ -236,7 +236,8 @@ async fn round(link: &Link, waiting: Vec<Slot>, run: &Run<'_>, shape: Shape) -> 
     let Road::Sftp(own) = &link.road else { unreachable!("several files at once go over SFTP") };
     let handle = link.handle();
     let wanted = shape.files.min(waiting.len()).max(1);
-    let more = (1..wanted).map(|_| Sftp::open(handle, Limits::default()));
+    // Each with the room of the connection's own, which the road gave (T-662).
+    let more = (1..wanted).map(|_| Sftp::open(handle, own.limits()));
     let opened: Vec<Sftp> = futures_util::future::join_all(more).await.into_iter().filter_map(Result::ok).collect();
     let mut sessions = vec![own];
     sessions.extend(opened.iter());
@@ -245,9 +246,9 @@ async fn round(link: &Link, waiting: Vec<Slot>, run: &Run<'_>, shape: Shape) -> 
         run.log.verbose(&format!("the server opened {lanes} of {wanted} SFTP sessions"));
     }
     run.log.verbose(&format!("{} files, {lanes} at once", waiting.len()));
-    // Through the relay the lanes share the room of one session.
-    let each =
-        Shape { pipe: chunks::share(shape.pipe, lanes, link.meter.through_relay()), files: 1, tasks: 1, ..shape };
+    // The lanes share the room of one session: the relay's, or the road's.
+    let pipe = chunks::share(shape.pipe.within(own.limits().in_flight), lanes, link.meter.through_relay());
+    let each = Shape { pipe, files: 1, tasks: 1, ..shape };
     let shared = Shared { queue: Mutex::new(VecDeque::from(waiting)), ..Shared::default() };
     let meter = &link.meter;
     let all = sessions.iter().copied().map(|sftp| lane(Lane { sftp, handle, meter }, &shared, run, each));

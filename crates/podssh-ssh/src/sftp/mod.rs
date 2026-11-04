@@ -25,7 +25,7 @@ mod pipeline;
 
 pub use error::{sentence, SftpError};
 pub use names::{Names, USERS_GROUPS};
-pub use pipeline::{Pipeline, Reads, Writes, DEFAULT_REQUESTS, IN_FLIGHT, MAX_REQUESTS};
+pub use pipeline::{Pipeline, Reads, Writes, DEFAULT_REQUESTS, IN_FLIGHT, MAX_IN_FLIGHT, MAX_REQUESTS};
 pub use russh_sftp::protocol::{FileAttributes, OpenFlags};
 
 use std::collections::BTreeMap;
@@ -51,19 +51,22 @@ pub const CHUNK: u32 = 32 * 1024;
 /// stays under the 256 KiB packet that the client accepts.
 pub const MAX_CHUNK: u32 = 255 * 1024;
 
-/// The two limits of a session. The defaults are [`METADATA_WAIT`] and
-/// [`DATA_WAIT`]; a test shortens them.
+/// The limits of a session. The defaults are [`METADATA_WAIT`],
+/// [`DATA_WAIT`] and [`IN_FLIGHT`]; a test shortens them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
     /// Each reply that carries no file data.
     pub metadata: Duration,
     /// Each read or write.
     pub data: Duration,
+    /// The bytes in flight at most, the cap of the session's road (T-662):
+    /// its channel's window grows to it where nobody types.
+    pub in_flight: u32,
 }
 
 impl Default for Limits {
     fn default() -> Self {
-        Limits { metadata: METADATA_WAIT, data: DATA_WAIT }
+        Limits { metadata: METADATA_WAIT, data: DATA_WAIT, in_flight: IN_FLIGHT }
     }
 }
 
@@ -244,6 +247,12 @@ impl Sftp {
     /// The size of each write: the server's limit, else [`CHUNK`].
     pub fn write_len(&self) -> u32 {
         self.write_len
+    }
+
+    /// The limits of this session: another of the same connection takes
+    /// them, its room among them (T-662).
+    pub fn limits(&self) -> Limits {
+        self.limits
     }
 
     /// What the server knows of `path`, following a link.

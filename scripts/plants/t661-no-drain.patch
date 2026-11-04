@@ -1,0 +1,12 @@
+--- a/crates/podssh-ssh/src/pace/target.rs
++++ b/crates/podssh-ssh/src/pace/target.rs
+@@ -64,9 +64,6 @@
+     if i.carrier {
+         return cap;
+     }
+-    if i.draining {
+-        return FLOOR;
+-    }
+     let (Some(rate), Some(rtt)) = (i.rate, i.rtt) else {
+         return if i.typing { FLOOR } else { START.min(cap) };
+     };

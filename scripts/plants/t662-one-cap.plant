@@ -1,0 +1,8 @@
+# T-662: the direct road, the iroh road and podssh's relay role keep the
+# window of before, 512 KiB, as each road did; the fake path of 100 Mbit/s
+# and 100 ms must then move no more than twice today's, and its test fail.
+ENTRY=T-662
+GROUP=resume
+EXPECT='test pace::sim_tests::where_nobody_types_a_window_grows_to_its_roads_cap \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::sim_tests'
+LIMIT=1800

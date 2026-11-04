@@ -1,0 +1,9 @@
+# T-661: the windows never drain, so each round trip that the adjusts time
+# holds the queue that the windows keep, and the least round trip grows with
+# it; on the slow long path the key's echo then waits for that queue (the
+# least round trip's own test, beside it, read no growth at the merge).
+ENTRY=T-661
+GROUP=resume
+EXPECT='test pace::sim_tests::on_a_slow_long_path_too \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::sim_tests'
+LIMIT=1800

@@ -700,3 +700,4 @@ repository and CI).
 | [T-667](mesh.md) | P3 | L | M10 | feature | open | QUIC on UDP 443 to podssh's relay role, raced with its TCP roads where a probe found that UDP passes |
 | [T-668](reverse.md) | P3 | L | M10 | feature | open | A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state |
 | [T-669](ssh.md) | P3 | S | M10 | measurement | open | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |
+| [T-670](ssh.md) | P3 | M | M10 | feature | open | The download's rate while a key waits on a slow path: win back what T-661 gives up |

@@ -172,6 +172,9 @@ pub async fn send(
         if piece.is_empty() {
             break;
         }
+        // Behind a key that waits for its echo (T-661), outside the wait for
+        // the window.
+        crate::pace::turn().await;
         match tokio::time::timeout(progress, channel.data(&piece[..])).await {
             Err(_) => return Err(ExecError::Timeout(progress)),
             Ok(Err(e)) => return Err(ExecError::Lost(e.to_string())),

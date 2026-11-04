@@ -106,6 +106,10 @@ async fn once(
         Err(why) => return Err(failed(why)),
     };
     let _ = tcp.set_nodelay(true);
+    // A key waits behind 16 KiB unsent at most, where the kernel takes it (T-661).
+    if let Err(why) = podssh_ssh::pace::lowat::set(&tcp) {
+        log.verbose(&format!("TCP_NOTSENT_LOWAT: {why}; the send buffer stays the kernel's"));
+    }
     let mut stream = podssh_ws::write_limit::WriteLimit::new(tcp, podssh_ws::client::WRITE_TIMEOUT);
     match crate::ssh::banner::read(&mut stream, VERSION_WAIT).await {
         Ok(read) => {

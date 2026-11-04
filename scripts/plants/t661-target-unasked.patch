@@ -1,0 +1,11 @@
+--- a/vendor/russh/src/client/encrypted.rs
++++ b/vendor/russh/src/client/encrypted.rs
+@@ -611,7 +611,7 @@
+                 }
+                 // The handler's target of this channel's window, asked at
+                 // each message (podssh's patch, vendor/patches/russh/).
+-                let target = window_target(client, channel_num, self.common.config.window_size);
++                let target = self.common.config.window_size;
+                 #[allow(clippy::collapsible_if)]
+                 if let Some(ref mut enc) = self.common.encrypted {
+                     if enc.adjust_window_size(channel_num, &data, target)? {

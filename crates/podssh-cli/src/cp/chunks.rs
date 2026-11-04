@@ -39,9 +39,12 @@ pub fn plan(size: u64, chunk: u64) -> Vec<(u64, u64)> {
 }
 
 /// The pipeline of each of `tasks` tasks: the room of one relay session
-/// shared, or each its own window on a direct connection.
+/// shared; elsewhere a share of what the copy asked, and of its session's
+/// room, which each SFTP session takes within (T-662), never under the
+/// window of before.
 pub fn share(pipe: Pipeline, tasks: usize, relay: bool) -> Pipeline {
-    let room = if relay { RELAY_ROOM / tasks.max(1) as u32 } else { IN_FLIGHT };
+    let tasks = tasks.max(1) as u32;
+    let room = if relay { RELAY_ROOM / tasks } else { (pipe.in_flight / tasks).max(IN_FLIGHT) };
     Pipeline { in_flight: room.min(pipe.in_flight), ..pipe }
 }
 
@@ -176,7 +179,8 @@ async fn down_task(
     shared: &Shared<'_>,
     pipe: Pipeline,
 ) {
-    let sftp = match Sftp::open(handle, Limits::default()).await {
+    // Its share of the room of the copy's session, which the road gave (T-662).
+    let sftp = match Sftp::open(handle, Limits { in_flight: pipe.in_flight, ..Limits::default() }).await {
         Ok(sftp) => sftp,
         Err(e) => return shared.fail(transfer::from_sftp(e, Side::Source)),
     };
@@ -251,7 +255,8 @@ async fn up_task(
     shared: &Shared<'_>,
     pipe: Pipeline,
 ) {
-    let sftp = match Sftp::open(handle, Limits::default()).await {
+    // Its share of the room of the copy's session, which the road gave (T-662).
+    let sftp = match Sftp::open(handle, Limits { in_flight: pipe.in_flight, ..Limits::default() }).await {
         Ok(sftp) => sftp,
         Err(e) => return shared.fail(transfer::from_sftp(e, Side::Destination)),
     };
@@ -295,6 +300,8 @@ async fn up_task(
 
 #[cfg(test)]
 mod tests {
+    use podssh_ssh::sftp::MAX_IN_FLIGHT;
+
     use super::*;
 
     #[test]
@@ -311,9 +318,15 @@ mod tests {
     #[test]
     fn the_tasks_share_the_room_of_a_relay_session() {
         let pipe = Pipeline::default();
-        assert_eq!(share(pipe, 1, false).in_flight, IN_FLIGHT);
-        assert_eq!(share(pipe, 4, false).in_flight, IN_FLIGHT, "each its own window, direct");
-        assert_eq!(share(pipe, 1, true).in_flight, IN_FLIGHT);
+        // Elsewhere each task shares the room of the road, which its SFTP
+        // session takes within (T-662), and never less than before.
+        assert_eq!(share(pipe, 1, false).in_flight, MAX_IN_FLIGHT);
+        assert_eq!(share(pipe, 4, false).in_flight, MAX_IN_FLIGHT / 4);
+        assert_eq!(share(pipe, 64, false).in_flight, IN_FLIGHT, "the window of before, at least");
+        let before = Pipeline { in_flight: IN_FLIGHT, ..pipe };
+        assert_eq!(share(before, 4, false).in_flight, IN_FLIGHT, "each its own window, as before");
+        assert_eq!(share(pipe, 1, true).in_flight, RELAY_ROOM);
+        assert_eq!(RELAY_ROOM, podssh_ssh::pace::Road::Relay.cap(), "the room of a relay session is its cap");
         assert_eq!(share(pipe, 4, true).in_flight, RELAY_ROOM / 4);
         assert!(4 * u64::from(share(pipe, 4, true).in_flight) < 2 << 20, "below the 2 MiB that close a session");
     }

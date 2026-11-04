@@ -26,8 +26,8 @@ podssh-cli = { path = "../crates/podssh-cli" }
 # the pinned nightly of scripts/fuzz.sh.
 podssh-warp = { path = "../crates/podssh-warp" }
 
-# The russh of the root workspace, with podssh's patch (T-460): the targets
-# build the client that podssh ships.
+# The russh of the root workspace, with podssh's patches (T-460, T-661): the
+# targets build the client that podssh ships.
 [patch.crates-io]
 russh = { path = "../vendor/russh" }
 ssh-key = { path = "../vendor/ssh-key" }

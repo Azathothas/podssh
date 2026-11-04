@@ -531,9 +531,11 @@ is not a number as `0`, with no message.
   16 KiB/s for 90 s got no Close, from a cloud container and from GitHub's
   network, while 47 MiB more than it read had left the far end; the relay or
   its edge held them (`crates/podssh-relay/tests/live_backpressure.rs`,
-  `.github/workflows/relay-live.yml`). podssh advertises an SSH window of
-  512 KiB, so a server cannot have more than that in flight to a slow
-  podssh, and the relay holds no more for an SSH session; a raw stream
+  `.github/workflows/relay-live.yml`). podssh's SSH window of a channel on
+  this road is 1.5 MiB at most (T-662), shared by the channels that carry
+  bulk, each 512 KiB at least, so a server cannot have more than that in
+  flight to a slow podssh, and the relay holds no more for an SSH session's
+  channel; a raw stream
   (`podssh proxy`, `-W`) has no bound short of the session byte cap. When a
   `1013` comes, podssh names it, says what makes it, and does not try again
   (the stand-in relay's mode `backlog`, `crates/podssh-cli/tests/faults.rs`).
