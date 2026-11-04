@@ -131,4 +131,4 @@
 123 pull open
 124 issue closed
 125 issue deleted
-126 issue open
+126 issue closed
