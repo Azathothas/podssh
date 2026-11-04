@@ -4511,3 +4511,165 @@ copy: the test fails. A key of `ssh-keygen` with such a scalar is read by `podss
 - Against OpenSSH 9.6p1's `ssh-keygen -t ecdsa -b 256`: the 243rd key had a scalar of 31 bytes;
   `podssh keygen -y -f` on it exited 0 and printed the public key of its `.pub`. The key was
   deleted after.
+
+# T-661: Typing-aware flow control in podssh's SSH client: a bulk channel's window held to a round trip and 40 ms while a key waits
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+osewa keeps a key's echo near the idle echo while a download runs, by holding bulk data to about
+the path's rate times (its least round trip plus 40 ms) while the user types. podssh lets 512 KiB
+of each channel sit in front of a key: 0.4 s at 10 Mbit/s, 4 s at 1 Mbit/s (inferred; the entry of
+the measurement measures it). podssh can do better than osewa here: from the client's side of plain
+SSH, so it works against any sshd and through any relay, with nothing installed at the far end.
+
+## Premise
+
+- `crates/podssh-ssh/src/run.rs:30` says "pub(crate) const WINDOW: u32 = 512 * 1024;": one window for
+  each channel, on each road.
+- russh's client asks its handler for each channel's next window target,
+  `vendor/russh/src/client/mod.rs:3168` says "fn adjust_window(&mut self, channel: ChannelId, window: u32) -> u32 {",
+  and podssh's handler does not take that hook (no `fn adjust_window` under `crates/`).
+- osewa's own lab shows the gain is its flow control, not QUIC: over its TCP WebSocket the echo
+  under load was lower than over QUIC (`docs/research/osewa-paper.md`, section 0, item 4).
+
+## Approach
+
+1. podssh's handler takes `adjust_window`: while a key was typed in the last 2 s, a bulk channel
+   (`direct-tcpip`, SFTP, exec with no pty, the agent's) gets rate times (least round trip plus 40
+   ms), at least 16 KiB and at most the road's cap; idle, plus 200 ms. The rate comes from the
+   window's use, the round trip from `keepalive@openssh.com` and the window's adjusts, end to end
+   (through a proxy, `TCP_INFO` sees only the first leg).
+2. If the hook's cadence is too coarse, a patch of the vendored russh grants the window as podssh
+   reads the data, not as russh receives it (`vendor/patches/russh/`, as T-460's).
+3. podssh's own senders (`cp` and `sftp` uploads, `-L`, `-R`, `-D`, `pipe`) hold their writes while a
+   key waits; keys and window adjusts go first. `TCP_NOTSENT_LOWAT` of 16 KiB on podssh's own TCP
+   sockets where `setsockopt` takes it, a probe and not an assumption.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib
+```
+
+With T-660's deep-buffer shape: the echo's p50 under load at most twice the idle echo,
+the download within 10% of today's; the hook planted out fails it.
+
+# T-662: SSH windows that grow to the path where nobody types, to a cap of each road
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+One window of 512 KiB bounds a channel to about 5 MiB/s at 100 ms, on each road, also `--direct`
+where nothing between asks for it; osewa starts its channels at 4 MiB and OpenSSH at 2 MiB, and
+both moved more on a long path in osewa's runs.
+
+## Premise
+
+- `crates/podssh-ssh/src/run.rs:26-30` gives the reason of the 512 KiB: the default relay's bound
+  of 2 MiB, which a direct road and podssh's own relay role do not have.
+- `crates/podssh-ssh/src/sftp/pipeline.rs:37` holds SFTP's requests in flight.
+
+## Approach
+
+1. Where nobody types (T-661), a bulk channel's window grows to
+   twice the measured rate times the round trip, to a cap of the road: 16 MiB on `--direct`, iroh's
+   direct path and podssh's relay role; 2 MiB at most on the default relay (under its 1013, T-062);
+   768 KiB on the pair road (T-443).
+2. SFTP's requests in flight follow the window.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib
+```
+
+A copy through a shaped stand-in of 100 ms and 100 Mbit/s moves more than twice today's rate.
+
+# T-664: A faster cold connect: TLS tickets kept across runs, a key's signature sent with no query first, and fewer waits before the first command
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+osewa reaches a first command in about three round trips; podssh needs about eight to ten on the
+relay road (inferred: the proxy's CONNECT, TLS, the upgrade, SSH's exchange of keys, the
+authentication's query and signature, the channel and the command). The entry of the measurement
+measures it.
+
+## Premise
+
+- T-444 resumes TLS within one process only.
+- RFC 4252, section 7, lets a client send a signed publickey request with no query first.
+
+## Approach
+
+1. TLS session tickets kept across runs in the private cache, mode 0600, as the relay's addresses
+   are; never 0-RTT.
+2. The key that a host last took is remembered by its host key, and its signature goes at once.
+3. Where russh allows, the session channel's open, its `pty-req` and its `exec` go without waits.
+4. Measure the mint's share of a first run.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib
+```
+
+T-660's `--connect-runs` at 120 ms: two round trips fewer than before.
+
+# T-669: Compression of a terminal's output on the relay roads, measured against the session's 64 MiB
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** measurement
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The default relay ends a session at 64 MiB, and a terminal's output compresses well (osewa
+measures 6 to 8 times); osewa compresses its server's output by default. SSH's compression is
+opt-in in podssh.
+
+## Premise
+
+- `crates/podssh-ssh/src/run_config.rs` takes `-C` and `Compression`, off by default.
+
+## Approach
+
+1. Measure the bytes that a `top` session and a build's output send in an hour, with and without
+   `-C`, on the relay road, and the CPU it costs.
+2. Write the figures; a default stays off (the paper's study: compression with a context across
+   messages is a side channel, and costs CPU on data that does not compress).
+
+## Decision
+
+- **No default of compression from this entry.** Lost: osewa's default, for the side channel and
+  the CPU above; the figures go to the operator with the entry's Done.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib
+```
+
+The figures, with their commands, in `docs/STATUS.md`.

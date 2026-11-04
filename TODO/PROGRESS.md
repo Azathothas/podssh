@@ -19,8 +19,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      `v1.1.0-beta.3` follows at the end of the night with the night's work (Q98).
   3. **GitHub #126 to #148** (Nemo-010, 2026-11-04) are new: each becomes an entry (Q100), #126
      first, a P1 defect; `TODO/github.txt` and `TODO/issues.md` map them with the triage.
-  4. **osewa** (Q99): two agents study `rjyo/osewa`'s code and its paper; the gaps become entries
-     ahead of the rest of M10, and the report goes to `docs/research/`.
+  4. **osewa** (Q99): two agents studied `rjyo/osewa`'s code and its paper
+     (`docs/research/osewa.md`); its gaps are T-660 to T-669, ahead of the rest of M10.
   5. **Partial and watched:** T-465 (`pipe`'s end of input lost 2 runs in 50 on Windows and
      macOS; the probe of Windows' AF_UNIX lost none of 600, so the next step is a client in another
      process than its server, or a failure that says the time of each step); T-627 (a test of
@@ -231,7 +231,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 592 entries: 91 open, 5 partial, 2 blocked, 494 done.
+`TODO/INDEX.md` holds 602 entries: 101 open, 5 partial, 2 blocked, 494 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -267,9 +267,12 @@ the live relay are repaired, and the entries of the audit, the study and the iss
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76), each done. Each other `backlog` entry is done, but for those on hold, those of the relay's
 operator and the parked ones.
 
-**First tonight (2026-11-04, Q98 to Q100):** `v1.1.0-beta.2`; then GitHub #126, the testers' P1
-defect; then the entries that the studies of osewa file (Q99); then GitHub #127 to #148 by their
-priority, beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
+**First tonight (2026-11-04, Q98 to Q100):** `v1.1.0-beta.2` (GitHub #126, the testers' P1
+defect, is repaired); then the entries that the studies of osewa filed (Q99,
+`docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first), T-661 and
+T-662 (the SSH client's flow control and windows), T-663 (liveness in round trips), T-664, T-665,
+T-666, T-667, T-668 and T-669; then GitHub #127 to #148 by their priority, beside the order of M10
+below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
 
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
 this order:

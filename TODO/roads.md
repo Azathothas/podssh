@@ -9112,3 +9112,73 @@ holds bodies does not open within the test's limit.
 ## Start condition
 
 T-319 is done: the HTTP road's split and serial forms exist.
+
+# T-665: QUIC on the iroh road, tuned and measured on a wide-area path
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** measurement
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+osewa tunes its QUIC (an initial window of 32 packets, an initial round trip of 100 ms, a first
+MTU of 1200 for Tailscale's 1280, larger socket buffers, a knob of congestion control); podssh's
+iroh road takes iroh's defaults, and nobody has measured them on a wide-area path.
+
+## Premise
+
+- `crates/podssh-iroh/src/endpoint.rs` builds the endpoint with no transport settings of its own.
+
+## Approach
+
+1. Measure an iroh direct path with T-157's method, between GitHub Actions and the operator's host
+   of `PODSSH_THROUGHPUT_SSH`, in short runs (Q91).
+2. Where iroh exposes quinn's transport settings, set the ones that the A/B run shows help;
+   larger UDP buffers only by `SO_RCVBUF` and `SO_SNDBUF`, never the `FORCE` forms, which need
+   `CAP_NET_ADMIN`.
+3. The raw files of each run go into the record.
+
+## Prove
+
+```sh
+cargo test -p podssh-iroh --lib
+```
+
+The A/B runs, with their commands in `docs/STATUS.md`.
+
+# T-666: Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+osewa gives each forward and each exec its own QUIC stream, so a bulk transfer does not block a
+terminal's bytes (on QUIC only). podssh multiplexes its channels in one SSH stream, and its HTTP/2
+road puts up to 16 sessions on one TCP connection (T-321).
+
+## Premise
+
+- Each SSH connection of podssh is one byte stream; a second login is a second stream.
+
+## Approach
+
+1. On the iroh road, a second SSH connection of the same process (`cp`, `sftp`, a bulk `-L`) opens as
+   a new QUIC stream of the same iroh connection, with the interactive stream at a higher priority:
+   no new connection.
+2. On the relay's HTTP/2 road, a bulk session takes a connection of its own, or HTTP/1.1.
+
+## Prove
+
+```sh
+cargo test -p podssh-iroh --lib
+```
+
+T-660's echo under load with a copy beside the terminal: lower than on one stream.

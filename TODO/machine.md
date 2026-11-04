@@ -1448,3 +1448,51 @@ at the cited lines (read at `38f424c`).
   `--jobs 1`, 18.0 s at once, 18.2 s with `--quick` (42 ok each, 0 FAIL; the sections that
   `--quick` leaves out run beside the others, so the egress's probes are the longest part here).
   Planted (`sh scripts/plant-each.sh --here t511-quick-derp`): caught.
+
+# T-660: What a user feels, measured on each road: a key's echo while a download runs, a cold connect and its first command, a bulk copy while one types
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** measurement
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+osewa's whole claim is what a user feels: a key's echo while a download runs on the same
+connection, the time to a first command, and the rate of a copy while one types. podssh has never
+measured any of them, on any road, so no claim against osewa (or against OpenSSH and mosh) can be
+made either way, and no change of the flow control below can show its gain.
+
+## Premise
+
+- Read: `docs/STATUS.md` holds throughput and the survival of faults, and no echo under load and no
+  cold connect (both studies, sections 4 and 5).
+- `podssh ping` logs in, echoes through `cat` and sends `--size` down and up (T-053), and the fault
+  harness shapes delay, jitter and rate in user space with no root (T-203).
+
+## Approach
+
+1. `podssh ping DEST` gains `--under-load` (40 keys 150 ms apart, after 3 s of warm-up, while `head
+   -c` streams down on the same SSH connection: the echo's p50 and p95, idle and under load),
+   `--connect-runs N` (a cold connect and `true`, from the process's start) and the raw samples in
+   `--json`.
+2. The fault harness gains osewa's four shapes: 120 ms and 50 Mbit/s; 60 ms and 10 Mbit/s with a
+   deep buffer (a rate with a queue of seconds); 20 ms, 20 Mbit/s and 1% loss; 100 ms, 1 Mbit/s and
+   1% loss.
+3. A script runs each road (`--direct`, the relay role, `node://` over the pair, iroh and DERP)
+   through each shape, with OpenSSH's client as the reference, and writes each run's raw file;
+   `docs/STATUS.md` gets the figures with the command.
+4. Later, on a GitHub Actions runner (which has root for `tc netem`), the release binary of osewa
+   beside podssh and OpenSSH on the loopback, as a reference only, never a road (Q99: osewa runs no
+   public server).
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test ping
+```
+
+A new test: `--under-load` through a shaped stand-in reads an echo above the idle one, and the
+plants (the samples dropped, the warm-up counted) are caught.

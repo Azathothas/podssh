@@ -3647,3 +3647,44 @@ session's test fails.
 - Planted, `None => return Err(NotTaken::Ended)` again: the new test and T-270's failed; planted,
   the check of `Sessions` skipped (`&& false`): the closed session's test failed (Stuck after
   10 s, past its 5 s).
+
+# T-663: Liveness in round trips: a spare link after the larger of three round trips and 1 s, and a check when the host wakes
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+osewa suspects a link after the larger of three round trips and 1 s of an unanswered key, and
+redials; podssh opens a spare link after a fixed 3 s of an unanswered question or 20 s of quiet
+(T-305), and its measured resume after a new address is 3.0 to 3.2 s on the loopback. A laptop that
+wakes from sleep waits for those bounds too.
+
+## Premise
+
+- `crates/podssh-relay/src/session/beside.rs:38` says "pub const SPARE_AFTER: Duration = Duration::from_secs(3);",
+  and `crates/podssh-relay/src/session/beside.rs:41` the 20 s of quiet.
+- T-305 measured 3.0 to 3.2 s with the stand-in proxy's `--move`, no real client.
+
+## Approach
+
+1. The spare opens after the larger of three smoothed round trips and 1 s of an unanswered
+   question, 3 s at most; the layer's PING and PONG and its ACKs give the round trip.
+2. A wake or a move, with no privilege: a timer that fires more than 2 s late, or a jump between
+   the monotonic and the boot-time clocks, asks the far end at once. On the forward road with
+   `--persist`, the same check makes T-302's notice sooner.
+3. podssh exceeds osewa where osewa cannot follow: the spare races podssh's roads and relay hosts,
+   so the resume can come on another road (osewa redials its one host).
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --features pair --lib session
+```
+
+A stand-in of 50 ms whose link goes silent: the spare opens within 1.2 s (today 3 s); a planted
+fixed 3 s fails it. A live run on the relay with `--move` measures the resume.

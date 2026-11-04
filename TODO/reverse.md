@@ -3515,3 +3515,38 @@ pair; the test fails.
 - `cargo clippy -p podssh-cli --all-targets` and `-p podssh-relay --features pair` and `--features
   pair,serve,plain-ws`, `--all-targets`, with `-D warnings`: clean; rustfmt: clean once the merge
   formatted `crates/podssh-cli/tests/relay_serve_node.rs`.
+
+# T-668: A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+osewa's sessions outlive a restart of its server, as each session's holder is a process of its
+own. A podssh node's sessions end with its process, so `podssh update` on a node ends each session
+that it carries.
+
+## Premise
+
+- The resumable layer keeps each session's state in the node's process (`crates/podssh-relay/src/session/`).
+
+## Approach
+
+1. `podssh update` or a signal on a running node starts the new binary (rule 3: this binary started
+   again at the user's request, Q61), which inherits the node's links and the sshd connections.
+2. The layer's state (ids, secrets, offsets, replay buffers) passes over a pipe, and each session
+   goes on in place; the sshd's TCP connection survives.
+3. Windows needs `WSADuplicateSocket`: probed.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test node_moves
+```
+
+A new test: a session through a node goes on across the node's upgrade, its bytes whole.

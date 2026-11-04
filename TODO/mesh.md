@@ -8737,3 +8737,46 @@ Planted: the old words (the cause in the caller's sentence) fail the new tests.
 - Planted, the cause put back in the caller's words: the new library test and the contract test
   fail.
 
+# T-667: QUIC on UDP 443 to podssh's relay role, raced with its TCP roads where a probe found that UDP passes
+
+**Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+osewa races QUIC against its TCP carrier and wins a handshake of one round trip, connection ids that
+survive a rebinding of the NAT, and no head-of-line blocking between sessions, where UDP passes.
+podssh's relay role speaks TCP alone.
+
+## Premise
+
+- The relay role listens on TCP only (`docs/relay.md`); Q82 allows roads over UDP where a probe found
+  that UDP passes.
+
+## Approach
+
+1. The relay role also listens on UDP 443 when asked, QUIC with an ALPN of podssh's own, each
+   session a stream; or HTTP/3 with RFC 9220's extended CONNECT.
+2. The client races QUIC first after a UDP probe (T-359's), with a head start of 300 ms, then its
+   TCP roads; the resumable layer stays on top, so a QUIC loss resumes on any road.
+3. Rule 4: QUIC goes in a crate outside the library crates' list, as `podssh-iroh` is, unless a
+   pure-Rust stack with a provider of podssh's own fits.
+
+## Decision
+
+- **The race of QUIC and a TCP road to one host; for the operator to confirm (Q86).** It is two
+  connections to one host for a short time, as the race between relay hosts is (rule 2), the loser
+  closed at once. Lost: QUIC only after a TCP road failed, which gives up the round trip that QUIC
+  saves.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --features serve --lib
+```
+
+A session through the role over QUIC on the loopback; with UDP refused, the race takes TCP.
