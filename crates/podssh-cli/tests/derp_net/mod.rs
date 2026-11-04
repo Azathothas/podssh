@@ -4,6 +4,10 @@
 //! the owner wrote into the net, and a key that the net does not name is
 //! refused at the node. A node of no net and no `--allow` is refused before
 //! its key is made, as before; a member with no pair serves the road unasked.
+//! A copy to the member by its name races the roads that `podssh ssh` races
+//! (T-551): with the pair under the name refused at a stand-in relay, `cp`
+//! goes up and down over the DERP ticket of the net, against OpenSSH's
+//! `sftp-server`; it says that it did not run when this host has none.
 
 use std::path::{Path, PathBuf};
 
@@ -12,6 +16,7 @@ use podssh_relay::identity::Identity;
 use podssh_relay::session::OsEntropy;
 
 use crate::ssh_harness::GREETING;
+use crate::update_support::{Answer, Server};
 use crate::{command, run, ticket_in, wait_for, Lab};
 
 /// The byte of the node's key, so that the owner can name it first.
@@ -169,5 +174,109 @@ fn a_node_of_no_net_and_no_allow_is_refused_and_a_member_with_no_pair_serves_una
     assert!(said.contains("no pair is stored"), "{said}");
     assert!(started.iter().any(|l| l.contains("the members of the net home are its door")), "{started:#?}");
     drop(unasked);
+    drop(lab.runtime);
+}
+
+/// The stand-in relay's answer to a pair that it does not know, as
+/// `scripts/fake_reverse.py` answers it.
+const UNKNOWN_PAIR: &str = "reverse: forbidden";
+
+/// The bytes of a file to copy.
+fn data(len: usize) -> Vec<u8> {
+    (0..len as u32).map(|i| (i.wrapping_mul(2_654_435_761) >> 11) as u8).collect()
+}
+
+/// A pair kept under `lab` in the client's cache, of the relay at
+/// `127.0.0.1:port`: its name.
+fn store_pair(lab: &Lab, port: u16) -> String {
+    let relay = podssh_relay::relay::Relay { host: "127.0.0.1".into(), port };
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
+    // The repository's fixture form of a token, which names no credential.
+    let token = |kind: &str| format!("testonly{kind}{}", "0".repeat(56 - kind.len()));
+    let name = "p-0123456789abcdef0123456789abcdef";
+    let body = serde_json::json!({
+        "name": name,
+        "node_token": token("node"),
+        "connect_token": token("connect"),
+        "stop_token": token("stop"),
+        "expires": now + 72 * 3600 * 1000,
+    });
+    let pair = podssh_relay::pair::parse(&relay, body.to_string().as_bytes(), now).expect("a test pair");
+    let cache = lab.client_home.join("cache").join("podssh");
+    podssh_relay::pair::store_in_first(&[cache], "lab", &pair).expect("the pair stored");
+    name.to_string()
+}
+
+/// `podssh cp -v WORDS` from the client's home with its key, the net of
+/// `doc`, the trust of `ca`, the lab's DERP servers in their variable (a
+/// copy takes no `--derp-server`), and `env`.
+fn cp_as(lab: &Lab, ca: &Path, doc: &Path, words: &[&str], env: &[(&str, &str)]) -> (i32, String, String) {
+    let (known, ca) = (format!("UserKnownHostsFile={}", lab.known), ca.to_string_lossy().into_owned());
+    let mut args = vec!["cp", "-v", "--timeout", "50s", "-o", "BatchMode=yes"];
+    args.extend_from_slice(&["-o", "StrictHostKeyChecking=accept-new", "-o", known.as_str()]);
+    args.extend_from_slice(&["--ca-file", ca.as_str(), "--client-key", lab.client_key.as_str()]);
+    args.extend_from_slice(words);
+    let mut cmd = command(&lab.client_home, &args);
+    cmd.env("PODSSH_NET", doc).env("PODSSH_DERP_SERVER", lab.servers()).envs(env.iter().copied());
+    run(&mut cmd)
+}
+
+#[test]
+fn a_copy_to_a_member_whose_pair_is_refused_goes_over_the_derp_ticket_of_the_net() {
+    if crate::ssh_harness::sftp::server_path().is_none() {
+        eprintln!("did not run: no sftp-server here; PODSSH_TEST_SFTP_SERVER names one");
+        return;
+    }
+    let lab = Lab::new("net-copy");
+    // The directory of the server's host key, where its sftp-server runs.
+    let home = lab.node_home.parent().unwrap().to_path_buf();
+    let owner = Owner::new(&home.join("owner"));
+    key_file(&lab.node_home.join("node.key"), NODE_SEED);
+    owner.says(&["init", "home"]);
+    owner.says(&["add", "lab", node_hex().as_str()]);
+    owner.says(&["add", "laptop", key_hex(&lab.client_key).as_str()]);
+    let (node_doc, client_doc) = (lab.node_home.join("net.doc"), lab.client_home.join("net.doc"));
+    owner.give(&lab.node_home, &node_doc, "serial-3");
+    // The node of the DERP road alone, the net its door; the owner names its
+    // ticket in the net, which the client takes.
+    let servers = lab.servers();
+    let (_node, _lines, started) = lab.node_with(&[], Some(node_doc.as_path()), &["--derp", "--derp-server", &servers]);
+    let ticket = ticket_in(&started, "ticket derp:");
+    owner.says(&["add", "lab", node_hex().as_str(), "--derp-ticket", ticket.as_str()]);
+    owner.give(&lab.client_home, &client_doc, "serial-4");
+    // The client's pair under the name, which the stand-in relay refuses as a
+    // relay refuses a pair that it does not know.
+    let dir = lab.client_home.join("relay");
+    std::fs::create_dir_all(&dir).unwrap();
+    let relay = lab.runtime.block_on(Server::start(&dir));
+    let connect = format!("/v1/connect/{}", store_pair(&lab, relay.addr.port()));
+    relay.route(&connect, Answer::Refuse(403, UNKNOWN_PAIR.into()));
+    // One file of trust for both roads: the DERP servers' CA and the relay's.
+    let both = lab.client_home.join("both.pem");
+    let pem = |path: &Path| std::fs::read_to_string(path).unwrap();
+    std::fs::write(&both, pem(Path::new(&lab.ca)) + &pem(relay.ca_file.as_path())).unwrap();
+    let want = data(200_000);
+    let (here, back) = (lab.client_home.join("here.bin"), lab.client_home.join("back.bin"));
+    std::fs::write(&here, &want).unwrap();
+    let (here_text, back_text) = (here.to_string_lossy().into_owned(), back.to_string_lossy().into_owned());
+    let copy = |from: &str, to: &str, env: &[(&str, &str)]| cp_as(&lab, &both, &client_doc, &[from, to], env);
+    // Up: the pair's road first, refused at the relay, then the DERP road of
+    // the net, as `ssh` races them.
+    let (rc, _, err) = copy(&here_text, "tester@lab:there.bin", &[]);
+    assert_eq!(rc, 0, "the copy up over the DERP ticket of the net: {err}");
+    assert_eq!(std::fs::read(home.join("there.bin")).unwrap(), want, "the copy up");
+    assert!(relay.was_asked(&connect), "the pair's road was not raced: {err}");
+    assert!(err.contains("connecting to node://lab: the pair's road first"), "{err}");
+    assert!(err.contains("the DERP road answered first"), "{err}");
+    // Down, over the same race.
+    let (rc, _, err) = copy("tester@lab:there.bin", &back_text, &[]);
+    assert_eq!(rc, 0, "the copy down over the DERP ticket of the net: {err}");
+    assert_eq!(std::fs::read(&back).unwrap(), want, "the copy down");
+    // With the DERP road off, the pair's road alone, which the relay refuses.
+    let (rc, _, err) = copy(&here_text, "tester@lab:again.bin", &[("PODSSH_DERP", "no")]);
+    assert!(rc != 0 && err.contains("the relay refused the pair (403)"), "{rc} {err}");
+    assert!(!err.contains("DERP road answered"), "a DERP road with PODSSH_DERP=no: {err}");
+    assert!(!home.join("again.bin").exists(), "a copy that no road carried wrote its file");
+    drop(relay);
     drop(lab.runtime);
 }

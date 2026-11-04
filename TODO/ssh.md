@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:695`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:696`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -4166,9 +4166,9 @@ would still say why the pause comes.
 
 ## Premise
 
-- `crates/podssh-cli/src/ssh/mod.rs:349-351` says "if let Some(kept) = resolved.persist.clone() {",
+- `crates/podssh-cli/src/ssh/mod.rs:351-353` says "if let Some(kept) = resolved.persist.clone() {",
   and returns from `persist::run` before the watch of the relay's road starts.
-- `crates/podssh-cli/src/ssh/mod.rs:353-354` says "if let Some(upgrade) = resolved.upgrade.clone() {",
+- `crates/podssh-cli/src/ssh/mod.rs:355-356` says "if let Some(upgrade) = resolved.upgrade.clone() {",
   and so does `upgrade::run`.
 - `docs/cli.md:733` says "`--direct`; with `--persist`, which attaches again after the cut, and",
   and the next line "`--upgrade`, not before T-583."
@@ -4224,7 +4224,7 @@ A defect: `ssh node://` is the documented way to log in to a node.
 - Read: `ssh node://` carries SSH with `carry_keeping`: the layer's settings of `ssh`, which name
   `keep.v1` (`crates/podssh-cli/src/layered.rs:221`), the far end's shells learned and its
   silence watched (`:255-261`), and the SSH client and the carriage joined in one task
-  (`crates/podssh-cli/src/ssh/node.rs:325-328`); `operator` carries with `carry_through`, with
+  (`crates/podssh-cli/src/ssh/node.rs:287-290`); `operator` carries with `carry_through`, with
   none of these (`crates/podssh-cli/src/operator.rs:164-165`). These are the client's differences
   between the run that stopped and the one that worked; which one stopped it is not known.
 - Read: the tester's lines show the layer's session open and its features (`replay.v1`,
@@ -4331,7 +4331,7 @@ Read on 2026-11-03 by the drafting agent, at `e176606` (the tree of `3bb42ea` wi
   (`crates/podssh-cli/tests/node_live.rs:188-192`), so no test met the question. Not reproduced
   here: the run of item 1 confirms it.
 - On `main`, `ssh node://NAME` with a good pair goes through the race of the roads
-  (`crates/podssh-cli/src/ssh/node.rs:196-203`, moved from `ssh/mod.rs` by T-531), not through `node::connect`, as the transit road is
+  (`crates/podssh-cli/src/ssh/node_roads.rs:117-123`, moved from `ssh/mod.rs` by T-531 and to `node_roads.rs` by T-551), not through `node::connect`, as the transit road is
   on by default (`crates/podssh-relay/src/transit/mod.rs:59`) since T-436; at `35a0d19`, the
   tester's build, it went through `node::connect`. The record is in the login of `podssh-ssh`,
   which both roads share, and both count what their layer carries.

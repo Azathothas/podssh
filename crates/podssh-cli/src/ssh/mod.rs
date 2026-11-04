@@ -48,6 +48,8 @@ mod login;
 // A line before the relay's cap ends the session (T-461).
 mod near_cap;
 pub mod node;
+// The roads beside a node's pair, for ssh and the copies alike (T-551).
+pub(crate) mod node_roads;
 // The OpenTunnel road of node://NAME (T-531).
 pub mod opentunnel;
 // The notes of what podssh accepts and does not use (T-502, T-505).

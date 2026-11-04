@@ -1,6 +1,7 @@
 //! One connection to a server for `cp` or `mv`, and the road of its files:
 //! SFTP, or a command for each step when the server has none (T-135). The
-//! server can be a node of a pair, reached through its pair (T-296).
+//! server can be a node of a pair (T-296), reached over the roads that `podssh
+//! ssh` races to it (T-551).
 
 use std::sync::Arc;
 
@@ -155,12 +156,11 @@ async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<Hops, Failed> {
         Transport::Node { label, channel, carrier: Some(text), .. } => {
             crate::ssh::carried::reach(label, text, channel, log).await
         }
-        // A node of a pair, through its pair, as `ssh node://` reaches it
-        // (T-296). Its session has no relay status here: the resumable layer
-        // moves it to a new leg before the relay's limits (T-155).
-        Transport::Node { label, pair_file, trust, channel, .. } => {
-            crate::ssh::node::reach(label, pair_file.as_deref(), trust, channel, log).await
-        }
+        // A node of a pair, or a member of the net, over the roads that `ssh
+        // node://` races, or its pair's alone (T-296, T-551). Its session has
+        // no relay status here: the resumable layer moves it to a new leg
+        // before the relay's limits (T-155).
+        Transport::Node { .. } => crate::ssh::node_roads::reach(&resolved.transport, log).await,
         _ => crate::ssh::transport::reach(resolved, log).await,
     };
     let reached = match reached {

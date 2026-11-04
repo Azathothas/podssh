@@ -73,7 +73,10 @@ const CP: &[&str] = &[
      [user@]host:path or [user@][IPV6]:path. ./a:b is a local file, and on Windows so is C:\\x. An \
      empty path, host:, is the login directory.",
     "node://[user@]NAME[/ROUTE]:path is the node of the pair under the label NAME (see podssh node), \
-     reached through its pair as podssh ssh node://NAME reaches it, and its route ROUTE; the path comes \
+     reached as podssh ssh node://NAME reaches it, on the same roads in the same order: its pair's, and \
+     those that race beside it (a ticket of the net, a ticket or a name kept under NAME, the transit relay, \
+     the Piping Server road, the member's record), again at each resume, -v naming the road that answered; \
+     ROUTE is its route. The path comes \
      after the first : after the name, and with none it is the login directory. A member of the net (see \
      podssh net) is [user@]NAME:path by its name alone, read as podssh ssh NAME reads it, the net first. \
      --pair-file, --client-key, --node-key and --no-e2e are those of podssh ssh. A port, -J or --direct \

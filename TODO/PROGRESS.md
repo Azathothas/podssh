@@ -143,7 +143,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   T-326 (`worktree-agent-a8b2a4b9acf9c2a8f`, `27a97cf`, merged and closed); T-319
   (`worktree-agent-a39b6bc24832c974f`, `3739bcf`, a first part, merged, the entry partial); T-173
   (`worktree-agent-a935f48070b310b7c`, `6165bbc`, a first part, merged, the entry partial); T-551
-  (`worktree-agent-a5583c3e8856c1e14`, `b4568a4`); T-086 (`worktree-agent-aae965649ba432a53`,
+  (`worktree-agent-a5583c3e8856c1e14`, `b4568a4`, merged and closed); T-086 (`worktree-agent-aae965649ba432a53`,
   `7a0c97f`, whose `Cargo.lock` the merge makes). They wait to be merged in that order.
 
   CI: the gate passed at
@@ -189,7 +189,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 579 entries: 92 open, 4 partial, 2 blocked, 481 done.
+`TODO/INDEX.md` holds 579 entries: 91 open, 4 partial, 2 blocked, 482 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -234,7 +234,7 @@ this order:
    T-319, T-321 and T-173; `doctor`'s measure of a stream's path, the role's IPv6 targets,
    with `doctor`'s line of them, a client's lost link during a node's bulk, and the cleartext road
    on the relay's port are done.
-2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door and the grants used once are done): T-086, T-615, T-346, T-106 and T-551.
+2. The net (its policy, the record of each road, the DERP node of a member, the copies by a name, the quick tunnel's node with the net as its door, the grants used once and a copy's race of the roads are done): T-086, T-615, T-346 and T-106.
 3. Exit, routes, share and funnel (the exit and `doctor --exit` are done): T-432, T-433,
    T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the

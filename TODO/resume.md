@@ -3399,7 +3399,8 @@ Read while drafting, 2026-11-03:
   Close included; a session cut then is a clean end of a session that the node took, exit 0. A
   signal before the node took the session ends the wait at once, with the session's fault (70).
 - `ssh node://` takes SIGHUP and SIGTERM alone: its Ctrl-C is the remote command's. The same on
-  the road that races the node's roads (`crates/podssh-cli/src/ssh/roads.rs:420`).
+  the road that races the node's roads (`crates/podssh-cli/src/ssh/node_roads.rs:143`, moved from
+  `crates/podssh-cli/src/ssh/roads.rs` by T-551).
 - The plant of the signals is two plants, one for each test, as a plant runs one check:
   `t586-hangup-not-taken` (the operator's test) and `t586-hangup-not-taken-openssh` (the
   roost's), with one patch.

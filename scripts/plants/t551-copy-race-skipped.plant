@@ -1,0 +1,11 @@
+# T-551: a copy to a node skips the race of the roads that ssh races and
+# takes the pair's road alone, as before T-551, so a copy to a member whose
+# pair the stand-in relay refuses never tries the DERP ticket of the net; the
+# test of the copy must fail with its words.
+ENTRY=T-551
+GROUP=cli-tests
+EXPECT='the copy up over the DERP ticket of the net'
+# The copy needs OpenSSH's sftp-server, which the build image lacks: with no
+# SETUP the test said it did not run, and passed.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache openssh-sftp-server >/dev/null; fi'
+RUN='cargo test --locked -p podssh-cli --test derp_road -- derp_net::a_copy_to_a_member_whose_pair_is_refused_goes_over_the_derp_ticket_of_the_net'

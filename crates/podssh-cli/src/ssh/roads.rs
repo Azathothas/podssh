@@ -16,6 +16,9 @@
 //! after the roads of its tickets and before the transit relay's. The
 //! OpenTunnel road of `--opentunnel-name` (T-531) comes 250 ms after the DERP
 //! road; a name kept under NAME, only when each road before it failed (Q76).
+//! A copy to the node races the same roads (T-551): [`ride`] runs the race
+//! and the layer, and hands the layered stream to the SSH client of `podssh
+//! ssh`, or to a copy's task (`super::node_roads`), whose SSH runs at its end.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -32,6 +35,8 @@ use podssh_ws::{ProxyChoice, Trust};
 use tokio::task::JoinHandle;
 
 use super::iroh::IrohRoad;
+use super::transport::NotReached;
+use crate::exitmap::sysexits;
 use crate::layered::{self, Line};
 
 /// Each direction of the pipes between SSH, the layer and a leg.
@@ -39,7 +44,7 @@ const PIPE: usize = 256 * 1024;
 
 use super::road_link::Kind;
 pub use super::road_link::Road;
-use super::road_link::{lost_words, winner};
+use super::road_link::{lost_words, order, winner, Handed, Rider, Unasked};
 
 /// The roads of a run beside the pair's: the iroh road of `--iroh-ticket`,
 /// the DERP road of a ticket given or kept, the transit relay's, and the
@@ -55,8 +60,8 @@ pub(super) struct Raced<'a> {
     pub record: Option<&'a super::iroh::RecordAsk>,
 }
 
-/// A road's attempt at a link.
-pub(crate) type Going<'s> = Pin<Box<dyn Future<Output = Result<Road, String>> + 's>>;
+/// A road's attempt at a link: `Send`, as a copy races in a task (T-551).
+pub(crate) type Going<'s> = Pin<Box<dyn Future<Output = Result<Road, String>> + Send + 's>>;
 
 /// The roads of one run, each made once: the iroh road's endpoint, the
 /// pair's legs, the DERP road's dialer.
@@ -139,6 +144,16 @@ impl<'a> Roads<'a> {
             let start = if *asked { Start::After(HEAD_START) } else { Start::WhenAllFailed };
             list.push((start, Box::pin(piping_link(dialer, *asked, &self.refused))));
             kinds.push(Kind::Piping);
+        }
+    }
+
+    /// The roads that race as fallbacks which nobody asked for, for `-v`.
+    fn unasked(&self) -> Unasked {
+        let unasked = |asked: Option<&bool>| asked == Some(&false);
+        Unasked {
+            derp: unasked(self.derp.as_ref().map(|(_, asked)| asked)),
+            opentunnel: unasked(self.opentunnel.as_ref().map(|(_, asked)| asked)),
+            piping: unasked(self.piping.as_ref().map(|(_, asked)| asked)),
         }
     }
 
@@ -233,21 +248,34 @@ async fn piping_link(dialer: &podssh_relay::piping::Dialer, asked: bool, refused
     dialer.link().await.map(Road::Piping)
 }
 
-/// SSH to the node of the pair under `label`, over the first of its roads
-/// that answers, again at each resume.
-pub(super) async fn connect(
+/// The race of the node's roads, then the session in the layer over the
+/// first that answered, again at each resume; `hand` takes the layered
+/// stream in the place of SSH (T-551): the SSH client of `podssh ssh`, or a
+/// copy's task, whose SSH runs at the stream's other end. A failure before
+/// the layer is up goes to `hand` too, as its lines and its code. The code
+/// of a ride here, or `None` for one elsewhere, whose each bad end of the
+/// layer is said here.
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn ride<F, R>(
     label: &str,
     pair_file: Option<&str>,
     trust: &Trust,
     raced: Raced<'_>,
     ask: &crate::channel::Ask,
-    opts: &podssh_ssh::options::Options,
+    rider: Rider<'_>,
     log: Arc<Log>,
-) -> i32 {
+    hand: F,
+) -> Option<i32>
+where
+    F: FnOnce(Result<Handed, NotReached>) -> R,
+    R: Future<Output = Option<i32>>,
+{
     let shown = format!("{}{label}", super::node::SCHEME);
+    let not_reached = |why: &str, code: i32| -> Result<Handed, NotReached> {
+        Err(NotReached { lines: vec![format!("{shown}: {why}")], code })
+    };
     if let Err(refusal) = crate::pairs::online() {
-        log.error(&format!("{shown}: {}", refusal.message));
-        return EXIT_FAILURE;
+        return hand(not_reached(&refusal.message, refusal.code)).await;
     }
     // The pair's road, when this host has the pair; a node that the DERP
     // road or its record reaches may have none here.
@@ -260,17 +288,11 @@ pub(super) async fn connect(
             log.verbose(&format!("{shown}: no pair's road: {}", refusal.message));
             None
         }
-        Err(refusal) => {
-            log.error(&format!("{shown}: {}", refusal.message));
-            return EXIT_FAILURE;
-        }
+        Err(refusal) => return hand(not_reached(&refusal.message, refusal.code)).await,
     };
     let iroh = match raced.iroh.map(|race| IrohRoad::new(race, trust, &log)).transpose() {
         Ok(iroh) => iroh,
-        Err(why) => {
-            log.error(&format!("{shown}: {why}"));
-            return EXIT_FAILURE;
-        }
+        Err(why) => return hand(not_reached(&why, sysexits::EX_USAGE)).await,
     };
     // The channel of T-088, to the node that a ticket names, on whichever
     // road wins: the node has one key for each road.
@@ -284,22 +306,15 @@ pub(super) async fn connect(
     let say_line = |line: String| log.info(&format!("{shown}: {line}"));
     let channel = match ask.operator(expect, &say_line) {
         Ok(channel) => channel,
-        Err(why) => {
-            log.error(&format!("{shown}: {why}"));
-            return EXIT_FAILURE;
-        }
+        Err(why) => return hand(not_reached(&why, sysexits::EX_CONFIG)).await,
     };
-    // What the layer and the channel carry, for the line of a handshake that
-    // does not finish (T-588).
-    let flow = Arc::new(podssh_ssh::handshake::Flow::default());
-    let opts = &super::node::on_the_road(opts, &flow, channel.is_some());
+    // Whether the channel runs above the layer, for SSH's line of a
+    // handshake that does not finish (T-588).
+    let channel_runs = channel.is_some();
     let derp = match &raced.derp {
         Some(road) => match super::derp::dialer(&road.ticket, &road.servers, trust, &log, &shown) {
             Ok(dialer) => Some((dialer, road.asked)),
-            Err(why) => {
-                log.error(&format!("{shown}: {why}"));
-                return EXIT_FAILURE;
-            }
+            Err(why) => return hand(not_reached(&why, sysexits::EX_CONFIG)).await,
         },
         None => None,
     };
@@ -341,7 +356,7 @@ pub(super) async fn connect(
     let pair = config.as_ref();
     let roads = Roads { iroh, pair, derp, opentunnel, transit, piping, record, refused, label, legs, pair_final };
     let (list, kinds) = roads.race(None);
-    log.verbose(&format!("connecting to {shown}: {}", order(&kinds, &roads)));
+    log.verbose(&format!("connecting to {shown}: {}", order(&kinds, roads.unasked())));
     let first = match in_turn(list).await {
         Ok((won, took)) => winner(won, took, &kinds, &shown, &log),
         Err(lost) => {
@@ -349,21 +364,23 @@ pub(super) async fn connect(
                 Some(iroh) if iroh.refused().await => " (the node refused this client's key on the iroh road)",
                 _ => "",
             };
-            log.error(&format!("{shown}: no road reached the node: {}{refused}", lost_words(&kinds, &lost)));
+            let why = format!("no road reached the node: {}{refused}", lost_words(&kinds, &lost));
+            let code = hand(not_reached(&why, sysexits::EX_UNAVAILABLE)).await;
             roads.close().await;
-            return EXIT_FAILURE;
+            return code;
         }
     };
-    // `podssh ssh` names `keep.v1`, for `~d` and `--attach` (T-158). Each
-    // resume races the roads again, so a session that the pair's road may
-    // carry keeps that road's window on each (T-443).
-    let settings = if roads.pair.is_some() { layered::ssh_settings() } else { layered::ssh_settings().off_the_pair() };
+    // `podssh ssh` names `keep.v1`, for `~d` and `--attach` (T-158); a copy
+    // keeps no shell. Each resume races the roads again, so a session that
+    // the pair's road may carry keeps that road's window on each (T-443).
+    let layer = if rider.shell.is_some() { layered::ssh_settings() } else { layered::settings() };
+    let settings = if roads.pair.is_some() { layer } else { layer.off_the_pair() };
     let client = match Box::pin(client::start(first, Ask::New, settings, &mut OsEntropy)).await {
         Ok(client) => client,
         Err(e) => {
-            log.error(&format!("{shown}: {e}"));
+            let code = hand(not_reached(&e.to_string(), sysexits::EX_UNAVAILABLE)).await;
             roads.close().await;
-            return EXIT_FAILURE;
+            return code;
         }
     };
     log.verbose(&format!("{shown}: {}", client.found()));
@@ -372,9 +389,14 @@ pub(super) async fn connect(
         Some((false, line)) => log.verbose(&format!("{shown}: {line}")),
         None => {}
     }
-    layered::learn(client.found(), &opts.keep.offer);
-    // The far end's silence, for a notice (T-302).
-    let client = layered::heard(client, &opts.silence);
+    // The far end's shells, and its silence for a notice (T-302).
+    let client = match rider.shell {
+        Some(shell) => {
+            layered::learn(client.found(), shell.offer);
+            layered::heard(client, shell.silence)
+        }
+        None => client,
+    };
     let say = |line: Line| match line {
         Line::Always(text) => log.info(&format!("{shown}: {text}")),
         Line::Verbose(text) => log.verbose(&format!("{shown}: {text}")),
@@ -392,8 +414,9 @@ pub(super) async fn connect(
             }
         }
     };
+    let silence = rider.shell.map(|shell| shell.silence);
     let note = |note: Note| {
-        if !layered::folded(&note, Some(&opts.silence)) {
+        if !layered::folded(&note, silence) {
             say(layered::line_of(note));
         }
     };
@@ -404,7 +427,7 @@ pub(super) async fn connect(
         move |line: String| log.info(&format!("{shown}: {line}"))
     };
     let (layer_app, session) = crate::channel::around(layer_end, channel, pin_say);
-    let layer_app = podssh_ssh::handshake::Counted::new(layer_app, Some(flow.clone()));
+    let layer_app = podssh_ssh::handshake::Counted::new(layer_app, rider.shell.and_then(|shell| shell.flow).cloned());
     let session = async move {
         match session {
             Some(session) => session.await.err(),
@@ -415,11 +438,14 @@ pub(super) async fn connect(
     // A line an hour before the pair expires, as on the pair's road alone
     // (T-155): the transit road brings each run with a pair here (T-436).
     let expires_ms = part.as_ref().map(|part| part.expires_ms);
-    // SIGHUP and SIGTERM end the session with its `CLOSE`, as on the pair's
-    // road alone; Ctrl-C stays the remote command's (T-586).
-    let hangup = crate::hangup::take(crate::hangup::Which::Ends);
+    // The signals that end the session with its `CLOSE`: those that `ssh`
+    // takes here, or those that a copy's command took (T-586).
+    let hangup = match rider.take {
+        Some(which) => Some(crate::hangup::take(which)),
+        None => crate::hangup::taken(),
+    };
     let carried = async {
-        let app = crate::hangup::ending(layer_app, Some(&hangup));
+        let app = crate::hangup::ending(layer_app, hangup.as_ref());
         let mut layer = Box::pin(resume::run(client, app, connect, note, &mut entropy));
         let run = async {
             tokio::select! {
@@ -427,10 +453,10 @@ pub(super) async fn connect(
                 () = layered::warn_of_expiry(expires_ms, &say) => layer.await,
             }
         };
-        crate::hangup::bounded(Some(&hangup), run).await
+        crate::hangup::bounded(hangup.as_ref(), run).await
     };
-    let (code, outcome, failed) =
-        tokio::join!(Box::pin(podssh_ssh::run(ssh_end, opts, None, log.clone())), Box::pin(carried), session);
+    let ridden = hand(Ok(Handed { stream: ssh_end, channel: channel_runs }));
+    let (code, outcome, failed) = tokio::join!(Box::pin(ridden), Box::pin(carried), session);
     if let Some(path) = roads.iroh.as_ref().and_then(IrohRoad::path) {
         log.verbose(&format!("{shown}: the iroh road: {path}"));
     }
@@ -453,43 +479,19 @@ pub(super) async fn connect(
         crate::ssh::result::channel_failed(&fault);
         let _ = layered::last(&roads.legs).await;
         roads.close().await;
-        return EXIT_FAILURE;
+        return Some(EXIT_FAILURE);
     }
     // A loss that --no-resume did not carry over (T-612).
     if let Some(line) = outcome.as_ref().and_then(crate::no_resume::ended) {
         log.info(&format!("{shown}: {line}"));
     }
-    // A session cut after a signal says nothing more: its `CLOSE` went.
-    if let (true, Some(why)) = (code == EXIT_FAILURE, outcome.and_then(layered::why_ended)) {
+    // A session cut after a signal says nothing more: its `CLOSE` went. A
+    // copy's SSH gives no code here, so each bad end of the layer is said.
+    let failing = code.is_none_or(|code| code == EXIT_FAILURE);
+    if let (true, Some(why)) = (failing, outcome.and_then(layered::why_ended)) {
         log.error(&format!("{shown}: {why}"));
     }
     let _ = layered::last(&roads.legs).await;
     roads.close().await;
     code
-}
-
-/// The order of the roads, for `-v`.
-fn order(kinds: &[Kind], roads: &Roads<'_>) -> String {
-    let mut words = Vec::new();
-    for (at, kind) in kinds.iter().enumerate() {
-        let when = match (at, kind) {
-            (0, _) => "first".to_string(),
-            (_, Kind::Derp) if roads.derp.as_ref().is_some_and(|(_, asked)| !asked) => {
-                "when each road before it failed (a kept ticket)".to_string()
-            }
-            (_, Kind::Transit) => "when each road before it failed (Q65)".to_string(),
-            (_, Kind::OpenTunnel) if roads.opentunnel.as_ref().is_some_and(|(_, asked)| !asked) => {
-                "when each road before it failed (a kept name, Q76)".to_string()
-            }
-            (_, Kind::Record(_)) if !matches!(kinds[at - 1], Kind::Record(_)) => {
-                "when each road before it failed (the node's record of pkarr, T-445)".to_string()
-            }
-            (_, Kind::Piping) if roads.piping.as_ref().is_some_and(|(_, asked)| !asked) => {
-                "when each road before it failed and one found the WebSocket upgrade refused (Q65)".to_string()
-            }
-            _ => format!("{} ms after", HEAD_START.as_millis()),
-        };
-        words.push(format!("{} {when}", kind.name()));
-    }
-    words.join(", ")
 }

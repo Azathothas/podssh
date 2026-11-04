@@ -3163,7 +3163,7 @@ sh scripts/plant-each.sh --here t319-seq-ignored t319-offset-ignored
   "each byte came back once, in order: 4222854 bytes, not 4194304" and "... the digests differ".
 - Each test of the relay crate with `--features serve,plain-ws,quick,pair,grant,piping`: no failure;
   the CLI's `forwarder_cli` 16, `faults` 1 (12 ignored), `relay` 12, `ipv6_fallback` 4,
-  `direct_fallback` 4, `doctor_upgrade` 2, `ssh_args` 36, `proxy` 3, `opentunnel_road` 15,
+  `direct_fallback` 4, `doctor_upgrade` 2, `ssh_args` 36, `proxy` 15, `opentunnel_road` 3,
   `relay_serve` 14: passed.
 - `cargo clippy` of both crates (the relay's with `serve,plain-ws,quick,pair,grant,piping`) with
   `--all-targets -D warnings`: clean, once the harness's `n % every == 0` became
@@ -5307,7 +5307,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:288`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:290`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:289-333`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:343-346`.
@@ -5807,7 +5807,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:148`).
+  port 443 answers (`docs/STATUS.md:149`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not

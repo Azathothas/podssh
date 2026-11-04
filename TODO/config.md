@@ -454,7 +454,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:89-282`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:91-284`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
@@ -1597,7 +1597,7 @@ user asked for is gone with no sign, and an audit finds it.
   because they change nothing that podssh does" (`crates/podssh-cli/src/man/model.rs:268-272`).
 - Read: each one is a note (`crates/podssh-cli/src/ssh/options.rs:272`), "-o NAME has no effect in
   podssh" (`crates/podssh-cli/src/ssh/resolve.rs:391`), said at `-v` alone
-  (`crates/podssh-cli/src/ssh/mod.rs:258-260`): "-o" also for the line of a file, with no file and
+  (`crates/podssh-cli/src/ssh/mod.rs:260-262`): "-o" also for the line of a file, with no file and
   no line.
 - Read, against L-39: the two notes of each run come from Debian 13's `/etc/ssh/ssh_config`, whose
   `Host *` sets `HashKnownHosts` and `GSSAPIAuthentication` (T-044's Correction), and which podssh

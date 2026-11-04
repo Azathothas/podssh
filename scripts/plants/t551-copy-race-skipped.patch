@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ssh/node_roads.rs
++++ b/crates/podssh-cli/src/ssh/node_roads.rs
+@@ -173,7 +173,7 @@ pub(crate) async fn reach(transport: &Transport, log: &Arc<Log>) -> Result<Reached, NotReached> {
+     let refused = |refusal: Refusal| NotReached { lines: vec![refusal.message], code: refusal.code };
+     let mut chosen = chosen(&dest).map_err(refused)?;
+     let Dest { label, pair_file, trust, race, channel, .. } = dest;
+-    if !chosen.races(&dest) {
++    if true || !chosen.races(&dest) {
+         match super::node::reach(label, pair_file, trust, channel, log).await {
+             Ok(reached) => return Ok(reached),
+             // The upgrade refused on the way: the Piping Server road, as

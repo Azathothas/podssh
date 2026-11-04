@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**579 entries: 92 open, 4 partial, 2 blocked, 481 done.**
+**579 entries: 91 open, 4 partial, 2 blocked, 482 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 28 | 2 | 0 | 234 | 264 |
-| P3 | 64 | 1 | 2 | 183 | 250 |
-| **All** | 92 | 4 | 2 | 481 | 579 |
+| P3 | 63 | 1 | 2 | 184 | 250 |
+| **All** | 91 | 4 | 2 | 482 | 579 |
 
 ## Entries
 
@@ -598,7 +598,7 @@ repository and CI).
 | [T-548](mesh.md) | P2 | L | M10 | feature | open | Pinggy as a last fallback of the reverse road: SSH inside TLS on 443, and a TLS tunnel that ends at the node |
 | [T-549](mesh.md) | P3 | M | M10 | feature | open | Serveo as a last fallback: a node's alias by SSH, and a client's hop through it |
 | [T-550](mesh.md) | P3 | S | M10 | feature | done | The quick tunnel's node takes its net's members as its door, with no `--allow` |
-| [T-551](mesh.md) | P3 | M | M10 | feature | open | A copy to a node races the roads that `podssh ssh` races, not the pair's road alone |
+| [T-551](mesh.md) | P3 | M | M10 | feature | done | A copy to a node races the roads that `podssh ssh` races, not the pair's road alone |
 | [T-560](roads.md) | P2 | S | none | defect | done | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
 | [T-561](roads.md) | P2 | M | none | feature | done | WARP's road dials one constant address, not the peers that WARP's API gave |
 | [T-562](roads.md) | P3 | S | none | feature | done | WARP's registration dials one name of the API, with no second route |
