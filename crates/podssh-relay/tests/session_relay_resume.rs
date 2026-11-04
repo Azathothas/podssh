@@ -10,13 +10,16 @@
 //! before the upgrade as `/connect/` does. Behind one name that two
 //! processes of the role share, each link goes to the process that named
 //! itself in its offer; and a new session past the role's budget is refused
-//! in its handshake, before its client sent a byte of it.
+//! in its handshake, before its client sent a byte of it. A client that asks
+//! for the end of one direction (T-632) gets the answer of a target that
+//! reads to the end of its input; one that does not ask keeps the old end.
 #![cfg(all(feature = "serve", feature = "plain-ws"))]
 
 mod relay_resume_harness;
 mod role_harness;
 
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine as _;
@@ -26,7 +29,7 @@ use podssh_relay::serve::layer::Resumes;
 use podssh_relay::serve::policy::Policy;
 use podssh_relay::serve::{tokens, Mint};
 use podssh_relay::session::client::{self, Found, Outcome};
-use podssh_relay::session::{Ask, End, Ended, OsEntropy, Settings};
+use podssh_relay::session::{half_close, Ask, End, Ended, OsEntropy, Settings};
 use podssh_ws::ConnectError;
 use relay_resume_harness::{byte_at, data_file, echo_target, exit_of, received, send_data, Cutter, OpenSsh, Scratch};
 use role_harness::Role;
@@ -300,6 +303,81 @@ async fn a_new_session_past_the_budget_is_refused_in_its_handshake_and_dials_not
     assert_eq!(dials.load(Ordering::SeqCst), 1, "the refused session dialed nothing");
     assert!(cutter.cuts() >= 1 && role.said("layer resumed"), "the session resumed on a full budget");
     assert!(role.said(&format!("layer: {head}")), "the owner heard the refusal");
+    until_forgotten(&role).await;
+}
+
+/// A target that reads each connection to the end of its input, then
+/// answers with the count of its bytes and their digest, and closes it, as an
+/// HTTP/1.0 server or `wc` does; with the count of its connections.
+async fn answers_at_its_end() -> (u16, Arc<AtomicUsize>) {
+    let listener = bind().await;
+    let port = listener.local_addr().unwrap().port();
+    let dials = Arc::new(AtomicUsize::new(0));
+    let counted = dials.clone();
+    tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            counted.fetch_add(1, Ordering::SeqCst);
+            tokio::spawn(async move {
+                let mut got = Vec::new();
+                if stream.read_to_end(&mut got).await.is_ok() {
+                    let answer = format!("{} bytes, sha256 {:x}\n", got.len(), Sha256::digest(&got));
+                    let _ = stream.write_all(answer.as_bytes()).await;
+                    let _ = stream.shutdown().await;
+                }
+            });
+        }
+    });
+    (port, dials)
+}
+
+/// Through the role's layer road, a request, its end and the answer after
+/// it (T-632, GitHub #130): the client asks for the end of one direction, the
+/// role half-closes its connection to the target, which reads to that end
+/// and only then answers, and the answer comes back; the session then ends,
+/// and the role forgets it. A client that does not ask gets the old end: the
+/// end of its bytes ends the session, and the answer that follows is lost.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn through_the_role_the_answer_after_the_end_of_a_request_comes_back() {
+    let (role, token) = private_role().await;
+    let (target, dials) = answers_at_its_end().await;
+    let dialer = Dialer::on_loopback(role.relay.clone(), "127.0.0.1", target, &token).unwrap();
+    let request: Vec<u8> = (0..(3 * MIB) as u64).map(byte_at).collect();
+    let want = format!("{} bytes, sha256 {:x}\n", request.len(), Sha256::digest(&request));
+    let asking = Settings { half_close: true, ..Settings::default() };
+    let first = dialer.link(&mut |_: &str| {}).await.expect("the first link");
+    let client = client::start(first, Ask::New, asking, &mut OsEntropy).await.expect("the handshake");
+    let agreed = matches!(client.found(), Found::Layer { features, .. } if half_close::agreed(features));
+    assert!(agreed, "the role named end.v1: {}", client.found());
+    let (app, ours) = tokio::io::duplex(256 * 1024);
+    let (mut from_app, mut to_app) = tokio::io::split(ours);
+    let exchange = async {
+        to_app.write_all(&request).await.unwrap();
+        to_app.shutdown().await.unwrap();
+        let mut back = Vec::new();
+        tokio::time::timeout(LIMIT, from_app.read_to_end(&mut back)).await.expect("the answer").unwrap();
+        back
+    };
+    let session = carry(&dialer, client, app, |_| {});
+    let (back, outcome) = tokio::join!(exchange, tokio::time::timeout(LIMIT, session));
+    let outcome = outcome.expect("the session's end");
+    assert_eq!(String::from_utf8_lossy(&back), want, "the answer after the end of the request");
+    assert!(ended_well(&outcome), "{outcome:?}");
+    assert_eq!(dials.load(Ordering::SeqCst), 1);
+    until_forgotten(&role).await;
+
+    let first = dialer.link(&mut |_: &str| {}).await.expect("a link of the second session");
+    let client = client::start(first, Ask::New, Settings::default(), &mut OsEntropy).await.expect("the handshake");
+    let agreed = matches!(client.found(), Found::Layer { features, .. } if half_close::agreed(features));
+    assert!(!agreed, "the client did not ask: {}", client.found());
+    let (app, ours) = tokio::io::duplex(256 * 1024);
+    let (mut from_app, mut to_app) = tokio::io::split(ours);
+    to_app.write_all(b"query").await.unwrap();
+    to_app.shutdown().await.unwrap();
+    let outcome = tokio::time::timeout(LIMIT, carry(&dialer, client, app, |_| {})).await.expect("the old end");
+    assert!(ended_well(&outcome), "{outcome:?}");
+    let mut back = Vec::new();
+    tokio::time::timeout(LIMIT, from_app.read_to_end(&mut back)).await.expect("the end of the bytes").unwrap();
+    assert!(back.is_empty(), "the old end loses the answer: {:?}", String::from_utf8_lossy(&back));
     until_forgotten(&role).await;
 }
 

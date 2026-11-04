@@ -1,0 +1,8 @@
+# T-632: a link after a resume never sends again the END of an application
+# that ended its bytes on an earlier link, so an END that its link lost never
+# reaches the far end, whose target waits for the end of its input: the test
+# of an END lost with its link must fail.
+ENTRY=T-632
+GROUP=resume
+EXPECT='an_end_that_its_link_lost_comes_again_after_a_resume'
+RUN='cargo test --locked -p podssh-relay --test session_half_close -- an_end_that_its_link_lost'

@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/session/link.rs
++++ b/crates/podssh-relay/src/session/link.rs
+@@ -343,7 +343,7 @@
+             }
+             Record::Close { reason } => Ok(Event::Closed(reason)),
+             Record::Retire => Ok(Event::Retired),
+-            Record::End { offset } => self.peer_end(offset),
++            Record::End { .. } => Ok(Event::Closed(String::new())),
+             Record::Refuse { code, reason } => Err(LinkError::Refused { code, reason }),
+             other => Err(LinkError::Unexpected(other.name())),
+         }

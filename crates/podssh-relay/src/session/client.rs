@@ -16,6 +16,7 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 use super::decode::{DecodeError, Decoder};
+use super::half_close;
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError, Step};
 use super::hearing::Hearing;
 use super::once;
@@ -221,9 +222,11 @@ where
             let found = Found::Plain { first: first.first().copied() };
             return Ok(Client { link, found, early: first, layer: None, settings, hearing: Arc::default() });
         }
-        // The `OPEN` names the features, and the ask of a session that ends
-        // with its link when the user turned the resumes off (T-612).
-        let named = once::asked(&settings);
+        // The `OPEN` names the features, the ask of a session that ends with
+        // its link when the user turned the resumes off (T-612), and the ask
+        // of the end of one direction where the application reads on (T-632).
+        let mut named = once::asked(&settings);
+        half_close::ask(&settings, &mut named);
         let named: Vec<&str> = named.iter().map(String::as_str).collect();
         let (handshake, open) = ClientHandshake::start(ask, &named, entropy).map_err(ClientError::Handshake)?;
         let mut buf = vec![0u8; 64 * 1024];

@@ -15,7 +15,9 @@
 //! The session ends when a `CLOSE` is answered: the side whose application
 //! ended sends `CLOSE` after its last bytes, and the peer answers with its
 //! own. A link that ends before the answer leaves the session to a resume,
-//! which sends the `CLOSE` again (T-262).
+//! which sends the `CLOSE` again (T-262). Where both sides name `end.v1`, the
+//! first side's end is `END`, which ends its direction alone, and the second
+//! side's is the `CLOSE` (T-632, `super::half_close`).
 //!
 //! A link can end at any await: the application stays open, and what the
 //! session needs for the next link (its offsets, its buffer, the bytes not
@@ -145,10 +147,14 @@ pub struct Carry {
     /// application's new bytes.
     again: Vec<u8>,
     /// Whether this side's application ended its bytes: from then on, each
-    /// link of the session sends `CLOSE` after the last of them.
+    /// link of the session sends `CLOSE`, or `END` (T-632), after the last of
+    /// them.
     app_ended: bool,
     /// What this side heard from the far end, across links (T-302).
     hearing: Arc<Hearing>,
+    /// Whether the application's write side is shut: the peer's `END` came,
+    /// and the application took each byte before it (T-632).
+    app_shut: bool,
 }
 
 impl Carry {
@@ -159,6 +165,7 @@ impl Carry {
             again: Vec::new(),
             app_ended: false,
             hearing: Arc::default(),
+            app_shut: false,
         }
     }
 
@@ -179,6 +186,13 @@ impl Carry {
     /// `CLOSE` (T-262).
     pub fn app_ended(&self) -> bool {
         self.app_ended
+    }
+
+    /// Whether this side's `CLOSE` is due or went: its application ended its
+    /// bytes, and no `END` keeps the session open for the peer's (T-632). A
+    /// far end that then no longer knows the session had the `CLOSE`.
+    pub fn closing(&self) -> bool {
+        self.app_ended && lock(&self.state).closes_at_end()
     }
 
     /// The bytes received that the application has not taken yet.
@@ -209,8 +223,9 @@ pub struct Watch {
     pub move_at: AtomicU64,
     /// Told when the link's bytes pass `move_at`.
     pub due: Notify,
-    /// Set when this side's application ended its bytes on this link: the
-    /// session is closing, and a move would only delay its `CLOSE`.
+    /// Set when this side's application ended its bytes on this link and
+    /// its `CLOSE` is due, not at an `END` (T-632): the session is closing,
+    /// and a move would only delay its `CLOSE`.
     pub app_ended: AtomicBool,
     /// Whether this side ends a retired link (the far end, a node's): after
     /// its last bytes it closes its side, and on a node's road the node's
@@ -270,9 +285,10 @@ where
 {
     let (mut app_r, mut app_w) = tokio::io::split(app);
     let (mut link_r, mut link_w) = tokio::io::split(link);
-    let Carry { state, undelivered, again, app_ended: app_ended_before, hearing } = carry;
+    let Carry { state, undelivered, again, app_ended: app_ended_before, hearing, app_shut } = carry;
     let hearing: &Hearing = hearing;
     let again = std::mem::take(again);
+    let ended_before = *app_ended_before;
     let heartbeat = lock(state).heartbeat();
     let outbox = Outbox::new();
     let heard = Mutex::new(Instant::now());
@@ -282,9 +298,20 @@ where
 
     let mut retired = false;
     let end = {
-        let up = up::run(&mut app_r, again, data_tx, state, &room, watch.window);
-        let down =
-            down::run(&mut app_w, &mut link_r, decoder, &outbox, state, &room, undelivered, &heard, hearing, watch);
+        let up = up::run(&mut app_r, again, data_tx, state, &room, watch.window, ended_before);
+        let down = down::run(
+            &mut app_w,
+            &mut link_r,
+            decoder,
+            &outbox,
+            state,
+            &room,
+            undelivered,
+            &heard,
+            hearing,
+            watch,
+            app_shut,
+        );
         let writer = outbox::write(&mut link_w, &mut data_rx, &outbox, state, watch, hearing);
         let beat = async {
             if heartbeat {
@@ -323,9 +350,12 @@ where
                         break end;
                     }
                     *app_ended_before = true;
-                    watch.app_ended.store(true, Ordering::SeqCst);
                     // The application ended its bytes: the writer sends the
-                    // rest, then `CLOSE`.
+                    // rest, then `CLOSE`; or `END`, and the session is not
+                    // closing until the peer's own end (T-632).
+                    if lock(state).closes_at_end() {
+                        watch.app_ended.store(true, Ordering::SeqCst);
+                    }
                 }
                 written = &mut writer => break match written {
                     // `CLOSE` is out: the peer answers it with its own. A

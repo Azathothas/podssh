@@ -17,6 +17,7 @@
 //! | 0x09 | PONG     | either  | the value of the PING, then an offset |
 //! | 0x0a | CLOSE    | either  | a reason |
 //! | 0x0b | RETIRE   | client  | nothing: this link ends, the session goes on (T-155) |
+//! | 0x0c | END      | either  | the offset after its last byte: one direction ends, the session goes on (T-632) |
 //!
 //! The magic is the 14 bytes `podssh-session`. A nonce, a public key and a
 //! proof have 32 bytes, a session id 16. Features are a count byte (16 at
@@ -60,6 +61,8 @@ pub mod kind {
     pub const PONG: u8 = 0x09;
     pub const CLOSE: u8 = 0x0a;
     pub const RETIRE: u8 = 0x0b;
+    /// Only to a peer that named `end.v1`: an older one decodes no such type.
+    pub const END: u8 = 0x0c;
 }
 
 /// What a side is. A byte, so that a role of a later version still decodes
@@ -217,6 +220,11 @@ pub enum Record {
     /// The end of this link alone: the client moved the session to another
     /// one (T-155), and nothing more comes on this one.
     Retire,
+    /// The end of the sender's bytes, `offset` the offset after the last of
+    /// them: one direction ends, and the session goes on (T-632).
+    End {
+        offset: u64,
+    },
 }
 
 impl Record {
@@ -238,6 +246,7 @@ impl Record {
             Record::Pong { .. } => kind::PONG,
             Record::Close { .. } => kind::CLOSE,
             Record::Retire => kind::RETIRE,
+            Record::End { .. } => kind::END,
         }
     }
 
@@ -334,6 +343,10 @@ impl Record {
             }
             Record::Close { reason } => text(out, reason),
             Record::Retire => Ok(()),
+            Record::End { offset } => {
+                out.extend_from_slice(&offset.to_be_bytes());
+                Ok(())
+            }
         }
     }
 }
@@ -352,6 +365,7 @@ pub fn name_of(kind: u8) -> &'static str {
         kind::PONG => "PONG",
         kind::CLOSE => "CLOSE",
         kind::RETIRE => "RETIRE",
+        kind::END => "END",
         _ => "an unknown record",
     }
 }
@@ -443,6 +457,7 @@ impl fmt::Debug for Record {
             }
             Record::Close { reason } => f.debug_struct("Close").field("reason", reason).finish(),
             Record::Retire => f.write_str("Retire"),
+            Record::End { offset } => f.debug_struct("End").field("offset", offset).finish(),
         }
     }
 }

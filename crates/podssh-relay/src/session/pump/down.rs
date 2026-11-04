@@ -6,7 +6,12 @@
 //! side's replay buffer, and an application that waits for this side's own
 //! bytes (an echo, a shell) would otherwise wait on a reader that waits on
 //! it, until the link was taken for dead.
+//!
+//! The peer's `END` (T-632) shuts the application's write side once it has
+//! each byte before the end, and the reader goes on: the application's own
+//! bytes still go, and the peer's acknowledgements of them still come.
 
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -72,6 +77,8 @@ enum Next {
 /// Read the link until it ends, and give the application each new byte.
 /// `heard` is when the far end's last bytes came on this link; `hearing`,
 /// the same across the session's links, for a notice of silence (T-302).
+/// `shut`, across the session's links too, is whether the application's
+/// write side is shut after the peer's `END` (T-632).
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run<W, R>(
     app: &mut W,
@@ -84,6 +91,7 @@ pub(super) async fn run<W, R>(
     heard: &Mutex<Instant>,
     hearing: &Hearing,
     watch: &Watch,
+    shut: &mut bool,
 ) -> End
 where
     W: AsyncWrite + Unpin,
@@ -130,12 +138,26 @@ where
                     return after_delivery(app, undelivered, state, End::Closed(reason)).await;
                 }
                 Ok(Event::Retired) => return End::Retired,
+                // The peer's bytes ended; after this side's own `END`, its
+                // `CLOSE` is due, and the session is closing.
+                Ok(Event::Ended { closes }) => {
+                    if closes {
+                        watch.app_ended.store(true, Ordering::SeqCst);
+                        outbox.close_after_end();
+                    }
+                }
                 Ok(Event::Nothing) => {}
                 Err(e) => return after_delivery(app, undelivered, state, End::Broken(e)).await,
             }
             if acknowledges {
                 room.notify_one();
             }
+        }
+        // The application has each byte before the peer's end: no more come,
+        // so its write side is shut, once, on whichever link it happens.
+        if !*shut && undelivered.is_empty() && lock(state).peer_ended() {
+            *shut = true;
+            let _ = app.shutdown().await;
         }
         // 64 KiB or more written: acknowledged at the writer's next turn;
         // fewer: after the delay, unless an `ACK` already waits for the writer.

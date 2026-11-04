@@ -1184,7 +1184,17 @@ a target that speaks none, as a node is for its TARGET
   so that new sessions at once do not pass it together;
 - a restart forgets each session: a resume then gets the layer's refusal
   of an unknown session, once its client minted a new token where the role
-  mints for it, and else `403` for the old one; either ends the session.
+  mints for it, and else `403` for the old one; either ends the session;
+- the role names `end.v1` in its `GREETING` (T-632): a client that names it
+  too ends its bytes with the layer's `END`, and the role shuts the
+  target's writing side (TCP's half-close) once it wrote each byte before
+  the end, and reads on, so a target that reads to the end of its input
+  still answers; the target's own end goes back as `END`, or as `CLOSE`
+  where the client's `END` came first, and the session ends when that
+  `CLOSE` is answered. A client that does not name it gets `CLOSE` at
+  either end, as before, and the end of its bytes ends the session.
+  `podssh proxy` names it, and `podssh ssh`, whose SSH ends both ways at
+  once, does not.
 
 `/relays.json` offers it in `forward`: `layer`, `true` where a new session
 can have room, and `host`, the name of this process for each link of a

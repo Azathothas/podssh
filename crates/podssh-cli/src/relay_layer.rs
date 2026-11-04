@@ -21,7 +21,15 @@
 //! is the end of the session's bytes, and the layer's `CLOSE` makes the role
 //! forget the session and shut its target at once (T-586), not after the
 //! layer's deadline.
+//!
+//! The end of stdin is the layer's `END` where the role takes it (T-632): the
+//! target gets the end of its input, and its answer still comes (`half`). A
+//! signal still ends the whole session; one after the end of stdin finds the
+//! `END` gone, and the session ends with the target, as an sshd ends at the
+//! end of its input. A role of an older build takes no `END`, and the end of
+//! stdin then stops sending and keeps receiving, as on the contract's road.
 
+mod half;
 pub(crate) mod ssh;
 
 use std::io::Write;
@@ -29,13 +37,14 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use tokio::io::{AsyncRead, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use podssh_relay::forward_layer::{self, kept, offer, Dialer, Missed};
 use podssh_relay::relay::{Relay, RelayList};
-use podssh_relay::session::client::{self, Outcome};
+use podssh_relay::session::client::{self, Client, Found, Outcome};
 use podssh_relay::session::resume::Note;
-use podssh_relay::session::{Ask, OsEntropy};
+use podssh_relay::session::{half_close, Ask, OsEntropy, Settings};
+use podssh_relay::transit::link::Link;
 use podssh_ws::{ProxyChoice, Trust};
 
 use crate::exitmap::sysexits::EX_UNAVAILABLE;
@@ -197,7 +206,8 @@ pub async fn run(relays: &RelayList, trust: &Trust, (host, port): (&str, u16), e
     crate::session_log::opened(Some(&dialer.relay().host));
     // OpenSSH's SIGHUP is the end of the bytes, which the role hears.
     let hangup = crate::hangup::take(crate::hangup::Which::All);
-    let settings = crate::layered::settings().off_the_pair();
+    // The end of stdin ends its direction alone, where the role takes it.
+    let settings = Settings { half_close: true, ..crate::layered::settings().off_the_pair() };
     let begun = async { client::start(first, Ask::New, settings, &mut OsEntropy).await };
     let client = match crate::hangup::unless(Some(&hangup), Box::pin(begun)).await {
         Some(Ok(client)) => client,
@@ -216,17 +226,39 @@ pub async fn run(relays: &RelayList, trust: &Trust, (host, port): (&str, u16), e
             return Some(EX_UNAVAILABLE);
         }
     };
+    let ends = matches!(client.found(), Found::Layer { features, .. } if half_close::agreed(features));
+    if ends {
+        // A signal fails the reads, so that it still ends the whole session.
+        let io = half::EndsWithReply::new(tokio::io::stdin(), tokio::io::stdout());
+        let app = crate::hangup::ending_wholly(io, Some(&hangup));
+        return carried(&dialer, client, app, (&at, &hangup), err).await;
+    }
     let io = tokio::io::join(KeepsReceiving { read: tokio::io::stdin(), ended: false }, tokio::io::stdout());
     let app = crate::hangup::ending(io, Some(&hangup));
+    carried(&dialer, client, app, (&at, &hangup), err).await
+}
+
+/// `client`'s session with `app`, the session's stdin and stdout, to its end
+/// or [`crate::hangup::AFTER_SIGNAL`] after a signal: the exit code.
+async fn carried<A>(
+    dialer: &Dialer,
+    client: Client<Link>,
+    app: A,
+    (at, hangup): (&str, &crate::hangup::Hangup),
+    err: &mut dyn Write,
+) -> Option<i32>
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send,
+{
     // stdout carries the session's bytes alone: each line goes to stderr.
     let note = |note: Note| {
         if let Line::Always(text) = crate::layered::line_of(note) {
             let _ = writeln!(err, "podssh: {at}: {text}");
         }
     };
-    let session = Box::pin(forward_layer::carry(&dialer, client, app, note));
+    let session = Box::pin(forward_layer::carry(dialer, client, app, note));
     // A signal's end: the `CLOSE` went, and nobody reads the bytes any more.
-    let Some(outcome) = crate::hangup::bounded(Some(&hangup), session).await else { return Some(0) };
+    let Some(outcome) = crate::hangup::bounded(Some(hangup), session).await else { return Some(0) };
     if let Outcome::Layer(ended) = &outcome {
         crate::session_log::carried(ended.sent, ended.received);
     }
@@ -240,10 +272,11 @@ pub async fn run(relays: &RelayList, trust: &Trust, (host, port): (&str, u16), e
 }
 
 /// stdin, whose end stops sending and keeps receiving, as on the contract's
-/// road (`crate::proxy`): the layer's `CLOSE` ends the whole session, so an
-/// end of input that reached it would cut off a reply still on its way
-/// (`echo QUERY | podssh proxy HOST PORT`). The target's end ends the
-/// session; a signal still ends the input (`crate::hangup::ending`).
+/// road (`crate::proxy`), for a role that takes no `END` (T-632): its
+/// layer's `CLOSE` ends the whole session, so an end of input that reached it
+/// would cut off a reply still on its way (`echo QUERY | podssh proxy HOST
+/// PORT`). The target's end ends the session; a signal still ends the input
+/// (`crate::hangup::ending`).
 struct KeepsReceiving<R> {
     read: R,
     ended: bool,

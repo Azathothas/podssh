@@ -3560,11 +3560,16 @@ commands. The rules behind them:
   each link of the session to the process that the offer names, of its
   deployment, else to that host alone
   (`crates/podssh-cli/src/relay_layer.rs`), each loss and resume a line on
-  stderr; OpenSSH's SIGHUP at its exit is the end of `proxy`'s bytes, so the
-  role forgets the session at once, while the end of stdin stops sending and
-  keeps receiving until the target closes, as on the contract's road: the
-  layer's `CLOSE` ends the whole session, so a reply on its way would be
-  lost. `podssh ssh` runs the layer on a thread
+  stderr; OpenSSH's SIGHUP at its exit ends the whole session, so the role
+  forgets it at once. The end of stdin is the layer's `END` where the role
+  takes it (T-632, `crates/podssh-cli/src/relay_layer/half.rs`): the role
+  half-closes its connection to the target, a target that reads to the end
+  of its input still answers (`echo QUERY | podssh proxy HOST PORT`), and
+  the target's end ends stdin too, so the session ends with the target, as
+  before; with a role that takes no `END`, the end of stdin stops sending
+  and keeps receiving until the target closes, as on the contract's road,
+  as the layer's `CLOSE` would end the whole session and lose a reply on
+  its way. `podssh ssh` runs the layer on a thread
   of its own beside SSH (`crates/podssh-cli/src/relay_layer/ssh.rs`), holds
   `-4` and `-6` on each link, and sends no SSH keepalive unless
   `ServerAliveInterval` is given; the copies, `run`, `each` and `job`, which
@@ -4451,7 +4456,8 @@ own, and the forward road starts at the node.
   still comes back. `tcp:`, `ssh:` and `unix-connect:` pass it on as TCP,
   SSH and a socket do; the relay has no half-close, so `relay:` sends no
   Close, and the target's bytes come until it closes, as a named pipe's do;
-  `node:` and `iroh:` end their session, whose layer has no half-close. A writer whose reader is gone ends the pipe; a
+  `node:` and `iroh:` end their session, as they ask the layer for no end
+  of one direction (`podssh proxy` alone does, T-632). A writer whose reader is gone ends the pipe; a
   program that exited after its output ended ends it too, and so does a
   road that ended, as the other side's input may never end. podssh waits
   for each program, as a shell does.
