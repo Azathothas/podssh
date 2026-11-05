@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**642 entries: 95 open, 11 partial, 4 blocked, 532 done.**
+**644 entries: 97 open, 11 partial, 4 blocked, 532 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 66 | 68 |
-| P2 | 25 | 5 | 1 | 251 | 282 |
+| P2 | 27 | 5 | 1 | 251 | 284 |
 | P3 | 70 | 4 | 3 | 214 | 291 |
-| **All** | 95 | 11 | 4 | 532 | 642 |
+| **All** | 97 | 11 | 4 | 532 | 644 |
 
 ## Entries
 
@@ -718,3 +718,5 @@ repository and CI).
 | [T-685](repo.md) | P1 | M | M10 | chore | done | The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021 |
 | [T-686](repo.md) | P2 | S | M10 | chore | done | The publish of the crates to crates.io: `.github/workflows/publish.yml`, apart from the release |
 | [T-687](repo.md) | P2 | M | M10 | feature | blocked | The first crates of podssh on crates.io: which crates, under which names, and with what in the place of the vendored patches and the git sources |
+| [T-688](repo.md) | P2 | S | M10 | defect | open | Three tests failed once on CI's macOS runner at `67c0768`: the pipe's end of input on a Unix socket, and two of `doh_wire` timed out resolving |
+| [T-689](repo.md) | P2 | S | M10 | defect | open | `cargo test -p podssh-relay --test pair_code` overflows its stack on Rust 1.97 in a debug build |

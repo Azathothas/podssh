@@ -5674,3 +5674,77 @@ It packs and builds each crate that is let out; then the first tag publishes the
 The owner: the ruling that podssh publishes, the list of crates and their reserved names (in the
 owner's queue on 2026-11-05: `podssh-ssh`, `podssh-irc`, `podssh-probe`).
 
+# T-688: Three tests failed once on CI's macOS runner at `67c0768`: the pipe's end of input on a Unix socket, and two of `doh_wire` timed out resolving
+
+**Source:** the session of 2026-11-05, CI's job `macos` of run 42035545363 (`67c0768`, T-683).
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A test that fails at random hides a real failure. On macOS, at `67c0768`, whose change was only
+the repository's name: `unix_connect_passes_the_end_of_input_on_and_the_answer_comes_back` (`-p
+podssh-cli --test pipe`) saw no end within 10 s although the server had read each byte, answered
+and podssh had shut the write half down; `a_wrong_cached_address_fails_tls_on_the_name` and
+`the_dialer_hands_a_cached_address_that_does_not_connect_to_the_next_source` (`-p podssh-ws --test
+doh_wire`) timed out after 20 s "resolving" a name of `.invalid`. The next run (`6514238`) passed
+the same job.
+
+## Premise
+
+- Read: `crates/podssh-cli/tests/pipe_seen/mod.rs:125` fails with "no end within 10 s".
+- Read: `crates/podssh-ws/tests/doh_wire.rs:160` and `crates/podssh-ws/tests/doh_wire.rs:199`
+  expect a connect or a TLS refusal, and got a timeout of the resolver.
+
+## Approach
+
+Find why each waits on macOS (the resolver of `.invalid` that the test meant to avoid, and the end
+of a Unix socket's read half after the write half shut down), repair the cause, and run each test
+50 times on the macOS runner.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test pipe
+cargo test -p podssh-ws --test doh_wire
+```
+
+Each passes 50 runs in a row on CI's macOS runner.
+
+# T-689: `cargo test -p podssh-relay --test pair_code` overflows its stack on Rust 1.97 in a debug build
+
+**Source:** the podcrates session, 2026-11-05: its trial of `pod-tls` at `d4e186d`, with no patch
+of podcrates.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The crates declare Rust 1.97 since T-685, and on 1.97 a debug build of the pairing's test by a
+short code overflows its stack; the gate builds on the build image's 1.99.1, where it passed.
+
+## Premise
+
+- Read: the podcrates session's report: `cargo test -p podssh-relay --test pair_code` overflows on
+  Rust 1.97, debug, at `d4e186d`.
+- Read: `scripts/gate.sh` runs the test with the features `pair,code,serve` in the step `libs`.
+
+## Approach
+
+Run it on Rust 1.97 with those features, find the frame that grows (a large future held on the
+stack is the likely one), and box it or run the test's work on a thread with a stack of its own.
+
+## Prove
+
+```sh
+cargo +1.97 test -p podssh-relay --features pair,code,serve --test pair_code
+```
+
+It passes on 1.97 and on the build image's Rust.
+
