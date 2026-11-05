@@ -1,0 +1,7 @@
+# T-637: each failure of a closed gate moves its ladder, the stale ones of a
+# wave too, so 8 failures together wait 30 s where one wave should wait 1 s;
+# the test of a cold wave must fail.
+ENTRY=T-637
+GROUP=resume
+EXPECT='test gate::tests::a_cold_wave_dials_at_most_eight_and_its_failures_move_the_ladder_once \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- gate::tests::a_cold_wave_dials_at_most_eight_and_its_failures_move_the_ladder_once'

@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/gate.rs
++++ b/crates/podssh-relay/src/gate.rs
+@@ -325,7 +325,8 @@ pub async fn guarded<T, F>(
+ where
+     F: Future<Output = Result<T, OpenError>>,
+ {
+-    let lease = gates.admit(relay, successor).await?;
++    let admitted = tokio::time::timeout(deadline, gates.admit(relay, successor)).await;
++    let lease = admitted.unwrap_or(Err(OpenError::Deadline))?;
+     let result = tokio::time::timeout(deadline, attempt).await.unwrap_or(Err(OpenError::Deadline));
+     lease.settle(verdict(&result));
+     result

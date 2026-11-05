@@ -12,7 +12,9 @@
 //! once. Whole rounds repeat `rounds` times with jittered exponential backoff.
 //! After them, last, the cleartext road (T-326, [`crate::cleartext`]) to a
 //! host whose TLS failed on the way. Shared by `podssh proxy` and `podssh
-//! ssh`, which differ only in how they report a failure.
+//! ssh`, which differ only in how they report a failure. Each attempt passes
+//! the process's gate of its host first ([`crate::gate`], T-637), so that the
+//! sessions of a process that a failing host meets together cost one probe.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -56,6 +58,10 @@ pub enum OpenError {
     },
     /// The attempt ran past [`HOST_DEADLINE`].
     Deadline,
+    /// This process's gate holds the host after a failure of one of its
+    /// sessions (T-637): the wait left, or `None` while a probe runs. Only
+    /// where the list has a next host, which the run tries at once.
+    Held { left: Option<Duration> },
 }
 
 impl OpenError {
@@ -63,7 +69,7 @@ impl OpenError {
     pub fn another_host_may_help(&self) -> bool {
         match self {
             OpenError::Offline => false,
-            OpenError::Deadline => true,
+            OpenError::Deadline | OpenError::Held { .. } => true,
             OpenError::Token(TokenError::BadEnvironment | TokenError::NotIssued) => false,
             OpenError::Token(_) => true,
             OpenError::Connect { error, .. } => match error {
@@ -92,6 +98,7 @@ impl OpenError {
             OpenError::Deadline => {
                 vec![format!("the relay host did not answer within {} s", HOST_DEADLINE.as_secs())]
             }
+            OpenError::Held { left } => vec![format!("{}; trying the next host", crate::gate::words(*left))],
             OpenError::Token(e) => vec![e.to_string()],
             OpenError::Connect { error, origin } => {
                 let mut lines = vec![error.to_string()];
@@ -239,8 +246,12 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
             // In `serial`, a host with a successor has a short step.
             let last = i + 1 == hosts.len();
             let step = if req.failover == Mode::Serial && !last { SERIAL_STEP } else { CONNECT_TIMEOUT };
-            attempt(hosts[i].clone(), shared.clone(), gate.clone(), step)
+            attempt(hosts[i].clone(), shared.clone(), gate.clone(), step, !last)
         };
+        // Each host held by this process's gate: the run waits at the last (T-637).
+        if let Some(line) = crate::gate::process().all_held(hosts) {
+            notes(&line);
+        }
         let stops = |e: &OpenError| !e.another_host_may_help();
         let raced = failover::race(hosts.len(), req.failover, start, stops, notes).await;
         // A session that is not kept is closed at once, so that the relay
@@ -311,17 +322,19 @@ struct Shared {
 }
 
 /// One host within [`HOST_DEADLINE`], each step within `step`, with its
-/// notes: a host that fails names itself when there are others.
+/// notes: a host that fails names itself when there are others. First the
+/// process's gate of the host, its wait outside the deadline (T-637); with a
+/// `successor`, a held host is left for the next at once.
 async fn attempt(
     relay: Relay,
     shared: Arc<Shared>,
     gate: MintGate,
     step: Duration,
+    successor: bool,
 ) -> Attempt<RelaySession, OpenError> {
     let mut notes = Vec::new();
-    let result = tokio::time::timeout(HOST_DEADLINE, try_host(&relay, &shared, &gate, step, &mut notes))
-        .await
-        .unwrap_or(Err(OpenError::Deadline));
+    let tried = try_host(&relay, &shared, &gate, step, &mut notes);
+    let result = crate::gate::guarded(crate::gate::process(), &relay, successor, HOST_DEADLINE, tried).await;
     if let Err(e) = &result {
         if e.another_host_may_help() && shared.several {
             notes.push(format!("{}: {}", relay.host, e.lines(&shared.target).first().cloned().unwrap_or_default()));
@@ -418,81 +431,5 @@ pub fn backoff(retry: u32) -> Duration {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn refused(status: u16, body: &str) -> OpenError {
-        OpenError::Connect { error: ConnectError::Refused { status, body: body.into() }, origin: Origin::Minted }
-    }
-
-    #[test]
-    fn errors_every_host_would_repeat_stop_the_failover() {
-        assert!(!OpenError::Offline.another_host_may_help());
-        assert!(!OpenError::Token(TokenError::BadEnvironment).another_host_may_help());
-        assert!(!refused(403, "forward: github.com:25 not in the ALLOW list").another_host_may_help());
-        assert!(!refused(400, "blocked address range").another_host_may_help());
-        assert!(!refused(502, "relay: cannot reach x:22 — no AAAA address for x").another_host_may_help());
-        assert!(!refused(502, "relay: nope.invalid does not resolve").another_host_may_help());
-    }
-
-    #[test]
-    fn errors_of_one_host_move_to_the_next() {
-        assert!(OpenError::Deadline.another_host_may_help());
-        assert!(refused(503, "paused").another_host_may_help());
-        assert!(refused(429, "slow down").another_host_may_help());
-        assert!(refused(502, "relay: connect failed: timed out").another_host_may_help());
-        let proxy_504 = OpenError::Connect {
-            error: ConnectError::Dial(DialError::ProxyRefused {
-                proxy: "proxy:3128".into(),
-                target: "relay:443".into(),
-                status: 504,
-                reason: "Gateway Timeout".into(),
-            }),
-            origin: Origin::Cache,
-        };
-        assert!(proxy_504.another_host_may_help());
-        assert!(proxy_504.lines("h:22").iter().any(|l| l.contains("another relay host")));
-    }
-
-    /// A host that failed once its connection opened, as no relay would, is
-    /// told from one whose connection never opened, and from the relay's own
-    /// refusals, which keep the address of the cache (T-344).
-    #[test]
-    fn a_failure_after_the_connection_is_told_from_the_others() {
-        let connect = |error| OpenError::Connect { error, origin: Origin::Minted };
-        assert!(after_connection(&connect(ConnectError::Tls("NotValidForName".into()))));
-        assert!(after_connection(&refused(530, "error code: 1034")));
-        assert!(after_connection(&OpenError::Token(TokenError::Failed { status: 409, detail: String::new() })));
-        let unreachable = DialError::Connect { target: "relay:443".into(), detail: "refused".into(), cut: None };
-        assert!(!after_connection(&connect(ConnectError::Dial(unreachable.clone()))));
-        assert!(!after_connection(&OpenError::Token(TokenError::Connect(ConnectError::Dial(unreachable)))));
-        assert!(!after_connection(&OpenError::Token(TokenError::RateLimited { retry_after: None })));
-        assert!(!after_connection(&OpenError::Deadline));
-        assert!(failures::reason(&refused(403, "not in the ALLOW list")).is_none());
-        assert!(failures::reason(&refused(502, "connect failed")).is_none());
-    }
-
-    #[test]
-    fn backoff_grows_is_capped_and_jittered() {
-        for _ in 0..50 {
-            let first = backoff(1).as_millis();
-            assert!((500..1500).contains(&first), "{first}");
-            let late = backoff(20).as_millis();
-            assert!((15_000..45_000).contains(&late), "{late}");
-        }
-    }
-
-    #[test]
-    fn a_failure_over_several_hosts_names_each_and_keeps_the_hints() {
-        let f = Failure {
-            attempts: vec![
-                ("a.example".into(), OpenError::Deadline),
-                ("b.example".into(), refused(403, "forward: x:25 not in the ALLOW list")),
-            ],
-        };
-        let lines = f.lines("x:25");
-        assert!(lines[0].starts_with("a.example: "), "{lines:?}");
-        assert!(lines[1].starts_with("b.example: "), "{lines:?}");
-        assert!(lines.iter().any(|l| l.contains("policy does not allow x:25")), "{lines:?}");
-    }
-}
+#[path = "open_tests.rs"]
+mod tests;

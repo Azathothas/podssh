@@ -1,13 +1,16 @@
 //! The order of the relay hosts of one run (T-220), on tokio's paused clock:
 //! attempts that open, fail or say nothing at set times, in each mode; the
 //! choice of two that open together; the end of a round at an error that
-//! every host would give; the notes in the order of the list; and one mint
-//! at a time for each deployment.
+//! every host would give; the notes in the order of the list; one mint at a
+//! time for each deployment; and the sessions of one process that share a
+//! gate for each host (T-637).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use podssh_relay::failover::{race, Attempt, MintGate, Mode, STAGGER};
+use podssh_relay::gate::{self, Gates};
+use podssh_relay::{OpenError, Relay};
 use tokio::time::Instant;
 
 /// What a host does, after so many milliseconds.
@@ -222,4 +225,67 @@ async fn one_mint_at_a_time_for_each_deployment() {
     tokio::time::sleep(Duration::from_millis(500)).await;
     drop(held);
     assert_eq!(waiter.await.unwrap(), Some(Duration::from_millis(500)));
+}
+
+/// One session's race of `hosts` under `gates`, as `open` makes it: each
+/// attempt is gated, a host with a next one is left at once when held, and
+/// each dial is logged; `a.example` refuses, the others open after 100 ms.
+async fn gated_session(
+    gates: Gates,
+    hosts: Vec<Relay>,
+    dials: Arc<Mutex<Vec<String>>>,
+) -> (Option<usize>, Vec<String>) {
+    let n = hosts.len();
+    let mut notes = Vec::new();
+    let start = |i: usize| {
+        let (gates, relay, dials) = (gates.clone(), hosts[i].clone(), dials.clone());
+        async move {
+            let dial = async {
+                dials.lock().unwrap().push(relay.host.clone());
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                match relay.host.as_str() {
+                    "a.example" => Err(OpenError::Deadline),
+                    _ => Ok(i),
+                }
+            };
+            let result = gate::guarded(&gates, &relay, i + 1 < n, Duration::from_secs(45), dial).await;
+            let notes = result.as_ref().err().map(|e| format!("{}: {}", relay.host, e.lines("x:22")[0]));
+            Attempt { result, notes: notes.into_iter().collect() }
+        }
+    };
+    let stops = |e: &OpenError| !e.another_host_may_help();
+    let raced = race(n, Mode::Staggered, start, stops, &mut |note: &str| notes.push(note.to_string())).await;
+    (raced.kept.map(|(i, _)| i), notes)
+}
+
+/// Sixty-four sessions of one process at once, after the first host failed
+/// in it (T-637): each is held there and goes on to the next host at once,
+/// so none dials the failing host, and the next host lets eight open at once.
+#[tokio::test(start_paused = true)]
+async fn sixty_four_sessions_after_a_failure_go_on_to_the_next_host_and_dial_it_not() {
+    let gates = Gates::default();
+    let hosts = vec![Relay { host: "a.example".into(), port: 443 }, Relay { host: "b.example".into(), port: 443 }];
+    let dials: Arc<Mutex<Vec<String>>> = Arc::default();
+    let (kept, _) = gated_session(gates.clone(), hosts.clone(), dials.clone()).await;
+    assert_eq!(kept, Some(1));
+    assert_eq!(*dials.lock().unwrap(), ["a.example", "b.example"]);
+    let t0 = Instant::now();
+    // On one thread: a race's notes are a callback that is not Send.
+    let local = tokio::task::LocalSet::new();
+    local
+        .run_until(async {
+            let sessions: Vec<_> = (0..64)
+                .map(|_| tokio::task::spawn_local(gated_session(gates.clone(), hosts.clone(), dials.clone())))
+                .collect();
+            for session in sessions {
+                let (kept, notes) = session.await.unwrap();
+                assert_eq!(kept, Some(1));
+                assert_eq!(notes, ["a.example: waits 1 s after a failure of this process; trying the next host"]);
+            }
+        })
+        .await;
+    let dials = dials.lock().unwrap().clone();
+    assert_eq!(dials.iter().filter(|h| *h == "a.example").count(), 1, "only the first session dialed it");
+    assert_eq!(dials.iter().filter(|h| *h == "b.example").count(), 65);
+    assert_eq!(t0.elapsed(), Duration::from_millis(800), "eight at once at the next host, each in 100 ms");
 }

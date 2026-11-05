@@ -4522,12 +4522,51 @@ hours after its host came back would serve nothing. A held session goes to the n
 a gate shared between processes, a file and a lock on each attempt for a case that the record of
 failures covers between runs.
 
+2026-11-05 (the drafting agent), within that call:
+
+- **The ladder is the backoff's own: 1 s, doubling to 30 s** (`BACKOFF_FIRST` and `BACKOFF_MAX` of
+  `crates/podssh-relay/src/open.rs`), not the 5 s and 300 s of the Approach. The resumable layer's new
+  link goes through `open` to its one host, a list of one that the user named
+  (`crates/podssh-relay/src/forward_layer/client.rs:154` says "hosts: vec![relay], explicit: true"), and
+  waits the same backoff between links
+  (`crates/podssh-relay/src/session/resume.rs:377` says "let pause = crate::open::backoff(attempt);"):
+  under a gate of 300 s, a session alone would wait up to 300 s after its host came back, where its own
+  backoff waits 30 s at most, and a first wait of 5 s would cost a brief outage 5 s to resume where it
+  cost about 1 s. So the gate shares one backoff for each host among the sessions of a process: a lone
+  session waits as before, and a wave of them costs one probe a step. A mint's `Retry-After` holds the
+  gate up to 300 s, the triage's bound kept for a server's own word (`failures::REST`). Lost: 5 s and
+  300 s; the issue's 4 h.
+- **A host of no verdict admits up to 8 at once**, as the Approach says: a cold wave of 64 at a failing
+  host costs at most 8 dials, and once it failed, 64 at once cost one probe, the case that the tests
+  hold. Lost: one scout for a host of no verdict, the others waiting for its answer as the mint's gate
+  waits (`failover::MintGate`), which would cost each command of several sessions (`cp` with several,
+  `each`) up to an open's time at its start on a healthy relay.
+- **A full gate (8 running) holds the next attempt for a slot**, with a next host too: the host is
+  healthy, and the race's own stagger starts the next host after 2 s. Lost: a refusal at once, which
+  would spread a healthy batch over the pool.
+- **The verdict reuses the record's reason** (`failures::reason`): a failure is one where the record of
+  failures would keep one, so the gate and the record agree on what is the host's; any other answer of
+  the relay's (a refusal, its 502, a mint that issues none) shows it alive, and an error of this side
+  (offline, a token of the environment, the proxy's 407) says nothing. An answer of an older epoch
+  leaves a closed gate closed, and a failure of an older epoch on a gate open again since is ignored:
+  the newer answer holds.
+- **The lines**: a held attempt with a next host ends at once with `OpenError::Held`, whose line goes
+  with the race's notes (`HOST: waits N s after a failure of this process; trying the next host`); a
+  run whose every host is held says the last host's wait before its round, as the race gives an
+  attempt's notes only when it ends. `Held` records nothing, and exits 69 as an unavailable relay.
+- `open.rs` was at 498 lines: its tests moved to `crates/podssh-relay/src/open_tests.rs`, as
+  `failures.rs`'s did; the manual's item "A host that failed" moved to
+  `crates/podssh-cli/src/man/facts/failed.rs`, beside the gate's, as `facts.rs` was at 499.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib gate
 cargo test -p podssh-relay --lib open
+cargo test -p podssh-relay --lib failures
 cargo test -p podssh-relay --test failover
+cargo test -p podssh-cli --lib man::
 ```
 
 With a paused clock: 64 attempts at once against one failing origin dial it once, and the rest go to
@@ -4535,6 +4574,35 @@ the next host or wait; a stale epoch's verdict lengthens a wait and never shorte
 the gate; a lease dropped with no verdict frees its slot; the wait never counts against
 `HOST_DEADLINE`. Planted: the wait inside the deadline, and the test of a held session that is not a
 timeout fails.
+
+## Done
+
+2026-11-05, drafted (UNVERIFIED: no build ran in the draft).
+
+- `crates/podssh-relay/src/gate.rs`: the gates of a process (`gate::process`), one for each host and
+  port; `admit` (8 at once while open; closed for the ladder's wait, then one probe; with a next host a
+  held attempt is refused at once with `OpenError::Held`, else it waits), the lease freed by its
+  verdict or its drop, the epochs, `verdict` of each end, `guarded` (the wait, then the attempt within
+  its deadline), and `all_held`, the line of a run whose every host is held. `open`'s attempt passes
+  `guarded` with `HOST_DEADLINE`, and its round says `all_held`'s line; `OpenError::Held` goes to the
+  next host and records nothing (`failures::reason`).
+- Tests: `gate_tests.rs` (paused clock: a cold wave of 64 dials at most 8 and moves the ladder once;
+  after a failure, 64 at once dial once, 32 with a next host held at once and 32 with none waiting, one
+  of them the probe, the rest until their caller's limit; an older epoch lengthens and never shortens;
+  each end's verdict; a 403 and a 502 at the probe open the gate; a dropped lease frees its slot, and a
+  dropped probe the probe's place; a wait of 60 s past a deadline of 2 s is no timeout; the ladder 1 to
+  30 s and a Retry-After up to 300 s; the line of a run all held, one origin in any case);
+  `open_tests.rs` (a held host goes on, records nothing, and its lines); `tests/failover.rs` (64
+  sessions through `race`, after the first host failed, go to the next at once and dial it not, 8 at a
+  time at the next).
+- The manual (THE RELAY, "A process's sessions"), `docs/relay.md` (after the list of how podssh
+  selects relay hosts).
+- `cargo test -p podssh-relay --lib gate`: UNVERIFIED. `--lib open`: UNVERIFIED. `--lib failures`:
+  UNVERIFIED. `--test failover`: UNVERIFIED. `cargo test -p podssh-cli --lib man::`: UNVERIFIED. The
+  plants `t637-wait-in-deadline`, `t637-old-answer-opens`, `t637-drop-keeps-slot` and
+  `t637-each-failure-moves`: UNVERIFIED. The relay crate's whole suite, whose tests share the process's
+  gates (a host that failed in one test holds the same host and port in another for a second or so):
+  UNVERIFIED.
 
 # T-644: `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road
 
