@@ -1,0 +1,111 @@
+name: iroh A/B
+
+# QUIC's settings on the iroh road, one arm of PODSSH_IROH_QUIC against
+# another (T-665), by T-157's method, on a direct path between this runner
+# and the operator's server of PODSSH_THROUGHPUT_SSH (Q38; Q91, short runs):
+# scripts/iroh-ab.py copies this commit's static podssh there, runs a node of
+# each arm in front of that server's own sshd, logs in to each from here in
+# turn, and removes the nodes and their directory at the end. By hand only.
+# It needs the secrets PODSSH_THROUGHPUT_SSH and PODSSH_THROUGHPUT_KEY, and
+# says so and stops when they are not both set. No user, host, address, key
+# or ticket is printed or kept: the result is an artifact of figures, and
+# the table goes into the step summary.
+
+on:
+  workflow_dispatch:
+    inputs:
+      arms:
+        description: "Arms of PODSSH_IROH_QUIC separated by ';' (e.g. iroh;tuned;tuned,bbr)"
+        default: "iroh;tuned"
+      runs:
+        description: "Rounds, each arm once a round, 1 to 20"
+        default: "5"
+      # 4 MiB, 5 rounds and two arms are 80 MiB in all, a short run (Q35,
+      # Q91); a larger one is the operator's call.
+      mib:
+        description: "MiB of each run in each direction, 1 to 256"
+        default: "4"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iroh-ab
+  cancel-in-progress: false
+
+jobs:
+  ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      CARGO_BUILD_JOBS: "4"
+      PODSSH_BUILD_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The harness's own checks first: statistics that are wrong, or a
+      # scrub that keeps a host's name, would make the run worth nothing.
+      - name: the harness offline
+        run: python3 -I scripts/iroh-ab.py --self-test
+      - name: the secrets
+        id: secrets
+        env:
+          DEST: ${{ secrets.PODSSH_THROUGHPUT_SSH }}
+          DEST_KEY: ${{ secrets.PODSSH_THROUGHPUT_KEY }}
+        run: |
+          if [ -n "$DEST" ] && [ -n "$DEST_KEY" ]; then
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "the A/B run needs the secrets PODSSH_THROUGHPUT_SSH and PODSSH_THROUGHPUT_KEY; not both are set"
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+          fi
+      # The one place that names the build image, pinned to a digest.
+      - name: the build image
+        if: steps.secrets.outputs.ready == 'yes'
+        run: |
+          set -eu
+          ref=$(tr -d '\r' < images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+          case "$ref" in
+            *@sha256:*) echo "BUILD_IMAGE=$ref" >> "$GITHUB_ENV" ;;
+            *) echo "images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
+          esac
+      # Static musl, as the releases: the same binary runs here and there.
+      - name: build (static musl, the iroh road)
+        if: steps.secrets.outputs.ready == 'yes'
+        run: |
+          image=$(sh scripts/pull-image.sh "$BUILD_IMAGE")
+          docker run --rm -v "$PWD:/work" -w /work \
+            -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static -e PODSSH_BUILD_COMMIT \
+            "$image" \
+            cargo build --locked --release --target x86_64-unknown-linux-musl -p podssh-cli --features iroh
+      - name: measure
+        if: steps.secrets.outputs.ready == 'yes'
+        env:
+          ARMS: ${{ inputs.arms }}
+          RUNS: ${{ inputs.runs }}
+          MIB: ${{ inputs.mib }}
+          DEST: ${{ secrets.PODSSH_THROUGHPUT_SSH }}
+          DEST_KEY: ${{ secrets.PODSSH_THROUGHPUT_KEY }}
+        run: |
+          set -u
+          case "$RUNS$MIB" in
+            ''|*[!0-9]*) echo "runs and mib: whole numbers"; exit 2 ;;
+          esac
+          # The key in a file of the runner's own, read by its owner alone,
+          # and removed with the runner.
+          key="$RUNNER_TEMP/dest-key"
+          umask 077
+          printf '%s\n' "$DEST_KEY" > "$key"
+          B=target/x86_64-unknown-linux-musl/release/podssh
+          rc=0
+          timeout 3000 python3 -I scripts/iroh-ab.py --podssh "$B" --far-podssh "$B" \
+            --destination "$DEST" --identity "$key" --arms "$ARMS" --runs "$RUNS" --mib "$MIB" \
+            --out "$RUNNER_TEMP/iroh-ab.json" --ci || rc=$?
+          rm -f "$key"
+          echo "iroh-ab exit $rc"
+          exit "$rc"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && steps.secrets.outputs.ready == 'yes'
+        with:
+          name: iroh-ab
+          path: ${{ runner.temp }}/iroh-ab.json
+          if-no-files-found: warn

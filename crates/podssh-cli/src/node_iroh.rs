@@ -257,9 +257,11 @@ where
     };
     let endpoint = match Box::pin(podssh_iroh::endpoint::open(&options)).await {
         Ok(opened) => {
-            // Which answer the road took of this host's UDP, once a run, as
-            // a node has no -v (T-359).
-            let _ = writeln!(err, "podssh {verb}: {label}: {}", opened.udp);
+            // Which answer the road took of this host's UDP, once a run, as a
+            // node has no -v (T-359), and an arm of QUIC not iroh's (T-665).
+            for line in std::iter::once(opened.udp.to_string()).chain(opened.quic_lines()) {
+                let _ = writeln!(err, "podssh {verb}: {label}: {line}");
+            }
             opened.endpoint
         }
         Err(e) => return Refusal::config(e.to_string()).report(verb, err),

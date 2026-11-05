@@ -3081,7 +3081,7 @@ node at its next line, often "online again" after a reconnect. A server then has
 
 - Read: `panic = "abort"` in the release profile (`Cargo.toml:222`).
 - Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:334`,
-  `crates/podssh-cli/src/node_derp.rs:321`, `crates/podssh-cli/src/node_iroh.rs:322`), as are 40
+  `crates/podssh-cli/src/node_derp.rs:321`, `crates/podssh-cli/src/node_iroh.rs:324`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
 - Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).

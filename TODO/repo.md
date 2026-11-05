@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:820-933`): the
+5. docs/development.md, "Release builds" (`docs/development.md:839-952`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -5239,7 +5239,7 @@ builds with, so that its DNS packets and iroh's are of one type.
   `0cce0a5...`, the gate's image.
 - Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:147`), and the lock holds 0.11.0; 0.11.1
   needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:59`, Q48).
-- Read: `crates/podssh-iroh/Cargo.toml:49-52` takes `simple-dns` 0.12, "the simple-dns that
+- Read: `crates/podssh-iroh/Cargo.toml:54-57` takes `simple-dns` 0.12, "the simple-dns that
   iroh-dns builds and reads with, so no crate is added"; iroh-dns 1.4.1, which the lock holds,
   takes simple-dns 0.12.0, the lock's only version.
 - Inferred: Dependabot closes each pull request once `main` holds its version, as T-386's were.

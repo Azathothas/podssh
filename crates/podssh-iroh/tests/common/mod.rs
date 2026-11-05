@@ -46,6 +46,7 @@ pub fn options(relay: &RelayUrl, proxy: SocketAddr, accepts: bool) -> Options {
         accepts,
         relay_tls: Some(CaTlsConfig::insecure_skip_verify()),
         qad_port: None,
+        quic: None,
     }
 }
 

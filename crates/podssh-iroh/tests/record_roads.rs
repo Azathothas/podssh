@@ -229,6 +229,7 @@ async fn a_client_with_the_node_s_key_alone_reaches_it_over_derp_when_iroh_is_re
         accepts: false,
         relay_tls: Some(CaTlsConfig::insecure_skip_verify()),
         qad_port: None,
+        quic: None,
     };
     let client = podssh_iroh::bind(&options).await.expect("the client's endpoint");
     let addr = found.relays.iter().cloned().fold(EndpointAddr::new(secret.public()), EndpointAddr::with_relay_url);

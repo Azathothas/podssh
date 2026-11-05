@@ -99,8 +99,12 @@ pub(crate) async fn prepare(
         ..Options::default()
     };
     let opened = podssh_iroh::endpoint::open(&options).await.map_err(|e| format!("{shown}: {e}"))?;
-    // Which answer the road took of this host's UDP (T-359).
+    // Which answer the road took of this host's UDP (T-359), and the arm of
+    // QUIC's settings when it is not iroh's own (T-665).
     log.verbose(&format!("{shown}: the iroh road: {}", opened.udp));
+    for line in opened.quic_lines() {
+        log.verbose(&format!("{shown}: the iroh road's {line}"));
+    }
     let endpoint = opened.endpoint;
     let through: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
     log.verbose(&format!("connecting to {shown} over the iroh road, through {}", through.join(", ")));

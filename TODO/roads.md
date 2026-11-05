@@ -7,7 +7,7 @@ HTTP and of HTTP/2 to the relay.
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:1137-1366`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:1137-1410`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -31,7 +31,7 @@ to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:1355-1358`). The sandbox refuses UDP
+connections for this road (`docs/design.md:1399-1402`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -142,7 +142,7 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 # T-163: iroh tickets and node keys
 
 **Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:1166` and
-`docs/design.md:1323-1324`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+`docs/design.md:1367-1368`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -159,7 +159,7 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
 key and the relay URL (`docs/design.md:1166`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:1323-1324`).
+access is by an allowlist of keys or a relay token (`docs/design.md:1367-1368`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
@@ -349,7 +349,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:1360-1366`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:1404-1410`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:60-67`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:203-285`), and no code races two roads.
@@ -489,9 +489,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:25-34`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:1340-1342`). At least three projects run the iroh
+published (`docs/design.md:1384-1386`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:1346-1348`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:1390-1392`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -624,7 +624,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:688-691`; the `roost` of pigeons (`docs/design.md:1350-1353`);
+`docs/design.md:688-691`; the `roost` of pigeons (`docs/design.md:1394-1397`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -2540,7 +2540,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:692-709` (layer 3) and `docs/design.md:1482-1485` (question 1 of
+`docs/design.md:692-709` (layer 3) and `docs/design.md:1526-1529` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M10
@@ -2563,7 +2563,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:705-709`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:1482-1485`). The relay is in another repository.
+(`docs/design.md:1526-1529`). The relay is in another repository.
 
 ## Approach
 
@@ -4496,7 +4496,7 @@ podssh's own, which makes it M.
 ## Premise
 
 - Read: the endpoint has no address lookup: a peer is dialled by its key and its relay
-  (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
+  (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:338-339`), as the design chose for a host with no
   DNS (`docs/design.md:1166`, `:1176`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
   (`docs/reverse.md:445-449`).
@@ -6815,7 +6815,7 @@ ask, and nothing does so.
 ## Premise
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
-  (`crates/podssh-cli/src/node_iroh.rs:361-362`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node_iroh.rs:363-364`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:105-107`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-76`), in a file of 488 of its 500 lines.
@@ -9145,9 +9145,84 @@ iroh road takes iroh's defaults, and nobody has measured them on a wide-area pat
 
 ```sh
 cargo test -p podssh-iroh --lib
+python3 -I scripts/iroh-ab.py --self-test
+sh scripts/plant-each.sh --here t665-quic-unset
+gh workflow run iroh-ab.yml --ref main -f arms='iroh;tuned' -f runs=5 -f mib=4
 ```
 
 The A/B runs, with their commands in `docs/STATUS.md`.
+
+## Decision
+
+2026-11-04, with the draft (read in iroh 1.4.1, noq-proto 1.4.0 and netwatch 0.19.3, the crates that
+`Cargo.lock` holds):
+
+1. **iroh's own settings stay the default until the A/B run shows what helps** (`DEFAULT` in
+   `crates/podssh-iroh/src/tuning.rs`), as the Approach sets only what the run shows; the arm is one
+   variable, `PODSSH_IROH_QUIC`, which each end reads, so that the node and the client of a cell take
+   the same arm. Lost: osewa's values as the default at once (measured on none of podssh's paths); a
+   flag of `ssh` and `node` (a setting for a measurement, not for a user).
+2. **The arms.** `tuned` is osewa's where iroh 1.4's `QuicTransportConfigBuilder` lets podssh set it:
+   a first round trip of 100 ms (iroh's is 333 ms), a first window of 32 packets (10: noq clamps the
+   RFC's 14720 bytes to 12000), receive windows of 8 MiB a stream (1.25 MB), above the resumable
+   layer's 4 MiB in flight so that QUIC does not bound what T-662's SSH window of 16 MiB lets through,
+   and 16 MiB a connection (no bound), two such streams (T-666); Cubic. Each is a word of its own
+   (`rtt`, `window`, `streams`), so that a run can tell which helps, and `bbr` and `newreno` are the
+   knob of the congestion controller. Lost: osewa's send window of the congestion window and 16 KiB
+   (iroh's send window is one number, with no hook on the congestion window; T-661 bounds what SSH
+   has in flight while one types); a first MTU of 1200 (iroh's own already); no HyStart (noq's Cubic
+   has none).
+3. **No UDP buffer of podssh's.** iroh's sockets already ask 7 MiB each way by `SO_RCVBUF` and
+   `SO_SNDBUF` (netwatch's `SocketState::bind`), never the `FORCE` forms, and iroh's builder has no
+   hook for a socket's options; the run keeps each end's `rmem_max` and `wmem_max`, the bound of what
+   the kernel grants. Lost: a socket of podssh's own beside iroh's (a second socket, rule 2).
+4. **The controllers come from noq-proto**, the one that iroh builds, at iroh's requirement and with
+   none of its features: iroh takes a controller's factory and names no controller. Lost: iroh's
+   types alone, which set no first window and no other controller.
+5. **A value that iroh's types refuse keeps iroh's own and is said** (`Opened::kept`, then `-v` and the
+   node's lines); a word that is no setting is refused, 78 at `ssh` before anything connects and at
+   `node`, as a run of the wrong arm measures nothing.
+6. **The run** is `scripts/iroh-ab.py`, by T-157's method (its statistics, tested offline on T-157's
+   known sample and planted p95), in `.github/workflows/iroh-ab.yml` by hand, the arms in turn in each
+   round. The node runs on the operator's server in front of its own sshd, from the commit's static
+   binary, in a private directory removed at the end, as a direct path of the iroh road needs podssh
+   at both ends; OpenSSH sets it up, so that the code under test is not its own setup. Its defaults
+   move 80 MiB in all (Q35, Q91). Lost: a cell of `crates/podssh-cli/tests/throughput_live.rs` (its
+   harness cannot start a node on a far server); n0's relays alone (a relay path, not the direct path
+   that the entry asks).
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-665`), UNVERIFIED: no command below ran in the draft but the harness's
+self-test.
+
+- QUIC's settings: `crates/podssh-iroh/src/tuning.rs` (the arms, their words and the variable, iroh's
+  transport config from iroh's own builder, and the controller with its first window), and the
+  endpoint (`crates/podssh-iroh/src/endpoint.rs`: `Options::quic`, read from the variable when
+  `None`; `BindError::Quic`; `Opened::quic`, `kept` and `quic_lines`; the builder's
+  `transport_config`). `cargo test -p podssh-iroh --lib -- tuning::`: UNVERIFIED (7 tests: the default
+  is iroh's own, its round trip, stream window and keep-alive; the tuned arm in iroh's config with
+  iroh's keep-alive and first MTU kept; each controller's first window; a window past QUIC's bound
+  keeps iroh's and says so; a word that is no setting and two controllers refused; an endpoint takes
+  its arm, read in its server's settings; each arm's words). `cargo test -p podssh-iroh --lib`:
+  UNVERIFIED.
+- podssh-cli: `-v` says an arm that is not iroh's own (`crates/podssh-cli/src/ssh/iroh/dial.rs`,
+  `crates/podssh-cli/src/ssh/iroh/race.rs`), and so do a node's lines
+  (`crates/podssh-cli/src/node_iroh.rs`); a bad value is 78 before anything connects
+  (`crates/podssh-cli/src/ssh/iroh.rs`); the manual's variable; `crates/podssh-cli/tests/iroh_road.rs`
+  clears it.
+  `cargo test -p podssh-cli --features iroh-test --test iroh_road`: UNVERIFIED.
+- The run: `scripts/iroh-ab.py` and `.github/workflows/iroh-ab.yml`. `python3 -I scripts/iroh-ab.py
+  --self-test`: 13 ok (ran in the draft, offline: the statistics, a planted p95 caught, the
+  destination, the arms, a node's ticket, the refused key, the path, the arm of `-v`, the scrub of
+  users, hosts and addresses, an ELF's machine, and the nodes' TARGET, the address where the far sshd
+  took the login, as a forwarded port may not be its own). The A/B run itself: UNVERIFIED, waits for a dispatch
+  at the merge; its table goes into `docs/STATUS.md` with its command, its JSON into the record, and
+  the default of item 1 moves only with what it shows.
+- Planted, which must fail its test: the endpoint takes iroh's own settings whatever the arm
+  (`scripts/plants/t665-quic-unset.plant`): UNVERIFIED.
+- The documents: `docs/design.md` (section 7), `docs/development.md` (the run). `cargo todo remap` of
+  each: at the merge.
 
 # T-666: Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection
 
@@ -9179,9 +9254,78 @@ road puts up to 16 sessions on one TCP connection (T-321).
 
 ```sh
 cargo test -p podssh-iroh --lib
+cargo test -p podssh-iroh --test share
+sh scripts/plant-each.sh --here t666-share-while-made
 ```
 
 T-660's echo under load with a copy beside the terminal: lower than on one stream.
+
+## Decision
+
+2026-11-04, with the draft (read in iroh 1.4.1, noq 1.4.0 and rustls 0.23.46, the crates that
+`Cargo.lock` holds):
+
+1. **Where sessions share.** A process-wide list of dialers in podssh-iroh
+   (`crates/podssh-iroh/src/share.rs`), each made once by the first lease that needs it, shared by
+   the sessions of one tokio runtime (an endpoint's tasks are its runtime's) with one key of the
+   client to one node; the connection and its endpoint close with the last lease, and a lease that is
+   dropped unreleased gives itself back. The iroh road of `node://NAME` takes a lease
+   (`crates/podssh-cli/src/ssh/iroh/race.rs`), which `podssh ssh` and each copy race (T-551): a copy
+   beside a session of the same process, and the two sessions of a copy within one server with no
+   SFTP, ride one connection. Lost: a list that each command makes and hands down (it would change
+   each copy's signature, `cp`'s among them); `podssh ssh iroh:TICKET`, `pipe` and `chat` (one session
+   each, with nothing to share); an endpoint kept a while after the last lease, for an `edit`'s copy
+   back (a process's last session ends its connection at once, as before).
+2. **The lane of a session** is the task's, a task-local value (`Lane::scope`), which the task of a
+   copy's race takes (`crates/podssh-cli/src/ssh/node_roads.rs`, through `as_bulk` of
+   `crates/podssh-cli/src/ssh/iroh.rs`, which a build with no iroh road keeps as a no-op): so the
+   ticket's iroh road and the record's (T-445) take it alike, and `roads.rs` (497 lines) is not
+   changed. `podssh ping DEST --under-load` reaches a node as a copy does (T-660), so its one session
+   takes the copy's lane, which changes nothing with no other stream. Lost: a field of the race, which
+   the record's road would need too.
+3. **The priority** is QUIC's send priority of a stream at each end (noq's `SendStream::set_priority`):
+   0 for a terminal, as each stream had before, and -1 for a copy, so that a copy's bytes wait in
+   each sender while a terminal's are there, and the congestion controller of the one connection
+   serves both. Lost: a copy above 0 for a terminal (a stream of a podssh of before would then go
+   below a terminal's of a new one).
+4. **The far end learns the lane from the stream's first byte**, `0x02` beside `0x01`, which a podssh
+   of before refuses (and then accepts no other stream on that connection): so the client sends it
+   only on a connection of the ALPN `podssh/2`, which a node of this build offers before `podssh/1`,
+   as rustls's server takes the first of its own list that the client offers. Lost: a byte for each
+   lane on `podssh/1` (a node of before would stop that connection's streams); a lane in the resumable
+   layer's handshake (`crates/podssh-relay/src/session/`, another entry's files, and a round trip
+   later than the first byte).
+5. **Item 2, the relay's HTTP/2 road** (a copy's session on a connection of its own, or HTTP/1.1),
+   is not in this draft: its client is `crates/podssh-relay/src/h2_road.rs` and podssh-ws's
+   `h2_road`, outside the draft's files. It waits in this entry.
+
+## Done
+
+2026-11-04, drafted (`DRAFT T-666`), UNVERIFIED: no command below ran in the draft.
+
+- The lanes: `Lane`, its task-local value, `SESSION_BULK` and `open_lane`
+  (`crates/podssh-iroh/src/stream.rs`); a far end gives its bytes of each stream the lane that its
+  first byte names (`accept_session`). The ALPN `podssh/2` (`ALPN_LANES`), offered first at each end:
+  `crates/podssh-iroh/src/client.rs` (`connect_lanes`, `link_as`, `endpoint`, `connection_id`) and
+  `crates/podssh-iroh/src/endpoint.rs`.
+- The list of dialers and its leases (`crates/podssh-iroh/src/share.rs`); the iroh road of
+  `node://NAME` on a lease (`crates/podssh-cli/src/ssh/iroh/race.rs`), its `-v` line for a session
+  that joins; a copy's race in the copy's lane (`crates/podssh-cli/src/ssh/node_roads.rs`).
+- `cargo test -p podssh-iroh --test share`: UNVERIFIED (2 tests through iroh's relay server on the
+  loopback and a stand-in CONNECT proxy: a terminal's lease and a copy's of one process hold one
+  dialer, made once; their two streams, at priorities 0 and -1, each carry a session of the layer, the
+  copy 4 MiB each way with equal digests and the terminal a key and its echo, while the far end sees
+  one connection and two sessions; another key of the client gets a dialer of its own; a second
+  release gives nothing more back, and the endpoint closes with the last lease; and a copy's stream
+  goes below at the far end on `podssh/2`, while a far end of `podssh/1` alone takes it as any
+  session). `cargo test -p podssh-iroh --lib`, `cargo test -p podssh-iroh --features test-relay`,
+  `cargo test -p podssh-cli --features iroh-test --test iroh_road`: UNVERIFIED.
+- Planted, which must fail its test: a dialer shared only while it is being made
+  (`scripts/plants/t666-share-while-made.plant`): UNVERIFIED.
+- Waits: item 2 (Decision 5); T-660's echo under load with a copy beside the terminal on two streams
+  against one, which needs a second SSH connection of `ping`'s process (`--under-load` puts its
+  download on a channel of its one connection). The document: `docs/design.md`, section 7. `cargo
+  todo remap docs/design.md`: at the merge.
 
 # T-641: `doctor` does not say whether this host's NAT keeps one mapping across destinations
 

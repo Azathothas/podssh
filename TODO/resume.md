@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:1328-1348`; the two
+sandbox, before a default depends on it); `docs/design.md:1372-1392`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:1328-1348`). A session carries 64 MiB at most, both directions
+(`docs/design.md:1372-1392`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:454`).
 
 ## Approach
@@ -2782,7 +2782,7 @@ relay's figure.
 ## Premise
 
 - Read: the iroh road turns UDP off with `PODSSH_IROH_UDP`
-  (`crates/podssh-iroh/src/endpoint.rs:87`), and its probe only binds a
+  (`crates/podssh-iroh/src/endpoint.rs:96`), and its probe only binds a
   socket (`crates/podssh-iroh/src/probe.rs:24-27`).
 - Read: no file of `crates/podssh-cli/tests/throughput_harness/` sets
   `PODSSH_IROH_UDP`.
