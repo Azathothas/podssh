@@ -251,7 +251,7 @@ async fn a_leaf_of_another_tag_issuer_time_or_use_is_refused() {
     no_code_signing.code_signing = false;
     other_tag.code_signing = true;
     for (leaf, says) in [
-        (other_tag, "not https://github.com/Azathothas/podssh/.github/workflows/release.yml@refs/tags/v1.0.0-beta.3"),
+        (other_tag, "not https://github.com/PodUtils/podssh/.github/workflows/release.yml@refs/tags/v1.0.0-beta.3"),
         (other_issuer, "the leaf's token came from"),
         (past, "did not hold when the entry was logged"),
         (no_code_signing, "not for code signing"),
@@ -380,5 +380,26 @@ async fn a_release_that_is_not_there_and_a_loop_of_redirects_are_unavailable() {
     stand.server.route("/loop", Answer::Redirect("/loop".into()));
     let (result, _) = run(&stand.options("1.0.0-beta.2"), false, Some(TAG)).await;
     assert!(matches!(&result, Err(Failure::Unavailable(why)) if why.contains("more than 5 redirects")), "{result:?}");
+    stand.assert_untouched();
+}
+
+/// The build updates from PodUtils/podssh, the repository whose leaf the
+/// stand signs; a leaf of the old name, Azathothas/podssh, is refused
+/// (T-683: no second signer).
+#[tokio::test]
+async fn this_build_takes_the_leaf_of_podutils_alone() {
+    let opts = Options::of_this_build(Trust::Default).expect("this build's options");
+    assert_eq!(opts.repo, REPO);
+    assert_eq!(REPO, "PodUtils/podssh");
+    let stand = Stand::new("old-name").await;
+    let binary = b"a binary of the release".to_vec();
+    let mut old = Leaf::of_tag(TAG);
+    old.uri = old.uri.replace(REPO, "Azathothas/podssh");
+    stand.release(TAG, &binary, stand.sums_of(&binary), &old);
+    let why = refused(run(&stand.options("1.0.0-beta.2"), false, Some(TAG)).await.0);
+    assert!(
+        why.contains("not https://github.com/PodUtils/podssh/.github/workflows/release.yml@refs/tags/v1.0.0-beta.3"),
+        "{why}"
+    );
     stand.assert_untouched();
 }

@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:839-952`): the
+5. docs/development.md, "Release builds" (`docs/development.md:846-959`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -539,8 +539,8 @@ credential that a later commit removed, is not found.
 
 Read:
 
-- `scripts/check-repo.py:74-87` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:183-204` scans the tracked
+- `scripts/check-repo.py:79-92` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:188-209` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -1183,7 +1183,7 @@ Read:
 4. Pin the images of the box with the build image (T-206).
 5. Credentials: the box mints a token and never prints it
    (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
-   first log with the token pattern of `scripts/check-repo.py:78`.
+   first log with the token pattern of `scripts/check-repo.py:83`.
 6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
    that CI runs the box.
 
@@ -2022,7 +2022,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:317-319` states the rule with `CXX`, and
+- `docs/development.md:324-326` states the rule with `CXX`, and
   `docs/STATUS.md:856` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -2083,7 +2083,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:122`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:127`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -4213,7 +4213,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
   (https://github.com/docker/setup-qemu-action/blob/v4/action.yml): the action's `image` defaults
   to `docker.io/tonistiigi/binfmt:latest`. The riscv64 job runs it each time, and the armv7 job
   when the runner does not run 32-bit ARM (`.github/workflows/release.yml` lines 166-177 at `1a3e7b6`). No file of
-  `images/` names the image, so the check of images (`scripts/check-repo.py:217-242`) does not
+  `images/` names the image, so the check of images (`scripts/check-repo.py:222-247`) does not
   see it, and its pull gets none of the mirrors of `scripts/pull-image.sh:9-13`.
 - Read: T-210 found the commit of each action, and `TODO/repo.md:786-787` says "whether to pin
   them by commit is a choice of this entry's session"; no entry took it. `setup-nasm` declares
@@ -5301,7 +5301,7 @@ to break and migrate" (`docs/decisions.md`, 2026-11-05).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5351,6 +5351,30 @@ refused. Planted: the old name back in `Cargo.toml` fails the check of the repos
 ## Start condition
 
 The operator has transferred the repository to PodUtils/podssh.
+
+## Done
+
+2026-11-05. GitHub serves PodUtils/podssh (the start condition holds).
+
+- `Cargo.toml`'s `repository` names PodUtils/podssh, so `podssh update` reads PodUtils/podssh's
+  feed and files and accepts only the leaf of its release workflow; the pairing's AppID is
+  `github.com/PodUtils/podssh/pair` (`podssh-relay`'s `code` and the role's mailbox); the README's
+  install and attestation, `cliff.toml`, `scripts/release-check.sh`, `scripts/check-vendored.py`,
+  the live test of `pipe_http.rs`, `docs/design.md`, `docs/development.md`, `docs/relay.md`,
+  `docs/relay-operator.md` and the headers of `TODO/github.txt` and `TODO/issues.md` name it.
+  Dated records keep the old name: `docs/releases/`, `docs/STATUS.md`, `docs/decisions.md`, the
+  entries of `TODO/` and `vendor/`'s record of patches.
+- Tests: `the_build_s_repository_refuses_the_old_name` (the bundle of `v1.0.0-beta.2`, signed under
+  the old name, is refused under the build's identity) and `this_build_takes_the_leaf_of_podutils_alone`
+  (this build's options name PodUtils/podssh; the stand-in release with a leaf of the old name is
+  refused, the binary untouched). `cargo test -p podssh-cli --lib update::`: 22 passed;
+  `cargo test -p podssh-cli --test update`: 19 passed.
+- Check 12 of `python scripts/check-repo.py` (`scripts/repo_names.py`): no tracked file names the
+  old repository outside the dated records; it passed (2,916 files read). Planted, the old name back
+  in `Cargo.toml`: it failed and named `Cargo.toml:62`; `--plant-empty`: each of the 12 checks
+  failed on an empty tree.
+- The frozen files of Q3a (`docs/decisions.md`) hold no old name: no file of podcrates' imports
+  changed.
 
 # T-684: podcrates: the crates that podssh, podnet and podvm share, in PodUtils/podcrates
 

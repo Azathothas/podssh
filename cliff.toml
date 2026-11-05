@@ -22,7 +22,7 @@ trim = true
 # @GROUP); an issue named as #N links to it.
 postprocessors = [
   { pattern = '(?m)(^|[^A-Za-z0-9_`])@([A-Za-z0-9][A-Za-z0-9-]*)', replace = "${1}`@${2}`" },
-  { pattern = '#([0-9]+)', replace = "[#${1}](https://github.com/Azathothas/podssh/issues/${1})" },
+  { pattern = '#([0-9]+)', replace = "[#${1}](https://github.com/PodUtils/podssh/issues/${1})" },
 ]
 
 [git]

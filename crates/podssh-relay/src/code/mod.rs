@@ -34,7 +34,7 @@ pub use phrase::Code;
 
 /// podssh's application in the mailbox, as magic-wormhole asks each to name
 /// one: nameplates and mailboxes of another application never meet it.
-pub const APPID: &str = "github.com/Azathothas/podssh/pair";
+pub const APPID: &str = "github.com/PodUtils/podssh/pair";
 /// The public mailboxes, in order: magic-wormhole's, on port 443 since its
 /// commit "public_relay.py: use TLS" (2026-05-13), then Least Authority's.
 pub const MAILBOXES: [&str; 2] = ["wss://relay.magic-wormhole.io/v1", "wss://mailbox.mw.leastauthority.com/v1"];

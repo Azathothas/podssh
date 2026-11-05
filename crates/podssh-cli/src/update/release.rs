@@ -201,19 +201,19 @@ mod tests {
     fn the_feed_gives_the_tag_of_each_entry() {
         let xml = br#"<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
-  <id>tag:github.com,2008:https://github.com/Azathothas/podssh/releases</id>
-  <link type="text/html" rel="alternate" href="https://github.com/Azathothas/podssh/releases"/>
+  <id>tag:github.com,2008:https://github.com/PodUtils/podssh/releases</id>
+  <link type="text/html" rel="alternate" href="https://github.com/PodUtils/podssh/releases"/>
   <title>Release notes from podssh</title>
   <entry>
     <id>tag:github.com,2008:Repository/1/v1.0.0-beta.2</id>
     <updated>2026-10-31T00:30:00Z</updated>
-    <link rel="alternate" type="text/html" href="https://github.com/Azathothas/podssh/releases/tag/v1.0.0-beta.2"/>
+    <link rel="alternate" type="text/html" href="https://github.com/PodUtils/podssh/releases/tag/v1.0.0-beta.2"/>
     <title>podssh v1.0.0-beta.2</title>
     <content type="html">&lt;p&gt;notes&lt;/p&gt;</content>
   </entry>
   <entry>
     <id>tag:github.com,2008:Repository/1/v1.0.0-beta.1</id>
-    <link rel="alternate" type="text/html" href="https://github.com/Azathothas/podssh/releases/tag/v1.0.0-beta.1"/>
+    <link rel="alternate" type="text/html" href="https://github.com/PodUtils/podssh/releases/tag/v1.0.0-beta.1"/>
   </entry>
 </feed>"#;
         assert_eq!(tags_of_atom(xml).unwrap(), ["v1.0.0-beta.2", "v1.0.0-beta.1"]);

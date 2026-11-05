@@ -154,10 +154,10 @@ mod tests {
 
     #[test]
     fn a_url_gives_its_host_port_and_path() {
-        let url = Url::parse("https://github.com/Azathothas/podssh/releases.atom").unwrap();
+        let url = Url::parse("https://github.com/PodUtils/podssh/releases.atom").unwrap();
         assert_eq!(
             (url.host.as_str(), url.port, url.path.as_str()),
-            ("github.com", 443, "/Azathothas/podssh/releases.atom")
+            ("github.com", 443, "/PodUtils/podssh/releases.atom")
         );
         let url = Url::parse("https://127.0.0.1:8443?x=1#y").unwrap();
         assert_eq!((url.host.as_str(), url.port, url.path.as_str()), ("127.0.0.1", 8443, "/?x=1"));

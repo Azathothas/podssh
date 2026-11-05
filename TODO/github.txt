@@ -1,4 +1,4 @@
-# The numbers of Azathothas/podssh on GitHub, each an issue or a pull request
+# The numbers of PodUtils/podssh on GitHub, each an issue or a pull request
 # with its state, as `gh issue list` and `gh pr list` give them (T-360).
 # `cargo todo check` holds TODO/issues.md to it: each issue has one place in
 # the map, each pull request is in its line of them, and the State of a row

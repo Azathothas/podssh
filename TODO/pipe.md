@@ -1358,7 +1358,7 @@ the request's target, would be the proxy that such a program points at.
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
   loopback or AF_UNIX by default (`docs/decisions.md:75`; `docs/architecture.md:272-281`); the
-  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:93-117`).
+  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:98-122`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
   of its policy with a `403` that names it, `not in the ALLOW list` (`docs/relay.md:456-461`).

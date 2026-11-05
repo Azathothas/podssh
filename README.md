@@ -61,14 +61,14 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
 ## First steps on a new host
 
 1. Get a static binary for the host: a beta from the
-   [releases page](https://github.com/Azathothas/podssh/releases) (each
+   [releases page](https://github.com/PodUtils/podssh/releases) (each
    `v1.0.0-beta.N` is a prerelease), or build one (see "Build"). Check it
    against `SHA256SUMS`, and make it executable:
 
    ```sh
    T=v1.0.1; B=podssh-x86_64-unknown-linux-musl   # or podssh-aarch64-unknown-linux-musl
-   curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/$B"
-   curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/SHA256SUMS"
+   curl -fsSLO "https://github.com/PodUtils/podssh/releases/download/$T/$B"
+   curl -fsSLO "https://github.com/PodUtils/podssh/releases/download/$T/SHA256SUMS"
    grep " $B\$" SHA256SUMS | sha256sum -c - && chmod +x "$B"
    ```
 
@@ -89,16 +89,16 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    GitHub CLI):
 
    ```sh
-   gh attestation verify "$B" --repo Azathothas/podssh \
-     --signer-workflow Azathothas/podssh/.github/workflows/release.yml --source-ref "refs/tags/$T"
+   gh attestation verify "$B" --repo PodUtils/podssh \
+     --signer-workflow PodUtils/podssh/.github/workflows/release.yml --source-ref "refs/tags/$T"
    ```
 
    And `SHA256SUMS` is signed by the workflow at the tag (with cosign 3.x):
 
    ```sh
-   curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/SHA256SUMS.sigstore.json"
+   curl -fsSLO "https://github.com/PodUtils/podssh/releases/download/$T/SHA256SUMS.sigstore.json"
    cosign verify-blob --bundle SHA256SUMS.sigstore.json \
-     --certificate-identity "https://github.com/Azathothas/podssh/.github/workflows/release.yml@refs/tags/$T" \
+     --certificate-identity "https://github.com/PodUtils/podssh/.github/workflows/release.yml@refs/tags/$T" \
      --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS
    ```
 2. Run `podssh doctor`. It tells what the host allows and whether the full

@@ -173,6 +173,13 @@ that says `unreleased` with a date before the newest release that the head
 names fails, as the release step left it. It reads no git, so a checkout of
 depth 1 checks the same. Three planted rows must be found.
 
+And it reads each tracked file for the repository's old name (T-683): the
+repository is PodUtils/podssh since 2026-11-05, and only the dated records
+(`docs/releases/`, `docs/STATUS.md`, `docs/decisions.md`, `docs/research/`,
+the entries of `TODO/`, `vendor/`) and two tests of `podssh update`'s refusal
+may name the old one (`scripts/repo_names.py`). A planted line of
+`Cargo.toml` must be found.
+
 `deny.toml` allows each license that a crate of the graph needs, by name,
 and crates.io as the only source; an advisory is ignored only with its
 reason and the date it was read. CI runs both commands on each push, each
@@ -1011,7 +1018,7 @@ session runs it and records its table:
 
 ```sh
 sh scripts/release-check.sh --list --local       # each row: its entry, where it runs, its limit
-gh run download RUN -R Azathothas/podssh -n podssh-x86_64-unknown-linux-musl -D .work/artifact
+gh run download RUN -R PodUtils/podssh -n podssh-x86_64-unknown-linux-musl -D .work/artifact
 sh scripts/release-check.sh --local --binary .work/artifact/podssh --actions-run build=RUN
 sh scripts/release-check.sh vX.Y.Z --actions-run release=RUN    # from a checkout of the tag
 ```

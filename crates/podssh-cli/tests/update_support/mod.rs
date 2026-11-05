@@ -18,7 +18,7 @@ use podssh_cli::update::sigstore::{Roots, ISSUER};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-pub const REPO: &str = "Azathothas/podssh";
+pub const REPO: &str = "PodUtils/podssh";
 
 fn b64(bytes: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(bytes)

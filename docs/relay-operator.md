@@ -33,7 +33,7 @@ found each of podssh's 7 facts in it.
 
 ## Defects on the relay's side
 
-1. **A slow client's bytes are held with no bound** (T-336, [TODO/relay.md](../TODO/relay.md); [#17](https://github.com/Azathothas/podssh/issues/17)).
+1. **A slow client's bytes are held with no bound** (T-336, [TODO/relay.md](../TODO/relay.md); [#17](https://github.com/PodUtils/podssh/issues/17)).
    Measured on 2026-10-31, twice from a cloud container and once from
    GitHub Actions (`.github/workflows/relay-live.yml`, run 41157016178),
    through the relay's own loop: a forward session to
@@ -113,7 +113,7 @@ found each of podssh's 7 facts in it.
    deployment's drops again, beside the role on a runner
    (`reverse-drops.yml` with `relay: role`), with the time that each drop
    costs podssh's node and a session of its layer.
-3. **No IPv6 egress** (T-253, [TODO/relay.md](../TODO/relay.md); [#2](https://github.com/Azathothas/podssh/issues/2)).
+3. **No IPv6 egress** (T-253, [TODO/relay.md](../TODO/relay.md); [#2](https://github.com/PodUtils/podssh/issues/2)).
    Measured on 2026-10-08, at the version that the relay still serves: no
    IPv6 host can be reached. `/connect/2001:4860:4860::8888/853` (the bare
    address; also with `%5B` and `%5D`, raw brackets, or `%3A` for each
@@ -160,7 +160,7 @@ allowed the two roads that needed a ruling (Q44 and Q45 in
 [decisions.md](decisions.md)). podssh builds each in its own relay role and
 its client; this deployment serves them once its contract has them.
 
-5. **An HTTP road** (T-319, [TODO/roads.md](../TODO/roads.md); [#55](https://github.com/Azathothas/podssh/issues/55)).
+5. **An HTTP road** (T-319, [TODO/roads.md](../TODO/roads.md); [#55](https://github.com/PodUtils/podssh/issues/55)).
    For a proxy that re-terminates TLS for the relay's name, refuses
    `Upgrade`, and still carries plain HTTPS requests (the proxy of a Claude
    Code cloud container documents such a refusal, T-311). The relay's
@@ -200,7 +200,7 @@ its client; this deployment serves them once its contract has them.
    the forward token, the session's key in a header, numbered batches up,
    and the bytes down acknowledged by their offset, which a cut answer
    costs nothing.
-6. **Endpoints that `doctor` can measure** (T-325, [TODO/ws.md](../TODO/ws.md); [#54](https://github.com/Azathothas/podssh/issues/54)).
+6. **Endpoints that `doctor` can measure** (T-325, [TODO/ws.md](../TODO/ws.md); [#54](https://github.com/PodUtils/podssh/issues/54)).
    On the relay's own host: one endpoint that sends a response in timed
    chunks, and one that takes a body in chunks and says when each chunk
    came. With them, `podssh doctor` measures what a path does to a stream:
@@ -213,7 +213,7 @@ its client; this deployment serves them once its contract has them.
    Item 5 takes its poll interval and its batch size from these results.
    In podssh: T-325 serves both, as go-httpbin's `/drip` and `/anything` under `/v1/probe`, in the
    role (T-169) and behind a node's quick tunnel (T-428) ([relay.md](relay.md), "The relay role's probes").
-7. **A cleartext upgrade on port 443** (T-326, [TODO/ws.md](../TODO/ws.md); [#56](https://github.com/Azathothas/podssh/issues/56)).
+7. **A cleartext upgrade on port 443** (T-326, [TODO/ws.md](../TODO/ws.md); [#56](https://github.com/PodUtils/podssh/issues/56)).
    For a proxy that tunnels CONNECT but intercepts TLS by its SNI or its
    certificate: an endpoint that takes the WebSocket upgrade with no TLS on
    port 443, with the paths and the token header of the forward road.
@@ -234,7 +234,7 @@ its client; this deployment serves them once its contract has them.
    mint of the contract could take. The client refuses a token that the
    answer does not say is one, so the default relay's mint, which would give
    a token of 72 h, gets no upgrade in cleartext.
-8. **Extended CONNECT** (T-321, [TODO/roads.md](../TODO/roads.md); [#51](https://github.com/Azathothas/podssh/issues/51)).
+8. **Extended CONNECT** (T-321, [TODO/roads.md](../TODO/roads.md); [#51](https://github.com/PodUtils/podssh/issues/51)).
    A WebSocket as one stream of an HTTP/2 connection (RFC 8441), so that
    many sessions share one TLS connection. Measured on 2026-10-30: the
    relay's edge (Cloudflare) chose `h2`, and its SETTINGS had
@@ -252,7 +252,7 @@ its client; this deployment serves them once its contract has them.
 
 ## Pairing
 
-9. **Signed grants, used once** (T-226, [TODO/reverse.md](../TODO/reverse.md); [#35](https://github.com/Azathothas/podssh/issues/35)).
+9. **Signed grants, used once** (T-226, [TODO/reverse.md](../TODO/reverse.md); [#35](https://github.com/PodUtils/podssh/issues/35)).
    Each token of a pair is a bearer token: whoever holds it can use it, as
    often as they like, until it expires, up to 72 h. The relay's part: an
    endpoint, in place of `POST /v1/pair`, that gives a signed grant. The
@@ -314,7 +314,7 @@ its client; this deployment serves them once its contract has them.
 
 ## Relays beyond the one deployment
 
-12. **A relay that its users host** (T-169, [TODO/roads.md](../TODO/roads.md); [#18](https://github.com/Azathothas/podssh/issues/18), [#25](https://github.com/Azathothas/podssh/issues/25)).
+12. **A relay that its users host** (T-169, [TODO/roads.md](../TODO/roads.md); [#18](https://github.com/PodUtils/podssh/issues/18), [#25](https://github.com/PodUtils/podssh/issues/25)).
     Offer the relay as one program that a user runs on a server of their
     own, on port 443, with the same contract, so that podssh needs no
     change: `--relay-host` names it. It needs:
@@ -332,7 +332,7 @@ its client; this deployment serves them once its contract has them.
       and quotas for each address and each token.
 
     Such a front can offer what Cloudflare's edge cannot: items 7 and 8.
-    The smallest form ([#60](https://github.com/Azathothas/podssh/issues/60)):
+    The smallest form ([#60](https://github.com/PodUtils/podssh/issues/60)):
     the relay's forward road as a Worker that a user deploys under a free
     Cloudflare account of their own. #59 reports three public WebSocket forwarders that take the
     destination from the client; on 2026-10-31 each carried GitHub's SSH
@@ -411,7 +411,7 @@ its client; this deployment serves them once its contract has them.
     operator first ([design.md](design.md), section 9, question 1); its
     condition, the end of M6, holds since 2026-10-10. In podssh: T-173 runs
     the resumable layer's far end in podssh's own relay role (T-169).
-17. **A local HTTP service published at `https://NAME`** (T-180, [TODO/pipe.md](../TODO/pipe.md); [#26](https://github.com/Azathothas/podssh/issues/26)).
+17. **A local HTTP service published at `https://NAME`** (T-180, [TODO/pipe.md](../TODO/pipe.md); [#26](https://github.com/PodUtils/podssh/issues/26)).
     An endpoint that takes public HTTPS for a name, and hands each incoming
     connection to a node as a session of the reverse road (`open {id}`,
     `ready {id}`), so that a node serves it with today's runner. Publish it

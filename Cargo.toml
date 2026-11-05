@@ -59,7 +59,7 @@ edition = "2021"
 rust-version = "1.89"
 license = "0BSD"
 publish = false
-repository = "https://github.com/Azathothas/podssh"
+repository = "https://github.com/PodUtils/podssh"
 
 # THE BUILD RULE: the library crates need no C compiler.
 #

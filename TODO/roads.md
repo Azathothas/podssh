@@ -9329,7 +9329,7 @@ Read at `2042200`:
 - The measured sandbox refuses UDP: `docs/target-environment.md:23` says "EPERM", so there the line is
   unknown.
 - A socket that a source binds must be named in `scripts/repo_listeners.py` (`:82` for `UdpSocket`),
-  which `scripts/check-repo.py:282` reads.
+  which `scripts/check-repo.py:287` reads.
 
 ## Approach
 

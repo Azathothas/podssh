@@ -1,6 +1,6 @@
 # GitHub issues and reports
 
-Where each GitHub issue of `Azathothas/podssh`, and each sandbox report, went
+Where each GitHub issue of `PodUtils/podssh`, and each sandbox report, went
 in the record. An issue can close when its entries are done; its closing
 comment names them. A request that podssh already meets says so here, with
 the evidence.

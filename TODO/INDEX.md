@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**640 entries: 97 open, 10 partial, 4 blocked, 529 done.**
+**640 entries: 96 open, 10 partial, 4 blocked, 530 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 2 | 0 | 65 | 68 |
-| P2 | 26 | 4 | 1 | 249 | 280 |
+| P2 | 25 | 4 | 1 | 250 | 280 |
 | P3 | 70 | 4 | 3 | 214 | 291 |
-| **All** | 97 | 10 | 4 | 529 | 640 |
+| **All** | 96 | 10 | 4 | 530 | 640 |
 
 ## Entries
 
@@ -713,6 +713,6 @@ repository and CI).
 | [T-680](machine.md) | P3 | M | M10 | measurement | open | A cold connect on a long path takes nine round trips, where osewa's takes three |
 | [T-681](machine.md) | P3 | M | M10 | measurement | open | The echo beside a download on cellular, wifi and the slow link is 1.5 to 3.5 times osewa's |
 | [T-682](resume.md) | P2 | M | M10 | defect | open | M6's check of a stall of 3 minutes on the iroh road hung after its resume, once in CI |
-| [T-683](repo.md) | P2 | S | M10 | chore | open | The move to PodUtils/podssh: the repository's name in the code, the manual, the workflows and the documents |
+| [T-683](repo.md) | P2 | S | M10 | chore | done | The move to PodUtils/podssh: the repository's name in the code, the manual, the workflows and the documents |
 | [T-684](repo.md) | P2 | L | M10 | feature | blocked | podcrates: the crates that podssh, podnet and podvm share, in PodUtils/podcrates |
 | [T-685](repo.md) | P1 | M | M10 | chore | open | The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021 |

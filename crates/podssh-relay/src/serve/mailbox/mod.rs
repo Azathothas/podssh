@@ -29,7 +29,7 @@ use super::{answer, Config};
 pub const PATH: &str = "/v1/mailbox";
 /// podssh's AppID, the one that `crate::code` binds with: the role's
 /// mailbox serves no other application.
-pub const APPID: &str = "github.com/Azathothas/podssh/pair";
+pub const APPID: &str = "github.com/PodUtils/podssh/pair";
 /// A client that says nothing for this long is ended.
 const IDLE: Duration = Duration::from_secs(300);
 /// A connection lives this long at most: a code lives 10 minutes.

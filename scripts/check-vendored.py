@@ -57,7 +57,7 @@ URLS = {
 READ = re.compile(r"^- \*\*Upstream read\*\*: `?v?(\S+?)`? on (\d{4}-\d{2}-\d{2})\b", re.M)
 TIMEOUT_SECONDS = 30
 # crates.io asks each client to name itself (its data access policy).
-USER_AGENT = "podssh-check-vendored/1 (https://github.com/Azathothas/podssh)"
+USER_AGENT = "podssh-check-vendored/1 (https://github.com/PodUtils/podssh)"
 
 
 def sections(text: str) -> dict[str, str]:

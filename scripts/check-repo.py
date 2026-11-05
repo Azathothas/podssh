@@ -34,6 +34,9 @@
      the first release that holds it, or says `unreleased`; a row that says
      `unreleased` with a date before the newest release's is stale (T-594).
      No git is read. Three planted rows must be found.
+ 12. No tracked file names the repository's old place, outside the dated
+     records (T-683): the repository is PodUtils/podssh. A planted
+     `repository` line of Cargo.toml must be found.
 
 Each check counts the files that it read, and fails below a floor, so a
 scan that read nothing never passes. `--plant-empty` runs each check on an
@@ -61,6 +64,8 @@ from repo_scans import PATCH_RULE, PATCHED, patch_misses  # noqa: E402
 from repo_listeners import LISTENER_RULE, LISTENERS  # noqa: E402
 # The scan of the release marks of docs/STATUS.md (check 11).
 from repo_status import MIN_ROWS, PLANTED_LINES, STATUS, mark_problems, planted_marks_found  # noqa: E402
+# The scan of the repository's old name (check 12).
+from repo_names import name_hits, planted_name_found  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_SOURCE_LINES = 500
@@ -398,6 +403,16 @@ def check_status_marks() -> list[str]:
     return problems
 
 
+def check_old_name() -> list[str]:
+    read, hits = name_hits(ROOT, git_files())
+    problems = [f"{hit}: names the old repository; the repository is PodUtils/podssh" for hit in hits]
+    problems += too_few("tracked files", read, MIN_TRACKED_FILES)
+    if not planted_name_found():
+        problems.append("the scan of the old name missed its planted line")
+    check_old_name.note = f"{read} tracked files read, the dated records aside; a planted line found"
+    return problems
+
+
 def main(argv: list[str]) -> int:
     global ROOT
     if argv == ["--plant-empty"]:
@@ -423,6 +438,7 @@ CHECKS = [
     ("no print macro that panics in the sources", check_print_macros),
     ("each patch of [patch.crates-io] is built", check_patches_used),
     ("each row of STATUS after v1.0.0 names its release", check_status_marks),
+    ("no file names the repository's old place", check_old_name),
 ]
 
 

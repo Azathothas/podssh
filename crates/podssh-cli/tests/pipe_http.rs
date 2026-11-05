@@ -334,7 +334,7 @@ fn live_git_ls_remote_through_the_proxy_and_the_live_relay() {
     }
     let (proxy_url, _lines) = proxy(&session, session.command(&args(&[], "relay:%h:%p")));
     let mut git = Command::new("git");
-    git.args(["-c", &format!("http.proxy={proxy_url}"), "ls-remote", "https://github.com/Azathothas/podssh", "HEAD"]);
+    git.args(["-c", &format!("http.proxy={proxy_url}"), "ls-remote", "https://github.com/PodUtils/podssh", "HEAD"]);
     git.env("HTTPS_PROXY", &proxy_url).env("https_proxy", &proxy_url).env("GIT_TERMINAL_PROMPT", "0");
     for name in ["NO_PROXY", "no_proxy"] {
         git.env_remove(name);

@@ -20,12 +20,12 @@
 #   --table FILE           the header lines and the table, in Markdown, also
 #                          into FILE (docs/STATUS.md, "The release check")
 #   --logs DIR             the log of each check (default .work/release-check/DATE)
-#   --repo OWNER/NAME      the repository (default Azathothas/podssh)
+#   --repo OWNER/NAME      the repository (default PodUtils/podssh)
 #   --commit SHA           --local: the artifact's commit (default HEAD)
 #
 # The artifact: the job `gate (release)` of build.yml uploads it at each
 # push, as podssh-x86_64-unknown-linux-musl; with gh's login:
-#   gh run download RUN -R Azathothas/podssh -n podssh-x86_64-unknown-linux-musl -D .work/artifact
+#   gh run download RUN -R PodUtils/podssh -n podssh-x86_64-unknown-linux-musl -D .work/artifact
 #
 # The plant of the Prove: one byte of a checked binary changed. After the
 # tag, from a download of the release (`gh release download TAG -D DIR`):
@@ -45,7 +45,7 @@ REPO=$(CDPATH= cd -- "$HERE/.." && pwd -P)
 TAB=$(printf '\t')
 
 MODE= TAG= BINARY= BUILD= SUMS= DIR= ONLY= TABLE= LOGS= COMMIT= LIST=0
-SLUG=Azathothas/podssh
+SLUG=PodUtils/podssh
 RUNS=
 # The command line for the table, each path as PATH: the table goes into
 # docs/STATUS.md, which holds no path of a session's machine.

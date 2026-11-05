@@ -1154,7 +1154,7 @@ join` (T-616), whose exchange has the same AppID and another name in its
 sealed version phase; its document goes in parts within the bound of a
 body below.
 
-- It serves podssh's AppID alone (`github.com/Azathothas/podssh/pair`):
+- It serves podssh's AppID alone (`github.com/PodUtils/podssh/pair`):
   a `bind` of another is an `error`, so the role is no public mailbox of
   other applications.
 - Each command is answered as magic-wormhole-mailbox-server's

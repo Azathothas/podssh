@@ -83,3 +83,13 @@ fn a_leaf_that_fulcio_did_not_sign_is_refused() {
     // refuse it too, and must not be what this test reads.
     assert!(why.contains("'s signature by") && why.contains("sigstore-intermediate"), "{why}");
 }
+
+/// beta.2's bundle was signed under the old name, Azathothas/podssh; the
+/// build now names PodUtils/podssh, and refuses it (T-683: no second signer).
+#[test]
+fn the_build_s_repository_refuses_the_old_name() {
+    let repo = env!("CARGO_PKG_REPOSITORY").strip_prefix("https://github.com/").unwrap();
+    assert_eq!(repo, "PodUtils/podssh");
+    let why = verify(BUNDLE.as_bytes(), SUMS, &Identity { repo, ..WHO }).unwrap_err();
+    assert!(why.contains("not https://github.com/PodUtils/podssh/.github/workflows/release.yml"), "{why}");
+}

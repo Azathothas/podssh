@@ -408,7 +408,7 @@ Apache-2.0. podssh copies from neither without reading its license again
 Measured from a GitHub-hosted runner with the operator's leave (Q43), by the
 workflow quick tunnel edge (`.github/workflows/quick-tunnel-edge.yml`, with
 `scripts/quick-tunnel-edge.py`): run 41071742798 at 14:29 UTC
-(https://github.com/Azathothas/podssh/actions/runs/41071742798), on the
+(https://github.com/PodUtils/podssh/actions/runs/41071742798), on the
 image ubuntu24 20261026.354.1 with OpenSSL 3.0.13 and cloudflared 2026.10.6,
 whose sha256 (`1d356dac…462d`) matched its release page. A runner has open
 egress: it shows what the edge takes. The box's proxy
@@ -487,7 +487,7 @@ successful" (TCP) to both, and `api.cloudflare.com:443`. Its summary named
 the protocol that the run then used.
 
 **The relay's roads.** Run 41072705691 at 14:35 UTC
-(https://github.com/Azathothas/podssh/actions/runs/41072705691), with podssh
+(https://github.com/PodUtils/podssh/actions/runs/41072705691), with podssh
 built from `fb712a2` in the job and the live relay (`tcp.ssh.relay.ajam.dev`,
 version 2026-10-03-r2), which mints its own token. `podssh relay trace` to
 198.41.192.7, 198.41.200.13 and `region1.v2.argotunnel.com` on 7844, and to
