@@ -1,0 +1,7 @@
+# T-650: the role draws spares as if the operators' sessions took no place
+# on the node; the test of a node with 62 sessions, which must get two
+# spares of four, must fail.
+ENTRY=T-650
+GROUP=resume
+EXPECT='test the_spares_stay_inside_the_nodes_sessions_and_a_leg_past_them_is_refused \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_spares -- the_spares_stay_inside_the_nodes_sessions_and_a_leg_past_them_is_refused'

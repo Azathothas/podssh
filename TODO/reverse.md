@@ -4368,18 +4368,123 @@ is a connection to the target that no operator uses, which a node's owner choose
 default (that cost on each node); spares that the role opens with no `ready` (an operator then meets a
 dead session, as `crates/podssh-relay/src/reverse/control.rs:184` says of an early `ready`).
 
+2026-11-05 (the drafting agent of T-650), each call with what lost:
+
+1. **The floor is one spare**: after a minute in which no leg took one, the role keeps one, so the next
+   leg after a quiet time still finds one. Lost: the issue's floor of four (four sessions at rest on each
+   node that asked, and with `--plain --no-e2e` four connections that an sshd counts against its
+   `MaxStartups` of 10); a floor of none (the first leg after each quiet minute pays the round trip,
+   which a loop of commands at intervals meets each time).
+2. **The number kept starts at the node's, and each leg that found none asks for one more at once**,
+   up to it. Lost: the issue's doubling at the minute's tick (it overshoots a burst, and answers a
+   minute late); a start at the floor (the first burst after a node joins finds one).
+3. **A spare closes after 15 s, looked at each 5 s, and another is drawn**: the layer's far end and the
+   channel give a client 30 s for its handshake from the session's `open` (see the Correction), so a
+   leg that takes a spare has 10 s of them at least. Lost: no age (a leg that takes a spare of 29 s
+   meets a far end that gives up in its handshake: a dead session); an age that the node names in its
+   ask (a member more for a number that each of podssh's handlers shares).
+4. **A spare that the node refused stops the drawing until the next tick; one that it closed is drawn
+   again at the next look.** Lost: drawing at each refusal, a loop against a TARGET that refuses each
+   connection, which the issue's Risks name.
+5. **A leg that finds no room closes a spare, never the reverse**: the spares and the operators'
+   sessions together stay inside `MAX_SESSIONS`, and a leg is refused only where it was before. Lost:
+   a leg refused while spares fill the node's 64.
+6. **The node's bytes on a spare wait at the role, 64 KiB at most**, past which the spare closes, and go
+   to the operator after its `ready`. Lost: dropping them (the layer's `GREETING` and an sshd's banner
+   are the session's first bytes, which the far end sends at once); closing a spare at its first byte
+   (each spare of the layer would close).
+7. **The role's `open` of a spare says `"spare": true`, which podssh's node reads nothing of; the role
+   says nothing at a take.** Lost: a frame `taken {id}` (a type that a node of the contract does not
+   know, for a count that no line needs); no mark (a node of the user's own script, and a test, could
+   not tell a spare from a leg).
+8. **The node's line says whether its relay keeps them, and how many, once a run and again when that
+   changes**, which reads the Approach's item 4: not a line for each spare, as each is drawn again each
+   15 to 20 s.
+9. **`--spares` is for the pair's road of `podssh node NAME TARGET`**, and the transit road beside it,
+   which shares its settings; it is refused (64) with `--iroh`, `--derp`, `--opentunnel`,
+   `--quick-tunnel`, `--carrier`, `--temporary` and the road that `PODSSH_PIPING` asks for, each of
+   which has no relay role to ask or runs a pair's road of its own beside it. `--install` writes it
+   into the service. Lost: taking it into the pair's roads of the DERP and Piping Server nodes, a
+   change of their own runners for the few nodes that run both.
+10. **A carrier's role offers none**, as its `hello` offers no token of one leg (T-615), and
+    `/relays.json` says nothing of spares: only the node reads the offer, at its `hello`.
+11. **The role's lines**: `reverse spares N` at an ask, and `reverse spare taken` in the place of
+    `reverse open` at a take; none for each spare drawn, three a minute for each.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_reverse
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test reverse_node
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_spares
+cargo test -p podssh-relay --features pair --test reverse_spares
+cargo test -p podssh-relay --features serve,pair --lib -- serve::reverse reverse::spares
+cargo test -p podssh-cli --lib -- node_flags man::
+sh scripts/plant-each.sh --here t650-spare-before-ready t650-spares-unasked t650-floor-never t650-miss-unheard
+sh scripts/plant-each.sh --here t650-past-the-cap t650-aged-kept t650-node-asks-unoffered t650-past-sixteen
 ```
 
 With one spare readied, an operator's first byte reaches the node with no `open` for that leg; a node
 whose `hello` answer has no word gets no spare and its leg works as before; a minute with no take leaves
 the floor; two takes with no spare ask for more, never past `MAX_SESSIONS`. Planted: a spare handed out
 before its `ready`, and the test of a dead session fails.
+
+## Correction
+
+2026-11-05 (the drafting agent of T-650), read at `e2507f4`:
+
+- The Premise's role's leg, its `hello` and its count of lines hold (`pairs.rs` is 493 lines, so the
+  spares are `crates/podssh-relay/src/serve/reverse/spares.rs`).
+- "A spare is a live connection to the target with no one on it" holds for a node of `--plain
+  --no-e2e` alone, whose handler readies after its dial. With the resumable layer, podssh node's
+  default, `crates/podssh-relay/src/reverse/layered.rs:2` says "the node answers `ready` at once, greets",
+  and `crates/podssh-relay/src/reverse/layered.rs:4` says "session dials the target, after its handshake";
+  the channel too dials TARGET only once the operator's key is let in. So a spare there is a pipe and a
+  task, and TARGET sees nothing of it; but the far end gives the client 30 s from the session's `open`
+  (`crates/podssh-relay/src/session/far.rs:40` says "HANDSHAKE_LIMIT: Duration = Duration::from_secs(30)",
+  and the channel's step `crates/podssh-relay/src/e2e/mod.rs:61` says "HANDSHAKE_LIMIT: Duration =
+  Duration::from_secs(30)"), so a spare goes stale at the node in 30 s, and it greets at once, so a
+  spare carries the node's bytes before any operator: the Decision's items 3 and 6.
+- The Prove's two targets are near 500 lines (`relay_serve_reverse.rs` 459, `reverse_node.rs` 419): the
+  tests of the role are `crates/podssh-relay/tests/relay_serve_spares.rs`, those of the node
+  `crates/podssh-relay/tests/reverse_spares.rs`, with unit tests beside the role's module; the Prove
+  names them, and the two targets of before run as they did.
+
+## Done
+
+2026-11-05, drafted (unbuilt, UNVERIFIED); the main session merges, builds and measures it.
+
+- The role (`crates/podssh-relay/src/serve/reverse/spares.rs`): the node's ask, the spares in the pair's
+  state (`State::spares`), each drawn as an `open` with `"spare": true` inside `MAX_SESSIONS`, a leg's
+  admission that takes the youngest readied one (`admit`, from `operator.rs`), the node's `ready`,
+  `reject`, `close` and bytes of a spare (`node.rs`), the look of each 5 s with its age and its tick
+  (`Spacing`, a test's by `Pairs::with_spacing`), a halt's close of them and a resume's draw
+  (`halt.rs`); the `hello` offers `"spares": true` (`mod.rs`). Unit tests in `spares_tests.rs`.
+- The node (`crates/podssh-relay/src/reverse/spares.rs`, `Settings::spares` in `serve.rs`): the ask
+  once a `hello` offers them, 16 at most, and its line. The CLI: `--spares N`
+  (`crates/podssh-cli/src/flags/node.rs`, `crates/podssh-cli/src/node_args.rs`,
+  `crates/podssh-cli/src/node_flags.rs`, `crates/podssh-cli/src/node.rs`, and `--install`'s words in
+  `crates/podssh-cli/src/node_install/text.rs`); the manual (`crates/podssh-cli/src/man/notes_spares.rs`);
+  `docs/reverse.md` ("Sessions readied ahead"), `docs/relay.md`, `docs/cli.md`, `docs/STATUS.md`.
+- `cargo test -p podssh-relay --features serve,plain-ws,... --test relay_serve_spares`: UNVERIFIED (8
+  tests: a readied spare taken with its banner and no `open` for the leg; no spare for a node that did
+  not ask, its leg as before; no spare handed out before its `ready`; a tick with no take leaves one;
+  two legs that find none ask for two more; 62 sessions leave room for two spares, and the 65th leg is
+  `1011 node unavailable`; a spare of its age closes and another is drawn; podssh's node and operator
+  through the spares, three sessions whole, and none for a node that asks none).
+- `cargo test -p podssh-relay --features pair --test reverse_spares`: UNVERIFIED (3 tests: the ask after
+  an offer, a spare's `open` readied; no ask with no offer, `"true"`, `1` or a node that wants none; 16
+  at most).
+- `cargo test -p podssh-relay --features serve,pair --lib -- serve::reverse reverse::spares`: UNVERIFIED
+  (the 8 unit tests of `spares_tests.rs` and 2 of the node's module, and the role's tests of before).
+- `cargo test -p podssh-cli --lib -- node_flags man::`: UNVERIFIED (the flag's numbers and roads; the
+  manual's names).
+- The relay crate and the CLI whole, clippy with `-D warnings` and `cargo fmt --check`: UNVERIFIED.
+- Planted, the eight plants of the Prove: UNVERIFIED.
+- Each source file and document edited here that entries cite at a line wants `cargo todo remap` at
+  the merge: `docs/reverse.md`, `docs/relay.md`, `docs/cli.md`, `docs/STATUS.md`, and the role's
+  `mod.rs`, `node.rs`, `operator.rs`, `halt.rs` and `pairs.rs`.
 
 # T-678: A node on Windows ends its sessions at its upgrade: no handover of its sockets and its state
 

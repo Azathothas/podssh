@@ -1,0 +1,6 @@
+# T-650: a tick with no take leaves the number of spares as it was; the test
+# of the floor, which must see three of four close, must fail.
+ENTRY=T-650
+GROUP=resume
+EXPECT='test a_tick_with_no_take_leaves_the_floor_and_the_one_left_serves \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_spares -- a_tick_with_no_take_leaves_the_floor_and_the_one_left_serves'

@@ -29,7 +29,7 @@ use podssh_relay::e2e::ends::Node;
 use podssh_relay::identity::PublicKey;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::{Grant, Route, Routed, Routes};
-use podssh_relay::reverse::{self, E2e, Exit, Handler, Layered, NodeConfig, Settings, TcpHandler, Wire};
+use podssh_relay::reverse::{self, E2e, Exit, Handler, Layered, NodeConfig, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
@@ -56,8 +56,8 @@ pub use crate::node_args::NodeArgs;
 pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     // The sessions of the binary before this one, before anything connects (T-668).
     crate::node_upgrade::start(err);
-    // How long the node keeps a lost session, on each road (T-306); its exit (T-431).
-    if let Err(refusal) = crate::node_flags::deadline(args).and_then(|()| crate::node_exit::check(args)) {
+    // How long it keeps a lost session (T-306), those readied ahead (T-650); its exit (T-431).
+    if let Err(refusal) = crate::node_flags::sessions(args).and_then(|()| crate::node_exit::check(args)) {
         return refusal.report("node", err);
     }
     // What fills the budget of replay buffers, said on each road (T-586).
@@ -359,8 +359,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         proxy: &proxy,
         timeout: pairs::REQUEST_LIMIT,
         // A lost socket is taken again for as long as the layer keeps a
-        // session (T-261).
-        settings: Settings { rejoin: crate::layered::settings().resume_deadline, ..Settings::default() },
+        // session (T-261); the sessions of --spares (T-650).
+        settings: crate::node_flags::pair_settings(&say),
         repair,
         wire: Wire::Tls,
         say: Some(&*say),

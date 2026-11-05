@@ -7,7 +7,8 @@
 //! the contract's close table, and its operators hear that cause. A
 //! carrier's node (T-595) has the same socket with no upgrade before it.
 //! Beside the contract, a node registers tokens of one leg with `token`
-//! frames, which the role's `hello` offers to the node of a pair (T-615).
+//! frames, which the role's `hello` offers to the node of a pair (T-615), and
+//! asks for sessions readied ahead with a `spares` frame (T-650).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -137,6 +138,9 @@ async fn socket<S>(
     tokio::pin!(expiry);
     let (mut expired, mut cause): (bool, Option<Fault>) = (false, None);
     let mut closing: Option<Instant> = None;
+    // A look at the sessions readied ahead, which a node may ask for (T-650).
+    let mut ahead = tokio::time::interval(cfg.pairs.spacing().check);
+    ahead.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
         let give_up = closing.map(|at| at + CLOSE_WAIT);
         tokio::select! {
@@ -175,6 +179,7 @@ async fn socket<S>(
             }
             () = outbox.ended(), if closing.is_none() => closing = Some(Instant::now()),
             () = sleep_until(give_up), if give_up.is_some() => break,
+            _ = ahead.tick() => super::spares::keep(&pair, cfg.pairs.spacing()),
         }
     }
     reader.abort();
@@ -208,6 +213,8 @@ fn detach(pair: &Pair, serial: u64, cause: Option<Fault>) {
             return;
         }
         state.node = None;
+        // The node asks again on its next socket (T-650).
+        state.spares = Default::default();
         let ids: Vec<SessionId> = state.sessions.keys().copied().collect();
         ids.iter().filter_map(|id| state.forget(id)).collect::<Vec<_>>()
     };
@@ -229,6 +236,12 @@ fn control_frame(pair: &Pair, text: &[u8], cfg: &Config) -> Result<(), Fault> {
     if kind == "token" {
         return register(pair, &message);
     }
+    // The sessions that the node asks the role to ready ahead (T-650).
+    if kind == super::spares::ASK {
+        let want = super::spares::asked(pair, &message)?;
+        cfg.event(&format!("reverse spares {want}"));
+        return Ok(());
+    }
     if !matches!(kind, "ready" | "reject" | "close") {
         return Err((1003, "unknown control type"));
     }
@@ -237,6 +250,11 @@ fn control_frame(pair: &Pair, text: &[u8], cfg: &Config) -> Result<(), Fault> {
     // The node's own words; the literal type when it sent none.
     let reason = message.get("reason").and_then(Value::as_str).filter(|r| !r.is_empty()).unwrap_or(kind).to_string();
     let mut state = pair.lock();
+    // A session readied ahead, which no leg took (T-650).
+    if state.spares.holds(&id) {
+        super::spares::answered(&mut state, &id, kind);
+        return Ok(());
+    }
     if kind == "ready" {
         if !state.sessions.contains_key(&id) {
             // A `ready` that crossed the relay's close of its session.
@@ -304,6 +322,10 @@ fn data(pair: &Pair, node: &Outbox, wire: &[u8], cfg: &Config) -> Result<(), Fau
         _ => (1003, "bad multiplex id"),
     })?;
     let mut state = pair.lock();
+    // A spare's bytes before a leg took it, which that leg reads (T-650).
+    if state.spares.holds(&id) {
+        return super::spares::data(&mut state, node, &id, payload);
+    }
     if !state.sessions.contains_key(&id) {
         return match state.in_flight(&id) {
             // On its way before the node heard of the close (T-421).

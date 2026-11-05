@@ -1,0 +1,7 @@
+# T-650: podssh's relay role hands a leg a spare that the node has not
+# readied; the test of a leg that must open a session of its own, and not
+# meet a dead one, must fail.
+ENTRY=T-650
+GROUP=resume
+EXPECT='test a_leg_never_takes_a_spare_that_the_node_has_not_readied \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_spares -- a_leg_never_takes_a_spare_that_the_node_has_not_readied'

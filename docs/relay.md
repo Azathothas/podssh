@@ -853,6 +853,27 @@ does not know it reads the answer as before:
   pair that ended, get `403`; a method other than POST, `405`. A relay of
   the contract answers the paths as ones it does not have, which `podssh
   relay halt` and `resume` say (69).
+- Beside the contract, sessions readied ahead for a node that asks (T-650,
+  GitHub #148; [reverse.md](reverse.md), "Sessions readied ahead"). The
+  node's `hello` adds `"spares": true`; the node's text frame
+  `{"type":"spares","want":N}` asks for N, 16 at most, 0 for none, and one
+  with no whole number closes its socket with `1003 invalid spares frame`.
+  A node that says nothing gets none. The role sends
+  `{"type":"open","id":ID,"spare":true}` for each, inside `maxSessions`
+  with the operators' sessions counted, and never hands out one that the
+  node has not readied. An operator's leg takes the youngest readied spare
+  before it opens a session of its own: `ready` at once, then the node's
+  bytes on it (64 KiB at most, past which it closes with `close`), and the
+  leg's first byte goes to the node with no `open`; a token of one leg's
+  `spent` goes before that byte. A leg that finds none goes as before and
+  asks for one more, up to N; a minute with no take leaves one; a spare
+  that waited 15 s closes and another is drawn; one that the node rejected
+  stops them until the next minute; a leg that finds no room closes one; a
+  halt closes them and a resume draws them again. Each `close` of a spare
+  has its reason, and its id is in flight for 2 s, as a session's. The
+  status counts no spare among `sessions`; a take is the line `reverse
+  spare taken` in the place of `reverse open`, and an ask `reverse spares
+  N`. A carrier's role offers none, and a relay of the contract none.
 
 ## Tokens for the keys of a list (T-448)
 

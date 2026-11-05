@@ -353,6 +353,8 @@ pub const RELAY: &[&str] = &[
      address.",
     super::notes_grant::RELAY,
     super::notes_legs::RELAY,
+    // The sessions readied ahead for a node that asks (T-650).
+    super::notes_spares::RELAY,
     // The dialect of the reverse road (T-643).
     super::notes_dialect::RELAY,
     super::notes_doctor::RELAY_PROBES,

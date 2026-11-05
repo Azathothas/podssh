@@ -53,6 +53,8 @@ mod notes_relay;
 mod notes_roads;
 mod notes_run;
 mod notes_session;
+// The sessions that the relay readies ahead for a node that asks (T-650).
+mod notes_spares;
 mod notes_ssh;
 mod notes_ssh_more;
 mod notes_update;

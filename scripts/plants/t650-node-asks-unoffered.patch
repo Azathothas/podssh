@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/reverse/spares.rs b/crates/podssh-relay/src/reverse/spares.rs
+index 9c33b7fa..b6ec4fa3 100644
+--- a/crates/podssh-relay/src/reverse/spares.rs
++++ b/crates/podssh-relay/src/reverse/spares.rs
+@@ -69,7 +69,7 @@ pub fn heard(hello: &Hello, want: u8) -> Option<String> {
+             say(&line(offered, want));
+         }
+     }
+-    offered.then(|| ask(want))
++    Some(ask(want))
+ }
+ 
+ /// The node's line of its spares, by whether its relay offers them.

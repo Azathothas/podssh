@@ -1,0 +1,7 @@
+# T-650: podssh's relay role keeps a spare for a node that never asked for
+# one; the test of a node that did not ask, which must see no open before
+# its operator's, must fail.
+ENTRY=T-650
+GROUP=resume
+EXPECT='test a_node_that_does_not_ask_gets_no_spare_and_its_leg_goes_as_before \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_spares -- a_node_that_does_not_ask_gets_no_spare_and_its_leg_goes_as_before'

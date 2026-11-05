@@ -6,7 +6,8 @@
 //! closes its socket with `1003`. A carrier's operator (T-595) has the same
 //! socket, a pipe in its own process, with no upgrade before it. A leg that a
 //! token of one leg opened tells the node which one, before its `open`
-//! (T-615).
+//! (T-615). A leg takes a session that the node readied ahead first, where
+//! the node asked for them, with no `open` (T-650, `super::spares`).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,8 +21,8 @@ use tokio::sync::oneshot;
 use tokio::time::Instant;
 
 use super::outbox::{frames_of, Outbox};
-use super::pairs::{Pair, Session};
-use super::{close, new_id, open, CLOSE_WAIT, MAX_SESSIONS, OPEN_WAIT, PINGS_ALLOWED, PING_EVERY};
+use super::pairs::Pair;
+use super::{close, new_id, open, CLOSE_WAIT, OPEN_WAIT, PINGS_ALLOWED, PING_EVERY};
 use crate::reverse::framing::legs::encode_node_frame;
 use crate::reverse::framing::{SessionId, OPERATOR_PAYLOAD_MAX};
 use crate::serve::{answer, tokens, Config};
@@ -83,21 +84,9 @@ where
         return;
     };
     let (told, answered) = oneshot::channel();
-    let node = {
-        let mut state = pair.lock();
-        match state.node_outbox() {
-            // A halt that came after its request's check (T-647).
-            _ if state.halted.is_some() => Err(super::halt::HALTED),
-            Some(node) if state.sessions.len() < MAX_SESSIONS && !state.ended => {
-                let entry = Session { operator: outbox.clone(), ready: false, answer: Some(told), bytes: 0 };
-                state.sessions.insert(id, entry);
-                Ok(node)
-            }
-            _ => Err("node unavailable"),
-        }
-    };
-    let node = match node {
-        Ok(node) => node,
+    // A session that the node readied ahead (T-650), else a new one.
+    let (id, node, spare) = match super::spares::admit(&pair, &outbox, id, told) {
+        Ok(admitted) => admitted,
         // No node, or no room on it: the `open` could not be queued.
         Err(why) => {
             outbox.close(1011, why);
@@ -108,8 +97,13 @@ where
     if let Some(digest) = spent {
         node.text(super::spent(&digest));
     }
-    node.text(open(&id));
-    cfg.event("reverse open");
+    // A spare's `ready` went to the operator already, before its bytes.
+    if !spare {
+        node.text(open(&id));
+    }
+    cfg.event(if spare { "reverse spare taken" } else { "reverse open" });
+    // The spare that the take used, or one more for a leg that found none.
+    super::spares::refill(&pair);
 
     let (mut frames, reader) = frames_of(session.clone());
     let liveness = session.watch_liveness(PING_EVERY, PINGS_ALLOWED);
@@ -120,7 +114,7 @@ where
     let open_by = tokio::time::sleep(OPEN_WAIT);
     tokio::pin!(open_by);
     tokio::pin!(answered);
-    let mut phase = Phase::Opening;
+    let mut phase = if spare { Phase::Ready } else { Phase::Opening };
     let mut closing: Option<Instant> = None;
     let mut expired = false;
     loop {
