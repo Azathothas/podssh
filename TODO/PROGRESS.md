@@ -421,6 +421,10 @@ inputs alone.
   record before the session is then a read before a session, as Q96 and Q97 are.
 - T-643 (#141): an operator that offers the net's document to a node that answers without it goes
   on, with a line that says so, where the issue asks for a refusal.
+- T-644 (#142): `relay serve --sshd ADDR:PORT` dials the owner's sshd by the role's way out, the
+  loopback and what `NO_PROXY` names directly and another address through `HTTPS_PROXY`, where its
+  Approach had the dial always direct (rule 2); ADDR is an address, never a name; no limit, token
+  or brake of the contract stands before the sshd, which sees each client as the role's address.
 - T-667 (osewa): QUIC and a TCP road race to one host for a short time, as the race between relay
   hosts does (rule 2), the loser closed at once; QUIC goes first, 300 ms ahead, to a role that
   offered it, where Q82 puts other projects' roads over UDP after TCP.

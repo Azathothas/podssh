@@ -14,7 +14,8 @@
 //! `--quic yes` it serves QUIC on the listener's port of UDP too (T-667,
 //! `relay_serve/quic.rs`). What each key carried, its budget for a day and
 //! the file that keeps the counts are `relay_serve/quota.rs`'s (T-636); a
-//! list of keys at an `https://` URL, `relay_serve/keys_url.rs`'s (T-646).
+//! list of keys at an `https://` URL, `relay_serve/keys_url.rs`'s (T-646);
+//! an SSH client of the listener to the owner's sshd, `relay_serve/sshd.rs`'s (T-644).
 
 mod certs;
 mod harden;
@@ -25,6 +26,7 @@ mod list;
 mod quic;
 mod quota;
 mod resumes;
+mod sshd;
 mod stopped;
 
 use std::io::Write;
@@ -86,6 +88,8 @@ pub struct ServeArgs {
     /// that its copy is read while its server fails (T-646).
     pub list_ttl: Option<String>,
     pub list_stale: Option<String>,
+    /// The owner's sshd, for an SSH client of the listener (T-644).
+    pub sshd: Option<String>,
 }
 
 impl ServeArgs {
@@ -120,6 +124,7 @@ impl ServeArgs {
             usage: get("usage"),
             list_ttl: get("list-ttl"),
             list_stale: get("list-stale"),
+            sshd: get("sshd"),
         }
     }
 
@@ -189,6 +194,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     };
     // QUIC on the listener's port of UDP, when asked (T-667).
     let asked_quic = quic::asked(s.quic.as_deref())?;
+    // The owner's sshd on the listener's port, when named (T-644).
+    let owner_sshd = sshd::of(s.sshd.as_deref())?;
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
         Some(text) => match text.parse::<u64>() {
@@ -233,7 +240,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     });
     // A list of a URL, fetched with no privilege of the start (T-646).
     let came = keys_url::first(&mint)?;
-    let through = egress_shown(&egress);
+    let (through, ssh) = (egress_shown(&egress), sshd::shown(owner_sshd, &egress));
     let cfg = Config {
         version: format!("podssh {}", env!("CARGO_PKG_VERSION")),
         mint,
@@ -259,12 +266,12 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let dropped = dropped.unwrap_or_default();
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{came}{metered}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{over_udp}{dropped}; {}",
+         {who}{came}{metered}{inside}{kept}{through}{clear}{ssh}{listed}{resumable}{h2}{over_udp}{dropped}; {}",
         serve::CONTRACT,
         certs.shown
     );
     let port_file = s.port_file.clone().map(|path| (path, bound.port()));
-    let door = Door { acceptor, cleartext };
+    let door = Door { acceptor, cleartext, sshd: owner_sshd };
     Ok(Prepared { listener, door, cfg: Arc::new(cfg), certs, shown, port_file, quic: udp })
 }
 

@@ -3488,6 +3488,19 @@ commands. The rules behind them:
   names the URL by its host alone. `node --quick-tunnel --relay --mint
   keys:https://URL` takes it too ([relay.md](relay.md), "A list of keys at
   a URL").
+- **`relay serve --sshd ADDR:PORT` shares its port with an sshd (T-644).**
+  A connection of the listener whose first four bytes are `SSH-`, an SSH
+  client's version line, goes to the sshd at ADDR:PORT, its bytes peeked
+  and never taken, then copied both ways; a record of TLS goes to TLS and
+  another start to the cleartext road, as before. The sshd is dialed by the
+  role's way out, with no policy of targets, so the loopback goes directly.
+  The first line says that the port publishes a shell, behind that sshd's
+  own authentication; a line on stdout names each client and the role's
+  end of its connection to the sshd, which the sshd's log names in its
+  place. An sshd that does not answer gets the client one line that says
+  so. A name in place of an address, and `--sshd` with another subcommand,
+  are usage errors (64) ([relay.md](relay.md), "SSH on the relay role's
+  port").
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
   systemd when `systemctl --user` answers, else a LaunchAgent when

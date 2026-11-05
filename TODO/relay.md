@@ -4645,8 +4645,9 @@ Read at `2042200`:
 1. `podssh relay serve --sshd ADDR:PORT`: an sshd that the owner names; with none, nothing changes.
 2. Before the cleartext road's check, a peek of up to 4 bytes, bounded as the first byte is: `SSH-`
    goes to the named sshd, its bytes untouched, copied both ways; each other start goes on as today.
-3. The dial of the sshd is direct, never through the host's proxy and never through the policy of
-   targets; it is the owner's own service.
+3. The dial of the sshd goes by the role's way out (T-457), so the loopback, and what `NO_PROXY`
+   names, go directly, never through the policy of targets; it is the owner's own service (the
+   Decision of 2026-11-05).
 4. The first line says that a shell is published on the port, behind the sshd's own authentication;
    a line for each SSH connection names its peer. The manual and `docs/relay.md` say it.
 5. A client that waits for the server's line before it sends its own is never routed: the peek's
@@ -4658,18 +4659,118 @@ Read at `2042200`:
 node's `--sshd` marks its TARGET as a standard sshd, and here the value is that sshd. Lost: a new word
 for one idea. Off unless named: a port of the relay that answers SSH is a door the owner opens.
 
+2026-11-05 (the drafting agent of T-644), each call for the operator to confirm under Q86:
+
+- **The dial goes by the role's way out** (`crates/podssh-relay/src/serve/sshd.rs:94`, through
+  the dial of the forward road), with no policy of targets: the loopback, the issue's "local
+  sshd", and what `NO_PROXY` names go directly, and another address through the host's proxy
+  where one is set. Lost: the Approach's dial that is always direct, as rule 2 of `AGENTS.md`
+  sends each dial of the role through `HTTPS_PROXY` when it is set, and a dial past it would be a
+  new exception of that rule, which is the operator's to make; an sshd on another host that the
+  proxy does not reach is named in `NO_PROXY`.
+- **ADDR is an address, never a name** (64). Lost: a name resolved once at the start, as the issue
+  proposes: `localhost` gives `::1` first where many sshds listen on `127.0.0.1` alone, and a name
+  that each dial resolved again could come to name another host. The owner writes the address
+  that the sshd listens on.
+- **One bound for the peek**, 30 s from the accept for the first byte and the three after it,
+  peeked again each 20 ms as the node's check of an sshd peeks. Lost: a shorter bound of its own
+  for the rest, as the issue's `FIRST_WAIT`: each SSH client sends its four bytes in one segment,
+  a client that stalls inside them is no client to route, and the cleartext road's own bound of a
+  head follows, as before.
+- **No limit, token or brake of the contract** before the sshd: the sshd's own `MaxStartups` and
+  `LoginGraceTime` bound the connections that have not logged in, as on its own port. Lost: the
+  contract's 180 s idle, 12 h and 64 MiB, which would cut a shell or a copy that the owner's sshd
+  keeps; and the brake of mints, which counts what costs the role a token, and would cut a loop of
+  the owner's own copies.
+- **The sshd sees the role's address**, and the role's line on stdout maps each client to the
+  role's end of its connection to the sshd (`sshd from PEER, at the sshd as ADDR:PORT`, and one at
+  its end). Lost: a dial that keeps the client's address (`IP_TRANSPARENT`), which needs
+  `CAP_NET_ADMIN` that the role gives up after its bind (T-629); and the PROXY protocol, which
+  OpenSSH's sshd does not read. The manual, `docs/relay.md` and `SECURITY.md` say what this costs
+  with OpenSSH 9.8 and later (`PerSourcePenalties`), and its remedy.
+- **No check of the sshd at the start.** Lost: a dial at the start that reads its version line, as
+  a node's `--sshd` does: the relay is the role's first service, an sshd that starts after it or
+  restarts is no fault of the role's, and each such check is a connection with no login in the
+  sshd's log. A failed dial is a line on stdout, which names the sshd and why.
+- **The client of an sshd that does not answer** gets one line before any version line, which
+  RFC 4253 lets a server send and which names no address of the host, then the role reads what it
+  sent, 5 s and 64 KiB at most, so that its close is no reset that loses the line. Lost: a silent
+  close, which leaves the client a closed connection with no cause.
+- **`TCP_NODELAY` on both sockets of a session**, so that the role adds no wait to a keystroke, as
+  OpenSSH sets it on its own socket of an interactive session. Lost: the kernel's default.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_cleartext
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_sshd --test relay_serve_h2
+cargo test -p podssh-relay --features serve,plain-ws,quic --test relay_serve_quic
+cargo test -p podssh-relay --features serve --lib serve::sshd
+cargo test -p podssh-cli --lib relay_serve::sshd
 cargo test -p podssh-cli --test relay_serve
+sh scripts/plant-each.sh --here t644-peek-takes-bytes t644-each-start-to-sshd t644-stall-routed
+sh scripts/plant-each.sh --here t644-sshd-through-policy t644-sshd-unread
 ```
 
 OpenSSH's `ssh -p PORT` to the role's listener, with `--sshd` naming an sshd of the test, logs in and
 runs a command; a TLS client on the same listener still upgrades; with no `--sshd`, the SSH client
 gets no sshd and the cleartext road answers HTTP as before. Planted: a peek that takes the bytes, and
-the sshd's test fails on a version line cut short.
+the sshd's test fails on a version line cut short; each start that is no TLS sent to the sshd, and
+the test of `/health` beside it fails; a start cut short taken for SSH, and the test of the bound
+fails; the sshd checked by the policy of targets, and the test of the loopback's sshd fails; the
+listener given no sshd, and OpenSSH's login through the role's port fails.
+
+## Correction
+
+2026-11-05 (the drafting agent of T-644). Two citations of the Premise name other lines, at
+`2042200` as at this draft. The role's 30 s for a request's head is `HEAD_WAIT`:
+`crates/podssh-relay/src/serve/mod.rs:66` says "const HEAD_WAIT". The policy refuses the loopback
+as an address that is not public:
+`crates/podssh-relay/src/serve/policy.rs:145` says "self.unlisted(&wanted)", and
+`crates/podssh-relay/src/serve/policy.rs:193` says "ip.is_loopback()". What the Premise says of them
+holds. Its Approach, item 3, now follows the Decision of 2026-11-05.
+
+## Done
+
+2026-11-05, drafted (`DRAFT T-644`), UNVERIFIED: no command below ran in the draft.
+
+- The decision (`crates/podssh-relay/src/serve/listener.rs:47`): with `--sshd`, after the first byte
+  that begins no TLS, `crates/podssh-relay/src/serve/sshd.rs:62` peeks up to four bytes within the
+  same 30 s; `SSH-` goes to `crates/podssh-relay/src/serve/sshd.rs:88`, which dials the sshd by the
+  role's way out, says `sshd from PEER, at the sshd as ADDR:PORT`, copies both ways with
+  `TCP_NODELAY` and says its end; another start goes to the cleartext road, or to TLS with
+  `--cleartext no`. An sshd that does not answer gets the client one line
+  (`crates/podssh-relay/src/serve/sshd.rs:117`). The binary: `--sshd ADDR:PORT`
+  (`crates/podssh-cli/src/flags/relay.rs:89`), read at `crates/podssh-cli/src/relay_serve.rs:198`
+  (an address, else 64) and named in the first line; with another subcommand, 64. The manual (the
+  row and a note of `relay serve`), `docs/relay.md` ("SSH on the relay role's port"),
+  `docs/cli.md`, `docs/mesh.md` and `SECURITY.md` say it. The gate runs `relay_serve_sshd` in its
+  step of the role's tests with `plain-ws` (`scripts/gate.sh`).
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_sshd`: UNVERIFIED (a
+  version line and 64 KiB after it reach a stand-in sshd whole, and its line comes back, under the
+  default policy; a line in three parts is waited for; OpenSSH's sshd answers on the role's port;
+  `/health` beside the sshd gets the cleartext road and a record of TLS goes to TLS, neither to the
+  sshd; with `--cleartext no`, SSH still reaches it; a start of `SSH` that stalls, and none, are no
+  SSH after the bound, their bytes left, and `SSX` is no SSH at once; with no sshd, a version line
+  gets no answer within 1.5 s and the cleartext road's 400 once a head ends; an sshd that does not
+  answer gets the client the line, and the owner's line names it). `--test relay_serve_cleartext
+  --test relay_serve_h2 --test relay_serve_quic`: UNVERIFIED (their `Door` has no sshd).
+- `cargo test -p podssh-relay --features serve --lib serve::sshd`: UNVERIFIED (the four bytes
+  decide; another start decides at its first differing byte; a part waits).
+- `cargo test -p podssh-cli --lib relay_serve::sshd`: UNVERIFIED (an address and a port alone,
+  never a name, a port 0 or a bare port; the first line's words, and the host's proxy named for an
+  address that it carries and not for the loopback).
+- `cargo test -p podssh-cli --test relay_serve`: UNVERIFIED (`serve_sshd`: OpenSSH's client on the
+  role's port logs in to OpenSSH's sshd of `--sshd` with a key and runs a command whose output its
+  shell computed; the first line names the sshd and the shell; the owner's line maps the client;
+  `podssh proxy` through the same port still takes TLS's upgrade, and the cleartext road answers
+  `/health`; with no `--sshd`, a version line gets no answer, the cleartext road answers 400 once a
+  head ends, and OpenSSH's client gets no banner within 3 s. `serve_refuses_...`: a name in
+  `--sshd` and `--sshd` with `relay status` are 64.)
+- The plants `t644-peek-takes-bytes`, `t644-each-start-to-sshd`, `t644-stall-routed`,
+  `t644-sshd-through-policy` and `t644-sshd-unread`: UNVERIFIED (each patch applies to the draft,
+  `git apply --check`; each named test must fail).
 
 # T-646: `--mint keys:` takes a file alone, so a role in a read-only image changes whom it mints for only by a rebuild
 

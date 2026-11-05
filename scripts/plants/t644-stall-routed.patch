@@ -1,0 +1,10 @@
+--- a/crates/podssh-relay/src/serve/sshd.rs
++++ b/crates/podssh-relay/src/serve/sshd.rs
+@@ -77,5 +77,6 @@ pub async fn opens(tcp: &TcpStream, deadline: Instant) -> bool {
+             }
+         }
+     };
+-    tokio::time::timeout_at(deadline, look).await.unwrap_or(false)
++    // Planted: a start that the bound cut short is taken for SSH's.
++    tokio::time::timeout_at(deadline, look).await.unwrap_or(true)
+ }

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/relay_serve.rs
++++ b/crates/podssh-cli/src/relay_serve.rs
+@@ -271,6 +271,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
+         certs.shown
+     );
+     let port_file = s.port_file.clone().map(|path| (path, bound.port()));
+-    let door = Door { acceptor, cleartext, sshd: owner_sshd };
++    // Planted: the listener is given no sshd, though the first line names one.
++    let door = Door { acceptor, cleartext, sshd: None };
+     Ok(Prepared { listener, door, cfg: Arc::new(cfg), certs, shown, port_file, quic: udp })
+ }

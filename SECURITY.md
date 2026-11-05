@@ -449,6 +449,17 @@ Each rule is implemented.
   capability `cap_net_bind_service` is the start that leaves it no more than
   that user's files. The certificate's key, read before the bind, is in its
   memory still.
+- `podssh relay serve --sshd ADDR:PORT` (T-644) publishes the sshd at
+  ADDR:PORT on the relay's port to each client that reaches it, behind the
+  sshd's own authentication alone: no token, brake or limit of the relay
+  stands before it, and its first line says so. It is off unless named. The
+  role peeks at a connection's first four bytes and takes none, so it reads
+  nothing of the session; it never speaks for the sshd, so a client that
+  sends nothing first dials nothing. The sshd sees each client as the
+  address that the role dials it from, which the role's line on stdout maps
+  to the client's; from OpenSSH 9.8, that sshd's `PerSourcePenalties` would
+  count each client's failed logins against that one address, unless
+  `PerSourcePenaltyExemptList` names it.
 
 ## Known gaps
 

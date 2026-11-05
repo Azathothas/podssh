@@ -13,7 +13,8 @@
 //! road carries a session where the upgrade is refused on the way
 //! ([`http_road`], T-319). The role's own listener takes TLS, or the
 //! cleartext road beside it by the first byte ([`listener`], [`cleartext`],
-//! T-326), with tokens of one session alone.
+//! T-326), with tokens of one session alone, and an SSH client to the
+//! owner's sshd where one is named ([`sshd`], T-644).
 //! Beside the contract, its forward road in the resumable layer keeps a
 //! standard sshd's connection across a drop of the client's link ([`layer`],
 //! T-173).
@@ -48,6 +49,7 @@ pub mod quic;
 pub mod ranges;
 pub mod reverse;
 pub mod sockets;
+pub mod sshd;
 pub mod tokens;
 pub mod usage;
 
