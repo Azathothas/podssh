@@ -92,6 +92,13 @@ pub struct NodeArgs {
     /// `--ask`: a person at the node's terminal lets each key in, after the
     /// door (T-638).
     pub ask: bool,
+    /// `--publish-tls TARGET`: the pair's sessions are a site that podssh's
+    /// relay role routes here by its name (T-649), unparsed; with `--acme
+    /// NAME` the node ends their TLS itself, with a certificate of a CA's
+    /// (`--acme-directory URL`, else Let's Encrypt's).
+    pub publish_tls: Option<String>,
+    pub acme: Option<String>,
+    pub acme_directory: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -141,6 +148,9 @@ impl NodeArgs {
             grant_for: get("grant-for"),
             revoked: get("revoked"),
             ask: matches.get_flag("ask"),
+            publish_tls: get("publish-tls"),
+            acme: get("acme"),
+            acme_directory: get("acme-directory"),
             refused,
         }
     }

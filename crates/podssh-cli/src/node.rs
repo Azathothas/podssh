@@ -60,6 +60,10 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::node_flags::deadline(args).and_then(|()| crate::node_exit::check(args)) {
         return refusal.report("node", err);
     }
+    // A site that podssh's relay role publishes by its name, before any other road (T-649).
+    if let Some(code) = crate::node_publish::run(args, err) {
+        return code;
+    }
     // What fills the budget of replay buffers, said on each road (T-586).
     crate::node_flags::tell_budget(args);
     // A stream that exists already, the node's one road (T-595).

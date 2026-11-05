@@ -333,6 +333,8 @@ pub const RELAY: &[&str] = &[
      set. Where the sshd does not answer, the client gets one line that says so, before any version line, and \
      the relay's line on stdout names the sshd and why. ADDR is an address, not a name (64). The first line says \
      that SSH goes to that sshd.",
+    // A name published to a pair's node by its ClientHello (T-649).
+    super::notes_publish::RELAY,
     "The relay's TLS offers h2 before http/1.1 (T-321, RFC 8441): a client that chooses it gets SETTINGS that \
      offer extended CONNECT and 16 streams at once, each with a window of 1 MiB in one of 16 MiB for the \
      connection, so that the sessions of a client's process are streams of one connection. A CONNECT whose \

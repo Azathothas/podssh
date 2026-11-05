@@ -1,0 +1,16 @@
+--- a/crates/podssh-relay/src/serve/published.rs
++++ b/crates/podssh-relay/src/serve/published.rs
+@@ -117,7 +117,12 @@ impl Published {
+         let mut buf = vec![0u8; sni::MOST];
+         let look = async {
+             loop {
+-                let n = match tcp.peek(&mut buf).await {
++                // Planted: the bytes taken, not peeked.
++                let taken = match tcp.readable().await {
++                    Ok(()) => tcp.try_read(&mut buf),
++                    Err(e) => Err(e),
++                };
++                let n = match taken {
+                     Ok(n) if n > 0 => n,
+                     // Its end, or an error: no hello comes.
+                     _ => return None,

@@ -12,9 +12,14 @@
 //! contract renews no pair, gets the way of the next pair and 69. A node of
 //! the role rotates its stop token, which the store keeps (T-615), and the
 //! next pair's that it goes on with at an expiry, which it renews too
-//! (T-620). The owner's halt and resume of a pair (T-647).
+//! (T-620). The owner's halt and resume of a pair (T-647). A name published on
+//! the role's port reaches a node's own HTTPS server by its ClientHello (T-649,
+//! `serve_publish`).
 
 mod live_harness;
+// Its files of pairs are private by their mode, which Unix has.
+#[cfg(unix)]
+mod serve_publish;
 mod ssh_harness;
 mod throughput_harness;
 

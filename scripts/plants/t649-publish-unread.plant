@@ -1,0 +1,10 @@
+# T-649: relay serve reads --publish and names it in its first line, but
+# gives its listener no table, so a client of the published name meets the
+# relay's own certificate; the binary's test of a published name must fail.
+ENTRY=T-649
+GROUP=cli-tests
+EXPECT='test serve_publish::a_published_name_reaches_the_node_s_https_server_and_the_role_s_own_name_the_role \.\.\. FAILED'
+# The role's harness and the site of the test ask for Python and openssl,
+# which the build image lacks: with no SETUP the test did not run.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
+RUN='cargo test --locked -p podssh-cli --test relay_serve_node -- serve_publish::a_published_name_reaches_the_node_s_https_server_and_the_role_s_own_name_the_role'

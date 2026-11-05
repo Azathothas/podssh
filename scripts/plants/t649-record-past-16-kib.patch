@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/serve/sni.rs
++++ b/crates/podssh-relay/src/serve/sni.rs
+@@ -61,7 +61,8 @@ pub fn read(bytes: &[u8]) -> Read {
+     }
+     let Some(head) = bytes.get(..HEAD) else { return Read::More };
+     let length = usize::from(u16::from_be_bytes([head[3], head[4]]));
+-    if length == 0 || length > MOST - HEAD {
++    // Planted: a record past TLS's bound waited for.
++    if length == 0 {
+         return Read::Not;
+     }
+     let Some(body) = bytes.get(HEAD..HEAD + length) else { return Read::More };

@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/serve/sni.rs
++++ b/crates/podssh-relay/src/serve/sni.rs
+@@ -102,7 +102,8 @@ fn hello(body: &[u8]) -> Option<Hello> {
+         // One of each (RFC 8446, section 4.2): a second could name another
+         // node than the one that the client's TLS would take.
+         match kind {
+-            SERVER_NAME if named => return None,
++            // Planted: a second name taken in place of the first.
++            SERVER_NAME if named && false => return None,
+             SERVER_NAME => {
+                 named = true;
+                 found.name = Some(server_name(data)?);

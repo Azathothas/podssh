@@ -185,6 +185,13 @@ pub const NODE_FLAGS: &[FlagRow] = &[
     // A person at the node's terminal, after its door (T-638).
     row(None, "ask", None, FlagKind::Supported,
         "ask at this terminal of each operator key that the door or a grant lets in: y or n within 100 s, no answer a no; a yes lets the key in while one of its sessions is open and 120 s after its last, a no stands 15 s; stdin and stderr must be a terminal (else 78)", None),
+    // A site that podssh's relay role publishes by its name (T-649).
+    row(None, "publish-tls", Some("TARGET"), FlagKind::Supported,
+        "serve the pair's sessions as a site that podssh relay serve --publish NAME=PAIR sends here by the name in each ClientHello, before any handshake: each session is one connection to TARGET, a TLS service of this host that answers with its own certificate, the bytes as they came, with no resumable layer and no end-to-end channel; the relay reads the name, never the bytes; with --acme NAME, TARGET serves in cleartext and the node ends TLS itself; the first line names the pair for --publish", None),
+    row(None, "acme", Some("NAME"), FlagKind::Supported,
+        "with --publish-tls: end each session's TLS at this node with a certificate for NAME, the published name, from an ACME CA (Let's Encrypt by default), proven by TLS-ALPN-01, whose validation the relay that publishes NAME sends here too; asked once the node is online, kept in the cache and renewed while the node runs", None),
+    row(None, "acme-directory", Some("URL"), FlagKind::Supported,
+        "with --acme: the directory of another ACME CA, reached with the trust of --ca-file", None),
 ];
 
 /// **`net`** (T-429): the net of a user's own nodes, a list of their names

@@ -35,7 +35,10 @@ fn counted(long: &str) -> bool {
 
 /// Value flags a user may give more than once, each value kept, in order.
 fn appended(long: &str) -> bool {
-    matches!(long, "option" | "identity-file" | "allow-host" | "allow-dir" | "sftp-option" | "exclude" | "deployment")
+    matches!(
+        long,
+        "option" | "identity-file" | "allow-host" | "allow-dir" | "sftp-option" | "exclude" | "deployment" | "publish"
+    )
 }
 
 /// Value flags whose value may start with `-`, as getopt takes the next

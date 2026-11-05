@@ -1,0 +1,8 @@
+# T-649: the relay role's table of published names matches a client's name
+# only in the case that the client wrote, so a name in capitals goes to the
+# role's own TLS, not to its node; the test of a name in another case must
+# fail.
+ENTRY=T-649
+GROUP=resume
+EXPECT='test serve::published::tests::a_name_in_another_case_is_its_route \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib -- serve::published::tests::a_name_in_another_case_is_its_route'

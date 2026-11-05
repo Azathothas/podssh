@@ -427,6 +427,11 @@ inputs alone.
   loopback and what `NO_PROXY` names directly and another address through `HTTPS_PROXY`, where its
   Approach had the dial always direct (rule 2); ADDR is an address, never a name; no limit, token
   or brake of the contract stands before the sshd, which sees each client as the role's address.
+- T-649 (#147): a CA's validation (`acme-tls/1`) of a name that `relay serve --publish` publishes
+  goes to its node, so that the node can prove the name, where the issue sends each validation to
+  the role; PAIR is a pair's name, read at the start, so a new pair is published by a restart of the
+  role with `--pairs FILE`; a visitor slower than its node meets the contract's bound of 1 MiB.
+  Its draft (2026-11-05) is unbuilt.
 - T-667 (osewa): QUIC and a TCP road race to one host for a short time, as the race between relay
   hosts does (rule 2), the loser closed at once; QUIC goes first, 300 ms ahead, to a role that
   offered it, where Q82 puts other projects' roads over UDP after TCP.

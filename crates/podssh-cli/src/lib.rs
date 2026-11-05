@@ -143,6 +143,10 @@ pub mod node_quick_relay;
 // The quick tunnel's edge inside WARP's tunnel (T-374), with the feature
 // `warp`; without it, the road says what such a build does.
 pub mod node_warp;
+// `podssh node --publish-tls TARGET`: a site that podssh's relay role
+// publishes by its name, and the node's own TLS with `--acme` (T-649).
+pub mod node_publish;
+pub(crate) mod node_publish_end;
 // `podssh node --temporary`: the far end of `podssh ssh --upgrade` (T-167).
 pub mod node_target;
 pub mod node_temp;

@@ -54,7 +54,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             "podssh proxy: no relay host could be reached, or the relay ended the session abnormally. \
              podssh node, operator and relay: the relay or TARGET could not be reached, the node did not take \
              the session, the pair was stopped, or another node serves it; with --sshd, a TARGET that sent \
-             no line within 10 s, or closed first. podssh cp and mv: no connection to \
+             no line within 10 s, or closed first; with --publish-tls and --acme, the first order of the \
+             certificate failed. podssh cp and mv: no connection to \
              the server, or it has neither SFTP nor the sh and the tools of a copy by exec. podssh chat: \
              the same of the relay and the pair, or a message went with no acknowledgement; each is said. \
              podssh ping: no relay host answered, or PODSSH_OFFLINE is set. podssh relay status: no relay \

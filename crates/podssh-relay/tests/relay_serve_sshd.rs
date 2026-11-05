@@ -71,7 +71,7 @@ impl Role {
             events: Some(say),
         });
         let acceptor = acceptor_for(Served::new(None), &[HTTP1]).expect("an acceptor");
-        let door = Door { acceptor, cleartext, sshd };
+        let door = Door { acceptor, cleartext, sshd, published: Default::default() };
         tokio::spawn(async move {
             while let Ok((tcp, peer)) = bound.accept().await {
                 tokio::spawn(connection(tcp, peer.ip(), door.clone(), cfg.clone()));

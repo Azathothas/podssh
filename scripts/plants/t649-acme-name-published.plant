@@ -1,0 +1,7 @@
+# T-649: relay serve publishes the name of its own --acme to a node, which
+# would take the CA's validations of the relay's own certificate; the test of
+# its refusal must fail.
+ENTRY=T-649
+GROUP=cli-tests
+EXPECT='test relay_serve::publish::tests::each_name_goes_to_its_pair_and_the_relay_s_own_acme_name_is_refused \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- relay_serve::publish::tests::each_name_goes_to_its_pair_and_the_relay_s_own_acme_name_is_refused'

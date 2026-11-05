@@ -3535,6 +3535,20 @@ commands. The rules behind them:
   so. A name in place of an address, and `--sshd` with another subcommand,
   are usage errors (64) ([relay.md](relay.md), "SSH on the relay role's
   port").
+- **`relay serve --publish NAME=PAIR` and `node --publish-tls TARGET`
+  publish a node's HTTPS site by its name (T-649).** Before its own TLS,
+  the role peeks at a connection's ClientHello, 10 s and 16 KiB at most:
+  NAME, in any case, goes to the node of PAIR, a pair of the role's, its
+  bytes untouched, and each other start goes on as before. The node serves
+  each session as one connection to TARGET, a TLS service of its host whose
+  own certificate answers, with no resumable layer and no end-to-end
+  channel; with `--acme SITE` it ends TLS itself with a certificate of
+  ACME's TLS-ALPN-01, whose validation the role sends it, and TARGET gets
+  the cleartext. Each line names the name, never the bytes. A row out of
+  shape, the role's own `--acme` name, `--publish` with another subcommand,
+  and a TARGET or a flag of another road, of the layer or of the channel
+  beside `--publish-tls`, are usage errors (64) ([relay.md](relay.md), "A
+  name published on the relay role's port").
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
   systemd when `systemctl --user` answers, else a LaunchAgent when

@@ -292,7 +292,14 @@ which `--pairs FILE` keeps across a restart:
   an SSH client of its listener goes to that sshd by its first four bytes,
   so that a host that lets one port in serves the relay and a shell, behind
   the sshd's own authentication ([relay.md](relay.md), "SSH on the relay
-  role's port", T-644).
+  role's port", T-644);
+- with names that its owner publishes to nodes (`--publish NAME=PAIR`): a
+  ClientHello of such a name goes to that pair's node before any handshake,
+  its bytes untouched, so that a node's own HTTPS site answers with its own
+  certificate, and the role reads the name, never the bytes; the role's
+  form of funnel, with TLS at the node, where T-180 is TLS at the quick
+  tunnel's edge ([relay.md](relay.md), "A name published on the relay
+  role's port", T-649).
 
 The role does what the default deployment does not do, which were the items
 of [relay-operator.md](relay-operator.md): bounded queues for a slow client
