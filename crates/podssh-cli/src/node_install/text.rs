@@ -53,6 +53,8 @@ pub(super) fn service_args(args: &NodeArgs, name: &str, env_file: &Path) -> Resu
         ("--allow", &args.allow),
         ("--iroh-key", &args.iroh_key),
         ("--iroh-allow", &args.iroh_allow),
+        // The node's share file (T-433), which `podssh share` edits.
+        ("--shares", &args.shares),
     ];
     for (flag, value) in files {
         if let Some(value) = value {

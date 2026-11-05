@@ -166,6 +166,14 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .num_args(0..)
                     .help("init NAME, the net's; add NAME KEY, a member and its key or fingerprint; rm NAME; invite NAME, a code for a new device, which join takes; take FILE, a document that its owner signed; policy check FROM TO, policy show, policy set FILE, policy clear"),
             ),
+        "share" => cmd
+            .arg(Arg::new("subcommand").value_name("SUBCOMMAND").help("add, rm or ls, of a running node's shares"))
+            .arg(
+                Arg::new("args")
+                    .value_name("NAME=TARGET|NAME")
+                    .num_args(0..)
+                    .help("add NAME=HOST:PORT, a TCP service of the node, which an operator reaches as node://NODE/NAME; rm NAME"),
+            ),
         "relay" => cmd
             .arg(
                 Arg::new("subcommand")

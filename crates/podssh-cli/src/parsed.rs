@@ -150,6 +150,8 @@ pub enum Parsed {
     Net(Box<crate::net::NetArgs>),
     /// `podssh exit NAME --listen ADDR:PORT` (T-431).
     Exit(Box<crate::exit::ExitArgs>),
+    /// `podssh share SUBCOMMAND [NAME=TARGET | NAME]` (T-433).
+    Share(Box<crate::share::ShareArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -249,6 +251,7 @@ impl Parsed {
             Parsed::Detached(args) => !args.refused.is_empty(),
             Parsed::Net(args) => !args.refused.is_empty(),
             Parsed::Exit(args) => !args.refused.is_empty(),
+            Parsed::Share(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
             Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Pipe(args) => !args.refused.is_empty(),

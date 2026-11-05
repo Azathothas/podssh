@@ -1116,6 +1116,41 @@ names. Tailscale's serve adds and removes a shared service while the node runs, 
 3. The net's document lists each node's shares (T-429), so `podssh share ls --net` shows them,
    and an operator reaches one as `node://NODE/NAME`, within the policy (T-430).
 
+## Decision
+
+2026-11-05 (the drafting agent of T-433), each a call that `docs/decisions.md` does not settle:
+
+1. **A share is a route, read for each session.** `Routes` holds the shares as a function that
+   reads the file now (`Shared` in `crates/podssh-relay/src/reverse/routes.rs`), asked only for a
+   route that the command line does not have; a route of the command line wins over a share of
+   its name. Lost: the share that wins (an edit of a file would take a route that the node's start
+   named); a refusal of the name at `share add` (the command cannot see the node's command line:
+   no control socket, by the Premise's pattern and AGENTS.md's rule 2).
+2. **Each node of the channel serves through its routes from its start**, its share file empty or
+   missing, so that a share added to a node that started with none is reached. Lost: routes only
+   for a node whose file held a share at its start (a restart to share the first service, which the
+   Prove forbids); a control socket or a signal that tells the node (a listener, rule 2, where a
+   file read for each session is the allowlist's own pattern).
+3. **The file**: `node-NAME.shares` in the cache, by the label, or the file of `--shares FILE`, on
+   both sides; `podssh share --node NAME` finds it by the label alone, and with no `--node`, the one
+   node whose key or shares are in the cache. Lost: the file beside `--key FILE` (the command would
+   need the key's path, which the user names nowhere else). Its lines are `NAME=HOST:PORT`, as the
+   command line's `ROUTE=TARGET`, and `#` a comment; a line that is no share serves nothing and is
+   said once. A change holds `FILE.lock` beside the file, as a lock of the file itself guards
+   nothing once a rename replaced it, for 5 s at most (75), and none where the file system takes no
+   lock, as a `known_hosts` file is written there. Lost: a wait with no bound (AGENTS.md, section 6,
+   rule 4).
+4. **The net's list is the owner's**: a member's field `shares`, names only (never a target, as the
+   document goes to each member), written by `podssh net add NAME KEY --shares NAMES`, only with the
+   role `share`, as `--routes` needs the role `exit`. The node needs no role to serve its shares, as
+   no role guards the routes of its command line: the door is the policy, the allowlist and a grant.
+   Lost: a list that the node writes into the document (a second signer breaks T-429's one owner); a
+   list in the node's record of pkarr (signed by the node, not the owner, and the record names
+   roads); the role `share` required at the node (a route of the command line needs none).
+5. **`share add` dials nothing**: the node dials a share at each of its sessions alone, and says
+   why one failed, as for a route. Lost: a probe at `add` (a service may start after its share, and
+   it is one connection more).
+
 ## Prove
 
 ```sh
@@ -1126,6 +1161,90 @@ cargo test -p podssh-cli --test share
 A share added while the node runs is reached at the next session, with no restart; a removed
 one is refused; `share ls` lists what the node serves. Planted: the file read once at the
 start, and the test of an added share fails.
+
+## Correction
+
+2026-11-05 (the drafting agent of T-433), read at `e2507f4`:
+
+- The Premise holds: a node's routes name several services (`targets_of` in
+  `crates/podssh-cli/src/node.rs`), and its allowlist is read again for each session
+  (`crates/podssh-relay/src/identity/allow.rs:106`).
+- What the Premise leaves out: the routes were fixed at the node's start, an `Arc` of the command
+  line's (`Routes` in `crates/podssh-relay/src/reverse/routes.rs`), and a node with no `ROUTE=` and
+  no `--exit` had no routes at all: `routes_of` gave none, and each road served its TARGET through
+  the channel alone, which refuses each route by name. A share added to such a node could never be
+  reached. Each node of the channel now serves its sessions through its routes from its start
+  (Decision, item 2; `routes_of` in `crates/podssh-cli/src/node_target.rs`).
+- A routed node took the room of a session in the layer's budget before the channel let its key
+  in: `Routed` had no `open_admitted`, so the trait's default asked the budget first, where a node
+  with no route asked it after the key (`crates/podssh-relay/src/reverse/e2e.rs`). As item 2 sends
+  each node of the channel through routes, `Routed` now asks the budget once the key, the route and
+  its grant passed, before the dial, and for an exit's target before the exit's own check
+  (`Routes::open_with`): a defect of each routed node, repaired here (AGENTS.md, rule 8).
+- The Approach's item 3: the net's document is signed by its owner's key, which may stay on one host
+  (T-429), so no node writes its own shares into it. The owner lists a node's shares by name, and
+  `podssh share ls --net` lists the net's list; each node serves what its own file holds (Decision,
+  item 4).
+- The Approach's "default beside its key": `node-NAME.shares` in the cache, beside the cache's
+  `node-NAME.key`, by the label, also when `--key FILE` names a key elsewhere (Decision, item 3).
+- The quick tunnel's node serves one TARGET with no route (`crates/podssh-cli/src/node_quick.rs`),
+  and so no share: `--shares` is refused beside `--quick-tunnel` (64), as beside `--no-e2e`,
+  `--temporary` and a `udp:` TARGET, whose sessions carry no route.
+- The Prove's command tests the CLI; the routes' own tests are
+  `crates/podssh-relay/tests/routes_shared.rs` (`cargo test -p podssh-relay --test routes_shared`),
+  and the share file's are the unit tests of `crates/podssh-cli/src/share/tests.rs` (`cargo test -p
+  podssh-cli --lib -- share::`). The plants are five (`scripts/plants/t433-*`), one for each new
+  check, the Prove's among them.
+
+## Done
+
+2026-11-05, drafted (the drafting agent of T-433), unbuilt, on the local branch
+`worktree-agent-a8c96a11f4bf5844c`: each result below is UNVERIFIED until the merge runs it.
+
+- The routes (`crates/podssh-relay/src/reverse/routes.rs`): `Shared`, the shares read for each
+  session that names a route of no target of the command line; `Routes::open_with`, the budget
+  asked after the route's grant; `Routed::open_admitted`, the budget asked after the key.
+- The node: `crates/podssh-cli/src/share/serve.rs`, the place of the shares decided as the node
+  starts (`install`, from `crate::node::run_node`), the routes of the file read for each session,
+  the start's line and a fault said once; `routes_of` moved to `crates/podssh-cli/src/node_target.rs`
+  with the shares; `--shares FILE` (`crates/podssh-cli/src/node_args.rs`,
+  `crates/podssh-cli/src/flags/share.rs`), kept by `--install`
+  (`crates/podssh-cli/src/node_install/text.rs`).
+- The command: `crates/podssh-cli/src/share/mod.rs` (`add`, `rm`, `ls`, `ls --net`, `--node`,
+  `--shares`) and `crates/podssh-cli/src/share/file.rs` (the lines, the lock, the rename); the verb in
+  the table, the parser and the dispatch (`flags.rs`, `flags/groups.rs`, `positionals.rs`,
+  `tree.rs`, `parsed.rs`, `dispatch.rs`, `help.rs`).
+- The net: the member's field `shares` (`crates/podssh-cli/src/net/doc.rs`), `net add --shares
+  NAMES` with the role `share` (`crates/podssh-cli/src/net/edit.rs`).
+- The manual: `crates/podssh-cli/src/man/notes_share.rs`, the node's and the net's notes, the FILES
+  row of `node-NAME.shares`. The documents: `docs/cli.md` ("The shares of a node"), `docs/mesh.md`
+  (section 5), `docs/reverse.md` ("Shares"), `docs/STATUS.md`.
+- `cargo test -p podssh-cli --test share`: UNVERIFIED (3 tests: the commands with no connection,
+  11 refusals with 64 and the file's changes, mode 0600 and `PODSSH_CACHE_DIR=none`'s 78; the net's
+  list; on the stand-in relay, a share added while the node runs reached at its next session, `share
+  ls`, a share removed refused, dialled once).
+- `cargo test -p podssh-relay --test routes_shared`: UNVERIFIED (3 tests: a share reached while the
+  file names it and refused once it does not, the file read for each session; the command line's
+  route first; a key's grant holds a share, the budget after it, a full one dials nothing).
+- `cargo test -p podssh-cli --lib -- share:: net::`: UNVERIFIED (the lines, a change that keeps
+  what it does not touch, two changes at once under the lock, a lock held past 5 s; a member with no
+  share written as before).
+- The tests that each node of the channel now serves through routes: `cargo test -p podssh-cli
+  --test node_routes --test node --test node_carrier --test exit --test net --test node_ask`, `cargo
+  test -p podssh-relay --test routes --test e2e_layered`: UNVERIFIED.
+- The manual's tests (`cargo test -p podssh-cli --test flag_table --test man_flag_parity --test
+  man_page`, `--lib -- man::`): UNVERIFIED. Clippy with `-D warnings` and `cargo fmt --check`:
+  UNVERIFIED.
+- Planted (`sh scripts/plant-each.sh --here t433-shares-read-once t433-share-unlocked
+  t433-budget-before-grant t433-share-wins t433-shares-without-role`): UNVERIFIED.
+- Waits for the merge: `cargo todo remap` of the files that this draft moved (`docs/cli.md` and
+  `docs/reverse.md` gain a section at their ends, and `docs/STATUS.md` a row after its last cited
+  line, so none moves a citation; this entry's own lines move T-625's quoted citation of T-437's
+  live run in this file; the code: `crates/podssh-cli/src/node.rs`, `node_target.rs`, `flags.rs`,
+  `flags/node.rs`, `dispatch.rs`, `help.rs`, `tree.rs`, `parsed.rs`, `positionals.rs`,
+  `node_install/text.rs`, `net/doc.rs`, `man/mod.rs`, `man/notes.rs`, `man/notes_pair.rs`, `man/data.rs`,
+  `crates/podssh-cli/tests/flag_table.rs`, `crates/podssh-relay/src/reverse/routes.rs`); `cargo
+  todo set T-433 done`; the table of drafts.
 
 # T-434: A member that relays between two other members
 

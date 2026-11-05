@@ -1,0 +1,6 @@
+# T-433: the owner's `net add --shares` lists the shares of a member that has
+# no role share; the test of the net's list must fail with its words.
+ENTRY=T-433
+GROUP=cli-tests
+EXPECT='shares with no role share'
+RUN='cargo test --locked -p podssh-cli --test share -- the_net_lists_each_member_s_shares_as_its_owner_wrote_them'

@@ -19,6 +19,7 @@
 //! at the transit relay of Q65 for the pair's operators (T-436, `node_transit`).
 //! With `--exit`, it lends this host's egress to its net (T-431, `node_exit`).
 //! With `--carrier ADDR`, its one road is a stream that exists already (T-595).
+//! Its shares, a file read again for each session, are routes too (T-433).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -26,15 +27,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::e2e::ends::Node;
-use podssh_relay::identity::PublicKey;
 use podssh_relay::pair::Pair;
-use podssh_relay::reverse::routes::{Grant, Route, Routed, Routes};
+use podssh_relay::reverse::routes::{Route, Routed};
 use podssh_relay::reverse::{self, E2e, Exit, Handler, Layered, NodeConfig, Settings, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
 use crate::exitmap::Fault;
-pub(crate) use crate::node_target::{probe, serving};
+pub(crate) use crate::node_target::{probe, routes_of, serving};
 // Ctrl-C and SIGTERM, with the upgrade's own signal beside them (T-668).
 use crate::node_upgrade as upgrade;
 pub(crate) use crate::node_upgrade::stop_signal;
@@ -62,6 +62,10 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     }
     // What fills the budget of replay buffers, said on each road (T-586).
     crate::node_flags::tell_budget(args);
+    // Where its shares are, which each road's routes read (T-433).
+    if let Err(refusal) = crate::share::serve::install(args) {
+        return refusal.report("node", err);
+    }
     // A stream that exists already, the node's one road (T-595).
     if args.carrier.is_some() {
         return crate::node_carrier::run(args, err);
@@ -281,19 +285,6 @@ pub(crate) fn shown(targets: &[Route]) -> String {
         t.name.as_ref().map_or(at.clone(), |route| format!("{route}={at}"))
     });
     each.collect::<Vec<_>>().join(", ")
-}
-
-/// The routes of a node, when it has one or is an exit, with who may use
-/// each (T-429), and the exit of the node `me` (T-431).
-pub(crate) fn routes_of(targets: &[Route], grant: Arc<Grant>, roost: bool, me: Option<PublicKey>) -> Option<Routes> {
-    let exit = me.and_then(crate::node_exit::dial);
-    (targets.iter().any(|t| t.name.is_some()) || crate::node_exit::asked()).then(|| Routes {
-        routes: Arc::new(targets.to_vec()),
-        grant,
-        timeout: DIAL_LIMIT,
-        sshd: roost,
-        exit,
-    })
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {

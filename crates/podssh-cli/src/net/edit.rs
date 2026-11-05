@@ -111,8 +111,8 @@ fn default_key() -> Option<PathBuf> {
     Some(PathBuf::from(home).join(".ssh").join("id_ed25519")).filter(|path| path.exists())
 }
 
-/// `add NAME KEY`: the member, or a new key, roles, tickets, routes or
-/// relay host of one.
+/// `add NAME KEY`: the member, or a new key, roles, tickets, routes, relay
+/// host or shares of one.
 fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, String), Refusal> {
     let (name, word) = (&args.args[0], &args.args[1]);
     doc::check_name(name).map_err(|why| Refusal::usage(format!("the member's name {why}")))?;
@@ -126,6 +126,7 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
     let roles = doc::parse_roles(args.roles.as_deref().unwrap_or("node")).map_err(Refusal::usage)?;
     let routes = routes(args.routes.as_deref(), &roles)?;
     let relay = relay_host(args.relay_host.as_deref(), &roles)?;
+    let shares = shares(args.shares.as_deref(), &roles)?;
     let mut tickets = BTreeMap::new();
     if let Some(text) = &args.derp_ticket {
         let ticket =
@@ -139,7 +140,8 @@ fn add(before: &Doc, args: &NetArgs, issued: i64, expires: i64) -> Result<(Doc, 
         iroh_names(text, &key)?;
         tickets.insert("iroh".to_string(), text.clone());
     }
-    with_member(before, &Member { name: name.clone(), key, roles, tickets, routes, relay }, issued, expires)
+    let member = Member { name: name.clone(), key, roles, tickets, routes, relay, shares };
+    with_member(before, &member, issued, expires)
 }
 
 /// The next document, with `member` added or in the place of the member of
@@ -208,6 +210,29 @@ pub(super) fn relay_host(text: Option<&str>, roles: &[String]) -> Result<Option<
     }
     let relay = podssh_relay::relay::parse_relay(text).map_err(|why| Refusal::usage(format!("--relay-host: {why}")))?;
     Ok(Some(podssh_relay::token::relay_name(&relay)))
+}
+
+/// `--shares NAMES` of `add` (T-433): the names of a node's shares, each a
+/// route's name, as `podssh share` takes it, once each; only for a member
+/// with the role share, which the owner gives a node whose shares the net
+/// lists. The node serves what its own file holds: this is the list that
+/// `podssh share ls --net` shows.
+pub(super) fn shares(text: Option<&str>, roles: &[String]) -> Result<Vec<String>, Refusal> {
+    let Some(text) = text else { return Ok(Vec::new()) };
+    if !roles.iter().any(|role| role == "share") {
+        return Err(Refusal::usage("--shares names a node's shares: give --roles with share too"));
+    }
+    let mut names: Vec<String> = Vec::new();
+    for name in text.split(',').map(str::trim) {
+        if podssh_ws::names::check_node_name(name).is_err() {
+            let why = "letters, digits, '.', '-' and '_', not first '-' or '.'";
+            return Err(Refusal::usage(format!("--shares {text}: {name:?} is not a share's name: {why}")));
+        }
+        if !names.iter().any(|n| n == name) {
+            names.push(name.to_string());
+        }
+    }
+    Ok(names)
 }
 
 /// `rm NAME`: the member gone; each end that holds the new document

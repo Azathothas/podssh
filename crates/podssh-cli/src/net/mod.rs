@@ -63,6 +63,8 @@ pub struct NetArgs {
     /// `--relay-host HOST[:PORT]` of `add`: where a relay role serves its
     /// signed list (T-617).
     pub relay_host: Option<String>,
+    /// `--shares NAMES` of `add`: the names of a node's shares (T-433).
+    pub shares: Option<String>,
     /// `--days N`: how long a document that the owner signs lasts.
     pub days: Option<String>,
     /// `--owner KEY` of `take` and `join`: the owner that a first document
@@ -90,6 +92,7 @@ impl NetArgs {
             derp_ticket: get("derp-ticket"),
             routes: get("routes"),
             relay_host: get("relay-host"),
+            shares: get("shares"),
             days: get("days"),
             owner: get("owner"),
             signature: matches.get_flag("signature"),
@@ -158,7 +161,7 @@ fn checked(args: &NetArgs) -> Result<&str, Refusal> {
         _ => word.to_string(),
     };
     let signing: &[&str] = &["init", "add", "rm", "renew", "invite", "policy set", "policy clear"];
-    let flags: [(&str, bool, &[&str]); 11] = [
+    let flags: [(&str, bool, &[&str]); 12] = [
         ("--owner-key", args.owner_key.is_some(), signing),
         ("--days", args.days.is_some(), signing),
         ("--roles", args.roles.is_some(), &["add", "invite"]),
@@ -166,6 +169,7 @@ fn checked(args: &NetArgs) -> Result<&str, Refusal> {
         ("--derp-ticket", args.derp_ticket.is_some(), &["add"]),
         ("--routes", args.routes.is_some(), &["add"]),
         ("--relay-host", args.relay_host.is_some(), &["add"]),
+        ("--shares", args.shares.is_some(), &["add"]),
         ("--owner", args.owner.is_some(), &["take", "join"]),
         ("--signature", args.signature, &["show"]),
         ("--pair-mailbox", args.pair_mailbox.is_some(), &["invite", "join"]),

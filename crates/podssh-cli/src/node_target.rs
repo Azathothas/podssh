@@ -1,9 +1,13 @@
 //! The check of a node's targets before it goes online (T-166): each one
 //! dialled once, and a roost's read for its sshd's version line, so that a
 //! node that could serve no session does not start, and never reaches the
-//! relay. Apart from `node.rs`, for the length of that file.
+//! relay; and the routes that each road of a node serves. Apart from
+//! `node.rs`, for the length of that file.
 
-use podssh_relay::reverse::routes::Route;
+use std::sync::Arc;
+
+use podssh_relay::identity::PublicKey;
+use podssh_relay::reverse::routes::{Grant, Route, Routes};
 use podssh_relay::reverse::sshd;
 use podssh_ws::dial::{DialError, ProxyChoice};
 
@@ -36,6 +40,18 @@ pub(crate) async fn probe(targets: &[Route], roost: bool) -> Result<Vec<String>,
         }
     }
     Ok(versions)
+}
+
+/// The routes of a node, when it has one, shares or is an exit, with who
+/// may use each (T-429), the exit of the node `me` (T-431), and its shares,
+/// read again for each session (T-433). A node of the channel has a share
+/// file whether or not it holds one now, so that a share added while it
+/// runs is reached with no restart: each road serves it through routes.
+pub(crate) fn routes_of(targets: &[Route], grant: Arc<Grant>, roost: bool, me: Option<PublicKey>) -> Option<Routes> {
+    let exit = me.and_then(crate::node_exit::dial);
+    let shared = crate::share::serve::shared();
+    let routed = targets.iter().any(|t| t.name.is_some()) || crate::node_exit::asked() || shared.is_some();
+    routed.then(|| Routes { routes: Arc::new(targets.to_vec()), grant, timeout: DIAL_LIMIT, sshd: roost, exit, shared })
 }
 
 /// The words of a dial of TARGET that failed. A roost's TARGET on the

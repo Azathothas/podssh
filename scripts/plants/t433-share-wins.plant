@@ -1,0 +1,7 @@
+# T-433: a node's share takes the route of its name from the node's command
+# line, so an edit of a file moves a route that the node's start named; the
+# test of the command line's route must fail with its words.
+ENTRY=T-433
+GROUP=resume
+EXPECT='a share took the route of the command line'
+RUN='cargo test --locked -p podssh-relay --test routes_shared -- a_route_of_the_command_line_wins_over_a_share_of_its_name'
