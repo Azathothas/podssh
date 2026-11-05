@@ -476,6 +476,18 @@ Each rule is implemented.
   to the client's; from OpenSSH 9.8, that sshd's `PerSourcePenalties` would
   count each client's failed logins against that one address, unless
   `PerSourcePenaltyExemptList` names it.
+- `podssh relay serve --publish NAME=PAIR` (T-649) sends each TLS
+  connection whose ClientHello names NAME to the node of PAIR, with each
+  byte untouched, so that the node's own TLS answers it: the role holds no
+  key of NAME and reads no byte of the session, only the name, which a
+  ClientHello carries in the clear; anyone who reaches the port reaches the
+  node's service by that name, whose only door is its own. It is off unless
+  named. The role's reader of a ClientHello takes one record of 16 KiB and
+  nothing that its lengths contradict: a cut, long or doubled one goes to
+  the role's own TLS, never to a node. A CA's validation of NAME goes to the
+  node, whose certificate it proves; the role's `--acme` name is never
+  published. A node of `podssh node --publish-tls` carries those sessions
+  with no end-to-end channel, as the visitor's TLS is the channel.
 
 ## Known gaps
 

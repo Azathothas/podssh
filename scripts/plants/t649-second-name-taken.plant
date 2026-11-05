@@ -1,0 +1,7 @@
+# T-649: the reader of a ClientHello takes a second server_name in place of
+# the first, where a hello with two is none, as the client's TLS could take
+# the other; the test of a second name must fail.
+ENTRY=T-649
+GROUP=resume
+EXPECT='test serve::sni::tests::a_second_name_or_a_name_out_of_shape_is_none \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib -- serve::sni::tests::a_second_name_or_a_name_out_of_shape_is_none'

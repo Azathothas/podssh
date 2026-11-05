@@ -95,6 +95,13 @@ pub struct NodeArgs {
     /// `--shares FILE`: the node's share file, read again for each session
     /// (T-433), in place of node-NAME.shares in the cache.
     pub shares: Option<String>,
+    /// `--publish-tls TARGET`: the pair's sessions are a site that podssh's
+    /// relay role routes here by its name (T-649), unparsed; with `--acme
+    /// NAME` the node ends their TLS itself, with a certificate of a CA's
+    /// (`--acme-directory URL`, else Let's Encrypt's).
+    pub publish_tls: Option<String>,
+    pub acme: Option<String>,
+    pub acme_directory: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -145,6 +152,9 @@ impl NodeArgs {
             revoked: get("revoked"),
             ask: matches.get_flag("ask"),
             shares: get("shares"),
+            publish_tls: get("publish-tls"),
+            acme: get("acme"),
+            acme_directory: get("acme-directory"),
             refused,
         }
     }

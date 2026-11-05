@@ -18,6 +18,7 @@
 //! A role that mints for keys keeps a share of its pairs for each (T-630).
 //! The owner halts a pair and resumes it with its stop token ([`halt`], T-647).
 //! An upgrade of a dialect that the role does not read gets `426` ([`proto`], T-643).
+//! A name that the owner publishes is a session of its pair's node ([`publish`], T-649).
 //!
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
@@ -33,6 +34,7 @@ pub mod operator;
 pub mod outbox;
 pub mod pairs;
 pub mod proto;
+pub mod publish;
 
 pub use pairs::Pairs;
 
