@@ -62,8 +62,8 @@
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
 //!
-//! No C compiler is needed (the gate builds this crate with
-//! `CC=/nonexistent`), so other projects can depend on it.
+//! Other projects (podvm, podnet) depend on it; its shared parts move to
+//! the crates of PodUtils/podcrates (T-684).
 
 pub mod addresses;
 pub mod answer;

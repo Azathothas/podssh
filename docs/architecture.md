@@ -299,12 +299,14 @@ These rules apply to each change. The reasons are in
    that failed is followed by a plain one, on a new connection, once the
    first closed (the call of T-642's Decision, for the operator to confirm
    under Q86).
-4. **No C in the library crates.** `podssh-ws`, `podssh-relay`,
-   `podssh-core`, `podssh-terminal` and `podssh-probe` use rustls with
-   podssh's own provider and RustCrypto crates. The gate
-   makes sure of this with `CC=/nonexistent` and `CXX=/nonexistent`. The
-   binary links aws-lc through `russh` for SSH, and the Tailscale fork with
-   the feature `ts`.
+4. **A statically compiled binary.** Each crate may use C, zig and the newest
+   stable Rust (the operator, 2026-11-05); the one rule of the build is that
+   each released binary is statically compiled, which the gate's step
+   `release` and the release workflow check (`scripts/check-static.sh`,
+   T-685). `podssh-ws`, `podssh-relay`, `podssh-core`, `podssh-terminal` and
+   `podssh-probe` use rustls with podssh's own provider and RustCrypto
+   crates. The binary links aws-lc through `russh` for SSH, and the
+   Tailscale fork with the feature `ts`.
 5. **No `LD_PRELOAD`, no helper processes.** podssh does in its own process
    what the host cannot supply (a pty, a line discipline). A tty in user
    space for a child of `podssh serve` keeps this rule: podssh answers the

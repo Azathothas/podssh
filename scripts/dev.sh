@@ -96,10 +96,10 @@ image_of() {
 
 # The build image, from images/build/Dockerfile. podssh ships a static
 # musl binary, and `rust:1-alpine` is musl with rustc and cargo installed. The
-# image DOES carry a working `cc` (the binary and the Tailscale feature need
-# one), so the no-C rule of the library crates is enforced by
-# `CC=/nonexistent` in scripts/gate.sh, and scripts/plant.sh proves that
-# setting is load-bearing.
+# image carries a working `cc`: the binary links C (aws-lc, the Tailscale
+# and Tor features), and any crate may (the operator, 2026-11-05). The one
+# rule of the build, a static binary, is scripts/check-static.sh's, and
+# scripts/plant.sh proves that it refuses a dynamic one.
 if [ -z "${PODSSH_BUILD_IMAGE:-}" ]; then
     PODSSH_BUILD_IMAGE=$(image_of "$REPO_ROOT/images/build/Dockerfile") || exit 78
 fi
@@ -170,8 +170,7 @@ own Docker or Podman on Linux (scripts/dev-native.sh); PODSSH_TRANSPORT=wsl
 or native chooses.
 
 `build` and `test` pass their arguments straight to cargo, so
-`sh scripts/dev.sh test -p podssh-core` runs that crate's tests. They do not
-set CC=/nonexistent, so `--features ts` (which needs cc) works too.
+`sh scripts/dev.sh test -p podssh-core` runs that crate's tests.
 
 `check` runs these on the host, and stops if one fails:
 
@@ -186,10 +185,9 @@ what each one checks). One step alone:
 
   sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh STEP'
 
-`plant` proves that the no-C rule of the step libs is load-bearing: it plants
-a dependency that needs cc into a library crate and checks that the build
-fails for that reason, twice; that a crate that compiles C++ stops at
-CXX=/nonexistent; and that the tree builds again without them.
+`plant` proves that the check of a static binary is load-bearing: a program
+linked dynamically must fail scripts/check-static.sh, and the same program
+linked with -static must pass it.
 
 Only one container run at a time (a lock in .work/), PODSSH_JOBS cargo jobs.
 Overrides: PODSSH_JOBS, PODSSH_BUILD_IMAGE, PODSSH_TARGET, PODSSH_TRANSPORT;
@@ -208,13 +206,8 @@ USAGE
 # One cargo subcommand, for `dev.sh build` and `dev.sh test`.
 #
 # No CC override here: these are dev conveniences that must build and test
-# ANY crate the user names — including `podssh-cli`, which needs cc (aws-lc,
-# through russh). The no-C constraint is not enforced per-invocation; it is
-# enforced by the step `libs` of `scripts/gate.sh` over the library crates,
-# which is the only place that can hold it without breaking the crates that
-# legitimately need a compiler. A `CC=/nonexistent` hardcoded
-# here would make `dev.sh test -p podssh-cli` fail for a reason unrelated to
-# any defect — the exact failure mode the gate comments warn about.
+# ANY crate the user names, and each crate may link C (the operator,
+# 2026-11-05).
 #
 # The heredoc is UNQUOTED on purpose, so $_verb and $_extra expand here, on
 # the host, where they are known. Everything the container must compute is
@@ -275,7 +268,7 @@ cmd_images() {
 rustc --version
 cargo --version
 ldd --version 2>&1 | head -1
-if command -v cc >/dev/null 2>&1; then echo "cc present (expected: the gate uses CC=/nonexistent for the library crates)"; else echo "no cc in the image: the binary and the ts feature will fail to build"; fi' \
+if command -v cc >/dev/null 2>&1; then echo "cc present (expected: the binary links C)"; else echo "no cc in the image: the binary and the ts feature will fail to build"; fi' \
         | base64 | tr -d '\r\n')
     wt run --image "$PODSSH_BUILD_IMAGE" --command-base64 "$_c" \
         --container-lifecycle ephemeral --timeout 10m

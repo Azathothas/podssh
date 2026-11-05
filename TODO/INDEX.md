@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**640 entries: 96 open, 10 partial, 4 blocked, 530 done.**
+**640 entries: 95 open, 11 partial, 4 blocked, 530 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 2 | 0 | 65 | 68 |
+| P1 | 0 | 3 | 0 | 65 | 68 |
 | P2 | 25 | 4 | 1 | 250 | 280 |
 | P3 | 70 | 4 | 3 | 214 | 291 |
-| **All** | 96 | 10 | 4 | 530 | 640 |
+| **All** | 95 | 11 | 4 | 530 | 640 |
 
 ## Entries
 
@@ -715,4 +715,4 @@ repository and CI).
 | [T-682](resume.md) | P2 | M | M10 | defect | open | M6's check of a stall of 3 minutes on the iroh road hung after its resume, once in CI |
 | [T-683](repo.md) | P2 | S | M10 | chore | done | The move to PodUtils/podssh: the repository's name in the code, the manual, the workflows and the documents |
 | [T-684](repo.md) | P2 | L | M10 | feature | blocked | podcrates: the crates that podssh, podnet and podvm share, in PodUtils/podcrates |
-| [T-685](repo.md) | P1 | M | M10 | chore | open | The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021 |
+| [T-685](repo.md) | P1 | M | M10 | chore | partial | The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021 |

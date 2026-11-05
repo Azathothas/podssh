@@ -10,8 +10,7 @@ license.workspace = true
 publish.workspace = true
 
 # This crate needs a C compiler: russh's crypto backend is aws-lc-rs
-# (aws-lc-sys). Operator decision 2026-10-08; the no-C rule covers the
-# library crates below it, not this one. `default-features = false` keeps the
+# (aws-lc-sys). Operator decision 2026-10-08. `default-features = false` keeps the
 # backend choice explicit: `aws-lc-rs`, plus RSA keys and zlib compression
 # (flate2's default backend is pure Rust).
 [dependencies]

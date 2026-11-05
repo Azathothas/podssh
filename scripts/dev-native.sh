@@ -243,7 +243,7 @@ native_images() {
 rustc --version
 cargo --version
 ldd --version 2>&1 | head -1
-if command -v cc >/dev/null 2>&1; then echo "cc present (expected: the gate uses CC=/nonexistent for the library crates)"; else echo "no cc in the image: the binary and the ts feature will fail to build"; fi' \
+if command -v cc >/dev/null 2>&1; then echo "cc present (expected: the binary links C)"; else echo "no cc in the image: the binary and the ts feature will fail to build"; fi' \
         | base64 | tr -d '\r\n')
     run_in_image --no-workspace "$_c" command
 }

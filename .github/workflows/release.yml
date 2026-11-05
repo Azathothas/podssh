@@ -124,8 +124,7 @@ jobs:
         run: |
           set -eu
           B=target/${{ matrix.target }}/release/podssh
-          if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
-          if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
+          sh scripts/check-static.sh "$B"
           file "$B"
           "$B" --version
       # The binary prints the version of Cargo.toml and its commit, and a tag
@@ -198,8 +197,7 @@ jobs:
           set -eu
           B=dist/podssh-armv7-unknown-linux-musleabihf
           file "$B"
-          if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
-          if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
+          sh scripts/check-static.sh "$B"
           readelf -h "$B" | grep -E 'Class|Machine|Flags'
       - name: the binary runs
         run: |
@@ -267,8 +265,7 @@ jobs:
           set -eu
           B=dist/podssh-riscv64gc-unknown-linux-musl
           file "$B"
-          if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
-          if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
+          sh scripts/check-static.sh "$B"
           readelf -h "$B" | grep -E 'Class|Machine|Flags'
       # The handler of binfmt that QEMU registers runs a static riscv64 binary
       # on the runner itself, so the check needs no second image; the handler

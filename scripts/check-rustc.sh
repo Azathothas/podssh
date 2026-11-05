@@ -4,8 +4,8 @@
 # Alpine ships, and the crates' minimum rises with their dependencies (Q48),
 # so the job stops here, with both versions named, before a build that
 # would fail an hour in. The crates are those of the workspace in the
-# binary's graph with the release's features; each declares what its own
-# dependencies need, which the gate's steps msrv check.
+# binary's graph with the release's features; each declares the newest
+# stable Rust of the day (T-685).
 #
 #   sh scripts/check-rustc.sh FEATURES
 #

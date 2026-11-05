@@ -3,8 +3,9 @@ name: build
 # CI runs the same gate a developer runs (`sh scripts/dev.sh check` runs
 # scripts/gate.sh in the same image). Nothing is re-implemented here: each
 # step of the gate runs in a job of its own, at the same time. CI adds the
-# repository checks, the plant of the no-C rule, the live relay check, the
-# tests on Windows, and the upload of the static binary that the gate built.
+# repository checks, the plant of the check of a static binary, the live
+# relay check, the tests on Windows, and the upload of the static binary that
+# the gate built.
 
 on:
   push:
@@ -92,7 +93,7 @@ jobs:
           path: target/x86_64-unknown-linux-musl/release/podssh
           if-no-files-found: error
 
-  # Proves the gate's no-C-compiler rule actually fires.
+  # Proves that the check of a static binary refuses a dynamic one (T-685).
   plant:
     name: plant
     needs: plan
@@ -100,7 +101,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: the no-C rule is load-bearing
+      - name: the check of a static binary is load-bearing
         env:
           BUILD_IMAGE: ${{ needs.plan.outputs.image }}
         run: |

@@ -7,8 +7,8 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
-# A library other projects (podvm) use, so it stays C-free: the gate builds
-# it with CC=/nonexistent with the other library crates.
+# A library other projects (podvm) use; its crates move to PodUtils/podcrates
+# (T-684).
 [dependencies]
 podssh-ws = { path = "../podssh-ws" }
 tokio = { workspace = true }

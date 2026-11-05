@@ -46,8 +46,7 @@ default-members = [
 # their tests and examples are not podssh's.
 exclude = ["vendor/tailscale-rs", "vendor/russh", "vendor/iroh-relay", "vendor/ssh-key", "fuzz"]
 
-# Versions below were resolved on 2026-10-01, not recalled. Before loosening a
-# range, re-run the no-C build of the library crates (see scripts/gate.sh).
+# Versions below were resolved on 2026-10-01, not recalled.
 [workspace.package]
 version = "1.1.0-beta.3"
 edition = "2021"
@@ -61,22 +60,16 @@ license = "0BSD"
 publish = false
 repository = "https://github.com/PodUtils/podssh"
 
-# THE BUILD RULE: the library crates need no C compiler.
+# THE BUILD RULE: each released binary is statically compiled (the operator,
+# 2026-11-05). Each crate may use C, zig and the newest stable Rust; the
+# gate's step release checks the binary (scripts/check-static.sh), and
+# `scripts/plant.sh` proves that the check refuses a dynamic one (T-685).
 #
-# podssh-ws, podssh-relay, podssh-core, podssh-terminal and podssh-probe
-# must build with `CC=/nonexistent` and `CXX=/nonexistent` (the `cc` crate
-# reads CXX for C++), so other projects (podvm) can use them
-# anywhere a Rust toolchain exists. `scripts/gate.sh` enforces it and
-# `scripts/plant.sh` proves the check fires.
-#
-# `ring` and `aws-lc-sys` both fail under `CC=/nonexistent` (measured
-# 2026-10-01: "failed to run custom build command ... failed to find tool"),
-# so `rustls` below carries no default crypto provider; podssh supplies its own
-# pure-Rust one in crates/podssh-ws/src/crypto/.
-#
-# The binary is the exception: podssh-ssh uses russh with aws-lc-rs (operator
-# decision 2026-10-08), and the opt-in `ts` feature links the vendored
-# tailscale-rs fork, which also needs cc and cmake.
+# The library crates were built with no C compiler until 2026-11-05, so
+# `rustls` below carries no default crypto provider: podssh supplies its own
+# pure-Rust one in crates/podssh-ws/src/crypto/. podssh-ssh uses russh with
+# aws-lc-rs (operator decision 2026-10-08), and the opt-in `ts` feature links
+# the vendored tailscale-rs fork, which needs cc and cmake.
 [workspace.dependencies]
 # 1.53.3 at least: AsyncFd::new and try_new are unsound before it
 # (RUSTSEC-2026-0386), and podssh registers with AsyncFd::register (T-312).
@@ -113,9 +106,9 @@ serde = { version = "1", features = ["derive"] }
 unicode-width = { version = "0.2", default-features = false }
 # A model of a VT terminal, for the tests of the terminal oracle only (T-200):
 # a test compares what a terminal shows after podssh's bytes, not the bytes.
-# Pure Rust over `vte`, with no build script that compiles C; the gate runs
-# the tests of the library crates with CC and CXX at /nonexistent, which
-# shows it. `rio-vt` lost: it needs `simdutf`, a C++ library.
+# Pure Rust over `vte`, with no build script that compiles C. `rio-vt` lost
+# when the library crates had no C (until 2026-11-05): it needs `simdutf`, a
+# C++ library.
 vt100 = "0.18"
 # Property tests of the state machines, for the tests only (T-202): each
 # property on 256 inputs, and the smallest input that fails. Pure Rust; no
@@ -125,8 +118,7 @@ vt100 = "0.18"
 # Rust is 1.85, the workspace's.
 proptest = { version = "1.11", default-features = false, features = ["std"] }
 serde_json = "1"
-# The relay's facts file (podssh-probe). Pure Rust, and it must stay so: the build image
-# has no C compiler, so a TOML parser that wanted `cc` would fail the gate.
+# The relay's facts file (podssh-probe). Pure Rust.
 toml = { version = "1.1", default-features = false, features = ["parse", "serde"] }
 # The structural facts are asserted with patterns, not with prose parsing.
 # `regex` is pure Rust; `fancy-regex` is not, and neither is a C toolchain.

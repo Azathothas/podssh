@@ -219,7 +219,7 @@ published history (`AGENTS.md`, section 6).
 ```sh
 sh scripts/dev.sh check    # the host checks, then scripts/gate.sh in the build image
 sh scripts/dev.sh gate     # scripts/gate.sh alone, in the build image
-sh scripts/dev.sh plant    # shows that the checks for "no C or C++ compiler" work
+sh scripts/dev.sh plant    # shows that the check of a static binary refuses a dynamic one
 sh scripts/dev.sh images   # the build image runs: its uname, rustc and cargo
 sh scripts/dev.sh test -p podssh-core
 sh scripts/dev.sh run -- 'uname -a'
@@ -251,8 +251,8 @@ the index must list linux/amd64 and linux/arm64, which the release builds),
 write it into the Dockerfile, and run the gate.
 
 `scripts/gate.sh` is the gate. CI runs the same file in the same image. Its
-steps, in order: `lint`, `libs`, `msrv`, `msrv_ssh`, `msrv_ts`, `msrv_iroh`,
-`msrv_warp`, `record`, `ssh`, `ts`, `iroh`, `m6` and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
+steps, in order: `lint`, `libs`, `record`, `ssh`, `ts`, `iroh`, `tor`, `m6`
+and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
 gate runs each step; with names, those steps, in the order given. CI runs
 each step in a job of its own, at the same time: its job `plan` reads the
 list, so CI cannot miss a step that the gate has. `python
@@ -263,15 +263,12 @@ not in its list, or a name has no function. One step, in the container:
 sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh ssh'
 ```
 
-`lint` checks the format and clippy's lints (see "Checks"). `msrv`,
-`msrv_ssh`, `msrv_ts`, `msrv_iroh`, `msrv_warp` and `msrv_tor` check each crate with `cargo check
---locked --all-targets` on the minimum Rust that its manifest declares: 1.89
-for the library crates and `podssh-todo` (with no C compiler), and for
-`podssh-ssh` and `podssh-cli`, 1.92 for `podssh-ts` and the CLI with the
-feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`, and
-1.91 for `podssh-warp`, the CLI with the feature `warp` and podssh-relay with
-its feature `warp`, and 1.92 for `podssh-tor` and the CLI with the feature
-`tor`, whose step then runs their tests.
+`lint` checks the format and clippy's lints (see "Checks"). `tor` runs the
+tests of `podssh-tor` and of the CLI with the feature `tor`. The gate has no
+step at a minimum Rust and no build with no C compiler since 2026-11-05
+(T-685): each crate may use C, zig and the newest stable Rust, and the one
+rule of the build, a statically compiled binary, is checked in the step
+`release` (`scripts/check-static.sh`).
 
 The Wisp client's tests (T-438) run against a stand-in written from the
 protocol's document in each run, and against wisp-server-python, Mercury
@@ -317,13 +314,9 @@ sh scripts/tor-net.sh stop .work/tor-net-bridges
 `cargo test -p podssh-tor --test transports` needs no network: Arti's own
 client of a transport reaches stand-ins of both servers through the
 sentinels.
-rustup fetches each toolchain into the build image, so the C toolchain is
-the gate's. `.cargo/config.toml` makes `cargo update` prefer the versions of
-dependencies that these minimums allow. The other steps make sure that:
+The other steps make sure that:
 
-1. (`libs`) The library crates build and pass their tests with
-   `CC=/nonexistent` and `CXX=/nonexistent`. The `cc` crate reads `CXX` for
-   C++, so `CC` alone does not stop a C++ dependency on a host that has `c++`.
+1. (`libs`) The library crates build and pass their tests.
    The test of the feature `plain-ws` of `podssh-ws` runs too, and
    `scripts/no-plain-ws.sh` shows that the binary does not enable it (T-068).
    tmux, installed here and named by `PODSSH_TEST_TMUX`, shows each sequence
@@ -809,10 +802,9 @@ in `vendor/tailscale-rs` has no entry: it follows its own patches. CI checks
 the configuration against Dependabot's published schema, with a planted copy
 that must fail.
 
-Each pull request of Dependabot runs the whole CI: the gate, whose steps with
-no C compiler judge each update of a library crate's dependencies and whose
-checks on each declared minimum Rust refuse an update that needs a newer
-compiler; the plant; and the live check of the relay's document. An update
+Each pull request of Dependabot runs the whole CI: the gate, whose step
+`release` checks that the binary stays static; the plant; and the live check
+of the relay's document. An update
 whose CI is green is applied as the operator's own commit, then its pull
 request is closed:
 
@@ -824,8 +816,8 @@ git commit                               # the operator's commit; then the check
 
 A merge in GitHub's page, or a plain `git cherry-pick`, would keep the bot
 as the author, and each commit of this repository is the operator's
-(`docs/decisions.md`). A minimum Rust is raised only by a decision, never to
-let an update in.
+(`docs/decisions.md`). Each crate declares the newest stable Rust of the day
+(T-685), and an update that needs a newer one raises it.
 
 Dependabot moves no path package, so the crates of `vendor/` have two
 watches of their own (T-341). `.github/workflows/upstream.yml` reads each

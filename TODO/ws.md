@@ -2,7 +2,7 @@ This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP a
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
 `podssh-ws` item of ROADMAP M4 and `docs/design.md:585-589`, and from GitHub issues. The crate
-must build with no C compiler (`scripts/gate.sh:163-180`).
+must build with no C compiler (`scripts/gate.sh:160-176`).
 
 # T-063: W10: the frame decoder does not check a received control frame
 
@@ -1932,7 +1932,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
   clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`), and its test
   asserts none for `UnknownIssuer` (`:369`).
 - Read: the release builds two binaries for macOS and two for Windows
-  (`.github/workflows/release.yml:286-297`, `:329-345`).
+  (`.github/workflows/release.yml:283-294`, `:326-342`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
   (`crates/podssh-relay/Cargo.toml:132-133`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
@@ -2270,7 +2270,7 @@ test of the order fails.
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:321`).
+(`docs/architecture.md:323`).
 
 ## Premise
 
@@ -3062,7 +3062,7 @@ Read at `2042200`:
   this runs for the target", and DNS over HTTPS is the fifth step, after the system's resolver
   (`crates/podssh-ws/src/resolve.rs:10`). So the issue's "ride the query that the name already causes"
   holds for few runs: in the target host, behind its proxy, no query is made at all.
-- TLS has podssh's own provider and no other: `Cargo.toml:87` says "default-features = false and NO
+- TLS has podssh's own provider and no other: `Cargo.toml:80` says "default-features = false and NO
   crypto provider feature."; its parts (`crates/podssh-ws/src/crypto/`) hold no HPKE, which rustls's ECH
   needs, and aws-lc's is C, which `podssh-ws` may not hold (rule 4 of `AGENTS.md`).
 - The resolvers are compiled in (`crates/podssh-ws/src/resolve.rs:66`), and are asked through the proxy

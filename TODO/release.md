@@ -1255,7 +1255,7 @@ update`, still get each defect.
 
 - `TODO/release.md:40` says "new entry: repair it, and publish `v1.0.1` by the same steps.", the
   steps of T-250.
-- `docs/development.md:923` says "0. The version of the tag in `Cargo.toml` (`version`), then".
+- `docs/development.md:915` says "0. The version of the tag in `Cargo.toml` (`version`), then".
 
 ## Approach
 

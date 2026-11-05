@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:163-180`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:160-176`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -328,13 +328,13 @@ Read:
 - The help (`scripts/dev.sh` lines 331-366 at `912acd0`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:163-180`,
-  `scripts/gate.sh:406-408`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:160-176`,
+  `scripts/gate.sh:313-315`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
   462.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:184-190`);
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:185-191`);
   `scripts/check-scripts.py:53-57` finds the scripts under `scripts/` at any
   depth.
 
@@ -349,7 +349,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:135-460`).
+   (`scripts/gate.sh:132-347`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -430,7 +430,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:579-583`).
+  them (`.github/workflows/release.yml:576-580`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:846-959`): the
+5. docs/development.md, "Release builds" (`docs/development.md:838-951`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -670,9 +670,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:56-622`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:56-619`).
   The workflow has `contents: read` (`:45-46`); `publish` adds
-  `contents: write` (`:476-477`).
+  `contents: write` (`:473-474`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -753,7 +753,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   `actions/attest` v4.2.2 (commit `1e69f48acb82d1966a394da916b4c1698aa569d6`), pinned by that commit,
   as item 1 asks. (The wrapper is at commit `4d101475d8b20a2381f78447822ac1eab6504dd8`.)
 - Permissions for a binary (GitHub documentation): `id-token: write`, `contents: read` and
-  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:477`
+  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:474`
   says "contents: write"), which includes the read. The README of `actions/attest` also lists
   `artifact-metadata: write`, "necessary to create the artifact storage record"; that record needs
   `push-to-registry: true`, which is for images, so a file subject does not need it (Inferred): add
@@ -868,7 +868,7 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:497-502` writes `SHA256SUMS` with
+- `.github/workflows/release.yml:494-499` writes `SHA256SUMS` with
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
@@ -937,7 +937,7 @@ Approach, and disproves no Premise.
   deprecated, hidden flag in v3.1.4: do not pass it with v3 (it is needed only with v2.6.x). `--yes`
   skips the prompts, and CI needs it. The keyless signing takes the job's own OIDC token, so the job
   needs `id-token: write`; give `publish` that and `attestations: write` for T-210, beside
-  `contents: write` (`.github/workflows/release.yml:477` says "contents: write"). The convention for
+  `contents: write` (`.github/workflows/release.yml:474` says "contents: write"). The convention for
   the bundle's name is `*.sigstore.json` (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
 - The identity. The certificate's subject alternative name is `https://github.com/{job_workflow_ref}`
   (https://github.com/sigstore/fulcio/blob/main/docs/oidc.md), so for a tag
@@ -1025,7 +1025,7 @@ Read:
   steps are at lines 80-184 there.
 - `scripts/gate.sh:48-59`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
-  (`scripts/dev.sh:376-395` holds a lock).
+  (`scripts/dev.sh:369-388` holds a lock).
 
 Not measured: the wall time of a CI run. Measure it with `gh run list` before
 the change.
@@ -1163,7 +1163,7 @@ Read:
 - `scripts/box/probe.sh:148-153` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:412`).
 - The box needs a static binary; CI uploads one
-  (`.github/workflows/build.yml:88-93`).
+  (`.github/workflows/build.yml:89-94`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:156`) and a mask on
   `/dev/pts` (`scripts/test_in_box.sh:263`). Nobody measured the Podman of a
   GitHub runner with them.
@@ -1225,7 +1225,7 @@ the entry joins the work order by its priority.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:329-417`).
+platform (`.github/workflows/release.yml:326-414`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1245,7 +1245,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:329-417`: the Windows job installs NASM
+- `.github/workflows/release.yml:326-414`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1754,11 +1754,11 @@ with a C toolchain for aws-lc.
 Read:
 
 - `.github/workflows/release.yml:97-101`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:329-417`:
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:326-414`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
-  (`.github/workflows/release.yml:123-130`), `dumpbin /dependents` on Windows
-  (`:384-409`).
+  (`.github/workflows/release.yml:123-129`), `dumpbin /dependents` on Windows
+  (`:381-406`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1898,7 +1898,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:220` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:212` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -2018,7 +2018,8 @@ Read, in the tree as it is now:
 
 - `scripts/gate.sh:127-180`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
-- `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
+- scripts/plant.sh, read at `d4e186d` (T-685 replaced it with the plant of the static check): a
+  crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
@@ -2045,7 +2046,7 @@ Done in commit `a378863`:
 sh scripts/dev.sh plant     # C twice, C++ at CXX=/nonexistent, the C++ control, the clean tree
 ```
 
-The plant prints its verdict (`scripts/plant.sh:148`) and exits 0. CI runs
+The plant prints its verdict (its last line, at `d4e186d`) and exits 0. CI runs
 the same script in its step "the no-C rule is load-bearing".
 
 ## Done
@@ -2108,7 +2109,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:197-222`).
+   (`.github/workflows/build.yml:198-223`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -2541,7 +2542,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:341-348`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:239-246`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -3188,7 +3189,7 @@ Read: each image is pinned to a digest in its Dockerfile
 `images/build/Dockerfile:6`), and at `b932993` each workflow gave
 the reference to `docker run`, which pulls from Docker Hub (now
 `.github/workflows/secrets.yml:70`, `.github/workflows/secrets.yml:84`,
-`.github/workflows/build.yml:75-79`, `.github/workflows/build.yml:108-111`
+`.github/workflows/build.yml:76-80`, `.github/workflows/build.yml:109-112`
 and `.github/workflows/release.yml:116-119`). Measured on 2026-10-09, each
 manifest asked for by its digest: Google's mirror of Docker Hub
 (`mirror.gcr.io`) serves both images, the GitHub registry serves the
@@ -3951,20 +3952,20 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 
 ## Premise
 
-- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:98`
-  ask for `sha1` 0.10.7, and the root `Cargo.toml:145` for `hmac` 0.12;
+- Read: `crates/podssh-ssh/Cargo.toml:25` and `crates/podssh-cli/Cargo.toml:98`
+  ask for `sha1` 0.10.7, and the root `Cargo.toml:137` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
   builds on the newer line, so the binary holds both lines today. podssh's `sha1`
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
-- Read: the root `Cargo.toml:154` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:163` for `x25519-dalek` 2;
+- Read: the root `Cargo.toml:146` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:155` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
   `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
-- Read: `vt100` 0.15 (`Cargo.toml:119`) is the model of the terminal
+- Read: `vt100` 0.15 (`Cargo.toml:112`) is the model of the terminal
   oracle (T-200) and of `podssh session` (T-186).
 
 ## Approach
@@ -4229,13 +4230,13 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
 ## Approach
 
 1. Each `uses:` of each workflow names a commit of 40 hexadecimal digits, with its tag in a
-   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:510`): the commits of
+   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:507`): the commits of
    T-210's list, read again at each release's API on the day of the change.
 2. A check in `scripts/check-repo.py`: each `uses:` under `.github/workflows/` names a commit. A
    copy with a planted `@v7` fails it, and its floor fails on an empty tree.
 3. binfmt: `images/binfmt/Dockerfile` names `tonistiigi/binfmt` by its tag and its digest, and
    Dependabot's list of directories takes it (`.github/dependabot.yml:37-43`). The two jobs read it
-   as the armv7 job reads its image (`.github/workflows/release.yml:167-174`), pull it through
+   as the armv7 job reads its image (`.github/workflows/release.yml:166-173`), pull it through
    `scripts/pull-image.sh`, and run `docker run --privileged --rm IMAGE --install riscv64` (`arm`
    for armv7) in the place of the action. The step then checks that the kernel lists the handler
    (`/proc/sys/fs/binfmt_misc/qemu-riscv64`, or `qemu-arm`) before the binary runs.
@@ -4450,7 +4451,7 @@ Each can stop a release, or the gate, for a reason outside podssh.
 ## Premise
 
 - Read: the riscv64 job pins Zig's version and SHA-256 and downloads it from ziglang.org
-  (`.github/workflows/release.yml:223-229`; its download, `.github/workflows/release.yml` lines
+  (`.github/workflows/release.yml:221-227`; its download, `.github/workflows/release.yml` lines
   247-249 at `1a46970`).
 - Read, through read.web.pkgforge.dev on 2026-10-31
   (https://ziglang.org/download/community-mirrors/): "The ziglang.org website does not offer any
@@ -4458,13 +4459,13 @@ Each can stop a release, or the gate, for a reason outside podssh.
   it hardcodes it as a download URL." The mirrors that
   https://ziglang.org/download/community-mirrors.txt lists serve the same file names, and each
   download must be checked; the pinned SHA-256 checks the exact bytes.
-- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:187-195`),
+- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:186-194`),
   in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
   (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:63`).
   Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
 - Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml` lines 175 and
   177 at `1a46970`).
-- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:540-565`).
+- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:537-562`).
   Inferred (the audit): an outage delays a release, and a run again repairs it.
 
 ## Approach
@@ -5237,8 +5238,8 @@ builds with, so that its DNS packets and iroh's are of one type.
   box's CONNECT proxy (`scripts/box/proxy.py`), which `scripts/test_in_box.sh` and
   `scripts/chat-in-boxes.sh` build; `images/build/Dockerfile:6` pins `rust:1-alpine` by the digest
   `0cce0a5...`, the gate's image.
-- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:147`), and the lock holds 0.11.0; 0.11.1
-  needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:59`, Q48).
+- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:139`), and the lock holds 0.11.0; 0.11.1
+  needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:58`, Q48).
 - Read: `crates/podssh-iroh/Cargo.toml:54-57` takes `simple-dns` 0.12, "the simple-dns that
   iroh-dns builds and reads with, so no crate is added"; iroh-dns 1.4.1, which the lock holds,
   takes simple-dns 0.12.0, the lock's only version.
@@ -5313,7 +5314,7 @@ built after the transfer refuses each release, whose signer names PodUtils/podss
 
 ## Premise
 
-- Read: `Cargo.toml:62` sets `repository = "https://github.com/Azathothas/podssh"`;
+- Read: `Cargo.toml:61` sets `repository = "https://github.com/Azathothas/podssh"`;
   `crates/podssh-cli/src/update/mod.rs:163` takes the repository from `CARGO_PKG_REPOSITORY`.
 - Read: `crates/podssh-cli/src/update/sigstore.rs:30` makes the signer's URI from that repository,
   and `crates/podssh-cli/src/update/sigstore.rs:134` refuses a leaf that does not name it.
@@ -5371,7 +5372,7 @@ The operator has transferred the repository to PodUtils/podssh.
   `cargo test -p podssh-cli --test update`: 19 passed.
 - Check 12 of `python scripts/check-repo.py` (`scripts/repo_names.py`): no tracked file names the
   old repository outside the dated records; it passed (2,916 files read). Planted, the old name back
-  in `Cargo.toml`: it failed and named `Cargo.toml:62`; `--plant-empty`: each of the 12 checks
+  in `Cargo.toml`: it failed and named `Cargo.toml:61`; `--plant-empty`: each of the 12 checks
   failed on an empty tree.
 - The frozen files of Q3a (`docs/decisions.md`) hold no old name: no file of podcrates' imports
   changed.
@@ -5439,7 +5440,7 @@ no backwards compat ... the only rule is: everything must be statically compiled
 **Milestone:** M10
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5453,10 +5454,10 @@ compiled binary, has no check of its own beside the release's.
 - Read: `scripts/gate.sh:21` lists the steps `msrv`, `msrv_ssh`, `msrv_ts`, `msrv_iroh`,
   `msrv_warp` and `msrv_tor`, each a check of crates at a declared minimum Rust
   (`scripts/gate.sh:263` and after); CI's matrix is `sh scripts/gate.sh --list`
-  (`.github/workflows/build.yml:49`), so a step removed from the list leaves CI.
+  (`.github/workflows/build.yml:50`), so a step removed from the list leaves CI.
 - Read: `scripts/gate.sh` runs 17 commands under `env CC=/nonexistent CXX=/nonexistent`, which
   refuse a crate that builds C (`scripts/gate.sh:128` tells why).
-- Read: `Cargo.toml:59` declares `rust-version = "1.89"` and `Cargo.toml:53` edition 2021; each crate
+- Read: `Cargo.toml:58` declares `rust-version = "1.89"` and `Cargo.toml:52` edition 2021; each crate
   declares its own minimum (1.89, 1.91 or 1.92).
 
 ## Approach
@@ -5482,3 +5483,22 @@ python scripts/check-repo.py
 
 The list holds no `msrv` step; the gate passes on edition 2024; the check of a static binary passes
 on the release's binaries and fails on its plant.
+
+## Correction
+
+2026-11-05. Approach 3 names "the build image's stable Rust" as `rust-version`. The build image has
+Rust 1.99.1, but a cloud session's host has 1.97 and the crates of podcrates declare 1.97 (the
+podcrates session's briefing: "the consumers move their toolchain to match"); a `rust-version`
+above a host's Rust stops each build there. The crates declare 1.97, raised with podcrates'.
+
+## Done
+
+2026-11-05, partial. Done: Approach 1 and 2. `scripts/gate.sh` has no step `msrv*` and no
+`CC=/nonexistent`; the tests of the step `msrv_tor` are the new step `tor`. `scripts/check-static.sh`
+checks a Linux ELF (no `INTERP`, no `NEEDED`) in the step `release` and in the three Linux jobs of
+`release.yml`; the Mac and Windows jobs keep their own checks (`otool -L`, `dumpbin`).
+`scripts/plant.sh` (`sh scripts/dev.sh plant`, CI's job `plant`) now proves that the check refuses a
+program linked dynamically and passes it linked with `-static`, in the build image: passed. The
+comments and documents that stated the old rules say the new one. Next: Approach 3 (edition 2024,
+Rust 1.97), after the crates of podcrates' v0.1.0 are taken (T-684), whose patches were made at
+`d4e186d` and would not apply across `cargo fix --edition`.

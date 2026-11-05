@@ -8,8 +8,8 @@ rust-version = "1.91"
 license.workspace = true
 publish.workspace = true
 
-# A crate of its own, outside the crates with no C: iroh with aws-lc-rs needs
-# a C compiler, as russh does for the binary (AGENTS.md, section 5, rule 4).
+# A crate of its own: iroh with aws-lc-rs needs a C compiler, as russh does
+# for the binary.
 # Not a default member: a build without the feature `iroh` of podssh-cli does
 # not compile it.
 [dependencies]

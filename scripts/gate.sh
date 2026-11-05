@@ -18,7 +18,7 @@ set -u
 
 # The steps, in the order of a full run. A step that is not in this list runs
 # nowhere: not here, and not in CI.
-STEPS="lint libs msrv msrv_ssh msrv_ts msrv_iroh msrv_warp msrv_tor record ssh ts iroh m6 release"
+STEPS="lint libs record ssh ts iroh tor m6 release"
 
 if [ "$#" -eq 1 ] && [ "$1" = --list ]; then
     for _s in $STEPS; do
@@ -79,7 +79,7 @@ run() {
 
 # retry3 COMMAND...: a download, tried three times, 10 s and then 20 s apart:
 # one failed DNS lookup on a runner failed a whole run (CI at 0d3d13a,
-# rustup's channel file in step msrv_ts).
+# rustup's channel file).
 retry3() {
     _try=1
     until "$@"; do
@@ -124,12 +124,9 @@ echo "steps: $*"
 # the fork in vendor/, which keeps its own format and its patches.
 PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-iroh -p podssh-todo -p podssh-warp -p podssh-tor"
 
-# The library crates must build with no C compiler. The image ships a working
-# `cc`, so `CC=/nonexistent` is what enforces the rule, and `CXX=/nonexistent`
-# does the same for C++ (the `cc` crate reads CXX for C++ files, so CC alone
-# lets a C++ dependency through on a host with `c++`). `scripts/plant.sh`
-# proves both are load-bearing. The binary itself needs cc since 2026-10-08: the
-# native SSH client is russh with aws-lc-rs (operator decision).
+# The library crates. Each crate may use C, zig and the newest stable Rust;
+# the one rule of the build is a statically compiled binary (the operator,
+# 2026-11-05), which the step release checks (scripts/check-static.sh).
 LIBS="-p podssh-ws -p podssh-relay -p podssh-core -p podssh-terminal -p podssh-probe"
 
 # The format of the code (rustfmt.toml) and clippy's lints: the format needs
@@ -170,30 +167,29 @@ step_libs() {
     # and QUIC to the relay role on the same noq (T-667).
     # DERP too (T-349): crypto_box and its curve in pure Rust; Piping too (T-437),
     # and OpenTunnel (T-530).
-    # WARP's road too (T-352): pure Rust, with Rust 1.91 for smoltcp, so it
-    # is built here and not in step_msrv's check on the library crates' 1.89.
+    # WARP's road too (T-352).
     # The pairing by a short code too (T-086): SPAKE2 and SecretBox.
-    run "library crates build with no C compiler" \
-        env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS -p podssh-warp \
+    run "library crates build" \
+        cargo build --locked $LIBS -p podssh-warp \
             --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp
 
     # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
     # terminal oracle's model against tmux (T-200); named, so that one missing fails.
     run "openssl and tmux, for the TLS 1.2 checks and the terminal oracle" retry3 apk add --no-cache openssl tmux
     # shellcheck disable=SC2086
-    tests "library crates: tests, no C compiler" \
-        env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
+    tests "library crates: tests" \
+        env PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
         cargo test --locked --no-fail-fast $LIBS -p podssh-warp \
             --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp-stand-in
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
     # its tests run with the feature, and the binary must never enable it.
-    tests "plain ws:// to the loopback: test (feature plain-ws, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test plain_loopback
-    tests "the road of a Cloudflare tunnel against a stand-in (T-264, feature plain-ws, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test cloudflare_access
-    tests "the blocking facade against a stand-in relay (features blocking, plain-ws, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features blocking,plain-ws --test blocking_plain
+    tests "plain ws:// to the loopback: test (feature plain-ws)" \
+        cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test plain_loopback
+    tests "the road of a Cloudflare tunnel against a stand-in (T-264, feature plain-ws)" \
+        cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test cloudflare_access
+    tests "the blocking facade against a stand-in relay (features blocking, plain-ws)" \
+        cargo test --locked --no-fail-fast -p podssh-relay --features blocking,plain-ws --test blocking_plain
     # The relay role (T-169, T-427): its routes, and its reverse road against
     # raw sockets and against podssh's node and operator on plain ws://, also
     # across a planned stop and the role's return (T-255); its forward road
@@ -202,152 +198,54 @@ step_libs() {
     # resumable layer across cuts of the client's link (T-173), against
     # OpenSSH's sshd where the image has it; SSH on its port (T-644); and a
     # name published to a node by its ClientHello (T-649).
-    tests "the relay role's routes (feature serve, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve --lib serve::
-    tests "the relay role's reverse road (features serve, plain-ws, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve,plain-ws \
+    tests "the relay role's routes (feature serve)" \
+        cargo test --locked --no-fail-fast -p podssh-relay --features serve --lib serve::
+    tests "the relay role's reverse road (features serve, plain-ws)" \
+        cargo test --locked --no-fail-fast -p podssh-relay --features serve,plain-ws \
             --test relay_serve_contract --test relay_serve_reverse --test relay_serve_backpressure \
             --test relay_serve_ipv6 --test reverse_restart --test session_relay_resume --test relay_serve_sshd \
             --test relay_serve_publish
     # The cleartext road at the role's listener and from the client (T-326),
     # through a stand-in proxy that intercepts TLS.
-    tests "the relay role's cleartext road (feature serve, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve \
+    tests "the relay role's cleartext road (feature serve)" \
+        cargo test --locked --no-fail-fast -p podssh-relay --features serve \
             --test relay_serve_cleartext
     # The relay role behind a quick tunnel (T-428): through the stand-in edge
     # and its front over HTTP/2, and as the origin of a QUIC stream on pipes.
-    tests "the relay role behind a quick tunnel (features quick, serve, plain-ws, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay \
+    tests "the relay role behind a quick tunnel (features quick, serve, plain-ws)" \
+        cargo test --locked --no-fail-fast -p podssh-relay \
             --features quick,serve,plain-ws --test quick_relay --test quick_relay_quic
     # The relay role's QUIC on the loopback, and the client's race of QUIC
     # and TCP to it, where UDP passes and where it is refused or dropped
     # (T-667).
-    tests "the relay role's QUIC (features serve, quic, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve,quic \
+    tests "the relay role's QUIC (features serve, quic)" \
+        cargo test --locked --no-fail-fast -p podssh-relay --features serve,quic \
             --lib serve::quic
-    tests "the race of QUIC and TCP to the relay role (features serve, quic, plain-ws, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay \
+    tests "the race of QUIC and TCP to the relay role (features serve, quic, plain-ws)" \
+        cargo test --locked --no-fail-fast -p podssh-relay \
             --features serve,quic,plain-ws --test relay_serve_quic
     # The pairing by a short code (T-086) through the role's mailbox; the
     # runs against magic-wormhole's own server and library are pair-code.yml's.
-    tests "the pairing by a short code at the relay role's mailbox (features pair, code, serve, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay \
+    tests "the pairing by a short code at the relay role's mailbox (features pair, code, serve)" \
+        cargo test --locked --no-fail-fast -p podssh-relay \
             --features pair,code,serve --test pair_code
-    tests "the relay role as a quick tunnel's origin (features quick, serve, no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features quick,serve \
+    tests "the relay role as a quick tunnel's origin (features quick, serve)" \
+        cargo test --locked --no-fail-fast -p podssh-relay --features quick,serve \
             --lib serve::behind
     run "the binary does not enable plain-ws" sh scripts/no-plain-ws.sh
 }
 
-# The declared minimum Rust of each crate, checked so that each number stays
-# true. Each is read from its manifest, and rustup fetches that toolchain at
-# each run into this image, so the C toolchain of aws-lc is the gate's own.
-# rust_version MANIFEST sets RV to the version that MANIFEST declares, in this
-# shell (a command substitution would lose `failed`). An empty one, or one
-# that is not 1.x, fails: `cargo +` with no version would run the default
-# toolchain, a false pass.
-rust_version() {
-    RV=$(tr -d '\r' < "$1" | sed -n 's/^rust-version = "\([0-9.]*\)"$/\1/p')
-    case "$RV" in
-        1.*) ;;
-        *)
-            echo "FAIL the rust-version of $1 could not be read"
-            failed=1
-            RV=unreadable
-            ;;
-    esac
-}
-
-# The workspace's version (podvm's minimum, T-081), for the library crates
-# and podssh-todo.
-step_msrv() {
-    rust_version Cargo.toml
-    MSRV=$RV
-    run "Rust $MSRV, the declared minimum of the library crates: install" \
-        retry3 rustup toolchain install "$MSRV" --profile minimal
-    # shellcheck disable=SC2086
-    run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
-        env CC=/nonexistent CXX=/nonexistent cargo "+$MSRV" check --locked $LIBS -p podssh-todo \
-            --features podssh-relay/blocking,podssh-relay/plain-ws,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/grant,podssh-relay/code --all-targets
-}
-
-# russh's minimum, which the SSH client and the CLI declare, each on its own.
-step_msrv_ssh() {
-    rust_version crates/podssh-ssh/Cargo.toml
-    SSH_RUST=$RV
-    rust_version crates/podssh-cli/Cargo.toml
-    CLI_RUST=$RV
-    run "Rust $SSH_RUST, the declared minimum of podssh-ssh: install" \
-        retry3 rustup toolchain install "$SSH_RUST" --profile minimal
-    run "podssh-ssh: check on Rust $SSH_RUST" cargo "+$SSH_RUST" check --locked --all-targets -p podssh-ssh
-    run "Rust $CLI_RUST, the declared minimum of podssh-cli: install" \
-        retry3 rustup toolchain install "$CLI_RUST" --profile minimal
-    run "podssh-cli: check on Rust $CLI_RUST" cargo "+$CLI_RUST" check --locked --all-targets -p podssh-cli
-}
-
-# The fork's minimum, which the Tailscale adapter declares; the CLI with the
-# feature `ts` too, which brings the adapter in.
-step_msrv_ts() {
-    rust_version crates/podssh-ts/Cargo.toml
-    TS_RUST=$RV
-    run "Rust $TS_RUST, the declared minimum of podssh-ts: install" \
-        retry3 rustup toolchain install "$TS_RUST" --profile minimal
-    run "podssh-ts and podssh-cli with the feature ts: check on Rust $TS_RUST" \
-        cargo "+$TS_RUST" check --locked --all-targets -p podssh-ts -p podssh-cli --features podssh-cli/ts
-}
-
-# iroh's minimum, which the iroh road declares (T-162); the CLI with the
-# feature `iroh` too, which brings the road in.
-step_msrv_iroh() {
-    rust_version crates/podssh-iroh/Cargo.toml
-    IROH_RUST=$RV
-    run "Rust $IROH_RUST, the declared minimum of podssh-iroh: install" \
-        retry3 rustup toolchain install "$IROH_RUST" --profile minimal
-    run "podssh-iroh and podssh-cli with the feature iroh: check on Rust $IROH_RUST" \
-        cargo "+$IROH_RUST" check --locked --all-targets -p podssh-iroh -p podssh-cli --features podssh-cli/iroh
-}
-
-# WARP's minimum, which its road declares for smoltcp (T-352); the CLI with
-# the feature `warp` too, which brings the road in, and podssh-relay with
-# its own, the quick tunnel's edge inside WARP's tunnel (T-374).
-step_msrv_warp() {
-    rust_version crates/podssh-warp/Cargo.toml
-    WARP_RUST=$RV
-    run "Rust $WARP_RUST, the declared minimum of podssh-warp: install" \
-        retry3 rustup toolchain install "$WARP_RUST" --profile minimal
-    run "podssh-warp and podssh-cli with the feature warp: check on Rust $WARP_RUST" \
-        cargo "+$WARP_RUST" check --locked --all-targets -p podssh-warp -p podssh-cli -p podssh-relay \
-            --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in
-}
-
-# The Tor road (T-353): Arti declares Rust 1.92, so podssh-tor and the CLI
-# with the feature are checked on that minimum; then their tests, on the
-# toolchain of the gate: the crate's (its TCP provider through a stand-in
-# proxy) and the CLI's own with the feature. Arti's SQLite is C, as the
-# Tailscale and iroh features' C is.
-step_msrv_tor() {
-    rust_version crates/podssh-tor/Cargo.toml
-    TOR_RUST=$RV
-    run "Rust $TOR_RUST, the declared minimum of podssh-tor: install" \
-        retry3 rustup toolchain install "$TOR_RUST" --profile minimal
-    run "podssh-tor and podssh-cli with the feature tor: check on Rust $TOR_RUST" \
-        cargo "+$TOR_RUST" check --locked --all-targets -p podssh-tor -p podssh-cli --features podssh-cli/tor
-    tests "podssh-tor: its tests" cargo test --locked --no-fail-fast -p podssh-tor
-    tests "podssh-cli with the feature tor: its library's tests" \
-        cargo test --locked --no-fail-fast -p podssh-cli --features tor --lib
-}
-
 # The work record (TODO/): the checker's own tests, where each planted
 # disagreement must be found, then the record of this tree. A count, a status
-# or a cited line that disagrees fails the gate. Pure Rust, no C.
+# or a cited line that disagrees fails the gate.
 step_record() {
     tests "the work record: the checker's tests (plants included)" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-todo
+        cargo test --locked --no-fail-fast -p podssh-todo
     # The record's checker reads AGENTS.md for the ids it names, and would pass
     # with the file missing: a copy of the tree without it fails here first.
     run "the tree has AGENTS.md" test -f AGENTS.md
     run "the work record: TODO/ agrees with itself" \
-        env CC=/nonexistent CXX=/nonexistent cargo run --locked -q -p podssh-todo -- check
+        cargo run --locked -q -p podssh-todo -- check
 }
 
 # The SFTP client's tests (T-133) run OpenSSH's sftp-server over its pipes:
@@ -387,6 +285,15 @@ step_iroh() {
         cargo test --locked --no-fail-fast -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test
 }
 
+# The Tor road (T-353): the tests of podssh-tor (its TCP provider through a
+# stand-in proxy) and the CLI's own with the feature. Arti's SQLite is C, as
+# the Tailscale and iroh features' C is.
+step_tor() {
+    tests "podssh-tor: its tests" cargo test --locked --no-fail-fast -p podssh-tor
+    tests "podssh-cli with the feature tor: its library's tests" \
+        cargo test --locked --no-fail-fast -p podssh-cli --features tor --lib
+}
+
 # The exit of M6 (T-156): a session survives a stopped relay host, a new
 # address of its client and a stall of 3 minutes, on the resumable layer over
 # the reverse road and on the iroh road, through the stand-in relay and
@@ -415,31 +322,11 @@ step_release() {
     if [ ! -f "$B" ]; then
         echo "ARTEFACT MISSING: $B"
         failed=1
-    elif ! command -v readelf >/dev/null 2>&1; then
-        # A check that cannot run is not a pass.
-        echo "readelf is missing from the build image; the linkage check did not run"
-        failed=1
     else
         ls -la "$B"
-        readelf -d "$B" >/tmp/podssh-dyn.out 2>&1
-        dyn_rc=$?
-        readelf -l "$B" >/tmp/podssh-phdr.out 2>&1
-        phdr_rc=$?
-        if [ "$dyn_rc" -ne 0 ] || [ "$phdr_rc" -ne 0 ]; then
-            echo "FAIL: readelf could not read the binary"
-            cat /tmp/podssh-dyn.out /tmp/podssh-phdr.out
-            failed=1
-        elif grep -qi 'NEEDED' /tmp/podssh-dyn.out; then
-            echo "FAIL: the binary has dynamic dependencies:"
-            grep -i 'NEEDED' /tmp/podssh-dyn.out
-            failed=1
-        elif grep -q 'INTERP' /tmp/podssh-phdr.out; then
-            echo "FAIL: the binary asks for a program interpreter, so it is not static"
-            failed=1
-        else
-            echo "static: no NEEDED entries and no program interpreter"
-            readelf -h "$B" | grep -E 'Type:'
-        fi
+        # The one rule of the build: a statically compiled binary (T-685).
+        run "the binary is static" sh scripts/check-static.sh "$B"
+        readelf -h "$B" | grep -E 'Type:'
     fi
 
     # The binary against real OpenSSH and Dropbear servers (installed with apk
