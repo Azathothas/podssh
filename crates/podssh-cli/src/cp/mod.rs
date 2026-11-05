@@ -335,7 +335,7 @@ fn run_copy(
             log.verbose(note);
         }
         for warning in &r.warnings {
-            log.info(warning);
+            log.warning(warning);
         }
     }
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {

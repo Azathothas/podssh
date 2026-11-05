@@ -2,7 +2,9 @@
 //! a level, the bytes of one entry, and the stream that `JOURNAL_STREAM`
 //! names.
 
-use podssh_ssh::LogLevel;
+// The syslog priority of a level, and a warning's: the SSH client's log
+// holds them, as it files its own lines by them too (T-674).
+pub use podssh_ssh::log::{priority, WARNING};
 
 /// The priority at which the journal files each line of a unit's stream
 /// (`SyslogLevel=`, `info` unless the unit says otherwise): a copy of a
@@ -11,17 +13,6 @@ pub const STREAM: u8 = 6;
 
 /// The name that each entry is filed under, which `journalctl -t` reads.
 pub const IDENTIFIER: &str = "podssh";
-
-/// The syslog priority of `level`: fatal 2 (crit), error 3 (err), quiet and
-/// info 6 (info), verbose and the debug levels 7 (debug).
-pub fn priority(level: LogLevel) -> u8 {
-    match level {
-        LogLevel::Fatal => 2,
-        LogLevel::Error => 3,
-        LogLevel::Quiet | LogLevel::Info => 6,
-        LogLevel::Verbose | LogLevel::Debug1 | LogLevel::Debug2 | LogLevel::Debug3 => 7,
-    }
-}
 
 /// One entry: `PRIORITY` and `SYSLOG_IDENTIFIER` first, `MESSAGE` last. A
 /// value with a line break takes the binary form (its name, a line break,

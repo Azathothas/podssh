@@ -330,7 +330,7 @@ byte test that a person wrote with the same mistake.
 
 Read:
 
-- `crates/podssh-ssh/src/log.rs:124-140` turns LF into CR LF when the terminal
+- `crates/podssh-ssh/src/log.rs:157-173` turns LF into CR LF when the terminal
   is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:141-150`) goes
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
@@ -415,7 +415,7 @@ sh scripts/dev.sh check                           # the model and tmux agree on 
 ```
 
 Each command exits 0. Planted defect: remove the CR LF conversion
-(`crates/podssh-ssh/src/log.rs:136-138`); the help case must fail. After M5,
+(`crates/podssh-ssh/src/log.rs:169-171`); the help case must fail. After M5,
 `cargo test -p podssh-terminal --test oracle` must fail while T-127 is open.
 
 ## Correction
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-32`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:710-730`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:711-731`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
@@ -977,9 +977,9 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io/msg.rs:35-42`, with `crates/podssh-ssh/src/io.rs:68-70`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:155`, `docs/STATUS.md:161`).
+  (`docs/STATUS.md:156`, `docs/STATUS.md:162`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:5209-5210` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:5221-5222` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -996,14 +996,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:5209-5210`). A difference that the table does not name fails,
+   `docs/cli.md:5221-5222`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:5209-5210` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:5221-5222` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed
@@ -1040,7 +1040,7 @@ for `podssh ssh`.
 (openssh-portable at its default branch, 2026-10-12; read, not run):
 `client_input_channel_req` in `clientloop.c` takes `exit-status` and no
 `exit-signal`, and `client_loop` starts its status at -1, so a signal gives
-255, as `docs/cli.md:4802-4803` says. `check_host_key` in `sshconnect.c`
+255, as `docs/cli.md:4814-4815` says. `check_host_key` in `sshconnect.c`
 goes on past a changed key under `StrictHostKeyChecking=no`: it turns off
 password and keyboard-interactive login and the forwardings, then accepts
 the key, so `ssh.hostkey.changed_refused` gives 0 with OpenSSH. In
@@ -1081,7 +1081,7 @@ has three rows.
   podssh 143), `changed_key` (OpenSSH 0, podssh 255) and
   `unreadable_known_hosts` (OpenSSH 0, podssh 255).
 - `crates/podssh-ssh/src/lib.rs:16` now agrees with
-  `docs/cli.md:4802-4803`: 128 plus the signal's number, where OpenSSH
+  `docs/cli.md:4814-4815`: 128 plus the signal's number, where OpenSSH
   gives 255. `docs/cli.md` names the two differences of the host keys
   beside their rules; `docs/development.md` (item 7 of the gate) says that
   each code is checked twice; `docs/STATUS.md` has a row for OpenSSH's
@@ -1643,7 +1643,7 @@ shows nothing that podssh said.
 Read at `2042200`:
 
 - podssh writes text with no level past its own process: `crates/podssh-ssh/src/line.rs:22-24` writes a
-  line to stderr, and `crates/podssh-ssh/src/log.rs:12-17` holds a level and stderr or a file; the
+  line to stderr, and `crates/podssh-ssh/src/log.rs:32-37` holds a level and stderr or a file; the
   level stops in the process.
 - `crates/podssh-cli/src/flags.rs:290` says "podssh does not write to syslog", for `-y`.
 - The unit that the install writes restarts the node (`crates/podssh-cli/src/node_install/text.rs:139`)
@@ -1733,7 +1733,7 @@ and the test of the child that inherited it fails.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1752,10 +1752,78 @@ ssh -N -L` sees its warnings and errors at `info`.
 1. podssh-ssh's log takes a sink of the CLI's, which sends a line above `info` to the journal as
    T-640 does, where stderr is the journal's stream.
 
+## Decision
+
+2026-11-05 (a drafting agent). The Premise holds (read on 2026-11-05): T-640's sink serves the
+lines that `journal::line` writes, and `Log` writes its own to stderr. The client's log has no level
+of warnings: `crates/podssh-ssh/src/options.rs:115-124` lists the levels of `-o LogLevel`, as
+OpenSSH's, and the client's "Warning:" lines are written at INFO, as OpenSSH's `logit` writes them
+(`crates/podssh-ssh/src/hostkey.rs:263` says "Warning: Permanently added"). So:
+
+- The sink is a function that the binary gives podssh-ssh's log once
+  (`crates/podssh-ssh/src/log.rs:202`, `copy_lines`), as it gives the hint of an error
+  (`hint_errors`), and only where `journal::install` found the journal
+  (`crates/podssh-cli/src/journal.rs:46-48`); each line that a log puts on stderr goes to it with
+  its priority, in stderr's words, and T-640's sink keeps only what is above `info`. Lost: a sink in
+  each `Log` (the CLI makes a `Log` in some thirty places, and one made without the sink would keep
+  one priority with no sign of it); `journal::line` around each call (podssh-ssh writes most of its
+  lines itself, inside the session).
+- The table of the levels' priorities is podssh-ssh's (`crates/podssh-ssh/src/log.rs:19`), and the
+  CLI re-exports it (`crates/podssh-cli/src/journal/entry.rs:7`): one table. Lost: two tables and a
+  test that they agree.
+- A warning has its own priority, 4 (`crates/podssh-ssh/src/log.rs:30`): `Log::warning`
+  (`crates/podssh-ssh/src/log.rs:75`) shows a line at INFO, as before, so `-q` and
+  `-o LogLevel=ERROR` still hide it, and copies it at 4. It takes a remote forward that the server
+  refused (`crates/podssh-ssh/src/remote.rs:94`, and that of `~C` at
+  `crates/podssh-ssh/src/escape_run.rs:180`), a channel of agent or X11 forwarding that the server
+  opened unasked (`crates/podssh-ssh/src/handler.rs:154`), and the warnings of the settings that
+  each command says before it connects (`resolved.warnings`: an agent that is not there, a
+  `ServerAliveInterval` that the relay's idle cut passes). Lost: a level WARNING of `-o LogLevel` (no
+  OpenSSH setting has it, and each match on the levels would move); the warnings at `info`, as
+  before (a unit of `ssh -N -R` whose forward the server refused runs on without it, and a read by
+  priority would not show it: the issue's case); "Warning: Permanently added" at 4 (a host key
+  recorded as asked is no fault, and each first connection of a unit would be a warning).
+- A log in a file (`-E`) sends nothing, and a line that the log hides sends nothing. Lost: a copy of
+  each line wherever it went (the journal would get lines that the stream never had, where the user
+  named a file for them).
+- The binary's remedy after an error (the limit of open files, T-564) goes at the error's priority
+  (`crates/podssh-ssh/src/log.rs:238`), as it explains that error in a read by priority too.
+- The client's other lines of a failure at `info` (a listener of `-L` that closed, a target that
+  refused one connection, a key file that could not be used) keep their level: each is the client's
+  choice of level, as OpenSSH's is, and this entry moves no level, only a line's copy. Lost: each of
+  them at 4 (a review of the client's levels, which no report asks for).
+
 ## Prove
 
 ```sh
+export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --lib journal
+cargo test -p podssh-ssh --lib log::
+cargo test -p podssh-ssh --lib -- handler::tests remote::tests escape_run::tests
+cargo test -p podssh-cli --lib man::
 ```
 
 A new test: a warning of the SSH client's log reaches the journal's socket with its priority.
+In the CLI, against T-640's datagram socket of the test: a warning of `Log` at 4 and an error at 3,
+each in stderr's words, and a line of INFO not at all; a log in a file sends nothing. In podssh-ssh,
+against a copy of the tests: each level's number, and a warning between an error and INFO; an
+error, a warning and a line of INFO at 3, 4 and 6; a log in a file, `-q` and a warning at
+`LogLevel=ERROR` copy nothing; a host's prefix on each line of the copy; a hint after its error, at
+3. The tests of the lines that became warnings pass as before (their words and their level of
+display did not change). Planted: a warning copied at INFO's priority, and the CLI's test fails
+(`t674-warning-at-info`); a log in a file that copies, and podssh-ssh's test fails
+(`t674-file-log-copied`).
+
+## Done
+
+2026-11-05, merged from its draft (`68687d5`).
+
+- `cargo test -p podssh-cli --lib`: 935 passed, the journal's 13 among them (two new: a warning of
+  the client's log reaches the test's journal at 4 and an error at 3, an info line not; a log in a
+  file sends nothing).
+- `cargo test -p podssh-ssh --lib`: 351 passed, six new in `crates/podssh-ssh/src/log_tests.rs`
+  (each level's priority, a warning's between, a log in a file copies nothing, `-q` and a warning
+  at `LogLevel=ERROR` copy nothing, a host's prefix on each copy, a hint at its error's priority).
+- Planted: `t674-warning-at-info` and `t674-file-log-copied` caught.
+- Clippy and rustfmt clean (rustfmt rewrapped one line of the draft's tests).
+- Not measured here: a unit of systemd with `journalctl -p warning`; T-640's is not measured either.

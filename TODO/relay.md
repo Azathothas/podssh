@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:342`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:343`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -3900,7 +3900,7 @@ info` with `--relay-host` reads the order named, and `--json` has `relay_order` 
 
 ## Done
 
-2026-11-04 (drafted; each result below is UNVERIFIED until the main session runs it):
+2026-11-04, drafted, then merged; the results below were measured at the merge:
 
 - `crates/podssh-cli/src/relay_rank_auto.rs:101-132`: `RunOrder` (the word of `podssh status`, or
   `named` for a list that the user named; its words; the list in that order) and `run_order`, read
@@ -4034,7 +4034,7 @@ this host and none of the document's `you`; both checks pass with the new citati
 
 ## Done
 
-2026-11-04 (drafted; each result below is UNVERIFIED until the main session runs it):
+2026-11-04, drafted, then merged; the results below were measured at the merge:
 
 - Step 1, the live relay's `/relays.json`, read once by the main session on 2026-11-04 through
   this host's proxy, with its `you` left out of what was kept (version `2026-10-03-r2`, 37 hosts

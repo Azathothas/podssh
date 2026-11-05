@@ -109,7 +109,7 @@ pub fn run_job(args: &JobArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
                 if verbose {
                     log.verbose(text);
                 } else {
-                    log.info(text);
+                    log.warning(text);
                 }
             }
         }

@@ -224,7 +224,7 @@ fn say_once(plans: &[Plan]) {
         for warning in &plan.resolved.warnings {
             if !said.contains(&warning.as_str()) {
                 said.push(warning);
-                plan.log.info(warning);
+                plan.log.warning(warning);
             }
         }
     }

@@ -177,8 +177,8 @@ async fn add_remote(spec: &str, handle: &Handle<Client>, table: Option<&Table>, 
     };
     match tokio::time::timeout(ANSWER_LIMIT, crate::remote::ask(handle, table, &forward, log)).await {
         Ok(true) => log.info("Forwarding port."),
-        Ok(false) => log.info(&crate::remote::failed("Warning", &forward)),
-        Err(_) => log.info(&format!(
+        Ok(false) => log.warning(&crate::remote::failed("Warning", &forward)),
+        Err(_) => log.warning(&format!(
             "{}: no answer of the server within {} s",
             crate::remote::failed("Warning", &forward),
             ANSWER_LIMIT.as_secs()

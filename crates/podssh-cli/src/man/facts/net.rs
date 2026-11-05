@@ -25,7 +25,10 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           they are those of podssh's own stderr (a program that inherited the variable has another), each error \
           line also goes to the journal's socket beside that stream as one entry, at its priority (3, and 2 for a \
           fatal one), so that journalctl -p warning shows a refusal and why a node ended; each line stays on \
-          stderr, at the stream's info, as before. The socket binds nothing, and a send that fails is dropped, \
-          never an exit code. No flag turns it on or off (T-640).",
+          stderr, at the stream's info, as before. The SSH client's lines go too (T-674): an error at 3, and a \
+          warning at 4 (a forward that the server refused, a channel that it opened unasked, a setting that may \
+          cut the session), which shows at INFO as in OpenSSH, so -q and -o LogLevel=ERROR hide it; a log in a \
+          file (-E) sends nothing. The socket binds nothing, and a send that fails is dropped, never an exit \
+          code. No flag turns it on or off (T-640).",
     ),
 ];

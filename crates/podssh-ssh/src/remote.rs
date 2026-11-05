@@ -91,7 +91,7 @@ pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log
         if opts.exit_on_forward_failure {
             return Err(HopError::Forward(failed("Error", forward)));
         }
-        log.info(&failed("Warning", forward));
+        log.warning(&failed("Warning", forward));
     }
     Ok(())
 }

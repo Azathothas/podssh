@@ -1,9 +1,29 @@
 //! The tests of the journal's copy (T-640): the priority of each level, the
 //! bytes of an entry, the variable, and, on Linux, the probe and the copy
 //! against a datagram socket of the test in a scratch directory, which reads
-//! as the journal's own would.
+//! as the journal's own would; and the copy of the SSH client's lines
+//! (T-674).
 
 use super::*;
+use std::cell::RefCell;
+
+thread_local! {
+    /// A test's sink for the copies of the SSH client's lines on its own
+    /// thread: the binary's sink is never installed in a test, and the other
+    /// tests' lines, on their threads, never reach it.
+    static TEST_SINK: RefCell<Option<Sink>> = const { RefCell::new(None) };
+}
+
+/// Whether a test's sink on this thread took the copy.
+pub(super) fn to_test_sink(priority: u8, text: &str) -> bool {
+    TEST_SINK.with(|sink| match sink.borrow().as_ref() {
+        Some(sink) => {
+            to_sink(sink, priority, text);
+            true
+        }
+        None => false,
+    })
+}
 
 #[test]
 fn priority_of_each_level_follows_the_journal() {
@@ -20,8 +40,10 @@ fn priority_of_each_level_follows_the_journal() {
     for (level, number) in cases {
         assert_eq!(priority(level), number, "{level:?}");
     }
-    // Only what says more than the stream's own `info` is copied.
+    // Only what says more than the stream's own `info` is copied; a warning
+    // of the SSH client's does (T-674).
     assert!(priority(LogLevel::Error) < STREAM && priority(LogLevel::Info) >= STREAM);
+    assert!(priority(LogLevel::Error) < WARNING && WARNING < STREAM);
 }
 
 #[test]
@@ -187,6 +209,58 @@ mod linux {
         let file = std::fs::File::open("/dev/null").unwrap();
         let sink = Sink::to(stream, journal.path(), Box::new(move || id_of(file.as_fd()))).unwrap();
         assert!(!sink.say(LogLevel::Error, "podssh: an error"));
+        assert_eq!(journal.read(), None);
+    }
+
+    /// `sink` takes the copies of the SSH client's lines on this thread
+    /// while the guard lives.
+    struct OnThisThread;
+
+    impl OnThisThread {
+        fn set(sink: Sink) -> OnThisThread {
+            TEST_SINK.with(|on| *on.borrow_mut() = Some(sink));
+            OnThisThread
+        }
+    }
+
+    impl Drop for OnThisThread {
+        fn drop(&mut self) {
+            TEST_SINK.with(|on| drop(on.borrow_mut().take()));
+        }
+    }
+
+    /// A warning and an error of the SSH client's log reach the journal at
+    /// their priorities, 4 and 3, in stderr's words, through the copy that
+    /// `install` gives the log; a line of INFO is the stream's alone
+    /// (T-674).
+    #[test]
+    fn a_warning_of_the_ssh_client_reaches_the_journal_at_its_priority() {
+        let journal = Journal::new("client");
+        let (sink, _peer) = sink_on(&journal);
+        let _on = OnThisThread::set(sink);
+        // What `install` gives the log where it found the journal.
+        podssh_ssh::log::copy_lines(crate::journal::copy);
+        let log = podssh_ssh::Log::new(LogLevel::Info);
+        log.warning("Warning: remote port forwarding failed for listen port 2222");
+        log.info("Forwarding port.");
+        log.error("connect to 127.0.0.1 port 22: Connection refused");
+        let warning = "podssh: Warning: remote port forwarding failed for listen port 2222";
+        assert_eq!(journal.read(), Some(entry(WARNING, warning)));
+        assert_eq!(journal.read(), Some(entry(3, "podssh: connect to 127.0.0.1 port 22: Connection refused")));
+        assert_eq!(journal.read(), None, "a line of INFO is the stream's alone");
+    }
+
+    /// A log in a file (`-E`) sends nothing, even where stderr is the
+    /// journal's stream: its lines are not the stream's.
+    #[test]
+    fn the_ssh_client_s_log_in_a_file_sends_nothing() {
+        let journal = Journal::new("client-file");
+        let (sink, _peer) = sink_on(&journal);
+        let _on = OnThisThread::set(sink);
+        podssh_ssh::log::copy_lines(crate::journal::copy);
+        let log = podssh_ssh::Log::to_file(LogLevel::Info, &journal.dir.join("e.log")).unwrap();
+        log.warning("Warning: remote port forwarding failed for listen port 2222");
+        log.error("connect to 127.0.0.1 port 22: Connection refused");
         assert_eq!(journal.read(), None);
     }
 

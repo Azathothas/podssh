@@ -1,0 +1,8 @@
+# T-674: a warning of the SSH client's log copied at INFO's priority, which
+# the journal's stream files already, so `journalctl -p warning` would still
+# show no refused forward; the test of the client's warning in the journal
+# must fail.
+ENTRY=T-674
+GROUP=cli-tests
+EXPECT='a_warning_of_the_ssh_client_reaches_the_journal_at_its_priority \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib journal::tests::linux::a_warning_of_the_ssh_client_reaches_the_journal_at_its_priority'

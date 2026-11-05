@@ -238,7 +238,7 @@ fn run_planned(args: &RunArgs, out: &mut dyn Write, err: &mut dyn Write, scope: 
         log.verbose(note);
     }
     for warning in &resolved.warnings {
-        log.info(warning);
+        log.warning(warning);
     }
     // A plain line in a pipe each 10 s of a long copy (T-472).
     crate::cp::gauge::init(false, resolved.options.log_level == podssh_ssh::LogLevel::Quiet, true);

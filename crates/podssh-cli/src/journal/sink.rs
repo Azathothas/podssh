@@ -59,7 +59,12 @@ impl Sink {
     /// a unit stops for good on 64 and 78, and a journal that went away
     /// must not stop a node.
     pub fn say(&self, level: LogLevel, text: &str) -> bool {
-        let priority = priority(level);
+        self.say_at(priority(level), text)
+    }
+
+    /// [`Sink::say`] at a priority in syslog's numbers: the SSH client's
+    /// log gives a warning's, which no level has (T-674).
+    pub fn say_at(&self, priority: u8, text: &str) -> bool {
         if priority >= STREAM || (self.stderr)() != Some(self.stream) {
             return false;
         }

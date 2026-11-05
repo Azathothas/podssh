@@ -172,7 +172,7 @@ pub fn run_edit(args: &EditArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         log.verbose(note);
     }
     for warning in &resolved.warnings {
-        log.info(warning);
+        log.warning(warning);
     }
     // The copies that earlier runs kept, each with a change: said once,
     // and none removed.

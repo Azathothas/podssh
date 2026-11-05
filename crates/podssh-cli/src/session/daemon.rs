@@ -187,7 +187,7 @@ async fn serve(args: &SessionArgs, plan: Plan, out: &mut dyn Write, err: &mut dy
         log.verbose(note);
     }
     for warning in &resolved.warnings {
-        log.info(warning);
+        log.warning(warning);
     }
     let (sink, pieces) = mpsc::channel(64);
     let keys = Feed::new();

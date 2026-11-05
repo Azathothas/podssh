@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-ssh/src/log.rs b/crates/podssh-ssh/src/log.rs
+index 14daaf2a..dc820f31 100644
+--- a/crates/podssh-ssh/src/log.rs
++++ b/crates/podssh-ssh/src/log.rs
+@@ -73,7 +73,7 @@ impl Log {
+     /// did unasked: shown at INFO, as OpenSSH shows its "Warning:" lines
+     /// (`-q` and `-o LogLevel=ERROR` hide it), and copied at [`WARNING`].
+     pub fn warning(&self, message: &str) {
+-        self.said(LogLevel::Info, WARNING, message);
++        self.said(LogLevel::Info, priority(LogLevel::Info), message);
+     }
+ 
+     pub fn info(&self, message: &str) {

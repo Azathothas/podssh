@@ -127,7 +127,7 @@ pub fn run(args: &HealthArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         log.verbose(note);
     }
     for warning in &resolved.warnings {
-        log.info(warning);
+        log.warning(warning);
     }
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,

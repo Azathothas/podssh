@@ -287,7 +287,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(Some('Y'), "forward-x11-trusted", None, FlagKind::Supported,
         "X11 forwarding to DISPLAY, trusted: the X server's own cookie, never sent to the server", None),
     row(Some('y'), "syslog", None, FlagKind::Refused,
-        "podssh does not write to syslog; where stderr is the journal's stream, an error reaches it at its priority (JOURNAL_STREAM)", Some("-E LOGFILE")),
+        "podssh does not write to syslog; where stderr is the journal's stream, an error or a warning reaches it at its priority (JOURNAL_STREAM)", Some("-E LOGFILE")),
 ];
 
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.

@@ -14,6 +14,10 @@
 //! 2, and no helper (the call of Q86). Only a line above `info` is copied,
 //! as the stream files each line at `info` already: a copy of each would
 //! show each line twice in `journalctl -u`.
+//!
+//! The SSH client's log (`podssh ssh`, a tunnel's session, each command's
+//! connection) gives its lines here too, with their priority, a warning's
+//! among them (T-674).
 
 use std::io::Write;
 use std::sync::OnceLock;
@@ -26,7 +30,7 @@ mod sink;
 #[cfg(test)]
 mod tests;
 
-pub use entry::{entry, priority, stream_of, IDENTIFIER, STREAM};
+pub use entry::{entry, priority, stream_of, IDENTIFIER, STREAM, WARNING};
 #[cfg(target_os = "linux")]
 pub use sink::Sink;
 
@@ -37,9 +41,12 @@ pub enum Sink {}
 static SINK: OnceLock<Option<Sink>> = OnceLock::new();
 
 /// Find the journal, once, at the start of the binary, before a thread
-/// starts and before a service's file sets a variable.
+/// starts and before a service's file sets a variable. Where there is one,
+/// the SSH client's log copies its lines to it; elsewhere it copies nothing.
 pub fn install() {
-    SINK.get_or_init(probe);
+    if SINK.get_or_init(probe).is_some() {
+        podssh_ssh::log::copy_lines(copy);
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -62,16 +69,32 @@ pub fn line(err: &mut dyn Write, level: LogLevel, text: &str) {
 pub fn line_to(err: &mut dyn Write, sink: Option<&Sink>, level: LogLevel, text: &str) {
     let _ = writeln!(err, "{text}");
     if let Some(sink) = sink {
-        copy(sink, level, text);
+        to_sink(sink, priority(level), text);
+    }
+}
+
+/// The copy of a line that the SSH client's log put on stderr, at its
+/// `priority` (T-674): the log wrote the line, and the sink decides, as for
+/// [`line`], whether the journal gets it.
+pub fn copy(priority: u8, text: &str) {
+    // A test's own sink, on its own thread.
+    #[cfg(test)]
+    {
+        if tests::to_test_sink(priority, text) {
+            return;
+        }
+    }
+    if let Some(sink) = SINK.get().and_then(Option::as_ref) {
+        to_sink(sink, priority, text);
     }
 }
 
 #[cfg(target_os = "linux")]
-fn copy(sink: &Sink, level: LogLevel, text: &str) {
-    sink.say(level, text);
+fn to_sink(sink: &Sink, priority: u8, text: &str) {
+    sink.say_at(priority, text);
 }
 
 #[cfg(not(target_os = "linux"))]
-fn copy(sink: &Sink, _: LogLevel, _: &str) {
+fn to_sink(sink: &Sink, _: u8, _: &str) {
     match *sink {}
 }

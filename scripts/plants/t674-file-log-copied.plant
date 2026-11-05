@@ -1,0 +1,7 @@
+# T-674: a log in a file (-E) copies its lines too, so the journal would get
+# lines that its stream never had, where the user named a file for them; the
+# test of a log in a file must fail.
+ENTRY=T-674
+GROUP=cli-tests
+EXPECT='test log::tests::a_log_in_a_file_copies_nothing \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- log::tests::a_log_in_a_file_copies_nothing'

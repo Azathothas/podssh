@@ -1,0 +1,14 @@
+diff --git a/crates/podssh-ssh/src/log.rs b/crates/podssh-ssh/src/log.rs
+index 14daaf2a..13eb7c23 100644
+--- a/crates/podssh-ssh/src/log.rs
++++ b/crates/podssh-ssh/src/log.rs
+@@ -208,9 +208,6 @@ impl Log {
+     /// nothing: the user named where its lines go, and the stream has none
+     /// of them.
+     fn copy(&self, priority: u8, message: &str) {
+-        if self.file.is_some() {
+-            return;
+-        }
+         if let Some(to) = COPY.get() {
+             // As stderr has it, but for CR LF of a raw terminal.
+             let text = host_text(message, true, self.prefix.as_deref(), false);

@@ -3467,7 +3467,7 @@ commands. The rules behind them:
   its line names the task at boot that only an administrator can make.
   A new `--install` removes what an earlier one made by another way, so
   that two ways never start the same service.
-- **The journal's priorities (T-640, GitHub #138).** systemd files each
+- **The journal's priorities (T-640, T-674, GitHub #138).** systemd files each
   line of a unit's stderr at one priority, `info`, so `journalctl -p
   warning -u UNIT` showed nothing that the node said. Where stderr is the
   journal's own stream (`JOURNAL_STREAM` holds its device and inode, and
@@ -3484,9 +3484,21 @@ commands. The rules behind them:
   that priority already, and a copy would show it twice. The lines copied
   are a refusal of each command (`Refusal`), the end of a node by a fault,
   and a retired variable ("Variables that a release stopped reading",
-  below); the lines of the SSH client (`Log`), such as a tunnel's, are
-  not. The socket binds nothing and does not block, and a send that fails
-  is dropped, never an exit code: a unit stops for good on 64 and 78.
+  below), and, since T-674, the lines of the SSH client's log (`Log`):
+  `podssh ssh`, a tunnel's session (`-N -L`, `-N -R`) and the connection
+  of each other command. Its error lines go at 3, and its warnings at 4:
+  a remote forward that the server refused (`-R`, also by `~C`), a channel
+  of agent or X11 forwarding that the server opened unasked, and the
+  warnings of the settings (an agent that is not there, a
+  `ServerAliveInterval` that the relay's idle cut would pass). OpenSSH has
+  no level of warnings, and shows its "Warning:" lines at INFO; podssh
+  shows them there too, so `-q` and `-o LogLevel=ERROR` hide them and send
+  nothing, and only their copy says more. "Warning: Permanently added"
+  stays at `info`: it tells of a host key recorded as asked, which is no
+  fault. A log in a file (`-E LOGFILE`) sends nothing: the user named where
+  its lines go, and the stream has none of them. The socket binds nothing
+  and does not block, and a send that fails is dropped, never an exit
+  code: a unit stops for good on 64 and 78.
   This is no outbound connection (rule 2 of `AGENTS.md`) and no helper,
   as the copy reaches the service that each line of the stream reaches,
   on the host (the call of Q86). `-y` stays refused: this is not syslog,

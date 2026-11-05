@@ -151,9 +151,11 @@ impl Client {
     async fn unasked(&self, kind: &str, reply: ChannelOpenHandle) {
         match kind {
             "auth-agent@openssh.com" => {
-                self.log.info("Warning: the server tried agent forwarding, which podssh did not ask for; refused.")
+                self.log.warning("Warning: the server tried agent forwarding, which podssh did not ask for; refused.")
             }
-            "x11" => self.log.info("Warning: the server tried X11 forwarding, which podssh did not ask for; refused."),
+            "x11" => {
+                self.log.warning("Warning: the server tried X11 forwarding, which podssh did not ask for; refused.")
+            }
             _ => self.log.verbose(&format!("refused a {kind} channel that the server opened unasked")),
         }
         reply.reject(ChannelOpenFailure::AdministrativelyProhibited).await;

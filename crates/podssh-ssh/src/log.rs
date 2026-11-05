@@ -1,6 +1,10 @@
 //! What podssh says about itself, on stderr or appended to a file (`-E`), by
 //! level. `-q` (`LogLevel QUIET`) silences everything, errors included, as it
 //! does in OpenSSH: the exit status still says what happened.
+//!
+//! A line on stderr is also given to the binary's copy, with its priority
+//! (T-674): a service's journal files each line of its stream at `info`, and
+//! the copy is what `journalctl -p warning` finds.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -8,6 +12,22 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use crate::options::LogLevel;
+
+/// The priority of a line at `level`, in syslog's numbers, which a service's
+/// journal files it by: fatal 2 (crit), error 3 (err), quiet and info 6
+/// (info), verbose and the debug levels 7 (debug).
+pub fn priority(level: LogLevel) -> u8 {
+    match level {
+        LogLevel::Fatal => 2,
+        LogLevel::Error => 3,
+        LogLevel::Quiet | LogLevel::Info => 6,
+        LogLevel::Verbose | LogLevel::Debug1 | LogLevel::Debug2 | LogLevel::Debug3 => 7,
+    }
+}
+
+/// A warning's priority (syslog's `warning`): shown at INFO, as OpenSSH
+/// shows one, and filed above the other lines of INFO (T-674).
+pub const WARNING: u8 = 4;
 
 pub struct Log {
     level: LogLevel,
@@ -49,6 +69,13 @@ impl Log {
         self.at(LogLevel::Error, message);
     }
 
+    /// Something that the user asked for and did not get, or that the server
+    /// did unasked: shown at INFO, as OpenSSH shows its "Warning:" lines
+    /// (`-q` and `-o LogLevel=ERROR` hide it), and copied at [`WARNING`].
+    pub fn warning(&self, message: &str) {
+        self.said(LogLevel::Info, WARNING, message);
+    }
+
     pub fn info(&self, message: &str) {
         self.at(LogLevel::Info, message);
     }
@@ -71,6 +98,11 @@ impl Log {
     }
 
     fn at(&self, level: LogLevel, message: &str) {
+        self.said(level, priority(level), message);
+    }
+
+    /// `message`, shown at `level` and copied at `priority`.
+    fn said(&self, level: LogLevel, priority: u8, message: &str) {
         if self.level >= level {
             // A fact of the process, said once before the first line at -v
             // (T-564): a notice of the default level keeps its place first.
@@ -78,6 +110,7 @@ impl Log {
                 self.say_once();
             }
             self.write(message, true);
+            self.copy(priority, message);
             // A hint of the binary's after an error that it explains.
             self.hint(level, message);
         } else if level == LogLevel::Error && crate::said::on() {
@@ -159,7 +192,32 @@ pub fn hint_errors(hint: fn(&str) -> Option<String>) {
     let _ = HINT.set(hint);
 }
 
+/// Where each line that a log put on stderr is copied, with its priority:
+/// the binary's journal, where stderr is the journal's stream (T-674).
+static COPY: std::sync::OnceLock<fn(u8, &str)> = std::sync::OnceLock::new();
+
+/// Give each line that a log puts on stderr to `copy`, with its priority
+/// and as stderr has it, `podssh: ` and a host's prefix first, with no line
+/// break at its end; the first call holds.
+pub fn copy_lines(copy: fn(u8, &str)) {
+    let _ = COPY.set(copy);
+}
+
 impl Log {
+    /// The copy of a line that went to stderr. A log in a file (`-E`) copies
+    /// nothing: the user named where its lines go, and the stream has none
+    /// of them.
+    fn copy(&self, priority: u8, message: &str) {
+        if self.file.is_some() {
+            return;
+        }
+        if let Some(to) = COPY.get() {
+            // As stderr has it, but for CR LF of a raw terminal.
+            let text = host_text(message, true, self.prefix.as_deref(), false);
+            to(priority, text.strip_suffix('\n').unwrap_or(text.as_str()));
+        }
+    }
+
     fn say_once(&self) {
         if self.level < LogLevel::Verbose {
             return;
@@ -176,6 +234,12 @@ impl Log {
         }
         if let Some(hint) = HINT.get().and_then(|hint| hint(message)) {
             self.write(&hint, true);
+            // The remedy beside its error, in a read by priority too.
+            self.copy(priority(level), &hint);
         }
     }
 }
+
+#[cfg(test)]
+#[path = "log_tests.rs"]
+mod tests;
