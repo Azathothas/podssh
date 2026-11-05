@@ -3975,7 +3975,7 @@ Waits: a run against the live relay and an exit with a public egress, from a run
 **Category:** feature
 **Milestone:** M10
 **Priority:** P3
-**Effort:** S
+**Effort:** M
 **Status:** open
 
 ## Problem
@@ -4006,6 +4006,22 @@ cargo test -p podssh-cli --test exit
 
 A node of the quick tunnel's stand-in edge with `--exit` carries a session to a target of the
 range that its `--routes` names, for a member; a private address of no range is refused.
+
+## Correction
+
+2026-11-05 (the session). Read before a merge of the WIP branch `draft/wip-459` (`b5f9a50`, untested;
+it lifts the refusal and serves an exit's routes behind the tunnel, `node_quick.rs`):
+
+- No test runs the CLI's quick tunnel node against a stand-in edge: `crates/podssh-cli/tests/`
+  checks its refusals with no connection (`node_quick_relay.rs`, `cloudflare_cli.rs`), and the node
+  is measured live in `quick-tunnel-live.yml`. The stand-in edge is podssh-relay's
+  (`crates/podssh-relay/tests/quick_harness/mod.rs`), which runs a handler in the process and no
+  net's channel. The Prove's test is a harness first: a CLI test that starts the node against the
+  stand-in edge, or a test of podssh-relay that runs `Routed` with an exit's routes and a member's
+  channel behind it.
+- The Approach's item 2, `podssh ssh --exit NAME` and `podssh exit` to a `cf://HOST` of the node, is
+  not in the WIP: an exit's client names its node by the pair's roads alone.
+- So the effort is M, not S, and the WIP stays unmerged until both are written.
 
 # T-530: OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road
 
