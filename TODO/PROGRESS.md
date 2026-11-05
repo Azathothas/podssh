@@ -250,7 +250,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 634 entries: 100 open, 10 partial, 3 blocked, 521 done.
+`TODO/INDEX.md` holds 636 entries: 102 open, 10 partial, 3 blocked, 521 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -290,7 +290,7 @@ operator and the parked ones.
 P1 defect, is in it); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first; its iroh and DERP rows),
 T-662 (a copy through a shaped link; the SSH client's flow control and liveness in round trips are done), T-670, T-665,
-T-666 and their follow-ups T-678 and T-679 (compression's figures, the rate on a lossy link, QUIC to the relay role and a node's upgrade in place are done); then GitHub #127 to #148 (`TODO/issues.md`) by
+T-666, their follow-ups T-678 and T-679, and what the netem run found, T-680 and T-681 (compression's figures, the rate on a lossy link, QUIC to the relay role and a node's upgrade in place are done); then GitHub #127 to #148 (`TODO/issues.md`) by
 their priority, beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
 
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in

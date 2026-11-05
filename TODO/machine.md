@@ -1652,20 +1652,96 @@ goes into the step summary, and the loopback is put back by the matrix and again
 `scripts/feel_osewa.py`; each file stays under 500 lines, and the default run through the proxy is
 the run that it was. `docs/development.md` ("What a user feels") tells both ways.
 
-- The workflow's first run: UNVERIFIED (its run, its exit, and how long it took).
-- netem on the runner's kernel, as `sudo modprobe sch_netem` or after `linux-modules-extra`:
-  UNVERIFIED. The loopback's offloads off (the lines of `ethtool` in `netem.json`): UNVERIFIED; where
-  they stay on, TCP's GSO packets pass netem whole. Whether osewa's QUIC sends GSO batches, which
-  netem queues and loses whole: UNVERIFIED.
-- sshd as the runner's user rather than root (the runs through the proxy were as root):
-  UNVERIFIED.
-- osewa's server in the scratch directory, its login through the harness's ssh, and its
-  `version` saying `osewa 0.1.0 (...)`: UNVERIFIED.
-- The figures, p50 of the echo beside the download (idle in brackets) and of a cold connect, for
-  each road on each link of netem: UNVERIFIED for OpenSSH, `--direct`, `osewa-quic` and `osewa-ws`
-  on far, cellular, wifi and slow, and with no shape. Against the fake links' figures of the same
-  build (the matrix with `--links proxy`), the gap of each cell: UNVERIFIED; the lossy links'
-  download while typing is expected faster through the fake links, which do not halve a sender's
-  window. Against osewa's own lab (138 ms cellular and 44 ms Wi-Fi over QUIC, 73 ms cellular over
-  its WebSocket): UNVERIFIED. `docs/STATUS.md`'s row of T-660 gets them with the command at the
-  merge.
+- Merged on 2026-11-05 (`cbaa806`), and its first run passed: `feel-netem.yml` run 41961591548 on
+  `ubuntu-24.04`, `v1.1.0-beta.3` checked against its `SHA256SUMS`, osewa 0.1.0 checked against its
+  pins, `--runs 3`, each cell exit 0. The p50 of the echo beside a 60 MiB download (the idle echo is
+  the link's round trip), and of a cold connect:
+
+  | Link | OpenSSH | podssh `--direct` | osewa over QUIC | osewa over WebSocket |
+  | --- | --- | --- | --- | --- |
+  | far, 120 ms, 50 Mbit/s | 340.6 ms; connect 1,641 ms | 120.5 ms; 1,147 ms | 183.5 ms; 369 ms | 155.5 ms; 727 ms |
+  | cellular, 60 ms, 10 Mbit/s | 1,681.5 ms; 925 ms | 119.7 ms; 609 ms | 131.5 ms; 193 ms | 72.1 ms; 369 ms |
+  | wifi, 20 ms | 346.0 ms; 442 ms | 131.1 ms; 247 ms | 87.8 ms; 70 ms | 90.7 ms; 127 ms |
+  | slow, 100 ms, 1 Mbit/s, 1% loss | 7,025.2 ms; 1,460 ms | 565.3 ms; 1,315 ms | 329.8 ms; 370 ms | 161.2 ms; 1,046 ms |
+
+  The download while typing on the far link: OpenSSH 5.7 MiB/s, podssh 3.1, osewa 5.6 and 5.5 (T-670).
+- So, through real netem: podssh's echo beside a download is 3 to 14 times nearer the idle echo than
+  OpenSSH's, and the far link's is the idle echo, under osewa's; on the cellular, wifi and slow links
+  osewa's is 1.5 to 3.5 times nearer the idle echo than podssh's, and its cold connect takes 3 to 4
+  times fewer milliseconds on the long links (osewa's client keeps its server's session, and its
+  connect is its own protocol's). The gaps are T-670 (the download while typing), T-680 (the cold
+  connect on a long path) and T-681 (the echo beside a download on cellular, wifi and the slow
+  link). The fake links of the loopback, the same build: cellular 122 ms by `--direct`, OpenSSH
+  1,629 ms.
+
+# T-680: A cold connect on a long path takes nine round trips, where osewa's takes three
+
+**Source:** T-660's run of `feel-netem.yml`, 2026-11-05.
+**Category:** measurement
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Through netem on a runner, a cold connect and its command by `podssh ssh --direct` took 1,147 ms on a
+path of 120 ms (about nine round trips) and 1,315 ms on the slow link; osewa's took 369 ms and 370 ms,
+and OpenSSH's 1,641 and 1,460 ms.
+
+## Premise
+
+- T-660's Done gives the run (`feel-netem.yml` run 41961591548) and its table.
+
+## Approach
+
+1. Count the round trips of a cold connect on the far link, step by step (TCP, the banner, the key
+   exchange, the service request, the authentication, the channel, the command), from the run's raw
+   files, against the loopback's fake link of the same shape.
+2. Each round trip that podssh can save without a change of the protocol, as T-664 saved two; what
+   osewa does in its own protocol (a session kept with its server) is podssh's resumable layer and
+   `podssh session`, so the entry says which of podssh's ways gives a connect of osewa's kind.
+
+## Prove
+
+```sh
+gh workflow run feel-netem.yml -f tag=TAG
+```
+
+A cold connect on the far link in fewer round trips than before, with its count.
+
+# T-681: The echo beside a download on cellular, wifi and the slow link is 1.5 to 3.5 times osewa's
+
+**Source:** T-660's run of `feel-netem.yml`, 2026-11-05.
+**Category:** measurement
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Through netem, a key's echo beside a download (p50) by `--direct`: cellular 119.7 ms (idle 60.8),
+wifi 131.1 ms (idle 20.7), slow 565.3 ms (idle 102.2); osewa over its WebSocket 72.1, 90.7 and 161.2
+ms. On the far link podssh's is the idle echo, under osewa's. The fake links read podssh's near
+netem's on cellular (122 ms), not on the slow one, where a loss halves a real sender's window.
+
+## Premise
+
+- T-660's Done gives the run and its table.
+
+## Approach
+
+1. Read the run's raw files per key: where each key's echo waited (the window, the drain, the
+   socket's 16 KiB unsent, netem's queue).
+2. Make the fake links of `scripts/fake_shape.py` halve a sender's window at a loss, so that the
+   loopback's matrix reads the slow link as netem does.
+3. Tune the pace (T-661, T-670, T-673) against the run, and measure again.
+
+## Prove
+
+```sh
+gh workflow run feel-netem.yml -f tag=TAG
+```
+
+The echo beside a download on each of the three links nearer the idle echo than this run's.

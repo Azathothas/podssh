@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**634 entries: 100 open, 10 partial, 3 blocked, 521 done.**
+**636 entries: 102 open, 10 partial, 3 blocked, 521 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 248 | 277 |
-| P3 | 75 | 4 | 3 | 207 | 289 |
-| **All** | 100 | 10 | 3 | 521 | 634 |
+| P3 | 77 | 4 | 3 | 207 | 291 |
+| **All** | 102 | 10 | 3 | 521 | 636 |
 
 ## Entries
 
@@ -710,3 +710,5 @@ repository and CI).
 | [T-677](relay.md) | P2 | S | M10 | defect | done | A role with some 200 pairs or more does not start again: its file of pairs is read as a file of the cache |
 | [T-678](reverse.md) | P3 | M | M10 | feature | open | A node on Windows ends its sessions at its upgrade: no handover of its sockets and its state |
 | [T-679](reverse.md) | P3 | M | M10 | feature | open | A node of the iroh, DERP, quick tunnel, Piping Server or OpenTunnel road ends its sessions at its upgrade |
+| [T-680](machine.md) | P3 | M | M10 | measurement | open | A cold connect on a long path takes nine round trips, where osewa's takes three |
+| [T-681](machine.md) | P3 | M | M10 | measurement | open | The echo beside a download on cellular, wifi and the slow link is 1.5 to 3.5 times osewa's |

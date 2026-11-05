@@ -80,3 +80,20 @@ repository. [osewa-code.md](osewa-code.md) (section 6) and [osewa-paper.md](osew
 osewa runs no public server, so Q99's live test has no target. The measurement's last step runs
 osewa's release binary on a GitHub Actions runner, beside podssh and OpenSSH on the loopback with
 `tc netem`, as a reference and never as a road.
+
+**Measured on 2026-11-05** (`feel-netem.yml` run 41961591548, `ubuntu-24.04`, podssh
+`v1.1.0-beta.3`, osewa 0.1.0, `tc netem` on the loopback): the p50 of a key's echo beside a 60 MiB
+download, against the idle echo of each link (its round trip):
+
+| Link | OpenSSH | podssh `--direct` | osewa (QUIC) | osewa (WebSocket) |
+| --- | --- | --- | --- | --- |
+| far, 120 ms | 340.6 ms | 120.5 ms | 183.5 ms | 155.5 ms |
+| cellular, 60 ms | 1,681.5 ms | 119.7 ms | 131.5 ms | 72.1 ms |
+| wifi, 20 ms | 346.0 ms | 131.1 ms | 87.8 ms | 90.7 ms |
+| slow, 100 ms, 1% loss | 7,025.2 ms | 565.3 ms | 329.8 ms | 161.2 ms |
+
+The honest reading: podssh's echo is 3 to 14 times nearer the idle echo than OpenSSH's on every
+link, and on the far link it is the idle echo, under osewa's; on cellular, wifi and the slow link
+osewa is ahead, 1.5 to 3.5 times (T-681). osewa's cold connect is 3 to 4 times faster on the long
+links (369 ms against podssh's 1,147 ms on the far link; T-680), and its download while typing on the
+far link 5.6 MiB/s against podssh's 3.1 (T-670). T-660's Done has the whole table.
