@@ -162,7 +162,7 @@ step_lint() {
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-tor --features podssh-cli/tor -- -D warnings
 }
 
-# The feature `blocking` of podssh-relay (the facade for podbox, T-081) brings
+# The feature `blocking` of podssh-relay (the facade for podvm, T-081) brings
 # `pair` and the runners of the reverse road.
 step_libs() {
     # shellcheck disable=SC2086  # $LIBS is a list of flags
@@ -258,7 +258,7 @@ rust_version() {
     esac
 }
 
-# The workspace's version (podbox's minimum, T-081), for the library crates
+# The workspace's version (podvm's minimum, T-081), for the library crates
 # and podssh-todo.
 step_msrv() {
     rust_version Cargo.toml

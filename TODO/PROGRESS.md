@@ -34,6 +34,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      T-180, T-434, T-459).
   6. **Two lessons of the night** (each in the paragraph of the drafts below): never commit while
      `scripts/plant-each.sh` runs; when the disk fills, remove `target/` whole.
+  7. **The move (2026-11-05, morning):** the repository goes to PodUtils/podssh and the shared
+     crates to PodUtils/podcrates (`docs/decisions.md`). T-683 (P1) comes before the transfer: a
+     bridge release that each released binary accepts; T-684 waits for Q101, the list of crates
+     agreed with podnet's session. podbox is podvm.
 
 - **The record.** The work is in `TODO/` since 2026-10-08 (T-204). Each open
   item of `docs/ROADMAP.md`, each row of the former defects page, each
@@ -257,7 +261,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 637 entries: 96 open, 10 partial, 3 blocked, 528 done.
+`TODO/INDEX.md` holds 639 entries: 96 open, 10 partial, 4 blocked, 529 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -297,7 +301,7 @@ operator and the parked ones.
 P1 defect, is in it); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first; its iroh and DERP rows),
 T-662 (a copy through a shaped link; the SSH client's flow control and liveness in round trips are done), T-670, T-665,
-T-666, their follow-ups T-678 and T-679, and what the netem run found, T-680 and T-681 (compression's figures, the rate on a lossy link, QUIC to the relay role and a node's upgrade in place are done); then GitHub #127 to #148 (`TODO/issues.md`) by
+T-666, their follow-up T-678, and what the netem run found, T-680 and T-681 (compression's figures, the rate on a lossy link, QUIC to the relay role and a node's upgrade in place on each road but Windows are done); then GitHub #127 to #148 (`TODO/issues.md`) by
 their priority, beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
 
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
@@ -410,6 +414,36 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 (Q90: T-574's built-in nodes, T-612, T-613 and T-614); four more live test targets (Q91: T-463,
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
+
+**Q101 (2026-11-05): the crates of PodUtils/podcrates, agreed with podnet's session.** The operator
+moves podssh to PodUtils/podssh (T-683) and puts the shared crates in PodUtils/podcrates (T-684);
+podnet's session and this one agreed one list on 2026-11-05 (podnet's operator ruled that podnet's
+WARP and Cloudflare adapters move there, and that podnet copies no podssh code). Recommendation:
+accept it as written.
+
+- Crates of podcrates (each name answered 404 at crates.io's index on 2026-11-05): `pod-todo`,
+  `pod-testkit`, `pod-tls`, `pod-dns`, `pod-proxy`, `pod-ws`, `pod-identity`, `pod-term`,
+  `pod-netstack`, `pod-wg`, `pod-relay`, `pod-relay-serve`, `pod-session`, `pod-e2e`,
+  `pod-wormhole`, `pod-transit`, `pod-warp`, `pod-cloudflare`, `pod-derp`, `pod-acme`, `pod-egress`,
+  `pod-iroh`, `pod-ts`, `pod-tor`, `pod-piping`, `pod-opentunnel`.
+- Names held, no crate: `pod-wireguard`, `pod-quick`, `pod-udp`, `pod-mailbox`, `pod-reverse`,
+  `podcrates`, `podutils`, `pod-utils`.
+- Waves: 1, `pod-todo`, `pod-tls`, `pod-dns`, `pod-proxy`, `pod-ws`, `pod-identity`, `pod-term`, and
+  `pod-testkit` with the russh harness; 2, `pod-netstack`, `pod-wg`, `pod-relay`, `pod-session`,
+  `pod-e2e`; 3, `pod-warp` (with the stand-in edge into `pod-testkit`), `pod-cloudflare`,
+  `pod-wormhole`, `pod-transit`; 4, `pod-relay-serve`, `pod-derp`, `pod-acme`, `pod-egress`,
+  `pod-iroh`, `pod-ts` (with the headscale harness), `pod-tor`, `pod-piping`, `pod-opentunnel`.
+- The rules of each crate: no C, no `podssh-ws` type; the binary passes a rustls
+  `CryptoProvider` and a dialer; podssh's pure-Rust provider and the RSA verifier (rsa 0.9) behind
+  a feature of `pod-tls`; crates.io only, no git source; `pod-relay` keeps the `blocking` facade for
+  podvm, and the library crates Rust 1.89 (`pod-netstack` and `pod-warp` 1.91, smoltcp 0.14's);
+  each name of the wire a parameter that podssh passes as released, and a test of a released
+  podssh binary against the crates, both ways.
+- Who builds: a new session in PodUtils/podcrates, fed by both repositories; neither podssh's
+  session nor podnet's edits podcrates.
+- podssh keeps: `podssh-cli`, `podssh-ssh` (it takes the patched russh and ssh-key), the IRC of
+  `podssh-core`, `podssh-probe`. podnet keeps its CLI, `podnet-core`, `podnet-netns`,
+  `podnet-vnet` and `podnet-serve`. Blocks T-684.
 
 **For the operator to confirm (Q86), from the triage of GitHub #127 to #148 and the study of osewa
 (2026-11-04)**; each call is in its entry's `## Decision`, and the work goes on with it:
@@ -634,7 +668,7 @@ After the release:
 
 - A run of T-004 and T-005 in a real sandbox, with the brief of
   `scripts/sandbox-check.sh`.
-- Pinning the facade of `podssh-relay` in podbox (T-081, T-085).
+- Pinning the facade of `podssh-relay` in podvm, formerly podbox (T-081, T-085).
 
 As the operator of the default relay, at any time and with no entry waiting: the notes of
 `docs/relay-operator.md`, each of which podssh's own relay role does since Q63 (2026-11-02).

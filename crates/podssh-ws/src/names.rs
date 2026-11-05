@@ -67,7 +67,7 @@ pub fn check_direct_target(host: &str) -> Result<(), String> {
 /// The name of a reverse pair, in `/v1/node/<name>` and `/v1/connect/<name>`:
 /// 1 to 128 bytes of letters, digits, `.`, `-` and `_`, not starting with
 /// `-` or `.` (so never `.` or `..`). The contract gives no form for a pair
-/// name; this is podbox's rule, which works against the live relay.
+/// name; this is podvm's rule, which works against the live relay.
 pub fn check_node_name(name: &str) -> Result<(), String> {
     if name.is_empty() {
         return Err("the pair name is empty".into());

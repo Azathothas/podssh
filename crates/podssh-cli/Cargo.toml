@@ -61,7 +61,7 @@ podssh-ws = { path = "../podssh-ws" }
 x509-parser = { version = "0.18", default-features = false }
 # The trait of podssh-ws's signature checks, for that bundle.
 rustls = { workspace = true }
-# Relay hosts and failover, tokens, forward sessions (C-free, shared with podbox).
+# Relay hosts and failover, tokens, forward sessions (C-free, shared with podvm).
 # `derp`: the DERP road of `podssh node --derp` and `podssh ssh derp:` (T-379),
 # pure Rust, in each build, as the operator's ruling Q50 makes it a fallback.
 # `piping`: the Piping Server road of `podssh node` and `podssh ssh node://`

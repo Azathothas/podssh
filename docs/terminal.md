@@ -2,7 +2,7 @@
 
 This page tells how `podssh ssh` uses the local terminal, and when podssh
 must supply the line discipline itself. Some rules come from two sibling
-projects that face the same hosts, podbox and sandhome. Their file names on
+projects that face the same hosts, podvm and sandhome. Their file names on
 this page are in those repositories.
 
 ## Select a mode
@@ -13,7 +13,7 @@ Three inputs select what happens to the keys:
 2. Are podssh's own stdin and stdout terminals?
 3. Does the remote side run a line discipline of its own?
 
-The third input is necessary. The server of podbox never grants a pty, but it
+The third input is necessary. The server of podvm never grants a pty, but it
 echoes, edits and handles Ctrl-C under `ForceCommand`. A local echo there
 shows each key two times.
 
@@ -171,7 +171,7 @@ measurements that the comparison asked for.
 
 ## When podssh supplies the line discipline
 
-These byte rules come from podbox (`crates/podbox-ssh/src/session.rs`):
+These byte rules come from podvm (`crates/podbox-ssh/src/session.rs`):
 
 - DEL and BS erase to the left. Ctrl-U erases the line, Ctrl-W a word.
   Ctrl-A and Ctrl-E go to the start and the end. Up and down recall the
@@ -206,7 +206,7 @@ These byte rules come from podbox (`crates/podbox-ssh/src/session.rs`):
   Ctrl-D and the arrows act on whole characters, and the arrows write
   `ESC [ n D` or `ESC [ n C` for a step of n cells. The line and the history
   keep the bytes as typed; the cap drops a character whole, never half of it.
-- A shell on a pipe prints no prompt and keeps no history. Thus podbox
+- A shell on a pipe prints no prompt and keeps no history. Thus podvm
   prints a static `$ ` and keeps the history itself.
 
 Parse each escape sequence as a whole:
@@ -570,7 +570,7 @@ ends (T-307).
 
 Linux test hosts grant ptys, so a test must force the paths with no pty:
 `sshd -o PermitTTY=no`, a server that never answers `pty-req`, and runs with
-no local terminal. Include a shell-only server like podbox's, which refuses
+no local terminal. Include a shell-only server like podvm's, which refuses
 `exec` and has no sftp subsystem.
 
 The terminal oracle (T-200) judges what a terminal shows, not the bytes. A

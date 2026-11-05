@@ -3,11 +3,14 @@
 //! `--ca-file` gives, an SSH server for the node's TARGET, `podssh node
 //! --iroh` with an allowlist, and `podssh ssh iroh:TICKET`. The client is
 //! refused and says its key; once that key is in the allowlist, with no new
-//! start of the node, the same command logs in and runs.
+//! start of the node, the same command logs in and runs. A session goes on
+//! across the node's upgrade in place, as the node opens its endpoint again
+//! under the same key (T-679, `upgrade_support`).
 #![cfg(feature = "iroh-test")]
 
 mod cleanup;
 mod ssh_harness;
+mod upgrade_support;
 // A TLS stand-in of the test's own CA, for a relay that refuses (T-348).
 #[path = "update_support/mod.rs"]
 mod update_support;
@@ -242,6 +245,97 @@ fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
     let node_key_hex = key_after(&node_line, ", the node iroh:");
     assert_eq!(node_key_hex.len(), 64, "the node says its name in the known hosts: {node_line}");
     assert!(recorded.contains(&format!("iroh:{node_key_hex}")), "the host key is under the node's key: {recorded}");
+    drop(relay);
+}
+
+/// A session over the iroh road goes on across the node's upgrade in place
+/// (T-679): SIGUSR2 at a quarter of 16 MiB down, and the node, the same
+/// process, becomes its binary again (the test's own) with the session; it
+/// opens its endpoint again under the same key, so the node that the ticket
+/// names stays, and the client resumes on it, its bytes whole.
+#[cfg(unix)]
+#[test]
+fn a_session_over_the_iroh_road_goes_on_across_the_node_s_upgrade() {
+    const DOWN: u64 = 16 << 20;
+    let home = scratch("upgrade");
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
+    let relay = runtime.block_on(podssh_iroh::test_relay::spawn(&home)).expect("a relay on the loopback");
+    let host_key = home.join("host_key");
+    let host_key_text = host_key.to_string_lossy().into_owned();
+    let (rc, _, err) = run(&home, &["keygen", "-q", "-t", "ed25519", "-N", "", "-f", &host_key_text]);
+    assert_eq!(rc, 0, "{err}");
+    let port = runtime.block_on(ssh_harness::start(&host_key));
+    let (cert, url) = (relay.cert.to_string_lossy().into_owned(), relay.url.to_string());
+    // The client's key, made now, in the node's allowlist from its start.
+    let client_key = home.join("client.key");
+    let place = podssh_relay::identity::file::Place::File(client_key.clone());
+    let made = podssh_relay::identity::file::load(&place, &mut podssh_relay::session::OsEntropy).expect("a key");
+    let allow = home.join("allow");
+    std::fs::write(&allow, format!("{} the test's client\n", made.identity.public().fingerprint())).unwrap();
+    let (allow, client_key) = (allow.to_string_lossy().into_owned(), client_key.to_string_lossy().into_owned());
+    let node_key = home.join("node.key").to_string_lossy().into_owned();
+    let target = format!("127.0.0.1:{port}");
+    let node_args = [
+        "node",
+        "lab",
+        &target,
+        "--iroh",
+        "--iroh-relay",
+        &url,
+        "--ca-file",
+        &cert,
+        "--iroh-allow",
+        &allow,
+        "--iroh-key",
+        &node_key,
+    ];
+    let mut child = command(&home, &node_args).stdin(Stdio::null()).stderr(Stdio::piped()).spawn().expect("the node");
+    let (pid, lines) = (child.id(), lines_of(&mut child));
+    let node = Node(child);
+    let started = wait_for(&lines, "ticket iroh:");
+    let ticket_line = line_with(&started, "ticket iroh:");
+    let ticket = ticket_line[ticket_line.find("iroh:").unwrap()..].trim().to_string();
+    let name = key_after(line_with(&started, ": key "), ", the node iroh:");
+
+    let known = home.join("known_hosts").to_string_lossy().into_owned();
+    let (destination, source) = (format!("tester@{ticket}"), format!("source {DOWN}"));
+    let known = format!("UserKnownHostsFile={known}");
+    let ssh = [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-o",
+        &known,
+        "--ca-file",
+        &cert,
+        "--iroh-relay",
+        &url,
+        "--iroh-key",
+        &client_key,
+        &destination,
+        &source,
+    ];
+    let mut client = command(&home, &ssh)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the client");
+    let came = upgrade_support::across(&mut client, DOWN, Duration::from_secs(180), || {
+        upgrade_support::ask(pid);
+        let went = wait_for(&lines, "sessions go to");
+        assert!(line_with(&went, "sessions go to").contains("1 of 1 sessions go to"), "{went:#?}");
+        let took = wait_for(&lines, "sessions over from");
+        assert!(line_with(&took, "sessions over from").contains("took 1 of 1 sessions over"), "{took:#?}");
+        let again = wait_for(&lines, "ticket iroh:");
+        assert_eq!(key_after(line_with(&again, ": key "), ", the node iroh:"), name, "the same node: {again:#?}");
+    });
+    assert_eq!(came.code, Some(0), "{}", came.err);
+    assert_eq!(came.total, DOWN, "{}", came.err);
+    assert!(upgrade_support::runs(pid), "the node runs on in its own process");
+    drop(node);
     drop(relay);
 }
 

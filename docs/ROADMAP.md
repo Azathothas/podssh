@@ -145,18 +145,18 @@ podssh. M3 has no release: the one release is `v1.0.0`, in M9
 - [x] `podssh ssh` and `podssh proxy` work from the operator's real sandbox,
       also when one relay host cannot be reached (T-001).
 
-## M4: `podssh-relay`, the reverse road, and podbox
+## M4: `podssh-relay`, the reverse road, and podvm
 
 - Add to the C-free crate `podssh-relay` ([design.md](design.md), section
   1): pairing (`pair`, `stop`, `status`), the reverse node and operator
-  runners, and a blocking facade for podbox: T-078, T-079, T-080, T-081.
-  Port the runners from podbox, which works live, and move the codecs of
+  runners, and a blocking facade for podvm: T-078, T-079, T-080, T-081.
+  Port the runners from podvm, which works live, and move the codecs of
   `podssh-transport` into them (T-082): one writer, `ready` before data,
   late bytes dropped, a limited queue before `ready`, actions for each close
   code, liveness, jittered backoff. First repair the defects of
   `podssh-transport` that these runners use: T-071, T-072, T-073, T-075,
   T-076 (and T-074, T-077). The rules so far: [reverse.md](reverse.md).
-- `podssh-ws`: a `rustls::ClientConfig` that the caller supplies (podbox
+- `podssh-ws`: a `rustls::ClientConfig` that the caller supplies (podvm
   keeps `ring` and TLS 1.2 for intercepting proxies), plain `ws://` on
   loopback for tests, typed session errors, and `PrintChain` out of the
   library, in an example, rather than behind a feature: T-066, T-068,
@@ -169,7 +169,7 @@ podssh. M3 has no release: the one release is `v1.0.0`, in M9
 
 - Two sessions at the same time through the live relay, from a sandbox whose
   only egress is a CONNECT proxy, to a node in another such sandbox.
-- The blocking facade for podbox passes a test with two clients here. podbox
+- The blocking facade for podvm passes a test with two clients here. podvm
   pins it later, as an operator action ([decisions.md](decisions.md)).
 
 ## M5: `podssh serve`, into the cage

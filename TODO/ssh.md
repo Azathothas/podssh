@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:742`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:743`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -2990,7 +2990,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
    that podssh could not read, then russh's words; a connection lost while the forwards were asked
    for names russh's cause, as a lost session does (the reading of T-464).
 5. The patch offered to russh upstream. That is the operator's to send, as no session changes
-   another repository (`docs/decisions.md:74` says "no session changes another repository"); the
+   another repository (`docs/decisions.md:76` says "no session changes another repository"); the
    copy goes once a release of russh reads such replies.
 6. `docs/cli.md` (the keepalive, and `-R`'s refusal), `docs/STATUS.md`.
 

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**637 entries: 96 open, 10 partial, 3 blocked, 528 done.**
+**639 entries: 96 open, 10 partial, 4 blocked, 529 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 2 | 0 | 65 | 67 |
-| P2 | 25 | 4 | 0 | 249 | 278 |
-| P3 | 71 | 4 | 3 | 213 | 291 |
-| **All** | 96 | 10 | 3 | 528 | 637 |
+| P1 | 1 | 2 | 0 | 65 | 68 |
+| P2 | 25 | 4 | 1 | 249 | 279 |
+| P3 | 70 | 4 | 3 | 214 | 291 |
+| **All** | 96 | 10 | 4 | 529 | 639 |
 
 ## Entries
 
@@ -709,7 +709,9 @@ repository and CI).
 | [T-676](roads.md) | P2 | S | M10 | defect | done | A WARP test inherits an earlier test's memory of a re-terminated TLS at a reused port |
 | [T-677](relay.md) | P2 | S | M10 | defect | done | A role with some 200 pairs or more does not start again: its file of pairs is read as a file of the cache |
 | [T-678](reverse.md) | P3 | M | M10 | feature | open | A node on Windows ends its sessions at its upgrade: no handover of its sockets and its state |
-| [T-679](reverse.md) | P3 | M | M10 | feature | open | A node of the iroh, DERP, quick tunnel, Piping Server or OpenTunnel road ends its sessions at its upgrade |
+| [T-679](reverse.md) | P3 | M | M10 | feature | done | A node of the iroh, DERP, quick tunnel, Piping Server or OpenTunnel road ends its sessions at its upgrade |
 | [T-680](machine.md) | P3 | M | M10 | measurement | open | A cold connect on a long path takes nine round trips, where osewa's takes three |
 | [T-681](machine.md) | P3 | M | M10 | measurement | open | The echo beside a download on cellular, wifi and the slow link is 1.5 to 3.5 times osewa's |
 | [T-682](resume.md) | P2 | M | M10 | defect | open | M6's check of a stall of 3 minutes on the iroh road hung after its resume, once in CI |
+| [T-683](repo.md) | P1 | M | M10 | defect | open | The move to PodUtils/podssh: each released binary refuses a release that PodUtils/podssh's workflow signs |
+| [T-684](repo.md) | P2 | L | M10 | feature | blocked | podcrates: the crates that podssh, podnet and podvm share, in PodUtils/podcrates |

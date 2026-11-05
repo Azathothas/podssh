@@ -1,7 +1,7 @@
 //! `GET /health` on one relay host (T-058), over the same proxy-aware,
 //! verified path as a session: the relay's version, the edge that answered,
 //! and how the connection went. `podssh doctor` and `podssh relay status`
-//! read a host the same way, and so can podbox.
+//! read a host the same way, and so can podvm.
 
 use std::time::{Duration, Instant};
 

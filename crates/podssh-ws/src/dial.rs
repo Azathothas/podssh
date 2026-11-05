@@ -103,7 +103,7 @@ pub fn proxy_from_env(target_host: &str) -> Result<Option<Proxy>, String> {
 /// [`proxy_from_env`] with the variables supplied by the caller. Lower-case
 /// names win over upper-case ones, as in curl; an empty value counts as unset.
 /// A loopback target never goes through a proxy (as in Go's net/http): the
-/// proxy's loopback is not this host's, and podbox measured a proxy answering
+/// proxy's loopback is not this host's, and podvm measured a proxy answering
 /// 405 to `CONNECT 127.0.0.1`. A name pinned to loopback addresses only is
 /// such a target too (T-318).
 pub fn proxy_from_vars(target_host: &str, var: impl Fn(&str) -> Option<String>) -> Result<Option<Proxy>, String> {

@@ -1,5 +1,5 @@
 //! A WebSocket session over plain TCP to the loopback, for tests only
-//! (feature `plain-ws`, T-068): the tests of an embedder (podbox) and a
+//! (feature `plain-ws`, T-068): the tests of an embedder (podvm) and a
 //! stand-in relay then need no CA. A token over plain TCP must not leave the
 //! host, so a host that is not the loopback is refused before any
 //! connection, each address that a name resolves to must be the loopback

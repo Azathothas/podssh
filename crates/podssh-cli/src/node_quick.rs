@@ -22,6 +22,14 @@
 //! In a build with the iroh road, the node's record of pkarr names the
 //! tunnel, at n0's server unless `PODSSH_IROH_PKARR` names another or `off`
 //! (Q81), for a client with the node's key alone (T-445, `node_record`).
+//! At SIGUSR2 it hands its sessions to the binary that takes its place, as
+//! the pair's road's node does (T-679, `node_upgrade`), and its tunnel with
+//! them (`kept_tunnel`): the new binary registers the same name again. A
+//! node with `--relay` takes no upgrade in place, as the role's tokens and
+//! pairs live in its process.
+
+#[path = "node_quick_kept.rs"]
+mod kept_tunnel;
 
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -89,7 +97,15 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     };
     // A run of --restart beats from this runtime, while it polls (T-394).
     crate::detach::beat::keep(runtime.handle());
-    let code = runtime.block_on(Box::pin(serve_quick(ready, err)));
+    let mut code = runtime.block_on(Box::pin(serve_quick(ready, err)));
+    // An upgrade whose binary did not start, or a tunnel of the binary before
+    // this one that the edge refused: the node serves again (T-679).
+    while code == crate::node_upgrade::AGAIN {
+        code = match prepare(args) {
+            Ok(ready) => runtime.block_on(Box::pin(serve_quick(ready, err))),
+            Err(refusal) => refusal.report("node", err),
+        };
+    }
     runtime.shutdown_background();
     code
 }
@@ -137,7 +153,8 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     crate::node_quick_relay::precheck(args, &door)?;
     crate::pairs::online()?;
     let record = crate::node_record::named()?;
-    let key = crate::channel::load_node_key(&place)?;
+    // One for this run only stays across an upgrade in place (T-679).
+    let key = crate::node_upgrade::parts::node_key(&place)?;
     // After the key: the net's `relay:NAME` names the node by it (T-455).
     let relay = crate::node_quick_relay::role(args, &label, &door, key.identity.public())?;
     Ok(Ready { label, targets, key, door, sshd: args.sshd, warp: args.warp, relay, record })
@@ -199,22 +216,37 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     if let Some(relay) = &relay {
         relay.keep_lists(&label);
     }
-    tokio::spawn(async move {
-        crate::node::stop_signal().await;
+    crate::node_upgrade::lines(say.clone());
+    let stopper = tokio::spawn(async move {
+        // With the role behind the tunnel, Ctrl-C alone: the role's tokens
+        // and pairs live in this process, so it takes no upgrade (T-679).
+        match role.is_none() {
+            true => crate::node_upgrade::stop().await,
+            false => crate::node::stop_signal().await,
+        }
         if let Some(cfg) = role {
             let _ = cfg.pairs.restart(crate::relay_serve::STOP_WAIT).await;
         }
         let _ = stop.send(true);
     });
     // The API is asked again for minutes after a refusal for now (T-401):
-    // Ctrl-C ends the wait, with nothing made to undo.
+    // Ctrl-C ends the wait, with nothing made to undo. The tunnel of the
+    // binary before this one needs no request: its name stays (T-679).
     let (trust, mut until) = (crate::pairs::trust(None), stopped.clone());
-    let asked = tokio::select! {
-        asked = api::request(&trust, &proxy, &*say) => asked,
-        _ = until.wait_for(|stop| *stop) => {
-            say("stopped".into());
-            return 0;
-        }
+    let handed = kept_tunnel::of_the_run();
+    let from_before = handed.is_some();
+    let asked = match handed {
+        Some(tunnel) => Ok(tunnel),
+        None => tokio::select! {
+            asked = api::request(&trust, &proxy, &*say) => asked,
+            _ = until.wait_for(|stop| *stop) => {
+                return crate::node_upgrade::or_finish(|| {
+                    say("stopped".into());
+                    0
+                })
+                .await;
+            }
+        },
     };
     let tunnel = match asked {
         Ok(tunnel) => tunnel,
@@ -226,6 +258,8 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
             return Refusal { message: why, code: Fault::RelayUnreachable.code() }.report("node", err)
         }
     };
+    // For the binary after an upgrade, which registers it again (T-679).
+    kept_tunnel::keep(&tunnel);
     let url = format!("https://{}", tunnel.hostname);
     let serving = match &target {
         Some(target) => format!("serving {target} at {url}, a quick tunnel, {}", crate::node_flags::layer_mode()),
@@ -252,7 +286,10 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
             let channel = channel_of(&label, key, door, err);
             let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
             let (settings, budget) = (crate::layered::settings().off_the_pair(), reverse::layered::NODE_BUDGET);
-            Some(Arc::new(Layered::new(E2e::new(tcp, channel), settings, budget)))
+            // The upgrade's keeper: the sessions of the binary before this
+            // one, and those that go to the next (T-679).
+            let keeper = crate::node_upgrade::channel_keeper(&channel, settings.resume_deadline);
+            Some(Arc::new(Layered::with_keeper(E2e::new(tcp, channel), settings, budget, keeper)))
         }
         None => None,
     };
@@ -290,9 +327,23 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     let keep = Keep { connector, visit, roads, say: say.clone(), ready, connections: CONNECTIONS };
     let kept = keep::keep(keep, stopped).await;
     let message = match kept {
+        // An upgrade's handover ends this binary; else the stop's line.
         Ok(()) => {
-            say("stopped".into());
-            return 0;
+            return crate::node_upgrade::or_finish(|| {
+                say("stopped".into());
+                0
+            })
+            .await
+        }
+        // The edge no longer takes the tunnel of the binary before this one:
+        // a new tunnel, under a new name, which the clients of the sessions
+        // that came over do not hold (T-679).
+        Err(Gone::Refused(message)) if from_before => {
+            // The next start listens for the stop itself.
+            stopper.abort();
+            kept_tunnel::forget();
+            say(format!("{message}; the tunnel of {url} is gone, so the node asks for a new one, under a new name"));
+            return crate::node_upgrade::AGAIN;
         }
         Err(Gone::Refused(message)) => return Refusal { message, code: Fault::Auth.code() }.report("node", err),
         // A host whose egress never reaches the edge cannot publish.

@@ -1,0 +1,8 @@
+# T-679: the handover's bytes leave the parts of the run out, so the binary
+# after an upgrade gets no key for the run and no quick tunnel, and makes new
+# ones, which the clients of its sessions do not know; the test of the parts
+# after the sessions must fail.
+ENTRY=T-679
+GROUP=cli-tests
+EXPECT='test node_upgrade::state::tests::the_parts_of_the_run_come_back_after_the_sessions \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- node_upgrade::state::tests::the_parts_of_the_run_come_back_after_the_sessions'

@@ -1924,7 +1924,7 @@ The premise of two writers is not whole. `Log` writes to the file of `-E`
 in place of stderr when it is given (`crates/podssh-ssh/src/log.rs:123-143`),
 and `podssh node`, `operator`, `chat`, `pipe` and `agent` write their lines
 while they serve with `eprintln!`, which is neither writer
-(`crates/podssh-cli/src/node.rs:334`). The report keeps what goes through
+(`crates/podssh-cli/src/node.rs:335`). The report keeps what goes through
 the two writers, the file of `-E` too; the lines of `eprintln!` are not
 kept, and `docs/cli.md` says so.
 

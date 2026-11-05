@@ -1,8 +1,8 @@
 # Design: the finished podssh
 
 This page gives the design of the finished podssh, and why. It answers five
-questions of the operator: can the core be a library for podbox; can podssh
-replace podbox, sandssh and dropssh on the most constrained hosts; how
+questions of the operator: can the core be a library for podvm; can podssh
+replace podvm, sandssh and dropssh on the most constrained hosts; how
 reliable must it be; can it replace socat or tailcat; and is iroh useful.
 [ROADMAP.md](ROADMAP.md) gives the order of the work.
 [decisions.md](decisions.md) gives what the operator decided.
@@ -529,13 +529,13 @@ it, where one does.
 | A new name does not resolve for a few seconds after the tunnel is made: curl said "Could not resolve host" twice, then got 200 seconds later; through a CONNECT proxy, the proxy answered 502 ("the name did not resolve"), and the name resolved about two minutes later | #48 (the report and a comment) | 2026-10-31, 2026-11-01 | None. T-299's two runs of cloudflared reached the page at the 4th and the 2nd try, 12 and 7 s after the start (above) |
 | A request whose body is over 512 MiB gets 413 "Payload Too Large" from the edge, before cfrs's own check of the size: an upload of 536,870,913 bytes got it after 1,212,064 bytes were sent, its first byte 0.081 s after the start | #58 | 2026-11-01 | None: a visitor's WebSocket carries no request body after its upgrade (INFERRED: the limit is of a request's body) |
 
-## 3. The core as a library for podbox
+## 3. The core as a library for podvm
 
-podbox is the container runtime that podssh grew out of (HEAD `452d792`). It
+podvm (named podbox until 2026-11-05) is the container runtime that podssh grew out of (HEAD `452d792`). It
 needs the reverse legs of the relay: a node in the sandbox registers at
 `/v1/node/NAME`, and an operator outside connects to it.
 
-Facts about podbox (READ):
+Facts about podvm (READ):
 
 - Its own implementation of the reverse legs works live: two sessions at
   the same time over the live relay (2026-09-28).
@@ -554,7 +554,7 @@ TLS with RSA, the DNS fallbacks, the WebSocket upgrade with typed errors that
 keep the relay's status and reason, and `RelaySession`, which keeps text and
 binary frames apart as the reverse protocol needs.
 
-The facade for podbox (`podssh_relay::blocking`, feature `blocking`, T-081)
+The facade for podvm (`podssh_relay::blocking`, feature `blocking`, T-081)
 is a `Client` that owns a tokio runtime on the current thread and blocks on
 it; no tokio type is in its API. It makes, asks about and stops pairs; runs
 a node whose handler opens each session as a `std::io` reader and writer;
@@ -563,12 +563,12 @@ and output; and opens a forward session as a `Read + Write` stream. Two
 threads carry each session, so a blocking read stalls no other session. A
 call from a thread that runs a tokio runtime is refused, and nothing panics.
 Its offline tests run against a stand-in relay over plain `ws://` (feature
-`plain-ws`), as podbox's can. The library crates declare Rust 1.89, the
+`plain-ws`), as podvm's can. The library crates declare Rust 1.89, the
 minimum of their dependencies: by the operator's ruling of Q48
 (2026-10-31), no older minimum of an embedder holds a dependency back, so
-podbox builds them with Rust 1.89 or later. The gate checks them on it.
+podvm builds them with Rust 1.89 or later. The gate checks them on it.
 
-**What podbox needs (milestone M4), and what of it exists:**
+**What podvm needs (milestone M4), and what of it exists:**
 
 ```
 podssh-relay
@@ -582,14 +582,14 @@ podssh-relay
                                                    [feature blocking: T-081]
 ```
 
-- `podssh-ws`: a `rustls::ClientConfig` that the caller supplies (so podbox
+- `podssh-ws`: a `rustls::ClientConfig` that the caller supplies (so podvm
   can keep `ring` and TLS 1.2; `Trust::caller`, T-066), plain `ws://` on
   loopback for tests (feature `plain-ws`, T-068), typed session errors
   (`SessionError`, T-069), and no verifier that accepts each certificate
   (T-065 moved `PrintChain` to an example).
 - `podssh-transport` moved into `podssh-relay`, and its unused backpressure
   module went (T-082, 2026-10-09).
-- podbox then pins `podssh-relay` by git revision and removes its own
+- podvm then pins `podssh-relay` by git revision and removes its own
   `ws.rs`, `tls.rs`, its direct dial and its pairing through curl.
 
 ## 4. Constrained hosts, and the sibling projects
@@ -1067,7 +1067,10 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   the records may change between the two builds; a version of the handover's
   own bytes guards it, and a binary that reads another version is never
   asked. A session that cannot move waits as an ended one, and its resume
-  hears `CLOSE` with why. osewa's sessions outlive a restart of its server
+  hears `CLOSE` with why. Each road of a node takes it (T-679): the road's
+  own connection is made again by the new binary as the same, and what that
+  needs of the run (a key for the run only, a quick tunnel's name) passes
+  beside the sessions. osewa's sessions outlive a restart of its server
   as a process for each session does (`docs/research/osewa-paper.md`, G8);
   here the target's connection itself, an sshd's too, survives
   ([reverse.md](reverse.md), "A node's upgrade in place").

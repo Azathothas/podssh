@@ -35,7 +35,7 @@
 //!
 //! ## What was transcribed, and what was not
 //!
-//! **The echo discipline is a transcription, not an invention.** podbox ships
+//! **The echo discipline is a transcription, not an invention.** podvm ships
 //! this exact discipline server-side and its byte rules are pinned by ~40 named
 //! tests — **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:1`. Every
 //! constant here cites the line it came from, and every refusal is in the

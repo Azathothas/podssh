@@ -1,5 +1,5 @@
 //! A synchronous facade over this crate, for a caller with no async runtime
-//! (podbox, T-081; `docs/design.md`, section 3). A [`Client`] owns one tokio
+//! (podvm, T-081; `docs/design.md`, section 3). A [`Client`] owns one tokio
 //! runtime on the current thread and blocks on it in each call; no tokio type
 //! is in this API.
 //!

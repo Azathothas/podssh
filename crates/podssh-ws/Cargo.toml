@@ -64,7 +64,7 @@ libc = { workspace = true }
 
 [features]
 # A plain WebSocket over TCP to the loopback, for the tests of an embedder
-# (podbox) and a stand-in relay (T-068). Off by default; the binary never
+# (podvm) and a stand-in relay (T-068). Off by default; the binary never
 # enables it, and the gate checks that with `cargo tree`.
 plain-ws = []
 

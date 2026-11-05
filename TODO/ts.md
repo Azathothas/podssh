@@ -51,7 +51,7 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs`, lines 288-320 at
    a later send must not panic.
 3. With no `--timeout` (a terminal), limit the first map wait by `--ts-wait-allowlist`, else by a
    named constant of 20 s, "a design constant, not a measurement", as at
-   `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:92`).
+   `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:94`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
    (`vendor/tailscale-rs/src/lib.rs:308-312`). Keep one message and exit 78 for "no map in time".
 5. Correct the two comments, and update `docs/STATUS.md`, line 307 at `7aa955a` in the same commit.
@@ -82,7 +82,7 @@ The new file crates/podssh-ts/tests/netmap_wait.rs gives the limit a future that
 wait. Plant: await with no limit; an outer `tokio::time::timeout` must then fail the test. An
 offline test cannot reach the fork's queue: with a silent control server, the start itself waits
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:136-158`). The second command is the feature
-suite (226 passed, `docs/STATUS.md:830`). The third is live, with a `ts` build, while no map comes
+suite (226 passed, `docs/STATUS.md:831`). The third is live, with a `ts` build, while no map comes
 (`docs/tailscale.md:10-11`): it must print `exit=78` after about 20 s, not `exit=124`.
 
 ## Correction
@@ -90,7 +90,7 @@ suite (226 passed, `docs/STATUS.md:830`). The third is live, with a `ts` build, 
 2026-10-10: the claim of step 2 holds. A reply that the fork sends after a wait gave up goes
 nowhere: kameo 0.21.1's `ReplySender::send` discards the result of its send (`let _ =
 self.tx.send(...)`, in `src/reply.rs` of the crate). The count of the feature suite is now
-424 passed, 0 failed, 24 ignored before this entry (`docs/STATUS.md:830` said 226 at T-060). The
+424 passed, 0 failed, 24 ignored before this entry (`docs/STATUS.md:831` said 226 at T-060). The
 live command needs a tailnet auth key file, and no document names one: the key is in `.env/`,
 which a session may not read. Which file a session may pass to `--ts-auth-key-file` is the
 operator's question Q40 (`TODO/PROGRESS.md`).
@@ -156,7 +156,7 @@ The relay closes a half-closed forward session after 15 s with no bytes from the
    stream. Name the 15 s as a constant: the value of the relay's rule.
 3. Report exact counts in both directions (`crates/podssh-ts/src/pipe.rs`, lines 34-49 at `1ee321d`). A closed stdout is
    a clean end with exit 0 (`crates/podssh-cli/src/ts.rs`, lines 391-408 at `1ee321d`).
-4. Rewrite the two tests, and update `docs/STATUS.md:815` in the same commit.
+4. Rewrite the two tests, and update `docs/STATUS.md:816` in the same commit.
 
 ## Decision
 
@@ -232,7 +232,7 @@ Read, at `c17e64f`: `probe` returns `Ok` for `Tcp` and `Relay` when `has_key` is
 (`crates/podssh-ts/src/chain.rs` lines 44-61), which `podssh ts` always sets
 (`crates/podssh-cli/src/ts.rs` line 136). The first ready mode of `tcp`, `relay` wins
 (`crates/podssh-ts/src/chain.rs` lines 63-76), and a test asserts it (`crates/podssh-ts/tests/chain.rs`
-lines 26-31). The decided chain is tun, socks, tcp, relay (`docs/decisions.md:92`), and the rule is to probe
+lines 26-31). The decided chain is tun, socks, tcp, relay (`docs/decisions.md:94`), and the rule is to probe
 before use (`docs/target-environment.md:116-118`).
 
 Read, at `c17e64f`: `ephemeral` goes into the register request (`crates/podssh-ts/src/node.rs` line
@@ -254,7 +254,7 @@ current node key (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
    it at the end of each form, also after an error (`crates/podssh-cli/src/ts.rs`, lines 232-242 at
    `c17e64f`). Never
    log out a node that is not ephemeral: its allowlist entry is lost (`docs/tailscale.md:143-144`).
-4. Update `docs/tailscale.md` and `docs/STATUS.md:815` in the same commit.
+4. Update `docs/tailscale.md` and `docs/STATUS.md:816` in the same commit.
 
 ## Decision
 
@@ -400,7 +400,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:222-237`), so apply `NO_PROXY` for each host in
    the new function.
 4. Update `crates/podssh-cli/src/flags.rs:362-363`, `docs/tailscale.md:145-146` and
-   `docs/STATUS.md:815` in the same commit.
+   `docs/STATUS.md:816` in the same commit.
 
 Added by T-102 (2026-10-10): the checks of each mode before the start already take `--ts-proxy`,
 else the environment's proxy (`crates/podssh-cli/src/ts/probe.rs`); give the fork the same choice.
@@ -543,13 +543,13 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:387-389`)
 2. Wait with podssh's backoff, passed in `RuntimeOptions`; count from 1 after a link of 60 s. With
    a pin, each region dials the relay with one key (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:333-340`):
    two sockets must not replace each other for ever (`crates/podssh-ts/src/classify.rs:3-6`).
-3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:92`);
+3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:94`);
    it goes to the state of T-105. The inactivity close of a region that is not home is no error
    (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:404-409`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:815` and `crates/podssh-cli/src/man/notes.rs:400-432`.
+   `docs/tailscale.md`, `docs/STATUS.md:816` and `crates/podssh-cli/src/man/notes.rs:400-432`.
 
 ## Decision
 
@@ -688,7 +688,7 @@ the relay. So a refused node can still print a status line and exit 0. This wide
    first, and `relay` mode prints a status line only with a connected home region.
 4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs`, lines 314-326 at `d345b14`),
    and remove the old comment at `crates/podssh-cli/src/ts.rs`, lines 332-335 at `d345b14`.
-5. Add the patch and its row, and update `docs/tailscale.md`, lines 12-14 at `d345b14` and `docs/STATUS.md:815`.
+5. Add the patch and its row, and update `docs/tailscale.md`, lines 12-14 at `d345b14` and `docs/STATUS.md:816`.
 
 Added by T-104 (2026-10-10): step 1 is done, in patch 0019: `WsIo` puts a typed `WsClose { code,
 reason }` in its `io::Error`, and `ts_derp::Error::ws_close` finds it, with a unit test of the close
@@ -800,7 +800,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    same port. The pipe must go on, and stderr must show the drop and the new connection.
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
-6. Record each result with its date in `docs/STATUS.md:161`, `docs/tailscale.md:8-24` and
+6. Record each result with its date in `docs/STATUS.md:162`, `docs/tailscale.md:8-24` and
    `crates/podssh-cli/src/man/notes.rs:400-432`.
 
 ## Prove

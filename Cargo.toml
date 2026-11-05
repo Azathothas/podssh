@@ -65,7 +65,7 @@ repository = "https://github.com/Azathothas/podssh"
 #
 # podssh-ws, podssh-relay, podssh-core, podssh-terminal and podssh-probe
 # must build with `CC=/nonexistent` and `CXX=/nonexistent` (the `cc` crate
-# reads CXX for C++), so other projects (podbox) can use them
+# reads CXX for C++), so other projects (podvm) can use them
 # anywhere a Rust toolchain exists. `scripts/gate.sh` enforces it and
 # `scripts/plant.sh` proves the check fires.
 #

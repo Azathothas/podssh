@@ -1,6 +1,6 @@
 //! The blocking facade (T-081) against a stand-in relay on the loopback, over
 //! plain `ws://` (feature `plain-ws`). Each test is a plain `#[test]`, with no
-//! runtime of its own, as podbox calls the facade. The stand-in writes
+//! runtime of its own, as podvm calls the facade. The stand-in writes
 //! WebSocket frames as the live relay did (`scripts/capture-reverse.py`).
 #![cfg(all(feature = "blocking", feature = "plain-ws"))]
 

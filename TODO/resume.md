@@ -779,7 +779,7 @@ no `GREETING`, and that the default node greets.
 as they are, with no resumable layer: the node's handler is then the TCP
 handler alone, which dials TARGET at `open`
 (`crates/podssh-cli/src/node.rs`, lines 152-163 at `8e31960`). The node's first line names its
-mode (`crates/podssh-cli/src/node.rs:334`). `--plain` with `--iroh` is
+mode (`crates/podssh-cli/src/node.rs:335`). `--plain` with `--iroh` is
 refused with 64 (`crates/podssh-cli/src/node_flags.rs:106-108`, moved from `node.rs` by T-531): the iroh road
 always runs the layer. The flag's row, the manual's note of `node`,
 `docs/reverse.md` and `docs/cli.md`.
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:1389-1409`; the two
+sandbox, before a default depends on it); `docs/design.md:1392-1412`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:1389-1409`). A session carries 64 MiB at most, both directions
+(`docs/design.md:1392-1412`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:475`).
 
 ## Approach
@@ -2390,7 +2390,7 @@ session 10 minutes after its link was lost. A session of Mosh waits.
   `docs/design.md:888-898`). T-153's Decision kept a deadline, as a node in a cage would keep
   connections for clients that never come back.
 - Read: a node keeps 64 MiB of replay buffers at most, a whole buffer for each session that it
-  keeps (`docs/design.md:1076-1079`); a pair expires after 72 h at most
+  keeps (`docs/design.md:1079-1082`); a pair expires after 72 h at most
   (`docs/design.md:1000-1002`).
 - Read: the client measures the deadline with `Instant`
   (`crates/podssh-relay/src/session/resume.rs:332`). Not verified: whether `Instant` counts the
@@ -3824,7 +3824,7 @@ Read at `2042200`:
   own: the peer's later bytes are not asked for.
 - Sessions of the layer with no channel above it: the relay role's road for a standard sshd
   (`crates/podssh-relay/src/serve/layer.rs:1-8`), which `proxy` and `ssh` take unasked for a relay
-  host that the user named and that offers it (Q96, `docs/decisions.md:16`); and a node's sessions with
+  host that the user named and that offers it (Q96, `docs/decisions.md:18`); and a node's sessions with
   `--no-e2e` (`crates/podssh-cli/src/flags/node.rs:139`).
 - The plain forward road keeps a half-close: `crates/podssh-relay/src/serve/forward.rs:280-283` shuts
   the target's writing side at the client's Close and goes on, as the default relay does

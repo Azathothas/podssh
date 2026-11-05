@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_iroh.rs
++++ b/crates/podssh-cli/src/node_iroh.rs
+@@ -202,7 +202,7 @@
+     let serving = format!("serving {target}");
+     let roads = Roads { verb: "node", serving, after: " until Ctrl-C", handler, open, routes };
+     // Ctrl-C, or an upgrade, whose handover ends this binary (T-679).
+-    let code = serve(ready, roads, crate::node_upgrade::stop(), err).await;
++    let code = serve(ready, roads, crate::node::stop_signal(), err).await;
+     crate::node_upgrade::or_finish(|| code).await
+ }
+

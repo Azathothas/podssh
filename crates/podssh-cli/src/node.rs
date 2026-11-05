@@ -205,9 +205,10 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     pairs::online()?;
     crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
     let trust = pairs::trust(args.ca_file.as_deref());
-    // The key is made only once the node goes online.
+    // The key is made only once the node goes online; one for this run only
+    // stays across an upgrade in place (T-679).
     let key = match place {
-        Some(place) => Some(crate::channel::load_node_key(&place)?),
+        Some(place) => Some(upgrade::parts::node_key(&place)?),
         None => None,
     };
     // An exit says its net, or why it cannot be one, before it connects (T-431).

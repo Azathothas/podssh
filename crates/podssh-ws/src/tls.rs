@@ -9,7 +9,7 @@
 //! would be a bypass someone sets in a hurry.
 //!
 //! A library that embeds podssh can bring its own `rustls::ClientConfig`
-//! instead ([`Trust::caller`]): podbox keeps `ring` and TLS 1.2 for proxies
+//! instead ([`Trust::caller`]): podvm keeps `ring` and TLS 1.2 for proxies
 //! that intercept TLS. Its verifier is then the caller's, which podssh cannot
 //! check; podssh's binary never takes that form, and a test keeps it out.
 

@@ -7,7 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
-# A library other projects (podbox) use, so it stays C-free: the gate builds
+# A library other projects (podvm) use, so it stays C-free: the gate builds
 # it with CC=/nonexistent with the other library crates.
 [dependencies]
 podssh-ws = { path = "../podssh-ws" }
@@ -73,7 +73,7 @@ crypto_secretbox = { version = "0.1", default-features = false, features = ["all
 # T-080). No C either; the gate builds it.
 pair = []
 # A synchronous facade over pairs, the runners and forward sessions, for a
-# caller with no async runtime (podbox, T-081). No C either; the gate builds it.
+# caller with no async runtime (podvm, T-081). No C either; the gate builds it.
 blocking = ["pair"]
 # A quick tunnel that podssh serves itself (T-300): HTTP/2 to the edge, and
 # QUIC where UDP reaches it (T-301). No C either; the gate builds it.

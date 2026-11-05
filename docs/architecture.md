@@ -188,7 +188,7 @@ new connection, and leaves the name alone for 5 minutes (`strict` sends
 none). A proxy is still given the name in its CONNECT.
 
 A library that embeds `podssh-ws` or `podssh-relay` can bring its own
-`rustls::ClientConfig` (`Trust::caller`, T-066): podbox keeps `ring` and
+`rustls::ClientConfig` (`Trust::caller`, T-066): podvm keeps `ring` and
 TLS 1.2 for proxies that intercept TLS. It is used as it is, for each
 connection and each HTTPS request, and refused when it offers ALPN, because
 the upgrade is HTTP/1.1 only. Its verifier is the caller's, which podssh
@@ -247,7 +247,7 @@ bytes. See [reverse.md](reverse.md).
 | --- | --- | --- |
 | `podssh-cli` | The `podssh` binary: arguments, `--help`, the generated man page, dispatch, the `proxy` pump, the options of `ssh`, `doctor`, `keygen` | each crate below (`podssh-ts` only with the feature `ts`, `podssh-iroh` only with the feature `iroh`) |
 | `podssh-ssh` | The SSH client: russh (aws-lc-rs) over a byte stream, the relay stream, `known_hosts`, the authentication chain, prompts, the terminal (raw mode, size, escapes), exit codes, a host-key probe, key generation | `podssh-ws` |
-| `podssh-relay` | Relay hosts, the pool and failover, tokens (mint, cache, mint again), the forward opener; the pairs, the codecs (the framing of the node and operator legs, the control messages, the close table) and the runners of the reverse road (feature `pair`); the resumable layer between two podssh ends (`session/`: its records, offsets and handshake, sans-IO, and its two ends over tokio streams); UDP in a stream (`udp/`, T-168: each datagram after its length, and the flow at the far end, a UDP socket connected to the target); the blocking facade for podbox (feature `blocking`). No C. | `podssh-ws` |
+| `podssh-relay` | Relay hosts, the pool and failover, tokens (mint, cache, mint again), the forward opener; the pairs, the codecs (the framing of the node and operator legs, the control messages, the close table) and the runners of the reverse road (feature `pair`); the resumable layer between two podssh ends (`session/`: its records, offsets and handshake, sans-IO, and its two ends over tokio streams); UDP in a stream (`udp/`, T-168: each datagram after its length, and the flow at the far end, a UDP socket connected to the target); the blocking facade for podvm (feature `blocking`). No C. | `podssh-ws` |
 | `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with podssh's own pure-Rust provider), the WebSocket client | none |
 | `podssh-core` | Protocol state machines with no I/O: `irc/` | none |
 | `podssh-terminal` | A line discipline in the process, for `podssh serve` with no pty (not used yet, T-111); the grammar of a terminal's output and its ring, which `podssh session` reads | none |

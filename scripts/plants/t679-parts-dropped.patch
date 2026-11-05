@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_upgrade/state.rs
++++ b/crates/podssh-cli/src/node_upgrade/state.rs
+@@ -66,7 +66,7 @@
+     }
+     // A run with no part writes the bytes of before, which a binary of T-668
+     // alone reads too.
+-    if !parts.is_empty() {
++    if parts.len() > MAX_PARTS as usize {
+         put.u32(parts.len() as u32);
+         for part in parts {
+             put.text(&part.name);

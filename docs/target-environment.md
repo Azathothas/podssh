@@ -34,7 +34,7 @@ the box against the report before it measures podssh. See
 
 ## Other hosts of the same kind
 
-- **No user database.** podbox issue #114 describes a host that ran as uid
+- **No user database.** podvm issue #114 describes a host that ran as uid
   966 with no `/etc/passwd` entry. There, `/state/home` was writable but did
   not run programs, `/tmp` and `/workspace` did, and namespaces, `mount`,
   `chroot` and `ptrace` were refused. In a sandssh sandbox with no passwd

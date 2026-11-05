@@ -2,7 +2,7 @@
 //!
 //! **Three facts choose the mode, and the absence of a pty is not one of
 //! them.** A pty below the session, or a line discipline below it (as in
-//! podbox's server), already echoes and edits; a second echo here shows each
+//! podvm's server), already echoes and edits; a second echo here shows each
 //! key twice. So the discipline runs only when the caller selected it and
 //! nothing below echoes: `podssh serve` with no `/dev/ptmx` selects it
 //! (T-111), and a client flag may later. **A missing pty alone never selects
@@ -55,7 +55,7 @@ use crate::window::Size;
 pub struct Facts {
     /// A pty is below: a kernel pty, or a tty that podssh answers for.
     pub pty_below: bool,
-    /// A line discipline with no pty is below, as in podbox's server.
+    /// A line discipline with no pty is below, as in podvm's server.
     pub discipline_below: bool,
     /// The caller selected this discipline: `podssh serve` with no
     /// `/dev/ptmx`, or a flag.

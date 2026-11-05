@@ -275,7 +275,7 @@ fn a_proxy_reason_phrase_cannot_carry_terminal_controls() {
 
 /// A loopback target never goes through the proxy: the proxy's loopback is
 /// not this host's (a proxy answered 405 to `CONNECT 127.0.0.1`, measured by
-/// podbox). Anything else still does.
+/// podvm). Anything else still does.
 #[test]
 fn loopback_targets_bypass_the_proxy() {
     let vars = |name: &str| (name == "https_proxy").then(|| "http://proxy.example:3128".to_string());

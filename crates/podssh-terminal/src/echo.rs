@@ -1,6 +1,6 @@
 //! The line under edit: the byte rules, transcribed.
 //!
-//! **This module is a transcription.** podbox ships this exact discipline
+//! **This module is a transcription.** podvm ships this exact discipline
 //! server-side — **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:1` —
 //! and its bytes are pinned by ~40 named tests, so re-deriving them would only
 //! produce a second thing to be wrong. Each constant and each byte rule below
