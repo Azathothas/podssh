@@ -341,7 +341,7 @@ async fn pair_by_key(role: &Role, seed: u8) -> (u16, String) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_key_past_its_share_hears_its_own_words_and_each_other_key_still_pairs() {
     let list = Keys::of(&[1, 2, 3]);
-    let role = Role::with_pairs(Mint::Keys(list.path.clone()), Pairs::default().with_room(6)).await;
+    let role = Role::with_pairs(Mint::Keys(list.path.clone().into()), Pairs::default().with_room(6)).await;
     let mut made = 0;
     let (status, body) = loop {
         let (status, body) = pair_by_key(&role, 1).await;

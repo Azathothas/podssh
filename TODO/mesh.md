@@ -3433,10 +3433,10 @@ The draft's calls, 2026-11-02:
    each socket of both roads, which needs a token or a pair that the brake let through and is
    checked with a MAC or a digest and no state. Lost: a brake of the upgrades with no token, as
    the default relay counts them: the role's refusal of one costs less than the count.
-4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:274`), never a
+4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:434`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:193`),
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:194`),
    with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:53`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
@@ -3491,7 +3491,7 @@ name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:206`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:207`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 

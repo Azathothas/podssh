@@ -3940,7 +3940,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
-  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:273-274`),
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:277-278`),
   `1.0.0-beta.2` today (`Cargo.toml:52`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
@@ -6212,7 +6212,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:180`).
+  port 443 answers (`docs/STATUS.md:181`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not

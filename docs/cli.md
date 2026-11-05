@@ -3478,6 +3478,16 @@ commands. The rules behind them:
   that is no whole number in its bounds, is a usage error (64)
   ([relay.md](relay.md), "What each key carried, and its budget for a
   day").
+- **`relay serve --mint keys:https://URL` (T-646).** The list of keys may
+  be a URL's, for a role whose image has no writable volume: fetched through
+  the host's proxy with the trust of `--ca-file`, before the role takes a
+  connection (a fetch that fails stops the start, 78), then each
+  `--list-ttl SECONDS` (300); a copy older than that and `--list-stale
+  SECONDS` (3600) lets no key mint. An `http://` URL, and `--list-ttl` or
+  `--list-stale` with no list of a URL, are usage errors (64); each line
+  names the URL by its host alone. `node --quick-tunnel --relay --mint
+  keys:https://URL` takes it too ([relay.md](relay.md), "A list of keys at
+  a URL").
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
   systemd when `systemctl --user` answers, else a LaunchAgent when

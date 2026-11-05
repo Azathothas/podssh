@@ -1,5 +1,6 @@
-//! The tests of `relay serve`'s own parts, apart from it so that each file
-//! stays within 500 lines.
+//! The tests of `podssh relay serve`'s own steps: the drop of the
+//! capabilities after the bind (T-629), and the ranges of `--routes`
+//! (T-635). Apart from `relay_serve.rs`, so that it stays within 500 lines.
 
 use super::*;
 
@@ -43,4 +44,21 @@ fn the_routes_are_read_strictly_and_never_beside_allow_private() {
     assert!(wide.message.starts_with("--routes 10.0.0.5/8: ") && wide.message.contains("10.0.0.0/8"), "{wide}");
     let both = routes_of(Some("10.4.0.9"), true).unwrap_err();
     assert!(both.code == crate::exit_codes::EXIT_USAGE && both.message.contains("--allow-private"), "{both}");
+}
+
+// T-646: the words of `--mint`, a list of a URL among them, and the words
+// of the first line for a list whose copy has not come.
+#[test]
+fn a_list_of_a_url_is_a_word_of_mint_and_its_first_words_need_no_copy() {
+    let lists = keys_url::Lists::default();
+    let url = mint_of("keys:https://keys.example/owners", None, &lists).unwrap();
+    assert!(matches!(&url, Mint::Keys(list) if list.fetched().is_some()), "{url:?}");
+    assert_eq!(minting_for(&url).unwrap(), "the keys of the list at https://keys.example/...");
+    assert!(matches!(mint_of("keys:owners", None, &lists).unwrap(), Mint::Keys(List::File(_))));
+    let refused = mint_of("keys:http://keys.example/owners", None, &lists).unwrap_err();
+    assert_eq!(refused.code, crate::exit_codes::EXIT_USAGE, "{refused}");
+    let wrong = mint_of("some", None, &lists).unwrap_err();
+    assert!(wrong.message.ends_with("where FILE may be an https:// URL"), "{wrong}");
+    // No copy, no fetch: a list of a file needs none either.
+    assert_eq!(keys_url::first(&Mint::Anyone), Ok(String::new()));
 }

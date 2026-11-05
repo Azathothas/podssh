@@ -212,7 +212,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #141 | Protocol version negotiation on the reverse road and the channel | open | T-643 (a net offer answered plainly is T-429's design for an end outside the net or of before: said, not refused) |
 | #142 | `relay serve`: an SSH client shares the listener by its first bytes | open | T-644 (the listener decides by the first byte already, T-326: an SSH client meets the cleartext road, not TLS) |
 | #143 | `ws-listen:` answers a keyless upgrade, as WebTunnel's client sends it | closed 2026-11-04 (`240447e`), its entry done | T-645 |
-| #144 | `relay serve --mint keys:` from an `https://` URL | open | T-646 (`--mint net` is the signed way that exists) |
+| #144 | `relay serve --mint keys:` from an `https://` URL | closed 2026-11-05, its entry done | T-646 (`--mint net` is the signed way that exists) |
 | #145 | A pair halted without its end, its node's socket kept | closed 2026-11-04 (`8caa6f0`), its entry done | T-647 (a planned stop already keeps the node, by `1012`, T-255) |
 | #146 | A node socket's data queue is one line for all its sessions | closed 2026-11-04 (`4ae2284`), its entry done | T-648 (the role's own socket in the same change) |
 | #147 | `relay serve` routes a published name by its ClientHello, TLS at the node | open | T-649 (the listener moved to `podssh-relay`; funnel at the edge is T-180) |

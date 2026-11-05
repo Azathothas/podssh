@@ -200,8 +200,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   On 2026-11-05 a tenth round is drafted, unbuilt, one commit for each entry, each branch pushed
   as `draft/worktree-agent-*`: T-631 and T-674 (`68687d5`, merged: T-631 parked until T-124, T-674
-  done), T-667 (`249f01f`, merged), T-636 (`034dc65`, merged), T-637 (`18b641c`, merged), T-641 (`dfa734e`, merged), and still to merge: T-646
-  (`worktree-agent-ad7f7f02cd6f984d5`, `d69b76f`), T-668
+  done), T-667 (`249f01f`, merged), T-636 (`034dc65`, merged), T-637 (`18b641c`, merged), T-641 (`dfa734e`, merged), T-646 (`d69b76f`, merged), and still to merge: T-668
   (`worktree-agent-a4bbc842962dedde7`, `8a39501`), and T-660's run of `tc netem` with osewa
   (`worktree-agent-t660-netem`, `cf91fcd`).
   A merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
@@ -252,7 +251,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 632 entries: 100 open, 10 partial, 3 blocked, 519 done.
+`TODO/INDEX.md` holds 632 entries: 99 open, 10 partial, 3 blocked, 520 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

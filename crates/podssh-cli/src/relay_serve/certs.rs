@@ -40,12 +40,14 @@ impl Source {
             (_, _, Some(_)) => Err(Refusal::usage(
                 "--acme takes its certificate from the CA, and --cert and --key name files: give one or the other",
             )),
-            (Some(cert), Some(key), None) if ca_file.is_none() => {
+            // --ca-file is the trust of a list of keys at a URL too (T-646).
+            (Some(cert), Some(key), None) if ca_file.is_none() || super::keys_url::named(s.mint.as_deref()) => {
                 Ok(Source::Files { cert: cert.to_string(), key: key.to_string() })
             }
-            (Some(_), Some(_), None) => {
-                Err(Refusal::usage("--ca-file goes with serve only beside --acme, as the trust of the ACME directory"))
-            }
+            (Some(_), Some(_), None) => Err(Refusal::usage(
+                "--ca-file goes with serve only beside --acme, as the trust of the ACME directory, or beside --mint \
+                 keys:https://..., as the trust of the list",
+            )),
             _ => Err(Refusal::usage(
                 "serve needs --cert FILE and --key FILE: a certificate chain and its P-256 key, in PEM; or --acme \
                  NAME, a certificate for NAME from an ACME CA",
@@ -299,5 +301,9 @@ mod tests {
         assert!(said(args(true, false, true), None).contains("--acme-directory goes with --acme"));
         assert!(said(args(true, false, false), Some("ca.pem")).contains("trust of the ACME directory"));
         assert!(said(args(false, false, false), None).contains("needs --cert FILE and --key FILE"));
+        // The trust of a list of keys at a URL, beside files (T-646).
+        let mint = Some("keys:https://keys.test/owners".to_string());
+        let listed = super::super::ServeArgs { mint, ..args(true, false, false) };
+        assert!(Source::of(&listed, Some("ca.pem")).is_ok(), "--ca-file beside a list at a URL");
     }
 }

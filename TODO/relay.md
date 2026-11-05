@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags/relay.rs:9-95`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags/relay.rs:9-100`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:340-361` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:348`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:349`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -3158,7 +3158,7 @@ URL written into each result, and a download target that is no test target of `A
   (`crates/podssh-cli/src/ping/mod.rs:167-172`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
   (`crates/podssh-cli/src/doctor/relay_checks.rs:197-228`); `--quick` keeps the relay's sections and
-  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:151-155`).
+  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:156-160`).
 - Read: `podssh relay trace` asks the relay to dial a target and gives its own times
   (`crates/podssh-cli/src/relay_diag.rs:182-185`); `relay info` gives the pool
   (`crates/podssh-cli/src/relay_diag.rs:133-135`).
@@ -4076,17 +4076,17 @@ so a fault in any of them runs with more than the role needs. Nothing after the 
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/relay_serve.rs:260` says "let listener = std::net::TcpListener::bind(listen)",
-  and `:194` reads its address; the runtime and its two workers come later, in
-  `crates/podssh-cli/src/relay_serve.rs:302`, which says "worker_threads(2)". Between the two the
+- `crates/podssh-cli/src/relay_serve.rs:279` says "let listener = std::net::TcpListener::bind(listen)",
+  and `:211` reads its address; the runtime and its two workers come later, in
+  `crates/podssh-cli/src/relay_serve.rs:326`, which says "worker_threads(2)". Between the two the
   process has one thread, so a drop there holds for each thread made after it. The issue's line
   numbers are of an older tree; the order is as it says.
-- The listener is the user's (Q1): `crates/podssh-cli/src/relay_serve.rs:180` says
+- The listener is the user's (Q1): `crates/podssh-cli/src/relay_serve.rs:197` says
   "crate::pipe::listen::allowed()?;" before the bind.
 - No source of the workspace calls `prctl` or `capset` (searched for `capset`, `NO_NEW_PRIVS` and
   `CAPBSET`), so no step drops a privilege today.
 - After the bind the role still reads files: the certificate on SIGHUP and when its files change
-  (`crates/podssh-cli/src/relay_serve.rs:343-350`, T-447), the file of pairs at each pair
+  (`crates/podssh-cli/src/relay_serve.rs` at `ce411ac`, lines 341-377, T-447), the file of pairs at each pair
   (`crates/podssh-relay/src/serve/reverse/pairs.rs:292`), and ACME's cache at each renewal. A root
   that dropped `CAP_DAC_OVERRIDE` reads a file of another owner only as its mode lets uid 0
   (Inferred from capabilities(7); not measured here).
@@ -4224,8 +4224,8 @@ Read at `2042200`:
 - `crates/podssh-relay/src/serve/policy.rs:107-109` hands a name to the host's proxy unresolved only with
   `private`, so a role without `--allow-private` checks each address that it dials.
 - The flag: `crates/podssh-cli/src/flags/relay.rs:66` (the row `allow-private`),
-  `crates/podssh-cli/src/relay_serve.rs:223` says "private: s.allow_private", and the role behind a
-  quick tunnel the same in `crates/podssh-cli/src/node_quick_relay.rs:104`.
+  `crates/podssh-cli/src/relay_serve.rs:242` says "private: s.allow_private", and the role behind a
+  quick tunnel the same in `crates/podssh-cli/src/node_quick_relay.rs:110`.
 - Each road of the role goes through `Policy::plan`: `/connect/`
   (`crates/podssh-relay/src/serve/forward.rs:100`), the resumable layer
   (`crates/podssh-relay/src/serve/layer.rs:185`), the HTTP road
@@ -4359,7 +4359,7 @@ Read at `2042200`:
   (`docs/relay.md:92` says "a token is the contract's form under a secret of the run"). A ledger keyed
   by the token, as the issue first proposes, would count a principal that the next mint or restart
   replaces; the issue's own Risks say so.
-- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:368-372` takes the key that
+- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:369-373` takes the key that
   proved itself, and drops it after its line.
 - The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:451`)
   and a SHA-256 of each token (`:448`).
@@ -4678,7 +4678,7 @@ the sshd's test fails on a version line cut short.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4690,15 +4690,15 @@ the start with a path that was never one.
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/relay_serve.rs:244-257` reads `keys:` and makes the rest a path, with no
-  other form; `crates/podssh-cli/src/relay_serve.rs:292-299` reads it at the start, and a file that
+- `crates/podssh-cli/src/relay_serve.rs:263-276` reads `keys:` and makes the rest a path, with no
+  other form; `crates/podssh-cli/src/relay_serve.rs` at `fed191c`, lines 292-299, reads it at the start, and a file that
   does not read stops it (78). The role behind a quick tunnel reads the same words
-  (`crates/podssh-cli/src/node_quick_relay.rs:70`).
-- The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs:80`, and
-  `crates/podssh-relay/src/serve/keys.rs:84` says "this relay cannot read its list of keys";
-  `docs/relay.md:849` says "read again for each request".
+  (`crates/podssh-cli/src/node_quick_relay.rs:73`).
+- The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs` at `fed191c`, line 80, and
+  `crates/podssh-relay/src/serve/keys.rs:87` says "this relay cannot read its list of keys";
+  `docs/relay.md` at `fed191c`, line 849, says "read again for each request".
 - `crates/podssh-relay/src/serve/mod.rs:104` holds the list as a path; the net's members are a source
-  that the binary gives (`crates/podssh-relay/src/serve/keys.rs:31`), which `--mint net` reads from the
+  that the binary gives (`crates/podssh-relay/src/serve/keys.rs:33`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.
 - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB
   (`crates/podssh-cli/src/shadowsocks/subscription.rs:19`), a day kept (`:21`), 20 s (`:23`), three
@@ -4718,12 +4718,37 @@ Read at `2042200`:
 4. `docs/relay.md` says that a list of a URL is read again at its TTL, not at each request, and that
    its trust is TLS alone; `--mint net`, signed by its owner, is named as the stronger way.
 
+## Decision
+
+2026-11-05 (the drafting agent of T-646). The first fetch comes once the listener is bound and the
+start gave up its privileges (T-629), before the first connection, on a runtime of its own whose
+threads end before the role's: a start as root would else talk to the network, and read its answer,
+with the privileges that the bind alone needs. A fetch that fails stops the start (78) all the same,
+the port held a moment longer. Lost: the Approach's fetch before the bind. The copy lives in memory
+alone: a start whose fetch fails stops, so a copy on disk would serve no start, and the issue's image
+may have no writable cache. Lost: the Approach's copy in the cache. The role's list is an enum of a
+file and a URL's copy (`List`), the fetch behind a trait (`Fetch`) that the binary implements over
+podssh-ws's HTTPS client and a test with its own answers; each is read with no wait, and `keys::prove`
+stays as it is. Lost: one trait object for both, as the binary starts a copy's fetches, which it finds
+by the variant. An answer `200` is the list whatever it holds, so a page that is no list lets no key
+mint, where a failure or another status leaves the copy to age. Lost: the old copy kept on an answer
+that is no list, which keeps a key that its owner took off while a captive page or a cache's error
+page answers. An `http://` URL is refused (64), not read as a path that no one names. `--ca-file`
+beside `--cert` and `--key` is the list's trust, and beside `--acme` the trust of both; lost: a flag
+of its own. The URL's host takes `--relay-addr` and `PODSSH_RELAY_ADDR`, read only when a URL is
+named, so a role of a file reads nothing that it did not. `--list-ttl` is 1 to 86400 s, `--list-stale`
+0 to 604800 s, and either with no list of a URL is 64. The relay behind a quick tunnel takes the same
+words at the defaults, with the node's `--ca-file`; lost: `--list-ttl` on the node now.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib serve::keys
 cargo test -p podssh-cli --test relay_serve
+cargo test -p podssh-cli --lib relay_serve
+cargo test -p podssh-cli --test node_quick_relay
+sh scripts/plant-each.sh --here t646-stale-copy-read
 ```
 
 A role whose list is served by a test's HTTPS server mints for its keys alone; a key taken off the list
@@ -4731,6 +4756,43 @@ is refused after the TTL; a server that answers 5xx keeps the copy until TTL and
 key mints; an answer that is no list lets no one mint; a fetch that fails at the start exits 78; a
 path that begins `keys:` and is no URL is a file as before. Planted: a stale copy that is still read,
 and the test of the stale window fails.
+
+## Done
+
+2026-11-05, merged from its draft (`d69b76f`).
+
+- The list's sources (`crates/podssh-relay/src/serve/keys/list.rs`): `List`, a file read again for
+  each request or the copy of a URL's list, read with no wait, refused past its TTL and stale window,
+  fetched again each TTL in the role's runtime, its lines (a fetch that failed, the first that worked
+  after it, a count that moved, an answer that holds no key) to the binary; `Mint::Keys` and
+  `Mint::Net` hold a `List`. The binary's fetch (`crates/podssh-cli/src/relay_serve/keys_url.rs`):
+  `https://` alone, through the host's proxy, with the trust of `--ca-file`, 1 MiB, 20 s, three
+  redirects, the URL shown by its host alone; `--list-ttl` and `--list-stale`; the first fetch after
+  the bind (78 when it fails), its keys on the first line; `node --quick-tunnel --relay` takes the same
+  words. The manual (the notes and the rows of `relay serve`, the row of `node --mint`),
+  `docs/relay.md` ("A list of keys at a URL"), `docs/cli.md` and `docs/mesh.md` say it. The tests of
+  `relay_serve.rs` moved to `crates/podssh-cli/src/relay_serve/tests.rs`, so that it stays within 500
+  lines.
+- `cargo test ... --lib serve::keys`: 8 passed (a copy read until its TTL and stale window pass,
+  then no key in, and again after a fetch that works; an answer is the list, a page and bytes that are
+  no text hold no key; the fetches again each TTL on a paused clock, a failure said once, the key taken
+  off refused; and the tests of T-448 and T-455 on a `List`).
+- `cargo test -p podssh-cli --lib relay_serve`: 24 passed (`https://` is a copy shown by its host, an
+  `http://` URL 64, another rest a file; the bounds of `--list-ttl` and `--list-stale`, and 64 with no
+  list of a URL; `--mint keys:https://...` and the words of the first line before a copy).
+- `cargo test -p podssh-cli --test relay_serve`: 25 passed (`serve_list`: a role whose first fetch
+  gets 503 exits 78 and names the URL's host alone; the list's key mints and another does not; a key
+  taken off is refused after the TTL of 1 s; a server that answers 503 keeps the copy, then no key
+  mints after the stale window of 2 s, then a fetch that works lets it in again; a page that is no
+  list lets no key mint; no line holds the URL's path, which the server saw). `--test
+  node_quick_relay`: 3 passed (the words of `--mint`, which the refusal keeps).
+- Planted, a stale copy that is still read (`sh scripts/plant-each.sh --here t646-stale-copy-read`):
+  caught (the test of the stale window failed).
+- At the merge onto T-667, T-636 and T-637: the relay crate with each serve feature and `quic`, 884
+  passed; podssh-ws 486; the CLI 1,939; 0 failed. Clippy clean after a test that needed `Debug` of
+  `Lists` matched its `Err` instead; T-636's test of the role's counts takes its file as a `List`
+  again (`.into()`). `relay_serve.rs`'s signals moved to `relay_serve/stopped.rs`, as the flags of
+  T-667, T-636 and T-646 made it 503 lines; its tests were moved at T-636's merge.
 
 # T-649: The relay role ends TLS for each name on its listener, so a node's own HTTPS service cannot be published by its name
 

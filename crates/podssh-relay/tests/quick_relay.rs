@@ -51,7 +51,7 @@ async fn mint(tunnel: &Tunnel, seed: u8) -> Result<String, (u16, String)> {
 async fn a_client_with_the_tunnel_s_name_reads_a_target_s_first_line_through_the_role() {
     // The list's guard lives to the test's end: the role reads it at each proof.
     let list = list_of(1, "banner");
-    let tunnel = Tunnel::start(Mint::Keys(list.path.clone()), false).await;
+    let tunnel = Tunnel::start(Mint::Keys(list.path.clone().into()), false).await;
     // A key that is not on the list gets the role's 403, which names it.
     let (status, body) = mint(&tunnel, 2).await.expect_err("a key off the list");
     assert_eq!(status, 403, "{body}");

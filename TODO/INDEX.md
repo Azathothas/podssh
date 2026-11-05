@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**632 entries: 100 open, 10 partial, 3 blocked, 519 done.**
+**632 entries: 99 open, 10 partial, 3 blocked, 520 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 248 | 277 |
-| P3 | 75 | 4 | 3 | 205 | 287 |
-| **All** | 100 | 10 | 3 | 519 | 632 |
+| P3 | 74 | 4 | 3 | 206 | 287 |
+| **All** | 99 | 10 | 3 | 520 | 632 |
 
 ## Entries
 
@@ -685,7 +685,7 @@ repository and CI).
 | [T-643](reverse.md) | P3 | M | M10 | feature | open | Neither end of the reverse road compares the `version` of the role's `hello`, and an operator's offer of the net answered plainly says nothing |
 | [T-644](relay.md) | P3 | M | M10 | feature | open | `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road |
 | [T-645](pipe.md) | P3 | M | none | feature | done | `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends |
-| [T-646](relay.md) | P3 | M | M10 | feature | open | `--mint keys:` takes a file alone, so a role in a read-only image changes whom it mints for only by a rebuild |
+| [T-646](relay.md) | P3 | M | M10 | feature | done | `--mint keys:` takes a file alone, so a role in a read-only image changes whom it mints for only by a rebuild |
 | [T-647](reverse.md) | P3 | M | M10 | feature | done | A pair of the relay role is served or ended; no halt that keeps its name and its node's socket |
 | [T-648](reverse.md) | P2 | M | none | feature | done | A node's socket queues each session's bytes in one line of 256 places, so one session's backlog delays each other session's |
 | [T-649](relay.md) | P3 | L | M10 | feature | open | The relay role ends TLS for each name on its listener, so a node's own HTTPS service cannot be published by its name |

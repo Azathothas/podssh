@@ -149,7 +149,7 @@
 141 issue open
 142 issue open
 143 issue closed
-144 issue open
+144 issue closed
 145 issue closed
 146 issue closed
 147 issue open

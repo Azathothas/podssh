@@ -195,6 +195,10 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     // A planned stop closes each socket of the role's reverse road with 1012
     // first, which its client tells apart from a lost link (T-255).
     let role = relay.as_ref().map(|relay| relay.cfg.clone());
+    // Its list of keys at a URL, fetched again each TTL (T-646).
+    if let Some(relay) = &relay {
+        relay.keep_lists(&label);
+    }
     tokio::spawn(async move {
         crate::node::stop_signal().await;
         if let Some(cfg) = role {
