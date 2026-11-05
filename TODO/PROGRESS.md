@@ -364,6 +364,7 @@ it can start.
 | T-122 | T-107 to T-112 are done: `podssh serve` exists |
 | T-123 | T-107 to T-112 are done: `podssh serve` exists |
 | T-124 | T-107 to T-112 are done: `podssh serve` exists |
+| T-631 | T-124 is done: `podssh serve --listen` exists |
 | T-159 | T-107, T-108, T-110 and T-117 are done: `podssh serve` runs a shell on a pty, and stops its process group |
 | T-160 | T-107 and T-110 are done: `podssh serve` runs a shell on a pty, which reports the input's offset and the ECHO flag |
 | T-161 | T-159 is done: a far end keeps a shell, its ring and its pty after the client leaves |

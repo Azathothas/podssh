@@ -1696,6 +1696,16 @@ Read at `2042200`:
 `--listen` alone, whose entry is in the backlog, and a deadline in M5 would come before the listener
 that it bounds. Lost: M5, as the serve entries of the cage are, which would order it before T-124.
 
+2026-11-05 (a drafting agent). The entry waits for T-124, as its Start condition says, and is a row of
+"Parked open work" in `TODO/PROGRESS.md`. Read on 2026-11-05: no source has a server of `podssh
+serve` (no crates/podssh-ssh/src/server/; `russh::server` only in the tests' harness of
+`crates/podssh-cli/tests/ssh_harness/`), T-107 is open and T-124 is parked behind T-107 to T-112,
+and this Prove extends T-124's test of the listener. Each line of the Premise holds there. Lost: a
+module of the limits drafted now with no server (T-107 decides where the server goes and the shape
+of its handler, where the first authentication cancels the waiter, and a deadline with no listener
+to bound is code that nothing calls); the entry open with no condition (the work order would take
+it, and nothing could be done).
+
 ## Prove
 
 ```sh
@@ -1708,3 +1718,8 @@ limit and a margin, and the line names the limit; one that sends a byte each sec
 same limit; a login inside the limit outlives it; one past `--pending-max` gets `TooManyConnections`
 before the key exchange; the count of the server's tasks comes back after each. Planted: the deadline
 as a timer of inactivity, and the test of the byte each second fails.
+
+## Start condition
+
+T-124 is done: `podssh serve --listen` exists, with the server of T-107 whose session the deadline
+follows and the test of the listener that this Prove extends. T-124 waits for T-107 to T-112.
