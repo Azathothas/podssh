@@ -156,7 +156,7 @@ step_lint() {
     # The relay role's tests on plain ws:// (T-427), which no other feature
     # set builds, and behind a quick tunnel (T-428).
     run "clippy: no warning in the relay role's tests" \
-        cargo clippy --locked --all-targets -p podssh-relay --features serve,plain-ws,quick -- -D warnings
+        cargo clippy --locked --all-targets -p podssh-relay --features serve,plain-ws,quick,quic -- -D warnings
     # The Tor road (T-353): the crate and the CLI's road with its feature.
     run "clippy: no warning with the Tor feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-tor --features podssh-cli/tor -- -D warnings
@@ -166,7 +166,8 @@ step_lint() {
 # `pair` and the runners of the reverse road.
 step_libs() {
     # shellcheck disable=SC2086  # $LIBS is a list of flags
-    # The quick tunnel's QUIC too (T-301): noq with no ring and no aws-lc.
+    # The quick tunnel's QUIC too (T-301): noq with no ring and no aws-lc;
+    # and QUIC to the relay role on the same noq (T-667).
     # DERP too (T-349): crypto_box and its curve in pure Rust; Piping too (T-437),
     # and OpenTunnel (T-530).
     # WARP's road too (T-352): pure Rust, with Rust 1.91 for smoltcp, so it
@@ -174,7 +175,7 @@ step_libs() {
     # The pairing by a short code too (T-086): SPAKE2 and SecretBox.
     run "library crates build with no C compiler" \
         env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS -p podssh-warp \
-            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp
+            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp
 
     # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
     # terminal oracle's model against tmux (T-200); named, so that one missing fails.
@@ -183,7 +184,7 @@ step_libs() {
     tests "library crates: tests, no C compiler" \
         env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
         cargo test --locked --no-fail-fast $LIBS -p podssh-warp \
-            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp-stand-in
+            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp-stand-in
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
     # its tests run with the feature, and the binary must never enable it.
@@ -216,6 +217,15 @@ step_libs() {
     tests "the relay role behind a quick tunnel (features quick, serve, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay \
             --features quick,serve,plain-ws --test quick_relay --test quick_relay_quic
+    # The relay role's QUIC on the loopback, and the client's race of QUIC
+    # and TCP to it, where UDP passes and where it is refused or dropped
+    # (T-667).
+    tests "the relay role's QUIC (features serve, quic, no C compiler)" \
+        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve,quic \
+            --lib serve::quic
+    tests "the race of QUIC and TCP to the relay role (features serve, quic, plain-ws, no C compiler)" \
+        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay \
+            --features serve,quic,plain-ws --test relay_serve_quic
     # The pairing by a short code (T-086) through the role's mailbox; the
     # runs against magic-wormhole's own server and library are pair-code.yml's.
     tests "the pairing by a short code at the relay role's mailbox (features pair, code, serve, no C compiler)" \
@@ -256,7 +266,7 @@ step_msrv() {
     # shellcheck disable=SC2086
     run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo "+$MSRV" check --locked $LIBS -p podssh-todo \
-            --features podssh-relay/blocking,podssh-relay/plain-ws,podssh-relay/quick,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/grant,podssh-relay/code --all-targets
+            --features podssh-relay/blocking,podssh-relay/plain-ws,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/grant,podssh-relay/code --all-targets
 }
 
 # russh's minimum, which the SSH client and the CLI declare, each on its own.

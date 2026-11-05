@@ -32,6 +32,9 @@ pub struct Offer {
     /// Why a name that the host gave is not taken, for a line: not a host,
     /// or not of its deployment.
     pub refused: Option<String>,
+    /// The UDP port where the host serves podssh's QUIC (`forward.quic`,
+    /// T-667), which the race of QUIC takes for a host that the user named.
+    pub quic: Option<u16>,
 }
 
 impl Offer {
@@ -52,7 +55,10 @@ pub fn of(body: &[u8], asked: &Relay) -> Offer {
     let doc: serde_json::Value = serde_json::from_slice(body).unwrap_or_default();
     let forward = doc.get("forward");
     let layer = forward.and_then(|forward| forward.get("layer")) == Some(&serde_json::Value::Bool(true));
-    let mut offer = Offer { layer, ..Offer::default() };
+    // A port of UDP, 1 to 65535; anything else offers no QUIC.
+    let quic = forward.and_then(|forward| forward.get("quic")).and_then(serde_json::Value::as_u64);
+    let quic = quic.and_then(|port| u16::try_from(port).ok()).filter(|port| *port != 0);
+    let mut offer = Offer { layer, quic, ..Offer::default() };
     match forward.and_then(|forward| forward.get("host")) {
         None | Some(serde_json::Value::Null) => {}
         Some(serde_json::Value::String(name)) => match named(asked, name) {
@@ -177,5 +183,25 @@ mod tests {
         let long = format!(r#"{{"forward":{{"layer":true,"host":"x\u001b[2J{}.example.com"}}}}"#, "a".repeat(300));
         let refused = of(long.as_bytes(), &asked).refused.unwrap_or_default();
         assert!(refused.len() < 200 && !refused.contains('\u{1b}'), "a refusal shows a short line: {refused:?}");
+    }
+
+    /// `forward.quic` offers QUIC at a port of UDP, with or without the
+    /// layer; a value that is no port offers none (T-667).
+    #[test]
+    fn forward_quic_names_the_port_of_the_role_s_quic() {
+        let asked = relay("relay.example.org", 443);
+        let offer = of(br#"{"forward":{"layer":false,"host":null,"quic":443}}"#, &asked);
+        assert_eq!((offer.layer, offer.quic), (false, Some(443)));
+        assert_eq!(of(br#"{"forward":{"layer":true,"quic":8443}}"#, &asked).quic, Some(8443));
+        for body in [
+            &br#"{"forward":{"layer":true}}"#[..],
+            br#"{"forward":{"quic":0}}"#,
+            br#"{"forward":{"quic":70000}}"#,
+            br#"{"forward":{"quic":"443"}}"#,
+            br#"{"forward":{"quic":-1}}"#,
+            br#"{"quic":443}"#,
+        ] {
+            assert_eq!(of(body, &asked).quic, None, "{}", String::from_utf8_lossy(body));
+        }
     }
 }

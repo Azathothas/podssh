@@ -407,7 +407,8 @@ inputs alone.
 - T-643 (#141): an operator that offers the net's document to a node that answers without it goes
   on, with a line that says so, where the issue asks for a refusal.
 - T-667 (osewa): QUIC and a TCP road race to one host for a short time, as the race between relay
-  hosts does (rule 2), the loser closed at once.
+  hosts does (rule 2), the loser closed at once; QUIC goes first, 300 ms ahead, to a role that
+  offered it, where Q82 puts other projects' roads over UDP after TCP.
 
 The operator settled Q93 to Q100 on 2026-11-04 (`docs/decisions.md`), each as recommended: the TURN
 road's second connection (Q93), short live tests against smee.io, hostc, Tunnelmole and Sandhole

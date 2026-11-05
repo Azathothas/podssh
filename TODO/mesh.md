@@ -8771,15 +8771,115 @@ podssh's relay role speaks TCP alone.
 - **The race of QUIC and a TCP road to one host; for the operator to confirm (Q86).** It is two
   connections to one host for a short time, as the race between relay hosts is (rule 2), the loser
   closed at once. Lost: QUIC only after a TCP road failed, which gives up the round trip that QUIC
-  saves.
+  saves. QUIC goes first, where Q82 puts the roads over UDP of other projects (Hysteria 2, TUIC,
+  MASQUE) after the roads over TCP: this road is the user's own relay role, which offered it.
+
+2026-11-05, with the draft (read in noq 1.4.0 and the crates that `Cargo.lock` holds):
+
+1. **QUIC is noq in podssh-relay, behind a feature `quic`.** The quick tunnel's QUIC (T-301) is noq
+   with no ring and no aws-lc (`crates/podssh-relay/Cargo.toml:43`), its TLS on podssh-ws's
+   provider, so rule 4 holds in the library crate, and Approach 3's other branch, a crate of its
+   own, is needless; `quic` is `quick` with the role's endpoint and the client's race, and takes its
+   noq, its endpoint and its probe. Lost: quinn, which is not in the lock and which noq forks.
+2. **An ALPN of podssh's own, `podssh-relay/1`, each bidirectional stream one connection of HTTP/1.1
+   to the role's routes.** The role serves a stream as it serves TLS (`serve_from`), so the
+   contract (its paths, tokens, refusals, brake and limits, the layer and the reverse road) holds
+   unchanged, and the client's upgrade is the TCP road's, on a stream in place of TLS. Lost: HTTP/3
+   with RFC 9220's extended CONNECT, which needs HTTP/3 and QPACK (the lock has no such crate for
+   noq) and gains only a front of HTTP/3, as the role is the endpoint; a framing of podssh's own, a
+   second contract to keep.
+3. **One QUIC connection for each session, its one stream.** QUIC's handshake costs one round trip,
+   and connections apart hold none of each other's bytes either. Lost: the sessions of one process
+   as streams of one connection, as T-321's HTTP/2 and T-666's iroh connection share them, with a
+   pool and its close when idle.
+4. **Which sessions race it, `PODSSH_QUIC`.** Unset or `auto`: a relay host that the user named
+   whose `/relays.json` offered `forward.quic`, kept with the layer's offer for a day from the read
+   that Q96 allows; `yes`, each host; `no`, none. Never where a proxy is set for the host, as no
+   HTTP proxy carries UDP and a user who set one chose that way out; never with a caller's own TLS
+   configuration (`Trust::Caller`), which podssh cannot give QUIC's ALPN. Lost: a probe of each
+   named host's UDP unasked (a packet beside each run to roles that serve none, as `--quic` is off
+   by default); an `Alt-Svc` header (RFC 7838) on the role's `101`, which needs podssh-ws's upgrade
+   to give back its headers and says nothing that the kept document does not.
+5. **The probe is T-400's**, to the relay host's own port of UDP, and what it found is kept by the
+   process for 10 minutes: a host whose UDP failed is not tried over QUIC, and one whose QUIC
+   answered is not probed again. Lost: a verdict kept on disk for a day, as the egress of a direct
+   run is one word for every network (`crates/podssh-relay/src/rank.rs:32` says "pub const DIRECT"),
+   so it would follow a laptop from a network that drops UDP to one that passes it; no probe (Q82
+   asks for one, and where UDP is dropped it ends QUIC's arm in 300 ms, not at its handshake's 5 s).
+6. **The head start is 300 ms**, as osewa's, and the TCP road starts at once where QUIC failed. The
+   relay's refusal of the token or the target on either road ends the race; when both roads failed,
+   the TCP road's failure is the one that the opener classifies, as before QUIC.
+7. **The role's QUIC is off unless asked (`--quic yes`), at the listener's own address and port**,
+   bound with it before the capabilities go (T-629): one port to open, which the offer names. Its
+   tokens of address validation are tagged with HMAC-SHA-256 of a random key, as noq's own key needs
+   ring or aws-lc; a token holds the client's own address and a time, nothing secret from it. Lost:
+   a port of its own (the offer can name one); an AEAD of the tokens, which would hide nothing that
+   the client does not know.
 
 ## Prove
 
 ```sh
-cargo test -p podssh-relay --features serve --lib
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,quic --lib -- quic_road serve:: forward_layer
+cargo test -p podssh-relay --features serve,quic,plain-ws --test relay_serve_quic --test relay_serve_h2 --test relay_serve_contract
+cargo test -p podssh-cli --lib relay_serve
+cargo test -p podssh-cli --test man_page --test man_flag_parity --test relay_serve
+sh scripts/plant-each.sh --here t667-head-start-ignored t667-stream-unserved t667-offer-unread t667-token-unchecked
 ```
 
 A session through the role over QUIC on the loopback; with UDP refused, the race takes TCP.
+
+## Correction
+
+2026-11-05, with the draft.
+
+- The probe that says whether UDP passes to the relay host is T-400's
+  (`crates/podssh-relay/src/quick/probe.rs:97` says "pub async fn probe(addrs: &[SocketAddr], wait: Duration)"),
+  one packet of a reserved version to the host's own port, which a server of QUIC answers with a
+  Version Negotiation, noq's too. T-359's, which Approach 2 names, is QUIC address discovery to
+  iroh's own relays (`crates/podssh-iroh/src/probe.rs:6` says "takes UDP after a datagram came back: the round trip of QUIC address"),
+  in podssh-iroh, which this road does not build and whose answer says nothing of the relay host.
+- Q82, which the Premise names, puts the roads over UDP after the roads over TCP
+  (`docs/decisions.md:24` says "tried only where a probe found that UDP passes, after the roads over TCP");
+  this road goes first, for the operator to confirm (the Decision's first item).
+- Approach 3: a pure-Rust stack with podssh's provider fits, noq as the quick tunnel takes it, so
+  QUIC is in podssh-relay (Decision 1).
+
+## Done
+
+2026-11-05, drafted (`DRAFT T-667`), UNVERIFIED: no command of the Prove ran in the draft.
+
+- The role: `crates/podssh-relay/src/serve/quic.rs` (the endpoint; TLS 1.3 with the listener's
+  certificate and the ALPN alone; 64 streams; 30 s of silence; tokens tagged with HMAC; each stream
+  to `serve_from` with the client's address and the name that it asked for; a line `quic` for each
+  connection); `forward.quic` in the offer (`crates/podssh-relay/src/serve/layer.rs`); `podssh relay
+  serve --quic yes` (`crates/podssh-cli/src/relay_serve/quic.rs`, `crates/podssh-cli/src/relay_serve.rs`),
+  its row of flags, the manual's paragraph, and the allowance of its socket
+  (`scripts/repo_listeners.py`).
+- The client: `crates/podssh-relay/src/quic_road/` (the choice and `connect`, the race, the QUIC arm
+  with the probe and the process's memory, the stream and its close), the offer read and kept
+  (`crates/podssh-relay/src/forward_layer/offer.rs`, `crates/podssh-relay/src/forward_layer/kept.rs`),
+  the opener's call (`crates/podssh-relay/src/open.rs`), a stream of another road under a session
+  (`crates/podssh-ws/src/url.rs`), `PODSSH_QUIC` and THE RELAY's item in the manual, and the gate's
+  runs (`scripts/gate.sh`).
+- `cargo test -p podssh-relay --features serve,quic --lib -- quic_road serve:: forward_layer`:
+  UNVERIFIED (the race on a paused clock: a QUIC that answers within its head start polls no TCP, a
+  silent QUIC gives way at 300 ms, a failed one at once, a refusal over QUIC ends the race, a TCP
+  failure waits for QUIC, two failures give TCP's; the choice and the offer; a token opens only as
+  it was sealed; the role's configuration; the memory of a host's UDP; QUIC's TLS offers the ALPN
+  alone; `forward.quic` read and kept, and a file of before it read as none).
+- `cargo test -p podssh-relay --features serve,quic,plain-ws --test relay_serve_quic`: UNVERIFIED (4
+  MiB each way over QUIC with equal digests, and no TCP connection; a wrong token's 403 over QUIC,
+  which ends a race; the opener over QUIC where the host offered it, over TCP within 4 s where UDP is
+  refused and where it drops each packet, and over TCP alone where nothing was offered). `--test
+  relay_serve_h2 --test relay_serve_contract`: UNVERIFIED.
+- `cargo test -p podssh-cli --lib relay_serve` and `--test man_page --test man_flag_parity --test
+  relay_serve`: UNVERIFIED. Clippy with `serve,plain-ws,quick,quic`: UNVERIFIED.
+- Planted, each of which must fail its test: the TCP road with no head start, the role's streams
+  dropped unserved, a named host raced over QUIC with no offer, and a token opened with no check of
+  its tag (the four plants t667 of `scripts/plants/`, named in the Prove): UNVERIFIED.
+- Waits: a wide-area path, a NAT that rebinds, `podssh relay serve --quic yes` from the binary, and
+  the live run (Q88); `cargo todo remap` of the files that this draft moved, at the merge.
 
 # T-638: A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door
 

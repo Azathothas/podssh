@@ -18,7 +18,9 @@
 //! standard sshd's connection across a drop of the client's link ([`layer`],
 //! T-173).
 //! Its mailbox is a meeting point of the pairing by a short code
-//! ([`mailbox`], T-086).
+//! ([`mailbox`], T-086). Beside the listener, QUIC on the same port of UDP
+//! carries each stream as a connection to these routes (`quic`, feature
+//! `quic`, T-667).
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -37,6 +39,9 @@ pub mod listener;
 pub mod mailbox;
 pub mod policy;
 pub mod probe;
+// QUIC on UDP beside the listener, each stream a connection (T-667).
+#[cfg(feature = "quic")]
+pub mod quic;
 // The ranges of addresses that its owner lets it dial (T-635), which an
 // exit's and the net's routes read too.
 pub mod ranges;

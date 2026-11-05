@@ -10,13 +10,16 @@
 //! road in the resumable layer take their budget, their deadline and this
 //! process's name from flags of their own (T-173, `relay_serve/resumes.rs`).
 //! Once its listener is bound, before the runtime starts a thread, it gives
-//! up the capabilities of its start (T-629, `relay_serve/harden.rs`).
+//! up the capabilities of its start (T-629, `relay_serve/harden.rs`). With
+//! `--quic yes` it serves QUIC on the listener's port of UDP too (T-667,
+//! `relay_serve/quic.rs`).
 
 mod certs;
 mod harden;
 #[cfg(target_os = "linux")]
 mod harden_sys;
 mod list;
+mod quic;
 mod resumes;
 
 use std::io::Write;
@@ -69,6 +72,8 @@ pub struct ServeArgs {
     pub resume_host: Option<String>,
     /// yes or no: HTTP/2 with extended CONNECT on the listener (T-321).
     pub http2: Option<String>,
+    /// yes or no: QUIC on the listener's port of UDP (T-667).
+    pub quic: Option<String>,
 }
 
 impl ServeArgs {
@@ -98,6 +103,7 @@ impl ServeArgs {
             resume_budget: get("resume-budget"),
             resume_host: get("resume-host"),
             http2: get("http2"),
+            quic: get("quic"),
         }
     }
 
@@ -128,6 +134,8 @@ struct Prepared {
     shown: String,
     /// The file of `--port-file`, and the port that it gets.
     port_file: Option<(String, u16)>,
+    /// QUIC's socket, with --quic yes (T-667).
+    quic: Option<std::net::UdpSocket>,
 }
 
 fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
@@ -153,6 +161,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         Some(word) => crate::forwarder::fallback::word(word)
             .ok_or_else(|| Refusal::usage(format!("--http2 {word:?}: yes or no")))?,
     };
+    // QUIC on the listener's port of UDP, when asked (T-667).
+    let asked_quic = quic::asked(s.quic.as_deref())?;
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
         Some(text) => match text.parse::<u64>() {
@@ -181,8 +191,14 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         (Some(file), n) => format!(", its pairs kept in {file} ({n} now)"),
         (None, _) => String::new(),
     };
-    // The one call that may need a privilege, then none kept (T-629).
-    let (listener, dropped) = bind_then_drop(listen, |_| harden::give_up())?;
+    // The one call that may need a privilege, then none kept (T-629):
+    // QUIC's socket with it.
+    let mut udp = None;
+    let (listener, dropped) = bind_then_drop(listen, |tcp| {
+        udp = quic::bind(asked_quic, tcp)?;
+        harden::give_up()
+    })?;
+    let sessions = quic::offered(sessions, &udp);
     let bound = listener.local_addr().map_err(|e| Refusal::config(e.to_string()))?;
     let events: serve::Events = Box::new(|line: &str| {
         let mut out = std::io::stdout().lock();
@@ -210,16 +226,17 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let inside = inside_shown(s.allow_private, &routes);
     let clear = if cleartext { ", the cleartext road beside TLS" } else { ", TLS alone" };
     let h2 = if http2 { ", HTTP/2 with extended CONNECT" } else { ", no HTTP/2" };
+    let over_udp = quic::shown(&udp);
     let dropped = dropped.unwrap_or_default();
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{dropped}; {}",
+         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{over_udp}{dropped}; {}",
         serve::CONTRACT,
         certs.shown
     );
     let port_file = s.port_file.clone().map(|path| (path, bound.port()));
     let door = Door { acceptor, cleartext };
-    Ok(Prepared { listener, door, cfg: Arc::new(cfg), certs, shown, port_file })
+    Ok(Prepared { listener, door, cfg: Arc::new(cfg), certs, shown, port_file, quic: udp })
 }
 
 /// The listener of `listen`, then `give_up` once it is bound: the
@@ -337,7 +354,7 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
             return EX_CONFIG;
         }
     };
-    let Prepared { listener, door, cfg, certs: kept, port_file, .. } = prepared;
+    let Prepared { listener, door, cfg, certs: kept, port_file, quic: udp, .. } = prepared;
     // SIGHUP is taken before a harness learns the port, so that none sent
     // after it ends the role.
     let mut hangups = {
@@ -356,6 +373,10 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
             return Err("the listener cannot be made non-blocking".to_string());
         }
         let listener = tokio::net::TcpListener::from_std(listener).map_err(|e| e.to_string())?;
+        // QUIC beside the listener, with the certificate that it presents.
+        if let Some(socket) = udp {
+            quic::spawn(socket, kept.served.clone(), cfg.clone())?;
+        }
         // The lines of ACME's work, said here, as each other line of the role.
         let (say, mut lines) = tokio::sync::mpsc::unbounded_channel();
         let mut keeper = tokio::spawn(kept.keeper(say));

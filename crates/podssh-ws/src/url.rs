@@ -154,13 +154,22 @@ pub fn offering(url: &WsUrl, key: &str, protocol: Option<&str>) -> Result<Vec<u8
 }
 
 /// The stream under a session of this road: TLS, or plain TCP; and under a
-/// session of the relay, which is TLS but on the cleartext road (T-326), and
-/// a stream of HTTP/2 on the road of RFC 8441 (T-321).
+/// session of the relay, which is TLS but on the cleartext road (T-326), a
+/// stream of HTTP/2 on the road of RFC 8441 (T-321), and a stream that
+/// another crate dialed, as a QUIC stream to podssh's relay role (T-667).
 pub enum Stream {
     Plain(TcpStream),
     Tls(Box<RelayStream>),
     H2(Box<crate::h2_road::Stream>),
+    Carried(Box<dyn Carried>),
 }
+
+/// A stream of a road that this crate does not dial, which a session of the
+/// relay rides as it rides TLS: Sync as the other kinds are, so that a
+/// session stays one type whatever carries it.
+pub trait Carried: AsyncRead + AsyncWrite + Send + Sync + Unpin {}
+
+impl<T: AsyncRead + AsyncWrite + Send + Sync + Unpin> Carried for T {}
 
 impl AsyncRead for Stream {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
@@ -168,6 +177,7 @@ impl AsyncRead for Stream {
             Stream::Plain(tcp) => Pin::new(tcp).poll_read(cx, buf),
             Stream::Tls(tls) => Pin::new(&mut **tls).poll_read(cx, buf),
             Stream::H2(h2) => Pin::new(&mut **h2).poll_read(cx, buf),
+            Stream::Carried(other) => Pin::new(&mut **other).poll_read(cx, buf),
         }
     }
 }
@@ -178,6 +188,7 @@ impl AsyncWrite for Stream {
             Stream::Plain(tcp) => Pin::new(tcp).poll_write(cx, buf),
             Stream::Tls(tls) => Pin::new(&mut **tls).poll_write(cx, buf),
             Stream::H2(h2) => Pin::new(&mut **h2).poll_write(cx, buf),
+            Stream::Carried(other) => Pin::new(&mut **other).poll_write(cx, buf),
         }
     }
 
@@ -186,6 +197,7 @@ impl AsyncWrite for Stream {
             Stream::Plain(tcp) => Pin::new(tcp).poll_flush(cx),
             Stream::Tls(tls) => Pin::new(&mut **tls).poll_flush(cx),
             Stream::H2(h2) => Pin::new(&mut **h2).poll_flush(cx),
+            Stream::Carried(other) => Pin::new(&mut **other).poll_flush(cx),
         }
     }
 
@@ -194,6 +206,7 @@ impl AsyncWrite for Stream {
             Stream::Plain(tcp) => Pin::new(tcp).poll_shutdown(cx),
             Stream::Tls(tls) => Pin::new(&mut **tls).poll_shutdown(cx),
             Stream::H2(h2) => Pin::new(&mut **h2).poll_shutdown(cx),
+            Stream::Carried(other) => Pin::new(&mut **other).poll_shutdown(cx),
         }
     }
 }

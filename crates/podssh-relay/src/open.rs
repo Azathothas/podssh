@@ -366,7 +366,7 @@ async fn try_host(
         proxy: proxy.clone(),
     };
     let mut started = std::time::Instant::now();
-    let mut result = crate::h2_road::connect(&config, token.secret(), shared.explicit).await;
+    let mut result = crate::quic_road::connect(&config, token.secret(), shared.explicit).await;
     // A cached token the relay no longer accepts: forget it and mint once.
     // Not for a policy refusal, which a new token cannot fix.
     if let Err(ConnectError::Refused { status: 403, body }) = &result {
@@ -377,7 +377,7 @@ async fn try_host(
                 token::obtain(&ctx, true).await.map_err(OpenError::Token)?
             };
             started = std::time::Instant::now();
-            result = crate::h2_road::connect(&config, token.secret(), shared.explicit).await;
+            result = crate::quic_road::connect(&config, token.secret(), shared.explicit).await;
         }
     }
     if result.is_ok() {

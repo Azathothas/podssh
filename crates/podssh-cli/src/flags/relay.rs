@@ -90,6 +90,9 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     // HTTP/2 with extended CONNECT on the listener (T-321).
     row(None, "http2", Some("WORD"), FlagKind::Supported,
         "serve: yes (the default) or no: offer h2 by ALPN before http/1.1, with extended CONNECT (RFC 8441), so that the sessions of a client's process are streams of one connection, each upgrade a CONNECT answered 200; /health, /relays.json, /trace, /llms-full.txt and the mint answer there too, and each other request is asked for again over HTTP/1.1; no offers http/1.1 alone, as before", None),
+    // QUIC on the listener's port of UDP (T-667).
+    row(None, "quic", Some("WORD"), FlagKind::Supported,
+        "serve: yes or no (the default): serve QUIC too, on UDP at the address and port of --listen, a second socket that you ask for, with TLS 1.3, the listener's certificate and the ALPN podssh-relay/1, each stream one connection of HTTP/1.1 to the same routes; /relays.json offers it as forward.quic, and podssh's client races it before TCP (PODSSH_QUIC)", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,

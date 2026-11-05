@@ -78,6 +78,11 @@ blocking = ["pair"]
 # A quick tunnel that podssh serves itself (T-300): HTTP/2 to the edge, and
 # QUIC where UDP reaches it (T-301). No C either; the gate builds it.
 quick = ["dep:h2", "dep:http", "dep:bytes", "dep:noq", "dep:rustls"]
+# QUIC on UDP to podssh's relay role (T-667): the client's race of QUIC and
+# its TCP roads after the quick tunnel's probe of UDP, and with `serve` the
+# role's QUIC endpoint. noq and the probe are the quick tunnel's, so no crate
+# is added. No C either; the gate builds it.
+quic = ["quick"]
 # The DERP road (T-349): Tailscale's servers for tailcat, or a derper of the
 # user's own, under the resumable layer, with an adapter that sends again
 # what a server drops. No C either; the gate builds it.
