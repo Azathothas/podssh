@@ -29,7 +29,9 @@
 //!   times, for a spare link (T-663); [`once`]: a session that ends with its
 //!   link, at its client's ask (T-612); [`half_close`]: the end of one
 //!   direction, `END`, where both sides name it (T-632);
-//! - [`sessions`]: the secrets and offsets that a far end keeps, by id.
+//! - [`sessions`]: the secrets and offsets that a far end keeps, by id;
+//! - [`handover`]: a far end's sessions, with their targets, handed to the
+//!   binary that takes its place, and taken there (T-668).
 //!
 //! The records, the offsets, the secrets, the handshakes, the link and the
 //! replay buffer are sans-IO: bytes and records in, records and events out,
@@ -42,6 +44,7 @@ pub mod deadline;
 pub mod decode;
 pub mod far;
 pub mod half_close;
+pub mod handover;
 pub mod handshake;
 pub mod hearing;
 pub mod keep;

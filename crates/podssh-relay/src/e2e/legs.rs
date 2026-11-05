@@ -138,6 +138,20 @@ impl Lease {
     pub fn seed(&self) -> &[u8; 32] {
         &self.seed
     }
+
+    /// The seed and the first leg of the window, for the binary that takes
+    /// the node's place (T-668): the window leaves this node's leases with
+    /// no withdrawal at the role, as the next binary registers it again on
+    /// its own socket.
+    pub fn hand_over(self) -> ([u8; 32], u64) {
+        let mut guard = lock(&self.leases.inner);
+        let inner = &mut *guard;
+        let low = inner.windows.remove(&self.session).map_or(1, |window| window.low);
+        inner.by_digest.retain(|_, (session, _)| *session != self.session);
+        drop(guard);
+        // Its drop finds no window, and withdraws nothing.
+        (*self.seed, low)
+    }
 }
 
 impl Drop for Lease {
@@ -180,6 +194,26 @@ impl Leases {
         }
         inner.windows.insert(session, window);
         Some(Lease { leases: self.clone(), session, seed })
+    }
+
+    /// The seed and the window of a session that the binary before this one
+    /// handed over (T-668): registered now on a socket that registers them,
+    /// and on each socket after, as a session's of this binary is.
+    pub fn restore(self: &Arc<Self>, seed: [u8; 32], low: u64) -> Lease {
+        let mut guard = lock(&self.inner);
+        let inner = &mut *guard;
+        inner.serial += 1;
+        let session = inner.serial;
+        let window = Window { seed: Zeroizing::new(seed), low: low.max(1) };
+        let ends = now_ms() + LIFE_MS;
+        for (digest, index) in window.digests() {
+            inner.by_digest.insert(digest, (session, index));
+            if let Some(frames) = &inner.frames {
+                frames(frame(&digest, ends));
+            }
+        }
+        inner.windows.insert(session, window);
+        Lease { leases: self.clone(), session, seed: Zeroizing::new(seed) }
     }
 
     /// The role took the token of `digest` (hex) for an upgrade: each token

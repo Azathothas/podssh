@@ -218,6 +218,8 @@ pub(super) const NODE: &[&str] = &[
     super::notes_grant::NODE,
     // The tokens of one leg, and the stop token's rotation (T-615).
     super::notes_legs::NODE,
+    // A node's upgrade in place, its sessions with it (T-668).
+    super::notes_upgrade::NODE,
     "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
      Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
      each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge, and races \

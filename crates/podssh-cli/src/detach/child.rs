@@ -19,8 +19,13 @@ static SENT: AtomicBool = AtomicBool::new(false);
 /// them. Elsewhere nothing.
 pub fn prepare_process(args: &[OsString]) {
     if args.first().is_some_and(|a| a == super::CHILD_FLAG || a == super::supervise::SUPERVISE_FLAG) {
+        // A node's next binary in this process keeps what the one before
+        // left open for it: its sessions' sockets and their state (T-668).
+        let handed = std::env::var_os(crate::node_upgrade::VARIABLE).is_some_and(|v| v != crate::node_upgrade::PROBE);
         #[cfg(unix)]
-        unix::prepare();
+        unix::prepare(!handed);
+        #[cfg(not(unix))]
+        let _ = handed;
     }
 }
 
@@ -40,6 +45,14 @@ pub fn ready(verb: &str) {
         super::lock::logged(path);
     }
     let supervised = std::env::var_os(super::lock::SUPERVISOR_VARIABLE).is_some();
+    // A node's next binary in this process: the binary before it left the
+    // terminal and the streams, and said its ready (T-668); its log goes on.
+    if crate::node_upgrade::took() {
+        if let Some((path, file)) = log {
+            super::log::keep(path, file, !supervised);
+        }
+        return;
+    }
     // The caller's working directory, left unless the run needs it (T-397);
     // a supervisor learns it from the line.
     let leaves = super::run_words().is_some_and(|words| super::cwd::leaves(words));
@@ -159,10 +172,11 @@ pub fn spawn(cmd: &mut Command, note: &mut dyn FnMut(&str)) -> std::io::Result<s
 mod unix {
     use std::os::fd::AsRawFd;
 
-    /// Each descriptor from 3 up closed: `close_range` where Linux has it,
-    /// else each of `/proc/self/fd` or `/dev/fd`, else each up to the limit.
-    pub(super) fn prepare() {
-        if !close_range() {
+    /// Each descriptor from 3 up closed, when `close`: `close_range` where
+    /// Linux has it, else each of `/proc/self/fd` or `/dev/fd`, else each up
+    /// to the limit.
+    pub(super) fn prepare(close: bool) {
+        if close && !close_range() {
             close_listed();
         }
         // Started through /proc/self/exe, the process's name would be

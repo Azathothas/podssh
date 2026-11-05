@@ -20,13 +20,16 @@
 //! checks before it dials, and which no relay sees. The node's verdict may
 //! give the seed of the session's tokens of one leg, so that each leg that
 //! resumes it through podssh's relay role has a token of its own ([`legs`],
-//! T-615).
+//! T-615). A node's channel stops between two messages for the binary that
+//! takes its place, which carries it on from the same keys and nonces
+//! ([`hold`], T-668).
 
 mod ask;
 mod channel;
 pub mod ends;
 mod frame;
 mod handshake;
+pub mod hold;
 pub mod legs;
 pub mod net;
 
@@ -34,7 +37,7 @@ use std::fmt;
 use std::time::Duration;
 
 pub use ask::{exit_word, Ask, MAX_WORD};
-pub use channel::Channel;
+pub use channel::{Carried, Channel, Held, Start};
 pub use handshake::{initiate, initiate_with, respond, respond_with, Asked, Offered};
 
 /// What each end sends first: the channel and its version, so that an end

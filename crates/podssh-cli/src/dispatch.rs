@@ -73,6 +73,11 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         }
         Parsed::Version => {
             let _ = writeln!(s.out, "{}", crate::version::line());
+            // A node that would hand its sessions to this binary asks (T-668).
+            if std::env::var_os(crate::node_upgrade::VARIABLE).is_some_and(|v| v == crate::node_upgrade::PROBE) {
+                let (word, version) = (crate::node_upgrade::PROBE_WORD, crate::node_upgrade::HANDOVER_VERSION);
+                let _ = writeln!(s.out, "{word}{version}");
+            }
             0
         }
         // A usage error is a refusal. Nothing goes to stdout, because the

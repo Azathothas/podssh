@@ -3543,13 +3543,137 @@ that it carries.
    goes on in place; the sshd's TCP connection survives.
 3. Windows needs `WSADuplicateSocket`: probed.
 
+## Decision
+
+2026-11-05 (the drafting agent of T-668), each call with what lost:
+
+1. **The node becomes the new binary by `execve`, in its own process**, not a child that starts
+   beside it while the old one serves (nginx's way with its master). The pid stays, so a supervisor
+   of `--restart` (`crates/podssh-cli/src/detach/supervise.rs`), a unit of systemd whose main pid
+   is the node, the scope of Q61 and the lock of a detached run see no end, and a node in the
+   foreground of a terminal stays there. Lost: a child beside the old process, whose new pid each of
+   them takes for the node's end, and which starts a second node of one pair (a `409`); a fork that
+   writes the state, which leaves a writer process that the rule against helpers does not cover.
+2. **SIGUSR2 is the request**, and `podssh update` sends it to each node of `--detach` of the user
+   that takes it, once it replaced the binary, while the run's lock is held and its record names
+   the pid (`detached/NAME.upgrade` says that the node takes it). Every `podssh node` ignores the
+   signal from its start, so a stray one ends no node of a road that does not take it. Lost: a flag
+   of `podssh update` to ask for it, two steps for the case of this entry's Problem; no signal from
+   `update`, which leaves the Problem as it was; SIGHUP, which a detached run ignores (Q61).
+3. **The binary is probed first**: the file at the node's path (`update::replace::running`, which
+   reads past Linux's `(deleted)`) runs once as `podssh --version` with `PODSSH_HANDOVER=probe`, 10 s
+   at most, and must add `podssh-handover 1`. A build of before, another program or another version
+   of the handover leaves the node as it is. Lost: the version's number alone (a later build may
+   drop a version of the handover); a hidden flag (each flag is in the manual, and a user never
+   types this one).
+4. **The relay's socket is not handed over; the sessions are.** The node's socket stops as a stop
+   does, each session's `close` saying `the node is upgrading` (a client of the layer takes a node's
+   `close` as a loss, `crates/podssh-relay/src/reverse/closes.rs`), and the new binary connects
+   again; each client resumes on a new leg, which is what the layer is for. Lost: the node's socket
+   across the exec (see the Correction).
+5. **The state is the layer's as values, never its records**
+   (`crates/podssh-relay/src/session/handover/mod.rs`): the offsets, the replay buffer, the bytes
+   not yet written to the target, the flags; with the end-to-end channel above, its keys (snow's raw
+   split, its feature `risky-raw-split`), its nonces, the bytes cut short each way and the seed of
+   its tokens of one leg. A version byte guards each part, and the probe asks for it. The channel's
+   transport comes back by a handshake of two keys of the new process whose cipher keys are then set
+   to the session's (`rekey_manually`), as snow builds none from keys. Lost: a transport of podssh's
+   own over chacha20poly1305, a second cipher that must match snow's to the byte.
+6. **The state passes in anonymous memory**: `memfd_create` on Linux, a POSIX shared object
+   unlinked at once on macOS, else a file of the cache's private directory unlinked at once; the
+   variable names its descriptor and the node's pid, so a child of the new binary reads nothing.
+   Lost: a pipe (see the Correction); a file by its path, which another process could open.
+7. **A session that cannot move is kept as an ended one**, its resume answered with `CLOSE` and why
+   (a UDP flow, a target inside the process, a channel that does not stop within 10 s); a session of
+   `--plain` ends at the stop, as it has no layer. Lost: refusing the upgrade while one such session
+   lives (a node of a long UDP flow would never upgrade); dropping it, which its client would learn
+   as a forgotten session.
+8. **A binary that does not start after its probe gives the sessions back**, read from the same
+   bytes as the new binary would read them, and this binary serves again (`node_upgrade::AGAIN`).
+   Lost: the node's exit with its sessions lost.
+9. **Unix alone in this entry.** On Windows no signal asks, and a process that starts the new binary
+   would change the node's pid (item 1), so the node takes a new binary at its next start, its
+   sessions ending as before, and the manual says so. `WSADuplicateSocketW` passes a socket to a
+   process of a known pid, which only a parent that stays can give; that is a design of its own,
+   for an entry that the main session files from the report of this draft.
+10. **The roads that take it**: the pair's road, with or without the transit road beside it, whose
+    keeper is the upgrade's. The other roads (`--iroh`, `--derp`, `--quick-tunnel`, the Piping
+    Server or OpenTunnel road alone, `--carrier`, `--temporary`) ignore the signal and go on with
+    their binary, as before.
+
 ## Prove
 
 ```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test session_handover
+cargo test -p podssh-relay --lib -- session::handover e2e::hold e2e::channel
+cargo test -p podssh-cli --lib -- node_upgrade
 cargo test -p podssh-cli --test node_moves
+sh scripts/plant-each.sh --here t668-replay-dropped t668-nonce-reset t668-no-socket
 ```
 
 A new test: a session through a node goes on across the node's upgrade, its bytes whole.
+
+## Correction
+
+2026-11-05 (the drafting agent of T-668), read in the tree of this draft:
+
+- The Problem's `podssh update` ends no session by itself: it renames the new file over the running
+  one, and `crates/podssh-cli/src/update/replace.rs:5` says "running file, which keeps running from
+  the old inode"; the manual says that an installed node "goes on with its own binary until it
+  starts again" (`crates/podssh-cli/src/man/notes_update.rs:23`). The sessions end when the node
+  starts again to take the new binary. The Premise holds: the sessions are in the process
+  (`crates/podssh-relay/src/session/keep.rs:142` says "slots: Mutex<HashMap<SessionId, Slot<A>>>,").
+- Approach item 1, "inherits the node's links": a link to the relay is a TLS session in rustls,
+  often inside a proxy's CONNECT, whose secrets rustls exports for kernel TLS but builds no
+  connection from; the new binary connects again, and the layer resumes each session on a new leg
+  (Decision, item 4). The sshd's connections are inherited.
+- Approach item 2, "over a pipe": with `execve` no writer is left to feed a pipe, and a pipe holds
+  64 KiB on Linux by default, where the state holds up to 64 MiB of replay buffers. It passes in
+  anonymous memory (Decision, item 6).
+- Approach item 3: see Decision, item 9.
+- The channel's state had to move too, which the Approach did not name: each session of a node runs
+  the end-to-end channel above the layer by default, and its keys live in snow's transport
+  (`crates/podssh-relay/src/e2e/channel.rs:39` says "state: StatelessTransportState,").
+- A detached child closes each descriptor from 3 up at its start
+  (`crates/podssh-cli/src/detach/child.rs:175`), which would close the sessions' sockets in the new
+  binary: it no longer does when the variable of the handover names a descriptor.
+
+## Done
+
+2026-11-05, drafted (unbuilt, UNVERIFIED); the main session merges, builds and measures it.
+
+- The layer's state as values and its bytes (`crates/podssh-relay/src/session/handover/mod.rs`,
+  `crates/podssh-relay/src/session/handover/wire.rs`), with the parts of `Link`, of the replay
+  buffer and of the carry (`crates/podssh-relay/src/session/link/parts.rs`,
+  `crates/podssh-relay/src/session/pump/parts.rs`); `Keeper::hand_over` and `Keeper::take_over`
+  (`crates/podssh-relay/src/session/keep/handover.rs`); a closed slot keeps the words of its
+  `CLOSE`; the far end names the session's id around its target's opening (`handover::scope`).
+- The channel held between two messages: its carry in a buffer of its own
+  (`crates/podssh-relay/src/e2e/channel/carry.rs`), its keys from the handshake, the hold, its
+  registry by the layer's id and the channel's state (`crates/podssh-relay/src/e2e/hold/mod.rs`,
+  `crates/podssh-relay/src/e2e/hold/state.rs`, `crates/podssh-relay/src/e2e/hold/resume.rs`), the
+  lease of its tokens of one leg handed over and restored (`crates/podssh-relay/src/e2e/legs.rs`).
+- The node (`crates/podssh-cli/src/node_upgrade/mod.rs`, with `pass.rs`, `probe.rs`, `state.rs` and
+  `mark.rs` beside it): the signal, the probe, the keepers, the handover, the exec, the bytes, the
+  mark of a detached node; `node.rs` and `node_transit.rs` take its keepers and its stop;
+  `--version` answers the probe; a detached child keeps the handed descriptors, and its ready leaves
+  nothing again; `podssh update` asks each detached node.
+- The manual (`crates/podssh-cli/src/man/notes_upgrade.rs`, `PODSSH_HANDOVER` in ENVIRONMENT),
+  `docs/reverse.md` ("A node's upgrade in place"), `docs/design.md` (section 5), `docs/STATUS.md`.
+- `cargo test -p podssh-relay --test session_handover`: UNVERIFIED (3 tests: over the target as it
+  is, with the channel's keys and nonces, and a target that cannot move).
+- `cargo test -p podssh-relay --lib -- session::handover e2e::hold e2e::channel`: UNVERIFIED.
+- `cargo test -p podssh-cli --lib -- node_upgrade`: UNVERIFIED.
+- `cargo test -p podssh-cli --test node_moves`: UNVERIFIED (the new test: 32 MiB down through the
+  stand-in relay, SIGUSR2 at a quarter, the bytes whole, the same pid, no new connection to the
+  test's server but the new binary's look at TARGET).
+- The whole suites of the relay crate and of the CLI, as the channel's carry and the bounds of
+  `serve_asked` changed: UNVERIFIED.
+- Planted (`sh scripts/plant-each.sh --here t668-replay-dropped t668-nonce-reset t668-no-socket`):
+  UNVERIFIED.
+- clippy with `-D warnings` on Linux, macOS and Windows (the parts of Unix alone are behind `cfg`):
+  UNVERIFIED.
 
 # T-630: The relay role's table of 4096 pairs keeps no share for each key, so one key of a list can take each place
 

@@ -13,14 +13,22 @@
 //! message `NET` carries one; it goes to the binary's [`Docs`], never to
 //! the session's bytes. A verdict that lets in may carry the seed of the
 //! session's tokens of one leg (T-615), which the operator's end keeps.
+//!
+//! A node's carry stops between two messages when a handover asks
+//! ([`carry`], T-668), and the next binary goes on from the same nonces,
+//! with the keys that the handshake split.
+
+mod carry;
 
 use std::sync::Arc;
 
 use snow::StatelessTransportState;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use zeroize::Zeroizing;
 
-use super::frame::{self, DATA, END, NET, VERDICT};
+pub use carry::{Carried, Held, Start};
+
+use super::frame::{self, END, NET, VERDICT};
 use super::net::Docs;
 use super::{Error, Refusal, MAX_DATA, MAX_MESSAGE, TAG};
 use crate::identity::PublicKey;
@@ -39,11 +47,33 @@ pub struct Channel<T> {
     /// The seed of the session's tokens of one leg that the node's verdict
     /// gave (T-615), at the operator's end.
     seed: Option<Zeroizing<[u8; 32]>>,
+    /// The keys that the handshake split, the initiator's then the
+    /// responder's, at a node's end: what a handover gives the next binary
+    /// (T-668).
+    keys: Option<Zeroizing<[u8; 64]>>,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     pub(super) fn new(transport: T, state: StatelessTransportState) -> Self {
-        Channel { transport, state, sent: 0, received: 0, net: None, seed: None }
+        Channel { transport, state, sent: 0, received: 0, net: None, seed: None, keys: None }
+    }
+
+    /// This channel, with the keys of its handshake (T-668).
+    pub(super) fn with_keys(mut self, keys: Zeroizing<[u8; 64]>) -> Self {
+        self.keys = Some(keys);
+        self
+    }
+
+    /// A channel that the binary before this one handed over (T-668): its
+    /// transport from the keys, and its nonces where they were.
+    pub(super) fn restored(
+        transport: T,
+        state: StatelessTransportState,
+        nonces: (u64, u64),
+        keys: Zeroizing<[u8; 64]>,
+    ) -> Self {
+        let (sent, received) = nonces;
+        Channel { transport, state, sent, received, net: None, seed: None, keys: Some(keys) }
     }
 
     /// Both ends read the net's documents: one from the peer goes to `docs`.
@@ -116,48 +146,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     /// goes to `app`, whose writing side is shut at the peer's `END`. An
     /// error of either direction ends both.
     pub async fn carry<A: AsyncRead + AsyncWrite + Unpin>(self, app: A) -> Result<(), Error> {
-        let Channel { transport, state, mut sent, mut received, net, .. } = self;
-        let (mut from_peer, mut to_peer) = tokio::io::split(transport);
-        let (mut from_app, mut to_app) = tokio::io::split(app);
-        let state = &state;
-        let outbound = async {
-            let mut buf = vec![0u8; MAX_DATA];
-            loop {
-                let n = from_app.read(&mut buf).await.map_err(Error::Io)?;
-                if n == 0 {
-                    // The stream stays open: the peer's bytes may still come.
-                    return send(state, &mut sent, &mut to_peer, END, &[]).await;
-                }
-                send(state, &mut sent, &mut to_peer, DATA, &buf[..n]).await?;
-            }
-        };
-        let inbound = async {
-            let (mut cipher, mut plain) = (Vec::new(), vec![0u8; MAX_MESSAGE]);
-            loop {
-                match receive(state, &mut received, &mut from_peer, &mut cipher, &mut plain).await? {
-                    None => return Err(Error::Cut),
-                    Some((DATA, n)) => {
-                        to_app.write_all(&plain[1..n]).await.map_err(Error::Io)?;
-                        to_app.flush().await.map_err(Error::Io)?;
-                    }
-                    Some((END, _)) => {
-                        let _ = to_app.shutdown().await;
-                        return Ok(());
-                    }
-                    // The binary says what it did with the document; the
-                    // session goes on either way.
-                    Some((NET, n)) if net.is_some() => {
-                        if let Some((docs, peer)) = &net {
-                            let _ = docs.take(peer, &plain[1..n]);
-                        }
-                    }
-                    Some((kind, _)) => return Err(Error::Malformed(format!("a message of type {kind} in a session"))),
-                }
-            }
-        };
-        tokio::try_join!(outbound, inbound)?;
-        let _ = to_peer.shutdown().await;
-        Ok(())
+        // With no hold, the carry ends only when both directions did.
+        self.carry_held(app, None, Start::default()).await.map(|_| ())
     }
 }
 

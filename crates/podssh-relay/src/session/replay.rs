@@ -100,6 +100,18 @@ impl Replay {
         Replay { start, bytes: VecDeque::new(), capacity }
     }
 
+    /// A buffer that keeps `bytes` from `start` on, as a handover gives them
+    /// back (T-668).
+    pub(crate) fn restored(start: u64, capacity: usize, bytes: Vec<u8>) -> Replay {
+        Replay { start, bytes: VecDeque::from(bytes), capacity }
+    }
+
+    /// The bytes kept, in order, for a handover (T-668).
+    pub(crate) fn contents(&self) -> Vec<u8> {
+        let (a, b) = self.bytes.as_slices();
+        [a, b].concat()
+    }
+
     pub fn capacity(&self) -> usize {
         self.capacity
     }

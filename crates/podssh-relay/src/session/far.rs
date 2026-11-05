@@ -282,7 +282,10 @@ pub async fn serve_admitted<L, A, O, F>(
     if passed {
         words::say(&words::filling(&after, budget));
     }
-    match tokio::time::timeout(TARGET_LIMIT, open()).await {
+    // What opens learns the session's id, so that a handover finds the
+    // channel above the target by it (T-668).
+    let opening = super::handover::scope(accepted.established().id, async move { open().await });
+    match tokio::time::timeout(TARGET_LIMIT, opening).await {
         Ok(Ok(target)) => {
             keeper.run_new_admitted(accepted, target, admitted).await;
         }

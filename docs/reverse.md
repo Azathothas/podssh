@@ -658,3 +658,53 @@ node's socket on such a stream, with no relay, no pair and no token
    are; their stdin and stdout are their own, so they take `exec:` and
    `fd:N` alone. A `pipe` with a `node:` side and `--exit` on one carrier
    is refused (64), as one node is at the other end of a stream.
+
+## A node's upgrade in place
+
+A node's sessions lived in its process, so a node that started again to
+take a new binary ended each of them, and its sshd's connections with them.
+A node of the pair's road now hands them to the binary that takes its place
+(T-668, drafted 2026-11-05; `crates/podssh-cli/src/node_upgrade/`,
+`crates/podssh-relay/src/session/handover/`,
+`crates/podssh-relay/src/e2e/hold/`):
+
+1. SIGUSR2 asks. `podssh update` sends it, once it replaced the binary, to
+   each node of `--detach` of the user that takes it (such a node writes
+   `detached/NAME.upgrade`, its pid, beside its run's record), while the
+   run's lock is held and the record names that pid; a unit of systemd
+   takes `systemctl kill -s USR2 UNIT`. A node of another road ignores the
+   signal, which no longer ends it.
+2. The binary at the node's path runs once first, as `podssh --version`
+   with `PODSSH_HANDOVER=probe`, 10 s at most, and must add the line
+   `podssh-handover 1`: a build of before, a file that does not start, or
+   another version of the handover leaves the node as it is, with a line.
+3. The node stops its socket as a stop does, each session's `close` saying
+   `the node is upgrading`, which a client of the layer takes as a loss.
+   Each link of the layer stops at a record's end, as for a resume; each
+   end-to-end channel stops between two messages, its keys (split from its
+   handshake), its nonces and the bytes cut short each way kept; and each
+   target's TCP connection leaves the runtime as a socket.
+4. The node becomes the new binary by `execve`, in the same process: the
+   same pid, words, environment, scope of systemd and lock of a detached
+   run, so a supervisor of `--restart` or a service manager sees no end. The
+   sessions' state passes in anonymous memory (`memfd_create` on Linux, a
+   POSIX shared object unlinked at once on macOS, else a private file of the
+   cache unlinked at once), which `PODSSH_HANDOVER=fd:N:pid:P` names to that
+   process alone; each socket and that memory stay open across the exec, as
+   no other descriptor does.
+5. The new binary reads the sessions before it connects, keeps each as a
+   session whose link was lost, for the time that it had left, and comes
+   online; each client resumes on a new leg, and the sshd's connection is
+   the one of before. The layer's records are not part of the handover, so
+   a build that changes them still takes the sessions of the one before.
+6. A session that cannot move (a UDP flow, a target in the process, a
+   channel that does not stop within 10 s) is kept as an ended one: its
+   client's resume hears `CLOSE` with why. A session of `--plain`, which has
+   no layer, ends at the stop. A binary that does not start after its probe
+   gives the sessions back, and this one serves on.
+
+Windows has no such signal, and a process that started the new binary
+beside it would change the node's pid, which a supervisor takes for its
+end: a node there takes a new binary at its next start, its sessions ending
+as before. Measured: UNVERIFIED (`cargo test -p podssh-relay --test
+session_handover`; `cargo test -p podssh-cli --test node_moves`).

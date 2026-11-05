@@ -217,8 +217,10 @@ pub async fn respond_with<T: AsyncRead + AsyncWrite + Unpin>(
     within("the operator's proof of its key", async { whole(read_frame(&mut transport, &mut message).await?) }).await?;
     let k = state.read_message(&message, &mut payload).map_err(not_noise("the operator's proof"))?;
     let read = proof_of(&payload[..k], state.get_remote_static(), docs.is_some())?;
+    // The node keeps the keys, which the binary after it takes (T-668).
+    let keys = super::hold::state::split(&mut state);
     let state = state.into_stateless_transport_mode().map_err(noise)?;
-    let mut channel = Channel::new(transport, state);
+    let mut channel = Channel::new(transport, state).with_keys(keys);
     let net = match (docs, read.net) {
         (Some(docs), Some((peer, follows))) => {
             // The operator's newer document comes before the verdict, so

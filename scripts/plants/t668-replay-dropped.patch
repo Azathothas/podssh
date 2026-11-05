@@ -1,0 +1,15 @@
+--- a/crates/podssh-relay/src/session/link/parts.rs
++++ b/crates/podssh-relay/src/session/link/parts.rs
+@@ -48,11 +48,7 @@
+             received: self.inbound.received(),
+             sent: self.outbound.sent(),
+             acknowledged: self.outbound.acknowledged(),
+-            replay: self.replay.as_ref().map(|replay| ReplayParts {
+-                start: replay.start(),
+-                capacity: replay.capacity(),
+-                bytes: replay.contents(),
+-            }),
++            replay: None,
+             acks: self.acks,
+             acked: self.acked,
+             held: self.held,

@@ -200,8 +200,9 @@ rand = { version = "0.10", default-features = false, features = ["std", "thread_
 base64 = { version = "0.23", default-features = false, features = ["std"] }
 # The channel between two podssh ends (T-088): Noise XX with ChaChaPoly,
 # SHA-256 and Curve25519 only. No default features: its `std` turns on ring,
-# which compiles C.
-snow = { version = "0.10", default-features = false, features = ["use-chacha20poly1305", "use-sha2", "use-curve25519", "use-getrandom"] }
+# which compiles C. `risky-raw-split` gives a node the keys of each session's
+# channel, which an upgrade in place hands to the next binary (T-668).
+snow = { version = "0.10", default-features = false, features = ["use-chacha20poly1305", "use-sha2", "use-curve25519", "use-getrandom", "risky-raw-split"] }
 hex = "0.4"
 libc = "0.2"
 zeroize = "1"

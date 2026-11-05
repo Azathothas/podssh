@@ -147,12 +147,14 @@ impl Beside<'_> {
         routes: Option<Routes>,
     ) -> Exit {
         let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
-        let keeper = Arc::new(Keeper::new(settings.resume_deadline));
+        // The upgrade's keeper: the sessions of the binary before this one,
+        // and those that go to the next (T-668).
+        let keeper = crate::node_upgrade::channel_keeper(&node, settings.resume_deadline);
         let road = road(self.label, &config.pair, self.stored, self.trust, self.url, self.say);
         let (host, port, roost) = (tcp.host.clone(), tcp.port, tcp.sshd);
         let piped = crate::channel::Piped { inner: Arc::new(tcp), channel: Some(node.clone()), routes: routes.clone() };
         let layered = Layered::with_keeper(piped, settings, budget, keeper.clone());
-        let pair_road = Box::pin(reverse::run(config, Arc::new(layered), crate::node::stop_signal()));
+        let pair_road = Box::pin(reverse::run(config, Arc::new(layered), crate::node_upgrade::stop()));
         // Each session is a pipe, as on the pair's road (T-164): the target
         // is reached once the operator's key is let in.
         let target = move || {

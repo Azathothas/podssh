@@ -26,7 +26,10 @@
 
 mod down;
 mod outbox;
+mod parts;
 mod up;
+
+pub use parts::CarryParts;
 
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};

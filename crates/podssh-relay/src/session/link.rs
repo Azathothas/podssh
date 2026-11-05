@@ -10,6 +10,10 @@ use super::offset::{Inbound, OffsetError, Outbound};
 use super::record::{Record, RefuseCode, MAX_DATA};
 use super::replay::{Full, NotKept, Replay};
 
+// The state as values, for a handover (T-668).
+mod parts;
+pub use parts::{LinkParts, ReplayParts};
+
 /// A receiver acknowledges at least each this many bytes (T-152).
 pub const ACK_EVERY: u64 = 64 * 1024;
 
