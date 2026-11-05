@@ -30,10 +30,11 @@ pub async fn create_with(ctx: &PairContext<'_>, once: bool) -> Result<(Pair, boo
 }
 
 /// Whether an answer of `/v1/pair` says that its connect token takes one
-/// upgrade.
+/// upgrade: a guarantee that `--once` asks for, which only `true` gives
+/// (`crate::answer`).
 pub fn said_once(body: &[u8]) -> bool {
     let answer = serde_json::from_slice::<serde_json::Value>(body);
-    answer.is_ok_and(|answer| answer.get("once") == Some(&serde_json::Value::Bool(true)))
+    answer.is_ok_and(|answer| crate::answer::says_true(answer.get("once")))
 }
 
 #[cfg(test)]
@@ -43,7 +44,9 @@ mod tests {
     #[test]
     fn only_an_answer_that_says_once_is_one() {
         assert!(said_once(br#"{"name":"p-a","once":true}"#));
-        for body in [&br#"{"name":"p-a"}"#[..], br#"{"once":"true"}"#, br#"{"once":1}"#, b"not json"] {
+        for body in
+            [&br#"{"name":"p-a"}"#[..], br#"{"once":false}"#, br#"{"once":"true"}"#, br#"{"once":1}"#, b"not json"]
+        {
             assert!(!said_once(body), "{}", String::from_utf8_lossy(body));
         }
     }

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**631 entries: 105 open, 10 partial, 3 blocked, 513 done.**
+**631 entries: 104 open, 10 partial, 3 blocked, 514 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 247 | 276 |
-| P3 | 80 | 4 | 3 | 200 | 287 |
-| **All** | 105 | 10 | 3 | 513 | 631 |
+| P3 | 79 | 4 | 3 | 201 | 287 |
+| **All** | 104 | 10 | 3 | 514 | 631 |
 
 ## Entries
 
@@ -672,7 +672,7 @@ repository and CI).
 | [T-630](reverse.md) | P2 | S | M10 | feature | done | The relay role's table of 4096 pairs keeps no share for each key, so one key of a list can take each place |
 | [T-631](serve.md) | P3 | S | backlog | feature | open | `podssh serve --listen`: a deadline from the accept for a client that never logs in, and a cap on those that have not |
 | [T-632](resume.md) | P2 | S | none | feature | done | The resumable layer has no record that ends one direction, so a half-close ends the whole session where no channel runs above it |
-| [T-633](reverse.md) | P3 | S | M10 | feature | open | No rule, written once, for a member of an answer that is absent where it carries a guarantee, and no helper that reads `None` and `false` alike |
+| [T-633](reverse.md) | P3 | S | M10 | feature | done | No rule, written once, for a member of an answer that is absent where it carries a guarantee, and no helper that reads `None` and `false` alike |
 | [T-634](cli.md) | P3 | S | none | feature | done | A `PODSSH_*` variable that a release stopped reading is ignored in silence; there is no table of retired names |
 | [T-635](relay.md) | P2 | S | M10 | feature | done | `podssh relay serve` has no list of private targets between public ones alone and `--allow-private` |
 | [T-636](relay.md) | P3 | M | M10 | feature | open | The relay role counts no bytes for each key across its sessions, and keeps no count across a restart |

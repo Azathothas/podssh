@@ -1,0 +1,7 @@
+# T-633: the one comparison of an answer's member reads `is_some()`, so a
+# `false`, a string or a number offers a feature and confirms a guarantee;
+# the test of each kind's noes must fail.
+ENTRY=T-633
+GROUP=resume
+EXPECT='test answer::tests::only_true_offers \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- answer::tests'

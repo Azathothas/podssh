@@ -62,6 +62,7 @@
 //! `CC=/nonexistent`), so other projects can depend on it.
 
 pub mod addresses;
+pub mod answer;
 #[cfg(feature = "blocking")]
 pub mod blocking;
 pub mod cache;

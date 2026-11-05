@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/answer.rs
++++ b/crates/podssh-relay/src/answer.rs
+@@ -22,7 +22,7 @@
+ /// a peer of before leaves out, a `false`, a string or a number is no: an
+ /// `is_some()` would read `false` as yes.
+ pub fn says_true(value: Option<&Value>) -> bool {
+-    matches!(value, Some(Value::Bool(true)))
++    value.is_some()
+ }
+ 
+ /// Whether a peer offers a feature by `value`, its member: [`says_true`].

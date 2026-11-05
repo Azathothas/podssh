@@ -698,7 +698,10 @@ are `podssh relay`, `podssh node`, `podssh operator` and
 `podssh relay serve` serves the reverse path of the contract too, so that
 `podssh relay pair --relay-host`, `podssh node`, `podssh operator` and
 `podssh ssh node://` work through it with no other relay, as they work
-through the default one:
+through the default one. Each member that the role adds to an answer is a
+hint, an offer or a guarantee, read as `docs/reverse.md` says ("A member
+that an answer leaves out", T-633), so that a client of the contract that
+does not know it reads the answer as before:
 
 - `POST /v1/pair` makes a pair for whom the role mints tokens (`--mint`):
   a name of 34 characters of `[-0-9a-z]`, three tokens of 64 characters of

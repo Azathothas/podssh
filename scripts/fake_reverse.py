@@ -182,7 +182,9 @@ class Pair:
 
 async def handle(method, path, headers, reader, writer):
     """Serve a request of the reverse road; False for any other path."""
-    if method == "POST" and path == "/v1/pair":
+    # A query that the stand-in does not know (`?once=1`) is read past, as a
+    # relay of before routes by the path alone: the answer then has no `once`.
+    if method == "POST" and path.split("?")[0] == "/v1/pair":
         await reader.readexactly(int(headers.get("content-length", "0")))
         pair = Pair()
         PAIRS[pair.name] = pair
@@ -211,6 +213,8 @@ async def handle(method, path, headers, reader, writer):
         if pair.node is not None:
             await pair.node.close(1001, "operator stopped reverse relay")
         PAIRS.pop(pair.name, None)
+        # An event, for a test that a client stopped what it made (T-633).
+        print(f"reverse: stopped {pair.name}", flush=True)
         writer.write(response(200, "OK", json.dumps({"stopped": True, "sessions": sessions}).encode(), JSON))
     elif kind == "node":
         if pair.node is not None and not pair.node.closed:

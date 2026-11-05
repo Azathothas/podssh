@@ -46,9 +46,9 @@ pub fn heard(hello: &Hello) {
 }
 
 /// Whether a role's `hello` says that it rotates stop tokens: `true`, and
-/// nothing else.
+/// nothing else (`crate::answer`).
 pub fn says_rotation(hello: &Hello) -> bool {
-    hello.extra.get(ROTATION) == Some(&serde_json::Value::Bool(true))
+    crate::answer::offers(hello.extra.get(ROTATION))
 }
 
 /// Whether a socket of this process's node heard a role that rotates the
@@ -110,7 +110,9 @@ mod tests {
     fn only_a_true_of_its_field_says_that_the_role_rotates() {
         let read = |text: &str| -> Hello { serde_json::from_str(text).unwrap() };
         assert!(says_rotation(&read(r#"{"maxSessions":64,"stopRotation":true}"#)));
-        for text in [r#"{"maxSessions":64}"#, r#"{"stopRotation":"yes"}"#, r#"{"stopRotation":1}"#] {
+        for text in
+            [r#"{"maxSessions":64}"#, r#"{"stopRotation":false}"#, r#"{"stopRotation":"yes"}"#, r#"{"stopRotation":1}"#]
+        {
             assert!(!says_rotation(&read(text)), "{text}");
         }
         let before = offers();

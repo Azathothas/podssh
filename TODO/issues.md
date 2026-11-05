@@ -199,7 +199,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #128 | The relay role's 4096 pairs have no share for each key | closed 2026-11-04 (`4ae2284`), its entry done | T-630 (a reserve for each key that a busy key may borrow past, not the issue's ceiling) |
 | #129 | `serve --listen`: an absolute deadline from the accept | open | T-631 (backlog, parked until T-124, whose listener it bounds: no server of `podssh serve` exists yet) |
 | #130 | A record of the resumable layer that ends one direction | open | T-632 (also the relay role's layer road for a standard sshd, which `proxy` takes unasked by Q96; consent by the layer's own features, not the node's `hello`) |
-| #131 | One rule for an absent member that carries a guarantee, and a helper | open | T-633 (each reader that exists is right; the rule and the helper are new) |
+| #131 | One rule for an absent member that carries a guarantee, and a helper | closed 2026-11-05, its entry done | T-633 (each reader that exists is right; the rule and the helper are new) |
 | #132 | Refuse a retired `PODSSH_*` variable by name | closed 2026-11-04 (`91669ae`), its entry done | T-634 (the manual's check of variables runs both ways already, which the issue missed) |
 | #133 | `relay serve`: a list of targets between public alone and `--allow-private` | closed 2026-11-04 (`ce411ac`), its entry done | T-635 (`--routes`, as an exit's, ranges and single addresses; a prefix with host bits refused, also for an exit) |
 | #134 | `relay serve`: no byte count for a token across sessions or a restart | open | T-636 (by the key that minted, not by the token, which names no one; a budget for a day) |

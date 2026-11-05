@@ -335,4 +335,8 @@ fn limits_apply_whatever_hello_says_and_clamp_it_to_the_published_wire_maximum()
     limits.apply(&zero);
     assert_eq!(limits.max_sessions, 64, "zero does not become the limit");
     assert_eq!(limits.max_frame_bytes, NODE_PAYLOAD_MAX as u64, "clamped to the payload cap");
+    // A hint that a relay of before leaves out keeps the floor (T-633).
+    let mut fresh = control::NodeLimits::conservative();
+    fresh.apply(&control::Hello::default());
+    assert_eq!(fresh, control::NodeLimits::conservative(), "an absent hint keeps the floor");
 }

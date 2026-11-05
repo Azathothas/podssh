@@ -94,18 +94,12 @@ impl NodeLimits {
     }
 
     /// Take what `hello` says, clamped: the published cap is the contract, and
-    /// `hello` a hint. A zero is ignored, not read as "send nothing".
+    /// `hello` a hint (`crate::answer::hint`). A zero is ignored, not read as
+    /// "send nothing".
     pub fn apply(&mut self, hello: &Hello) {
-        if let Some(sessions) = hello.max_sessions {
-            if sessions > 0 {
-                self.max_sessions = sessions;
-            }
-        }
-        if let Some(frame) = hello.max_frame_bytes {
-            if frame > 0 {
-                self.max_frame_bytes = frame.min(NODE_PAYLOAD_MAX as u64);
-            }
-        }
+        self.max_sessions = crate::answer::hint(hello.max_sessions, self.max_sessions);
+        self.max_frame_bytes =
+            crate::answer::hint(hello.max_frame_bytes, self.max_frame_bytes).min(NODE_PAYLOAD_MAX as u64);
     }
 }
 

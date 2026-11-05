@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:482-491`).
+   and above all not the `stop_token` (`docs/reverse.md:506-515`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:343`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:344`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -2645,7 +2645,7 @@ Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a ro
 itself, so the relay's change of the Approach above is podssh's, in its relay role's reverse road
 (T-427): a frame of the node for an id that it closed in the last few seconds is dropped as one
 in flight, and `1003` stays for an id that it never gave or closed long before. The stand-in
-already tells the two apart (`scripts/fake_reverse.py:289-301`), with a grace of 2 s.
+already tells the two apart (`scripts/fake_reverse.py:293-305`), with a grace of 2 s.
 
 What the client does (the research of 2026-11-02 on the client's side), where the default
 deployment still closes the socket: make the cut cheap. A 1003 is no exit since T-409, and the
@@ -4564,7 +4564,7 @@ Read at `2042200`:
   (`crates/podssh-cli/src/node_quick_relay.rs:70`).
 - The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs:80`, and
   `crates/podssh-relay/src/serve/keys.rs:84` says "this relay cannot read its list of keys";
-  `docs/relay.md:825` says "read again for each request".
+  `docs/relay.md:828` says "read again for each request".
 - `crates/podssh-relay/src/serve/mod.rs:97` holds the list as a path; the net's members are a source
   that the binary gives (`crates/podssh-relay/src/serve/keys.rs:31`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.

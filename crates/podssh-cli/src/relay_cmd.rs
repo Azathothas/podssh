@@ -270,8 +270,9 @@ pub(crate) fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut
     let ctx = pairs::context(&control, &trust, &proxy);
     let (made, once) = block_on(pair::once::create_with(&ctx, args.once))?.map_err(|e| pairs::refusal(&e))?;
     // A relay that does not offer --once made a pair whose token takes each
-    // upgrade (T-226): it is stopped, as it is not the one asked for.
-    if args.once && !once {
+    // upgrade (T-226): a guarantee asked for and not given, so the pair is
+    // stopped before the refusal, as it is not the one asked for.
+    if !podssh_relay::answer::kept(args.once, once) {
         let _ = block_on(pair::stop(&ctx, &made));
         return Err(Refusal {
             message: format!(

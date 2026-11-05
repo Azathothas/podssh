@@ -1197,7 +1197,7 @@ The Premise is stale in one sentence: the stand-in serves more than "the forward
 `/v1/mint` and `/health` only". At `scripts/fake-relay.py:162-166` it also serves `/relays.json`
 and `/trace`, and `scripts/fake-relay.py:148` hands the whole reverse road to
 `scripts/fake_reverse.py`, which is as strict as the live relay for an id that it forgot, and
-tells a frame in flight apart (`scripts/fake_reverse.py:289-301`). The rest holds; the ruling of
+tells a frame in flight apart (`scripts/fake_reverse.py:293-305`). The rest holds; the ruling of
 2026-10-08 that it cites is changed.
 
 By Q63 (2026-11-02, `docs/decisions.md`; the design is docs/mesh.md, section 4) the relay is a
@@ -4499,7 +4499,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:338-339`), as the design chose for a host with no
   DNS (`docs/design.md:1166`, `:1176`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:445-449`).
+  (`docs/reverse.md:469-473`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,

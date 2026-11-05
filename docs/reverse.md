@@ -343,6 +343,30 @@ drafted 2026-11-04; `crates/podssh-relay/src/e2e/legs.rs`,
 
 Measured on 2026-11-04: `relay_serve_once` 6 passed and `relay_serve_node` 6 passed (T-615's Prove).
 
+## A member that an answer leaves out
+
+A relay of before, or one that is not podssh's, leaves out each member
+that it does not know. podssh reads each optional member of a peer's
+answer (a role's `hello`, an answer of `/v1/pair`) as one of three kinds,
+by one rule (`podssh_relay::answer`, T-633), so that an absence is safe in
+each:
+
+- **A hint**, such as `hello`'s `maxSessions` and `maxFrameBytes`: absent,
+  or zero, keeps podssh's own floor (16 sessions, the published cap of a
+  frame), and never refuses; a value over the published cap is clamped.
+- **An offer of a feature**, such as `hello`'s `legTokens` and
+  `stopRotation`: only `true` offers. Absent, `false`, `"true"` and `1` are
+  each no offer, and podssh goes on without the feature, as it did before
+  the feature.
+- **A guarantee that this end asked for**, such as `/v1/pair`'s `once` for
+  `podssh relay pair --once`: only `true` confirms it. Anything else is a
+  refusal, and podssh first undoes what the peer made (it stops the pair),
+  then says it, and never retries, as the same relay would make the same.
+
+A new member names its kind where it is described, and takes the rule's
+function of its kind, never a comparison of its own: an `is_some()` would
+read a `false` as yes.
+
 ## Pairing by a short code
 
 The operator's part of a pair moves by a code that a person reads on the

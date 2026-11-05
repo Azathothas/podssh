@@ -76,9 +76,9 @@ pub fn unhex(text: &str) -> Option<[u8; 32]> {
 }
 
 /// Whether the fields of a role's `hello` that podssh's node does not model
-/// offer the tokens: `"legTokens": true`, and nothing else.
+/// offer the tokens: `"legTokens": true`, and nothing else (`crate::answer`).
 pub fn offered(extra: &serde_json::Map<String, serde_json::Value>) -> bool {
-    extra.get(OFFER) == Some(&serde_json::Value::Bool(true))
+    crate::answer::offers(extra.get(OFFER))
 }
 
 /// The node's frame that registers `digest` until `expires_ms`, or, with an

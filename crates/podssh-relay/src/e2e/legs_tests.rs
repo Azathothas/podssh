@@ -141,7 +141,9 @@ fn a_taker_goes_leg_by_leg_and_after_its_refusals_takes_the_pair_s() {
 fn only_a_true_of_its_field_is_an_offer() {
     let read = |text: &str| -> serde_json::Map<String, serde_json::Value> { serde_json::from_str(text).unwrap() };
     assert!(offered(&read(r#"{"legTokens":true}"#)));
-    for text in [r#"{}"#, r#"{"legTokens":"true"}"#, r#"{"legTokens":1}"#, r#"{"legtokens":true}"#] {
+    for text in
+        [r#"{}"#, r#"{"legTokens":false}"#, r#"{"legTokens":"true"}"#, r#"{"legTokens":1}"#, r#"{"legtokens":true}"#]
+    {
         assert!(!offered(&read(text)), "{text}");
     }
 }

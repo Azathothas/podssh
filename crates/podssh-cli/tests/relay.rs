@@ -443,6 +443,29 @@ fn relay_halt_on_a_relay_with_none_says_so() {
     assert_eq!(ran(relay(&s, &args)).status.code(), Some(64));
 }
 
+/// T-633: `relay pair --once` against a relay that does not confirm a
+/// token of one upgrade (the stand-in's answer has no `once`): a guarantee
+/// asked for and not given, so podssh stops the pair that the relay made,
+/// then refuses, and keeps nothing.
+#[test]
+fn a_pair_that_the_relay_does_not_make_once_is_stopped_then_refused() {
+    if who().pool == "podssh" {
+        // The role confirms `once`: no refusal to see.
+        return;
+    }
+    let s = Session::start("relay-pair-once");
+    let Some((flags, host)) = stand_in(&s) else { return };
+    let mut args = words(&["pair", "lab", "--once", "--relay-host", &host]);
+    args.extend(flags);
+    let out = ran(relay(&s, &args));
+    let err = text(&out.stderr);
+    assert_eq!(out.status.code(), Some(69), "{err}");
+    assert!(err.contains("makes no connect token of one upgrade") && err.contains("was stopped"), "{err}");
+    assert!(out.stdout.is_empty(), "{}", text(&out.stdout));
+    let events = std::fs::read_to_string(s.home.join("fake-relay-normal-relay.pem-events.log")).unwrap_or_default();
+    assert!(events.contains("reverse: stopped "), "the stand-in stopped no pair: {events}");
+}
+
 #[test]
 fn a_token_that_the_relay_refuses_is_77() {
     let s = Session::start("relay-trace-token");
