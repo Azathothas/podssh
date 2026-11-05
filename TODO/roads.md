@@ -60,7 +60,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:233-260`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:233-265`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -4687,7 +4687,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:289-294`; `docs/design.md:66`), and
+- Read: credentials never go in URLs (`docs/architecture.md:291-296`; `docs/design.md:66`), and
   `docs/decisions.md:81` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -5523,7 +5523,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:204-209`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:210-215`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -5582,7 +5582,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:265-269`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:267-271`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
    `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
@@ -6212,7 +6212,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:179`).
+  port 443 answers (`docs/STATUS.md:180`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -6437,7 +6437,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:289-294`); an `ss://` URI holds the password.
+  (`docs/architecture.md:291-296`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
@@ -9305,7 +9305,7 @@ Partial, 2026-11-04, merged from its draft (`05a7326`).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9318,7 +9318,7 @@ that is closed.
 
 Read at `2042200`:
 
-- The section is opened at `crates/podssh-cli/src/doctor/mod.rs:211`; its network part is
+- The section is opened at `crates/podssh-cli/src/doctor/mod.rs:217`; its network part is
   `crates/podssh-cli/src/doctor/net.rs:164`.
 - The two lines of UDP that exist each ask one server: `crates/podssh-cli/src/doctor/quick.rs:55`
   (`UDP out`, the quick tunnel's edge) and `crates/podssh-cli/src/doctor/iroh.rs:34` (`iroh UDP out`); a bind
@@ -9328,7 +9328,7 @@ Read at `2042200`:
 - No code of podssh speaks STUN (searched); the TURN road would bring a STUN codec (T-621, its step 2).
 - The measured sandbox refuses UDP: `docs/target-environment.md:23` says "EPERM", so there the line is
   unknown.
-- A socket that a source binds must be named in `scripts/repo_listeners.py` (`:76` for `UdpSocket`),
+- A socket that a source binds must be named in `scripts/repo_listeners.py` (`:82` for `UdpSocket`),
   which `scripts/check-repo.py:282` reads.
 
 ## Approach
@@ -9354,12 +9354,43 @@ for its references; `PODSSH_STUN=no` turns it off. Lost: a line that waits for `
 issue prefers and which almost no one would set; one server, which tells nothing (two answers are the
 whole signal).
 
+2026-11-05 (the drafting agent), within that call:
+
+- The STUN codec is a module of podssh-ws, `podssh_ws::stun` (`crates/podssh-ws/src/stun.rs`), pure
+  Rust and with no I/O, where T-621's step 2 puts its TURN module: TURN builds its attributes and
+  MESSAGE-INTEGRITY on its reader. Lost: podssh-core, which holds sans-IO protocols too, but where the
+  TURN road would not be; a codec inside `doctor`, which T-621 could not share.
+- UDP goes straight out whether a proxy is set or not, as the iroh road's probe sends it
+  (`crates/podssh-iroh/src/probe.rs:4` says "drop its datagrams further on, as a network whose way out"):
+  the line asks about direct
+  paths, which the iroh road tries behind a proxy too. Lost: nothing sent behind a proxy, as `UDP out`
+  does; that line tells what the quick tunnel's node takes, which behind a proxy is HTTP/2 whatever
+  UDP does.
+- IPv4 alone: the socket binds `0.0.0.0:0`, and each server's first IPv4 address is asked. Lost: an
+  IPv6 socket too, which would double the datagrams for a family that has no NAT as a rule.
+- This host's own address is read from the same socket, connected to the first server that answered
+  once the questions are done: a `connect` of UDP sends nothing, and its local address is the route's.
+  Lost: a second socket for the route alone; the host's interfaces, which need `getifaddrs` and C
+  types in the binary's code.
+- `XOR-MAPPED-ADDRESS` first, then `MAPPED-ADDRESS` where an older server sends it alone (RFC 8489
+  keeps it for RFC 3489's servers); an error response is named with its code. Rule 7 of `AGENTS.md`.
+- `PODSSH_STUN` takes 2 to 4 servers, asked in turn from the one socket until two gave an address, so
+  that a silent server has a successor (rule 7); one or more than four, a bad host or port 0 is 78
+  before any probe, as the run's other variables are. Lost: exactly two; a `FAIL` line for a bad
+  value, as the line is never `FAIL`.
+- `PODSSH_STUN=no` gives a `????` line that says so, as `PODSSH_OPENTUNNEL=no` and the carriers' `no`
+  do. Lost: no line, which a reader of `--json` could take for an older binary.
+- `--quick` leaves the line out and names it in its last line: `ssh` and `proxy` do not need it.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-cli --lib doctor::nat
-cargo test -p podssh-cli --test doctor
+cargo test -p podssh-ws --lib stun
+cargo test -p podssh-cli --lib doctor::
+cargo test -p podssh-cli --lib man::
+cargo test -p podssh-cli --test doctor --test doctor_nat --test doctor_jobs --test doctor_tls
+python scripts/check-repo.py
 ```
 
 Against two stand-in servers on the loopback: one mapped address for both is one mapping; two ports
@@ -9367,6 +9398,43 @@ differ; silence is unknown with exit 0; an answer with no mapped address is no v
 transaction id and a stranger's datagram are skipped; offline, the count of unknowns grows by one.
 `python scripts/check-repo.py` names the new socket. Planted: the two questions on two sockets, and the
 stand-ins' test of one mapping reads two.
+
+## Done
+
+2026-11-05, merged from its draft (`dfa734e`).
+
+- `crates/podssh-ws/src/stun.rs`: STUN's codec (a Binding Request, a Binding success as a server writes
+  it, a message read with the cookie, the length and each attribute's length checked before its value,
+  `XOR-MAPPED-ADDRESS` then `MAPPED-ADDRESS`, `ERROR-CODE`), with `stun_tests.rs`: RFC 5769's three
+  vectors (2.1, 2.2, 2.3; their bytes compared with the RFC's text, fetched through the services of
+  web.pkgforge.dev, by a script: equal) read field by field, the writer held to the vectors' bytes, and
+  each form that is no message refused.
+- `crates/podssh-cli/src/doctor/nat.rs`: the line `nat` in the section `egress`, a part of its own
+  after the quick tunnel's (`sections.rs`, `Kind::Nat`), left out by `--quick`; `PODSSH_STUN` read
+  with the run's other variables (`mod.rs`), and the line offline. The servers' sources were read on
+  2026-11-05: Cloudflare's Realtime TURN page names `stun.cloudflare.com` on 3478/udp, and WebRTC's
+  samples (`webrtc/samples`, trickle-ice) name `stun:stun.l.google.com:19302`.
+- Tests: `nat_tests.rs` (stand-in STUN servers of `tokio` on the loopback: two echoing servers see one
+  socket and read no NAT; one NAT's address for both is one mapping; two ports are a mapping for each
+  destination; a silent server is `????` after its tries, each with the same id; no address, and an
+  error 400, are no verdict; a wrong id, a stranger's datagram and one that is no STUN are skipped; the
+  servers are asked in turn until two answered; the whole line through `check`; each form of the
+  verdict; the variable; offline and `no`), and `tests/doctor_nat.rs` (as a process: offline one `????`
+  in `egress` and none with `--quick`; `no` and a bad value, 78; through a stand-in proxy that refuses
+  each CONNECT, against stand-in servers of `std` written apart from the codec: no NAT, one mapping,
+  and a silent server `????`). `doctor_jobs.rs` and `doctor_tls.rs` set `PODSSH_STUN=no`, so that no
+  datagram leaves the loopback, and the former holds `--quick` to no line `nat`.
+- The manual (a note of `doctor`, `--quick`'s list, `PODSSH_STUN` in ENVIRONMENT), `docs/cli.md`,
+  `SECURITY.md`, `docs/architecture.md`, and the listener's list (`scripts/repo_listeners.py`, the rows
+  `UdpSocket` and `bind(`). `AGENTS.md`'s rule 2 is left to the operator's confirmation of Q86.
+- `python scripts/check-repo.py`: ok in the draft (2026-11-05), the new socket within its allowance.
+  `cargo test -p podssh-ws --lib stun`: 12 passed. `--lib doctor::`: 89 passed. `--test doctor
+  --test doctor_nat --test doctor_jobs --test doctor_tls`: 13, 3, 3 and 3 passed. podssh-ws whole:
+  486 passed; the CLI whole: 1,935 (`--lib man::` among them); 0 failed. The plants
+  `t641-two-sockets`, `t641-stranger-taken` and `t641-length-trusted`: 3 caught. Clippy clean;
+  rustfmt joined a line. A live run of `podssh doctor` against the two public servers waits: they
+  are not among the test targets of `AGENTS.md` (section 4), so it goes with the operator's answer
+  to the call of Q86.
 
 # T-676: A WARP test inherits an earlier test's memory of a re-terminated TLS at a reused port
 

@@ -492,7 +492,7 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:279-285` (no bind, no listen),
-  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:233-260` ("Nothing
+  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:233-265` ("Nothing
   listens") and `README.md:44-53` state the rule from before the ruling.
   `docs/design.md:1129-1131` already allows a local listener for `pipe` after
   a probe.
@@ -588,7 +588,7 @@ box fails.
 (`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
-`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:233-260` and
+`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:233-265` and
 `README.md:44-53` state the ruling now, as `AGENTS.md:279-285` and
 `docs/target-environment.md:99-103` did already.
 
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:422`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:423`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise

@@ -7593,7 +7593,7 @@ roads, and a carrier must be one of them.
   (`crates/podssh-cli/src/man/notes_pair.rs:274-275`), and needs the net's role exit, signed by
   its owner (`:272-273`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
-  (`docs/STATUS.md:108`).
+  (`docs/STATUS.md:109`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node
   of the exit runs there with `--carrier exec:...`, and the closed host runs the client,
   `podssh exit NAME --listen 127.0.0.1:1080 --carrier stdio`.

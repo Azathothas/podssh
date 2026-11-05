@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**632 entries: 101 open, 10 partial, 3 blocked, 518 done.**
+**632 entries: 100 open, 10 partial, 3 blocked, 519 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 248 | 277 |
-| P3 | 76 | 4 | 3 | 204 | 287 |
-| **All** | 101 | 10 | 3 | 518 | 632 |
+| P3 | 75 | 4 | 3 | 205 | 287 |
+| **All** | 100 | 10 | 3 | 519 | 632 |
 
 ## Entries
 
@@ -680,7 +680,7 @@ repository and CI).
 | [T-638](mesh.md) | P3 | M | M10 | feature | open | A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door |
 | [T-639](pipe.md) | P3 | S | none | feature | done | `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory |
 | [T-640](robustness.md) | P3 | M | none | feature | done | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |
-| [T-641](roads.md) | P3 | M | M10 | feature | open | `doctor` does not say whether this host's NAT keeps one mapping across destinations |
+| [T-641](roads.md) | P3 | M | M10 | feature | done | `doctor` does not say whether this host's NAT keeps one mapping across destinations |
 | [T-642](ws.md) | P3 | L | none | feature | open | TLS sends each name in the clear: no Encrypted Client Hello from the name's HTTPS record |
 | [T-643](reverse.md) | P3 | M | M10 | feature | open | Neither end of the reverse road compares the `version` of the role's `hello`, and an operator's offer of the net answered plainly says nothing |
 | [T-644](relay.md) | P3 | M | M10 | feature | open | `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road |

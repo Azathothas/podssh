@@ -121,10 +121,12 @@ fn doctor(args: &[&str], port: u16) -> Run {
     for name in STEERING {
         cmd.env_remove(name);
     }
+    // No STUN server is asked (T-641): its datagrams would leave the loopback.
     cmd.env("https_proxy", format!("http://127.0.0.1:{port}"))
         .env("PODSSH_DERP_SERVER", SLOW_DERP)
         .env("PODSSH_CACHE_DIR", home.join("cache"))
-        .env("PODSSH_SETTINGS", "none");
+        .env("PODSSH_SETTINGS", "none")
+        .env("PODSSH_STUN", "no");
     let began = Instant::now();
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().expect("podssh runs");
     let mut stdout = child.stdout.take().unwrap();
@@ -245,7 +247,7 @@ fn quick_checks_the_host_the_egress_and_the_relay_and_names_what_it_left_out() {
     for item in checks {
         let (section, check) = (item["section"].as_str().unwrap(), item["check"].as_str().unwrap());
         assert!(!["derp", "carriers", "pairs", "net", "iroh", "tor"].contains(&section), "{item}");
-        let gone = ["UDP out", "edge road", "quick tunnel roots", "bind UDP"].contains(&check)
+        let gone = ["UDP out", "edge road", "quick tunnel roots", "bind UDP", "nat"].contains(&check)
             || ["DERP", "iroh", "pair "].iter().any(|word| check.starts_with(word));
         assert!(!gone, "{item}");
     }

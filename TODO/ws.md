@@ -2270,7 +2270,7 @@ test of the order fails.
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:297`).
+(`docs/architecture.md:299`).
 
 ## Premise
 
@@ -2843,7 +2843,7 @@ met.
 ## Decision
 
 - After the counts, not above the failures: each line goes out as its check ends
-  (`crates/podssh-cli/src/doctor/mod.rs:325-329`), so a line about them all comes once they are
+  (`crates/podssh-cli/src/doctor/mod.rs:335-339`), so a line about them all comes once they are
   known. Holding each line back until the end lost: a check of a minute would look like a hang.
 - One reference name, `github.com`, which `doctor` uses already
   (`crates/podssh-cli/src/doctor/net.rs:20-23`). A list of names that an allowlist often holds
