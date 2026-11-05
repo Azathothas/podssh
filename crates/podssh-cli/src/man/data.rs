@@ -113,7 +113,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              a file that cannot be read or that others can change; the same keyword with -o on the command \
              line is a usage error (64). \
              podssh node, operator, relay and chat: no pair is stored under the label, the pair cannot be \
-             read or stored, or a node cannot connect as it is set up. podssh edit: VISUAL, EDITOR and PATH \
+             read or stored, or a node cannot connect as it is set up; podssh node and operator: the relay \
+             speaks a dialect of the reverse road that this podssh does not read, or does not read its own \
+             (its hello, or 426), and the line names the side to update. podssh edit: VISUAL, EDITOR and PATH \
              give no editor, the editor does not start, or PODSSH_CACHE_DIR is none. podssh node --sshd: a \
              TARGET whose first line is not an SSH version line, which is another service. podssh node: this host \
              refuses UDP for a udp: TARGET. podssh each --interactive: the emergency stop cannot be armed. \

@@ -46,7 +46,9 @@ pub const NET: &[&str] = &[
      other the newer one inside the end-to-end channel, on any road, and only to a member: the operator's before \
      the node's verdict, so that it counts for that session, and the node's after it. A node of the net says each \
      document that it takes. A field that this podssh does not know stays when the owner signs a change; a \
-     document that requires a part that it does not read is refused, with podssh update as the remedy.",
+     document that requires a part that it does not read is refused, with podssh update as the remedy. An end that \
+     offers its document to a node that gives none (it holds none, or its podssh is older) goes on without it, as \
+     such a node lets it in by its own door, and podssh ssh says so once among its verbose lines.",
     "A node whose key is a member lets in each member of the document held, read again for each session, beside \
      the keys of podssh node --allow; a member removed by a newer document is refused at its next session. A node \
      of no net keeps its door as before. A document that ended, or one that is there and fails its check, lets \

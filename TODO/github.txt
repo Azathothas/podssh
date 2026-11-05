@@ -146,7 +146,7 @@
 138 issue closed
 139 issue closed
 140 issue open
-141 issue open
+141 issue closed
 142 issue closed
 143 issue closed
 144 issue closed

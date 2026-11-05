@@ -64,3 +64,13 @@ fn a_halt_is_final_for_a_new_leg_and_a_restart_is_not() {
     assert!(!is_final(&refused(503, "reverse: node unavailable\n")));
     assert!(is_final(&refused(403, "reverse: forbidden\n")));
 }
+
+/// T-643: a relay that reads another dialect of the reverse road says so
+/// with `426` to each leg alike, so a new leg ends the session with its
+/// words, not after the resume deadline.
+#[test]
+fn a_dialect_that_the_relay_does_not_read_is_final_for_a_new_leg() {
+    let why = "reverse: the operator speaks the reverse road's dialect 2, and the relay reads dialect 1 alone: \
+               update the relay";
+    assert!(is_final(&ConnectError::Refused { status: 426, body: why.into() }));
+}

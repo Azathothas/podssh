@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:5511-5632`, FILES (`crates/podssh-cli/src/man/data.rs:161-483`) and the
+7. Change `docs/cli.md:5511-5632`, FILES (`crates/podssh-cli/src/man/data.rs:163-485`) and the
    `ssh` notes in the same commit.
 
 ## Prove

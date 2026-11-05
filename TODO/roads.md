@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:364-365`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1112`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:161-483`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:163-485`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`).
 
 ## Decision
@@ -3431,8 +3431,8 @@ Read and verified at the cited lines (2026-10-30):
 - podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:325` says "no ALPN",
   and a caller's configuration that offers ALPN is refused
   (`crates/podssh-ws/src/tls.rs:86` says "alpn_protocols.is_empty()").
-- The upgrade is HTTP/1.1: `crates/podssh-ws/src/handshake.rs:37` builds
-  it, and `crates/podssh-ws/src/handshake.rs:185` says "status != 101".
+- The upgrade is HTTP/1.1: `crates/podssh-ws/src/handshake.rs:52` builds
+  it, and `crates/podssh-ws/src/handshake.rs:205` says "status != 101".
 - A relay session is generic over its stream
   (`crates/podssh-ws/src/session.rs:39`, whose default since T-326 is TLS
   or TCP alone, and `:107`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
@@ -4499,7 +4499,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:338-339`), as the design chose for a host with no
   DNS (`docs/design.md:1183`, `:1193`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:469-473`).
+  (`docs/reverse.md:477-481`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,

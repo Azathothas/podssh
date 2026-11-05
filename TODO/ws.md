@@ -1397,7 +1397,7 @@ refuses from one that was slow, nor a steady path from a lossy one.
 - The banner of port 22 is read on the first connection that opened, held
   while the other tries run: no tenth connection.
 - The meaning of a wrong accept is podssh-ws's
-  (`crates/podssh-ws/src/handshake.rs:211`), so `podssh ssh` says it too; the
+  (`crates/podssh-ws/src/handshake.rs:231`), so `podssh ssh` says it too; the
   death after a valid 101 is doctor's
   (`crates/podssh-cli/src/doctor/relay_checks.rs:235`), as a session of
   `podssh ssh` already names the relay's end.
@@ -1421,7 +1421,7 @@ failure. Against a stand-in that drops one probe in three, the loss reads
 
 2026-10-30. Item 1 was met in part before this entry: `check_response`
 gives an answer other than 101 its status and its text
-(`crates/podssh-ws/src/handshake.rs:185` says "if status != 101 {"), and a
+(`crates/podssh-ws/src/handshake.rs:205` says "if status != 101 {"), and a
 101 with a wrong or no `Sec-WebSocket-Accept` its own error, and the
 forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:181`).
 Measured against the stand-in relay before the change: a wrong accept read
@@ -1836,7 +1836,7 @@ probe's lines for the default relay and the forwarders, and the road to `podssh 
 the runner.
 
 2026-11-04 (the drafting agent). The Premise holds: the token goes in the `X-Relay-Token` header
-of the upgrade, `crates/podssh-ws/src/handshake.rs:45`, and nowhere else. The Prove above needs
+of the upgrade, `crates/podssh-ws/src/handshake.rs:60`, and nowhere else. The Prove above needs
 two repairs, and the Prove below takes them:
 
 - `relay_serve_cleartext` is compiled with the feature `serve` alone (`#![cfg(feature = "serve")]`),

@@ -25,6 +25,8 @@ mod notes_containers;
 // relay's notes on the signed list of deployments (T-346).
 mod notes_deployments;
 mod notes_detached;
+// The dialect of the reverse road (T-643).
+mod notes_dialect;
 // doctor's notes on the time of a run (T-511).
 mod notes_doctor;
 mod notes_each;

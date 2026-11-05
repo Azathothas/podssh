@@ -336,10 +336,17 @@ where
     // seed of them, and each leg after the first takes the next.
     legs::during(async move {
         let me = channel.as_ref().map(|c| c.identity.clone());
-        let (stream, session) = crate::channel::around(app, channel, pin_say);
+        let (stream, session, told) = crate::channel::around_told(app, channel, pin_say);
         let stream = Counted::new(stream, shell.and_then(|shell| shell.flow).cloned());
         let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say, shell).await };
-        let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say, shell), session);
+        // The handshake's line at -v, once the node let this end in (T-643).
+        let told = async {
+            if let Ok(line) = told.await {
+                say(Line::Verbose(line));
+            }
+        };
+        let carrying = carry(config, link, first, stream, expires_ms, say, shell);
+        let (mut carried, outcome, ()) = tokio::join!(carrying, session, told);
         if let Err(e) = outcome {
             carried.channel = crate::channel::judged(&e, me.as_deref());
         }
@@ -449,11 +456,11 @@ pub(crate) fn stops(outcome: &LegOutcome) -> Option<String> {
 }
 
 /// A refusal of the relay that a new leg would only get again: the pair or
-/// its token is no longer good, or its owner halted it until a resume, whose
-/// words the end says (T-647).
+/// its token is no longer good, the relay reads another dialect (426, T-643),
+/// or its owner halted it until a resume, whose words the end says (T-647).
 pub(crate) fn is_final(e: &ConnectError) -> bool {
     match e {
-        ConnectError::Refused { status: 401 | 403 | 404 | 410, .. } => true,
+        ConnectError::Refused { status: 401 | 403 | 404 | 410 | 426, .. } => true,
         ConnectError::Refused { status: 503, body } => podssh_relay::pair::halt::is_halt(body),
         _ => false,
     }

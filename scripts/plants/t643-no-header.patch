@@ -1,0 +1,11 @@
+--- a/crates/podssh-ws/src/handshake.rs
++++ b/crates/podssh-ws/src/handshake.rs
+@@ -61,7 +61,7 @@ pub fn build_request(host_header: &str, path: &str, token: &str, key: &str) -> V
+     req.push_str(&format!("X-Relay-Token: {token}\r\n"));
+     // A reverse socket's dialect, so that a relay role that reads another
+     // can say so in a sentence, not in a frame that one side drops.
+-    if reverse_socket(path) {
++    if !reverse_socket(path) {
+         req.push_str(&format!("{PROTO_HEADER}: {REVERSE_PROTO}\r\n"));
+     }
+     // **No `Sec-WebSocket-Protocol` line.** See the module comment.

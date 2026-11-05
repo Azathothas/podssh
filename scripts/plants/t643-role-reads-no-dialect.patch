@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/reverse/mod.rs
++++ b/crates/podssh-relay/src/serve/reverse/mod.rs
+@@ -127,7 +127,7 @@ where
+     };
+     // A dialect that the role does not read, said once the token passed and
+     // before a token of `once` or of one leg is spent (T-643).
+-    if matches!(kind, "node" | "connect") && proto::refused(&mut stream, &head, kind).await {
++    if matches!(kind, "status") && proto::refused(&mut stream, &head, kind).await {
+         return;
+     }
+     // A halted pair refuses each operator with its owner's words before a

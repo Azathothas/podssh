@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/handshake.rs
++++ b/crates/podssh-relay/src/e2e/handshake.rs
+@@ -124,7 +124,7 @@ pub async fn initiate_with<T: AsyncRead + AsyncWrite + Unpin>(
+     let k = state.read_message(&message, &mut payload).map_err(not_noise("the node's message"))?;
+     let read = proof_of(&payload[..k], state.get_remote_static(), docs.is_some())?;
+     // T-429 lets such a node in by its own door; its caller says it once.
+-    let unanswered = docs.is_some() && read.net.is_none();
++    let unanswered = docs.is_none() && read.net.is_none();
+     let net = match (docs, read.net) {
+         (Some(docs), Some((peer, _))) => Some(Talk { docs, peer }),
+         _ => None,

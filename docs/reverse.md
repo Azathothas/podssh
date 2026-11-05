@@ -34,6 +34,8 @@ come from dropssh, a sibling project that implemented both sides.
    document. Measured 2026-10-09: the relay sends the node
    `{"type":"hello","version":1,"maxFrameBytes":65536,"maxSessions":64}`
    first; podssh's node takes its limit, and 16 sessions when none comes.
+   Its `version` is the relay's dialect, which the node compares ("The
+   dialect of the road", below).
 8. The relay sends no keepalives on reverse sockets. A quiet socket is not
    cut: with no payload for 240 s, with Pings or with none, both sockets
    carried a byte each way afterwards (T-061, 2026-10-09). But the relay's
@@ -84,7 +86,8 @@ socket that served, and at most once each 10 s, as its sessions wait on the
 layer meanwhile (T-255, T-421); else after the jittered backoff, which the
 line names. A node that cannot connect as it is set up (an unusable
 proxy setting or trust store) exits too, as connecting again would repeat
-it. A stop closes each session with `close {id}`, then the socket with
+it, and so does one whose relay speaks another dialect of the road (T-643).
+A stop closes each session with `close {id}`, then the socket with
 `1000`. Measured against the live relay on 2026-10-09: two
 sessions at once, 1 MiB each way through an echo node, came back whole
 (`cargo test -p podssh-relay --features pair --test reverse_live --
@@ -241,7 +244,8 @@ session's bytes.
    the net's policy (T-430) for the route named, or for the target with no
    route, with the document that it holds once the operator's came; for an
    exit's target, the policy's `exit:NODE` or a range, then each address
-   again once the name resolved (T-431).
+   again once the name resolved (T-431). An operator whose offer got a
+   plain proof goes on without the document, and says so once (T-643).
 
 ## Grants used once
 
@@ -362,6 +366,10 @@ each:
   `podssh relay pair --once`: only `true` confirms it. Anything else is a
   refusal, and podssh first undoes what the peer made (it stops the pair),
   then says it, and never retries, as the same relay would make the same.
+- **A dialect**, such as `hello`'s `version` (T-643): absent, or null, is
+  the dialect of before, which each peer that states none speaks; one that
+  this end does not read is refused with a sentence that names both sides,
+  and never tried again ("The dialect of the road", below).
 
 A new member names its kind where it is described, and takes the rule's
 function of its kind, never a comparison of its own: an `is_some()` would
@@ -709,3 +717,53 @@ end: a node there takes a new binary at its next start, its sessions ending
 as before. Measured on 2026-11-05 (`cargo test -p podssh-relay --test
 session_handover`, 3 passed; `cargo test -p podssh-cli --test node_moves`, 3
 passed), on Linux.
+
+## The dialect of the road
+
+The reverse road states a version in two places, and neither end compared
+it: the role's `hello` says `"version": 1`, and the operator of the
+end-to-end channel offers the net's document in its first message. A node
+and a relay of two dialects got as far as a frame that one of them did not
+read, which it dropped, and the node connected again for ever; an operator
+whose offer a node answered plainly went on with no word (T-643, GitHub
+#141; `crates/podssh-relay/src/reverse/control.rs`,
+`crates/podssh-relay/src/serve/reverse/proto.rs`):
+
+1. The dialect is a number, 1 today. A `hello` with no `version`, or null,
+   is 1, the dialect of the contract, as is an upgrade with no
+   `X-Podssh-Proto`: each relay and each podssh of before speaks it. Zero
+   is no absence, and a value that is no whole number is no dialect. This
+   is the fourth kind of a member that an answer leaves out, beside the
+   hint, the offer and the guarantee (`podssh_relay::answer::dialect`).
+2. podssh reads the dialects from `PROTO_MIN` to `PROTO`, both 1: so the
+   check refuses nothing until the dialect changes, and the change that
+   raises `PROTO` decides how long the one before is read.
+3. The node states its dialect on each upgrade of `/v1/node/<name>` and
+   `/v1/connect/<name>`, in `X-Podssh-Proto`; a forward session states none.
+   It compares the `version` of the relay's `hello`: one that it does not
+   read closes its socket at once, before any session, and ends the node
+   with exit 78 and one sentence that names the relay's dialect, the range
+   that the node reads and the side to update, never a new socket, as each
+   would meet the same. A `426` to its upgrade ends it so too, with the
+   relay's words.
+4. podssh's relay role reads the dialect that a node's or an operator's
+   upgrade states, once the pair's token passed (a wrong one gets the `403`
+   of each failed authentication, which says nothing of a dialect), and
+   before the name's `409`, a halt, and a token of `--once` or of one leg
+   is spent. One that it does not read gets `426` with one sentence that
+   names both and the side to update, and its own dialect in
+   `X-Podssh-Proto`. An operator takes that `426` as final: 78 for its
+   first leg, and a session of the layer ends at its next one.
+5. The channel: an operator that offered the net's document and got a plain
+   proof goes on, as T-429 lets a node outside the net, or of before, in by
+   its own door; it says so once, `podssh ssh -v` among its verbose lines
+   (the node holds none, or its podssh is older), on the pair's road; the
+   roads that `podssh ssh` races, and `podssh operator`, which has no
+   verbose lines, say nothing of it (T-643's Decision 7). The issue asked
+   for a refusal; the call is the operator's to confirm (Q86, T-643's
+   Decision).
+
+Measured on 2026-11-05, each passed (T-643's Prove): `cargo
+test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code
+--test reverse_node --test reverse_dialect --test relay_serve_dialect`, and
+`cargo test -p podssh-relay --test e2e_net`.

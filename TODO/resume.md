@@ -807,7 +807,7 @@ always runs the layer. The flag's row, the manual's note of `node`,
 
 The relay cuts a connection after 180 s with no payload, and its empty
 keepalive frames do not count (`docs/relay.md:365-366`, `docs/relay.md:473`). A
-reverse socket gets no keepalive at all (`docs/reverse.md:37-47`). SSH's own
+reverse socket gets no keepalive at all (`docs/reverse.md:39-49`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:414`) and a
-  resume (`crates/podssh-cli/src/layered.rs:425`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:421`) and a
+  resume (`crates/podssh-cli/src/layered.rs:432`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:62`,
   `crates/podssh-relay/src/session/pump.rs:65`). The forward road's checks
   (`docs/design.md:652`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:465`) and a resume
-(`crates/podssh-cli/src/layered.rs:476`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:472`) and a resume
+(`crates/podssh-cli/src/layered.rs:483`). What the item says of them holds.
 
 ## Done
 

@@ -345,6 +345,30 @@ async fn a_close_of_the_relay_ends_the_socket_with_its_code_and_reason() {
     }
 }
 
+/// T-643: a `hello` whose `version` this node does not read ends the socket
+/// at once, with a Close and no `ready`, and its sentence says whom to
+/// update; one with no `version`, as a relay of before may send it, is the
+/// dialect of before, and the node serves on.
+#[tokio::test]
+async fn a_hello_of_another_dialect_ends_the_socket_with_its_sentence() {
+    let (mut relay, _stop, task, _ends) = start(Local::default());
+    relay.text(r#"{"type":"hello","version":2,"maxFrameBytes":65536,"maxSessions":64}"#).await;
+    relay.text(&open(A)).await;
+    let close = relay.expect().await;
+    assert_eq!(close.opcode, frame::OPCODE_CLOSE, "no ready for a relay of another dialect: {close:?}");
+    match tokio::time::timeout(LIMIT, task).await.expect("the socket's end in time").unwrap() {
+        End::Unread(why) => {
+            assert!(why.starts_with("the relay speaks the reverse road's dialect 2, and this node reads"), "{why}");
+            assert!(why.ends_with(": update this node"), "{why}");
+        }
+        other => panic!("{other:?}"),
+    }
+    let (mut relay, _stop, _task, _ends) = start(Local::default());
+    relay.text(r#"{"type":"hello","maxFrameBytes":65536,"maxSessions":64}"#).await;
+    relay.text(&open(A)).await;
+    assert_eq!(text_of(&relay.expect().await), format!(r#"{{"type":"ready","id":"{A}"}}"#));
+}
+
 #[test]
 fn each_close_has_its_action() {
     let close = |code, reason: &str| RelayClose { code, reason: reason.into(), clean: true };

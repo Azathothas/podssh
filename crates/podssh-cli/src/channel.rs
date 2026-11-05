@@ -198,7 +198,24 @@ pub fn around<A: Bytes + 'static>(
     channel: Option<Operator>,
     say: impl Fn(String) + Send + 'static,
 ) -> (Box<dyn Bytes>, Option<Session>) {
-    let Some(Operator { identity, expect, route }) = channel else { return (Box::new(app), None) };
+    let (stream, session, _told) = around_told(app, channel, say);
+    (stream, session)
+}
+
+/// The line of the channel's handshake that `-v` shows, once, while the
+/// session runs: the node answered the net's offer with no document
+/// (T-643). It ends with no line when there is none to say.
+pub type Told = tokio::sync::oneshot::Receiver<String>;
+
+/// [`around`], with the handshake's [`Told`] line for the caller to say at
+/// its verbose level.
+pub fn around_told<A: Bytes + 'static>(
+    app: A,
+    channel: Option<Operator>,
+    say: impl Fn(String) + Send + 'static,
+) -> (Box<dyn Bytes>, Option<Session>, Told) {
+    let (tell, told) = tokio::sync::oneshot::channel();
+    let Some(Operator { identity, expect, route }) = channel else { return (Box::new(app), None, told) };
     // The net's documents for this channel (T-429): a client takes in silence.
     crate::net::admit::install(false);
     // A grant of --grant (T-226), for this run's first channel alone.
@@ -214,8 +231,11 @@ pub fn around<A: Bytes + 'static>(
         }
         verdict
     };
-    let (cipher, session) = ends::operator_granted(app, identity, checked, route, grant);
-    (Box::new(cipher), Some(Box::pin(session)))
+    let tell = move |line: String| {
+        let _ = tell.send(line);
+    };
+    let (cipher, session) = ends::operator_told(app, identity, checked, route, grant, tell);
+    (Box::new(cipher), Some(Box::pin(session)), told)
 }
 
 /// What a failed channel says, when it says more than the layer: its fault

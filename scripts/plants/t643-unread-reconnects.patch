@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/reverse/node.rs
++++ b/crates/podssh-relay/src/reverse/node.rs
+@@ -285,7 +285,7 @@ where
+                     End::Stopped => return Exit::Stopped,
+                     // Never a reconnection: the relay would say the same
+                     // dialect again, for as long as the node ran (T-643).
+-                    End::Unread(why) => return Exit::Unusable(why),
++                    End::Unread(_) => Next::Reconnect,
+                     End::Failed(_) => Next::Reconnect,
+                     End::Closed(close) => match after_close(&close) {
+                         Next::Exit("stopped") => {

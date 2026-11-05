@@ -28,7 +28,7 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/frame.rs:144`); HTTP heads and chunked bodies
 (`crates/podssh-ws/src/http.rs:125`, line 183 at `e892b0f`); the upgrade answer
-(`crates/podssh-ws/src/handshake.rs:175`); proxy URLs
+(`crates/podssh-ws/src/handshake.rs:195`); proxy URLs
 (`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
 (`crates/podssh-ws/src/dial.rs`, lines 178 and 334 at `22c3b88`); since T-070 (2026-10-11), a
 SOCKS5 proxy's answers (`crates/podssh-ws/src/socks5.rs:156`); close
@@ -527,7 +527,7 @@ Read, the bounds today:
   (`crates/podssh-ws/src/session.rs:33`, checked at lines 240-242 at `23b5d82`).
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:13`), for the
   proxy (`crates/podssh-ws/src/dial.rs:25`) and for the upgrade
-  (`crates/podssh-ws/src/handshake.rs:124`).
+  (`crates/podssh-ws/src/handshake.rs:144`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:41`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:45`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
@@ -597,7 +597,7 @@ fail.
   after it (`crates/podssh-ws/src/frame.rs:229-231`) cannot fire: a shorter length is at most 65535.
 - The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
   `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
-  (`crates/podssh-ws/src/handshake.rs:124`) bounds `handshake::handshake`, which no command calls.
+  (`crates/podssh-ws/src/handshake.rs:144`) bounds `handshake::handshake`, which no command calls.
 - The steps of the connection wait `CONNECT_TIMEOUT` each (`crates/podssh-relay/src/open.rs:33`).
   `DEFAULT_TIMEOUT` (`crates/podssh-ws/src/client.rs:21`) is a default for an embedder, which no
   command of podssh takes.
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-32`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:721-741`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:722-742`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
