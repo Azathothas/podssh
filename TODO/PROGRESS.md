@@ -191,10 +191,14 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   On 2026-11-04 (evening and night) a ninth round was drafted by agents of this cloud session,
   unbuilt, each branch pushed as `draft/worktree-agent-*`: the triage of GitHub #127 to #148, T-660,
-  T-661 and T-662, T-663, T-629 and T-635, T-630 and T-648, T-632, T-664, T-671 and T-647 (each merged), and still to merge: T-639 and T-645 (`worktree-agent-af1f8acf4f98d8f39`,
-  `10b37ef`, `e007213`), T-634 and T-640 (`worktree-agent-aae99917a53f19e77`, `0e9152e`, `2ec6c95`), T-665 and
-  T-666 (`worktree-agent-ac3e65f272f8d068d`, `2ad81c5`, `05a7326`); T-670 is being drafted. A
-  merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
+  T-661 and T-662, T-663, T-629 and T-635, T-630 and T-648, T-632, T-664, T-671 and T-647, T-639
+  and T-645, T-634 and T-640, T-665 and T-666, and T-670: each merged, their worktrees gone.
+
+  On 2026-11-05 a tenth round is drafted, unbuilt, one commit for each entry: T-631 and T-674
+  (`68687d5`, merged: T-631 parked until T-124, T-674 done), and still to merge: T-667
+  (`worktree-agent-a0e20fca8b0b9b7ca`), T-668 (`worktree-agent-a4bbc842962dedde7`), T-636 and
+  T-646 (`worktree-agent-ad7f7f02cd6f984d5`), T-641 and T-637 (`worktree-agent-a240a7353924c97ba`).
+  A merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
   `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
   applied in the tree then); and when the disk fills, remove `target/` whole, never files under
   `target/debug/deps` (cargo's records then name outputs that are gone).
