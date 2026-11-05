@@ -14,8 +14,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      port's memory); T-675 and T-676 repaired them (`0500af1`). Then its gate passed (run
      41940971099), the release workflow by hand on `beta/v1.1.0-beta.3` (run 41941007776),
      `scripts/release-short.sh BINARY --net` on a static build of `6d30328`, the publish (run
-     41944902543) and the tag's run (41945306047); `release-proofs.yml` and `update-live.yml` were
-     dispatched after it. `docs/STATUS.md` marks its 19 rows. The lesson: read each failed job's
+     41944902543) and the tag's run (41945306047); then `release-proofs.yml` (run 41949133180) and
+     `update-live.yml` (run 41949136901) passed. `docs/STATUS.md` marks its 19 rows. The lesson: read each failed job's
      log before calling a red gate the place's.
   2. **GitHub #126 to #148** (Nemo-010) are T-628 to T-650 (Q100); done and closed: #126, #127,
      #128, #131, #132, #133, #137, #138, #143, #145, #146; #129's T-631 waits for T-124. The
