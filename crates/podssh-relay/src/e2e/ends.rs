@@ -87,7 +87,8 @@ impl Node {
 pub async fn serve_node<L, A, O, F>(link: L, node: &Node, open: O)
 where
     L: AsyncRead + AsyncWrite + Unpin,
-    A: AsyncRead + AsyncWrite + Unpin,
+    // A handover takes the target to the next binary (T-668).
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     O: FnOnce() -> F,
     F: Future<Output = Result<A, String>>,
 {
@@ -107,7 +108,8 @@ where
 pub async fn serve_routed<L, A, O, F>(link: L, node: &Node, open: O)
 where
     L: AsyncRead + AsyncWrite + Unpin,
-    A: AsyncRead + AsyncWrite + Unpin,
+    // A handover takes the target to the next binary (T-668).
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     O: FnOnce(PublicKey, Option<String>) -> F,
     F: Future<Output = Result<A, Refusal>>,
 {
@@ -127,7 +129,8 @@ where
 pub async fn serve_asked<L, A, O, F>(link: L, node: &Node, open: O)
 where
     L: AsyncRead + AsyncWrite + Unpin,
-    A: AsyncRead + AsyncWrite + Unpin,
+    // A handover takes the target to the next binary (T-668).
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     O: FnOnce(PublicKey, Ask) -> F,
     F: Future<Output = Result<A, Refusal>>,
 {
@@ -197,9 +200,11 @@ where
             return;
         }
     };
-    if let Err(e) = channel.carry(target).await {
-        (node.say)(format!("the session of {peer} ended: {e}"));
-    }
+    // A handover holds the carry between two messages, and takes the
+    // channel and its target to the next binary (T-668).
+    let hold = super::hold::current();
+    let carried = channel.carry_held(target, hold.as_deref(), super::Start::default()).await;
+    super::hold::after(carried, hold.as_deref(), peer, lease, &*node.say).await;
 }
 
 /// The operator's end of one session: `app` carries the session's bytes in

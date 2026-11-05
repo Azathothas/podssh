@@ -17,7 +17,11 @@
 //! hears the `CLOSE` again (T-586). Each slot is charged against the far
 //! end's budget by what it can hold ([`super::budget`]). A session whose
 //! client asked it to end with its link ([`super::once`], T-612) is
-//! forgotten, and its target shut, as its link ends, whatever the end.
+//! forgotten, and its target shut, as its link ends, whatever the end. The
+//! sessions go to the binary that takes this one's place, and come from the
+//! one before, in [`handover`] (T-668).
+
+mod handover;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -61,10 +65,11 @@ pub fn admitted_at_once() -> Admitted {
 }
 
 /// Why a resume did not take its session.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum NotTaken {
-    /// The session ended, on its old link, while this one shook hands.
-    Ended,
+    /// The session ended, on its old link, while this one shook hands; the
+    /// words of its `CLOSE`, empty but for one that a handover ended (T-668).
+    Ended(String),
     /// A newer resume came: the client left this link.
     Newer,
     /// The old link did not stop in time.
@@ -74,7 +79,7 @@ enum NotTaken {
 impl std::fmt::Display for NotTaken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            NotTaken::Ended => "the session ended on its old link",
+            NotTaken::Ended(_) => "the session ended on its old link",
             NotTaken::Newer => "a newer link resumed the session",
             NotTaken::Stuck => "the old link of the session did not stop",
         })
@@ -91,8 +96,9 @@ enum Slot<A> {
     /// The session ended at this side and its client had each byte, but its
     /// answer to the `CLOSE` was lost with the link: no target and no
     /// buffer, only the id, whose secret the handshake of a resume proves,
-    /// until `until`. The resume then gets the `CLOSE` (T-586).
-    Closed { until: Instant },
+    /// until `until`. The resume then gets the `CLOSE` (T-586), with
+    /// `reason`: empty, or why a handover could not carry it on (T-668).
+    Closed { until: Instant, reason: String },
 }
 
 impl<A> Slot<A> {
@@ -115,7 +121,7 @@ impl<A> Slot<A> {
     /// When a slot with no link is forgotten.
     fn until(&self) -> Option<Instant> {
         match self {
-            Slot::Idle { until, .. } | Slot::Closed { until } => Some(*until),
+            Slot::Idle { until, .. } | Slot::Closed { until, .. } => Some(*until),
             Slot::Live { .. } => None,
         }
     }
@@ -274,9 +280,9 @@ where
         let (mut app, mut carry, admitted) = match self.take(&id, number, &watch, &done).await {
             Ok(taken) => taken,
             // The client hears the session's end, not a lost link.
-            Err(NotTaken::Ended) => {
-                last_word(&mut link, &Record::Close { reason: String::new() }).await;
-                return Err(NotTaken::Ended.to_string());
+            Err(NotTaken::Ended(reason)) => {
+                last_word(&mut link, &Record::Close { reason: super::record::cut_reason(&reason) }).await;
+                return Err(NotTaken::Ended(reason).to_string());
             }
             Err(other) => return Err(other.to_string()),
         };
@@ -312,7 +318,7 @@ where
             match lock(&self.newest).get(id) {
                 Some(newest) if *newest == number => {}
                 Some(_) => return Err(NotTaken::Newer),
-                None => return Err(NotTaken::Ended),
+                None => return Err(NotTaken::Ended(String::new())),
             }
             let stopping = {
                 let mut slots = lock(&self.slots);
@@ -329,9 +335,9 @@ where
                     }
                     // The id stays until its deadline, for each resume
                     // that lost the `CLOSE` (T-586).
-                    Some(closed @ Slot::Closed { .. }) => {
-                        slots.insert(*id, closed);
-                        return Err(NotTaken::Ended);
+                    Some(Slot::Closed { until, reason }) => {
+                        slots.insert(*id, Slot::Closed { until, reason: reason.clone() });
+                        return Err(NotTaken::Ended(reason));
                     }
                     None => None,
                 }
@@ -342,7 +348,7 @@ where
             // (T-600). It ended only once the handshake forgot it.
             if stopping.is_none() && !lock(&self.sessions).contains(id) {
                 lock(&self.newest).remove(id);
-                return Err(NotTaken::Ended);
+                return Err(NotTaken::Ended(String::new()));
             }
             if Instant::now() >= deadline {
                 return Err(NotTaken::Stuck);
@@ -419,7 +425,7 @@ where
     async fn keep_id_alone(&self, id: SessionId, mut app: A, admitted: Admitted) {
         lock(&self.sessions).detach(&id);
         let until = Instant::now() + self.wait(&admitted);
-        lock(&self.slots).insert(id, Slot::Closed { until });
+        lock(&self.slots).insert(id, Slot::Closed { until, reason: String::new() });
         let _ = app.shutdown().await;
     }
 

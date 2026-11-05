@@ -749,9 +749,9 @@ functions of bytes only.
 
 | Function of Mosh | In Mosh | In podssh |
 | --- | --- | --- |
-| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:62`); a spare link beside it opens once a question waited three round trips of the link with no answer, 1 s to 3 s (T-663), or after 20 s of quiet, and takes the session when its far end greets first (T-305); a host that wakes from a sleep asks at once |
+| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:65`); a spare link beside it opens once a question waited three round trips of the link with no answer, 1 s to 3 s (T-663), or after 20 s of quiet, and takes the session when its far end greets first (T-305); a host that wakes from a sleep asks at once |
 | Outages and sleep | The server keeps the session until its client comes back; `MOSH_SERVER_NETWORK_TMOUT` sets a limit, none by default (`src/frontend/mosh-server.cc:394-406`) | 10 minutes (`crates/podssh-relay/src/session/resume.rs:44`, T-153), or the node's `--resume-deadline`, 72 h at most, which it names to its client (T-306); a shell that `podssh serve` keeps longer (T-159) |
-| A heartbeat | An empty acknowledgement each 3 s, which also keeps a NAT's mapping (paper §2.3; `src/network/transportsender.h:51`) | Each 10 s on the layer (T-154; `crates/podssh-relay/src/session/pump.rs:59`); SSH's keepalives on the forward road |
+| A heartbeat | An empty acknowledgement each 3 s, which also keeps a NAT's mapping (paper §2.3; `src/network/transportsender.h:51`) | Each 10 s on the layer (T-154; `crates/podssh-relay/src/session/pump.rs:62`); SSH's keepalives on the forward road |
 | Local echo | Each key is predicted; the predictions of an epoch show once one of them is confirmed; by default they show when the round trip passes 30 ms, or a prediction waited 250 ms, and are underlined past 80 ms (paper §3.2; `src/frontend/terminaloverlay.h:215-225`) | T-160, on request, above 120 ms |
 | The echo's acknowledgement | The server marks the last key that the program has had for 50 ms, so the client knows when its echo is due (paper §3.2) | T-160, item 3: the far end reports the offset of the input that reached the pty |
 | The latest screen, not each byte | Frames of the difference of screens, at most one each half round trip (20 to 250 ms), after 8 ms of collection, so Ctrl-C stops a flood within a round trip (paper §2.3; `src/network/transportsender.h:49-50`, `src/network/transportsender-impl.h:55-71`) | T-303, on request, to `podssh serve` |
@@ -1054,6 +1054,23 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   the offer from the handshake, then SSH asks the far end to keep a shell
   (`~d`) or to join one (`--attach`), with requests of its own
   (`docs/terminal.md`, "Detach and attach again").
+- **A far end's upgrade in place** (T-668). A node's sessions outlive its
+  binary: at SIGUSR2, once the binary at its path said in a probe that it
+  takes them, each link stops at a record's end, as for a resume, and each
+  session gives its state as values (its offsets, its replay buffer, the
+  bytes that its target has not had, its flags), with its target's TCP
+  connection and, above it, the end-to-end channel's keys and nonces. The
+  node becomes the new binary by `execve`, in the same process, the state in
+  anonymous memory and the sockets open across the exec; the new binary
+  keeps each session as one whose link was lost, and each client resumes as
+  after any loss. The handover reads no record of the wire, so the format of
+  the records may change between the two builds; a version of the handover's
+  own bytes guards it, and a binary that reads another version is never
+  asked. A session that cannot move waits as an ended one, and its resume
+  hears `CLOSE` with why. osewa's sessions outlive a restart of its server
+  as a process for each session does (`docs/research/osewa-paper.md`, G8);
+  here the target's connection itself, an sshd's too, survives
+  ([reverse.md](reverse.md), "A node's upgrade in place").
 
 Measured 2026-10-09: `podssh node` runs the far end for each session, and
 `podssh ssh node://` and `podssh operator` run the client. A node keeps 64

@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 
-use podssh_relay::e2e::{self, ends, Ask as Asking, Refusal as NodeRefusal};
+use podssh_relay::e2e::{self, ends, hold, Ask as Asking, Refusal as NodeRefusal};
 use podssh_relay::identity::{allow, file, pins, Identity, KeyName, PublicKey};
 use podssh_relay::reverse::routes::{Grant, Routes};
 use podssh_relay::reverse::{Handler, Opening, SessionId};
@@ -377,7 +377,8 @@ where
         return Ok(ours);
     };
     let (ours, theirs) = tokio::io::duplex(PIPE);
-    tokio::spawn(async move { ends::serve_node(theirs, &node, open).await });
+    // A handover finds the channel by the layer's id of its session (T-668).
+    tokio::spawn(hold::holding(async move { ends::serve_node(theirs, &node, open).await }));
     Ok(ours)
 }
 
@@ -395,10 +396,10 @@ where
 {
     let (Some(node), Some(routes)) = (channel.clone(), routes) else { return piped(channel, open).await };
     let (ours, theirs) = tokio::io::duplex(PIPE);
-    tokio::spawn(async move {
+    tokio::spawn(hold::holding(async move {
         let open = move |key: PublicKey, ask: Asking| async move { routes.open(&key, &ask).await };
         ends::serve_asked(theirs, &node, open).await
-    });
+    }));
     Ok(ours)
 }
 

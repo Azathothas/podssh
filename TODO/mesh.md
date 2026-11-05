@@ -7236,7 +7236,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:265-275`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:267-277`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -7590,8 +7590,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:274-275`), and needs the net's role exit, signed by
-  its owner (`:272-273`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:276-277`), and needs the net's role exit, signed by
+  its owner (`:274-275`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:109`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node
@@ -8931,8 +8931,8 @@ Read at `2042200`:
   (`crates/podssh-relay/src/identity/allow.rs:102-106`); the doors are made in
   `crates/podssh-cli/src/net/admit.rs:114`, `crates/podssh-cli/src/net/admit.rs:225` and
   `crates/podssh-cli/src/channel.rs:315`.
-- The verdict: a grant decides first (`crates/podssh-relay/src/e2e/ends.rs:144` says "A grant decides
-  alone"), and else the door (`crates/podssh-relay/src/e2e/ends.rs:156`).
+- The verdict: a grant decides first (`crates/podssh-relay/src/e2e/ends.rs:147` says "A grant decides
+  alone"), and else the door (`crates/podssh-relay/src/e2e/ends.rs:159`).
 - The issue reads the grant's arm as a way past the door that widens a credential. It is not: the grant's
   issuer must be let in by the same door for the same ask
   (`crates/podssh-relay/src/grant/door.rs:63-65`), as `crates/podssh-relay/src/grant/door.rs:22` says
@@ -8941,7 +8941,7 @@ Read at `2042200`:
 - The issue reads the role's forward token as too wide for a member: it names no target
   (`crates/podssh-relay/src/serve/tokens.rs:61`), as the contract's token does; the node's door, end to
   end, is what admits (Q4, `docs/decisions.md:81`).
-- The refusal says only that the key is not let in (`crates/podssh-relay/src/e2e/mod.rs:75`); the
+- The refusal says only that the key is not let in (`crates/podssh-relay/src/e2e/mod.rs:78`); the
   reason stays in the node's line.
 
 ## Approach

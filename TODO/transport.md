@@ -746,7 +746,7 @@ test -p podssh-relay` since.
 2026-10-09, with T-082, in the commit "The codecs of the reverse road in podssh-relay".
 
 - The trait `Transport`, `target_for`, `backoff.rs` and its two tests went with the crate. The
-  node runner waits with `podssh_relay::open::backoff` (`crates/podssh-relay/src/reverse/node.rs:306-326`).
+  node runner waits with `podssh_relay::open::backoff` (`crates/podssh-relay/src/reverse/node.rs:325-345`).
 - Step 1 said to keep `Control`, `LegShape` and `Limits` for `socket.rs`. They went with it: no runner
   used that layer (T-082, Decision 2). The runners read `control::NodeInbound` and keep
   `control::NodeLimits`.

@@ -161,7 +161,7 @@ token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes h
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags/relay.rs:9-100`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:340-361` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:345-366` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:349`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:350`). That is one run, before 2026-10-09.
 
 ## Approach
 

@@ -176,7 +176,7 @@ done." `podssh status`, `node` and `operator x` (no `--timeout` row) exit 70.
 
 Read: dispatch runs the `--timeout` gate (`crates/podssh-cli/src/dispatch.rs` lines 186-196 at `37ace00`)
 before the refusal of a verb that is not implemented
-(`crates/podssh-cli/src/dispatch.rs:382-390`). `require_timeout` writes the
+(`crates/podssh-cli/src/dispatch.rs:387-395`). `require_timeout` writes the
 fixed text and has no verb to name (`crates/podssh-cli/src/non_interactive.rs` lines 194-201 at `37ace00`).
 `podssh ts` uses the same function (`crates/podssh-cli/src/ts.rs:56-65`), so a
 build with the `ts` feature shows the chat example for `ts` too (read, not
@@ -304,7 +304,7 @@ flag-shaped (`crates/podssh-cli/src/clap_error.rs:111-113`), so the arm calls
    when the user typed `-p`, so print both spellings.
 4. A `Refused` row with no value gets its own refusal: a value would not change
    the answer. Move the refusal text of `refusals`
-   (`crates/podssh-cli/src/dispatch.rs:400-408`) to `refuse.rs`, so the two
+   (`crates/podssh-cli/src/dispatch.rs:405-413`) to `refuse.rs`, so the two
    cannot differ.
 5. A long name with no row keeps today's message, as a fallback.
 6. Same commit: `docs/cli.md:56-60` (a flag with no value names the flag and
@@ -593,7 +593,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    lookup passed in, as `proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:109-123`): the flag, else a `PODSSH_TIMEOUT`
    that is not empty, else nothing. It returns the text and its source.
-2. Call it at both gate sites: `crates/podssh-cli/src/dispatch.rs:340-361` and
+2. Call it at both gate sites: `crates/podssh-cli/src/dispatch.rs:345-366` and
    `crates/podssh-cli/src/ts.rs:56-65`. Parse with `parse_timeout`
    (`crates/podssh-cli/src/non_interactive.rs:136-182`): a whole duration,
    never zero.
@@ -925,7 +925,7 @@ the same for the other fifteen.
    `-k` is supported and `-g` is accepted with no effect
    (`crates/podssh-cli/src/flags.rs`, lines 205-209 at `97146aa`).
 2. A refusal with nothing to use instead says "Leave it out."
-   (`crates/podssh-cli/src/dispatch.rs:400-408`), and `--help` shows
+   (`crates/podssh-cli/src/dispatch.rs:405-413`), and `--help` shows
    "(refused)" (`crates/podssh-cli/src/help.rs:121-124`).
 3. A test holds the reviewed set (`crates/podssh-cli/tests/flag_table.rs:15-30`).
    `docs/cli.md:907-911` states the rule.
@@ -1693,7 +1693,7 @@ that `forward-remote` names `-W HOST:PORT`
 1. The `-R` row (`crates/podssh-cli/src/flags.rs`, lines 206-207 at `a9299c4`): the help "remote
    forwarding is not implemented yet", the words of `-o RemoteForward`; the
    replacement `no flag`, so the refusal says "Leave it out."
-   (`crates/podssh-cli/src/dispatch.rs:400-408`).
+   (`crates/podssh-cli/src/dispatch.rs:405-413`).
 2. `crates/podssh-cli/src/help.rs`, lines 213-215 at `a9299c4` and
    `crates/podssh-cli/src/man/notes.rs`, lines 70-72 at `a9299c4`: `-L` and `-D` need a local
    listener and are refused, and `-W HOST:PORT` carries one connection; `-R`
@@ -1879,7 +1879,7 @@ The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:85`), called at
 `crates/podssh-ssh/src/keys.rs:339` and `crates/podssh-cli/src/keygen.rs:382`.
 Its refusals name the real remedies (`docs/cli.md:5415-5417`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
-`parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:340-361`,
+`parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:345-366`,
 `crates/podssh-cli/src/ts.rs:56-65`) and `refuse_jsonl_in_proxy`
 (`crates/podssh-cli/src/tree.rs:197-200`).
 
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:424`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:425`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2744-2747`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:424`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:425`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -3079,12 +3079,12 @@ node at its next line, often "online again" after a reconnect. A server then has
 
 ## Premise
 
-- Read: `panic = "abort"` in the release profile (`Cargo.toml:222`).
-- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:334`,
+- Read: `panic = "abort"` in the release profile (`Cargo.toml:223`).
+- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:346`,
   `crates/podssh-cli/src/node_derp.rs:321`, `crates/podssh-cli/src/node_iroh.rs:324`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
-- Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).
+- Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:256`).
 - Read in Rust's documentation: `eprintln!` "panics if writing to io::stderr fails"; only EBADF is
   ignored.
 - Read: `crates/podssh-ssh/src/log.rs:135` already writes its lines and ignores a failure.
@@ -3472,8 +3472,8 @@ working directory, which an unmount then refuses.
 ## Premise
 
 - Read: `leave` returns false when `/dev/null` does not open, and the child then ends with 75
-  (`crates/podssh-cli/src/detach/child.rs:264`).
-- Read: the rotation is `fs::copy` and then `set_len(0)` (`crates/podssh-cli/src/detach/child.rs:115`).
+  (`crates/podssh-cli/src/detach/child.rs:278`).
+- Read: the rotation is `fs::copy` and then `set_len(0)` (`crates/podssh-cli/src/detach/child.rs:128`).
 - Read: no code removes a file of `detached/` (2026-11-01, a search of `crates/podssh-cli/src/detach`).
 
 ## Approach
@@ -3720,7 +3720,7 @@ Read at `2042200`:
   documented). The issue says the second does not exist; it does, and a retired name written in the
   source would trip it, so the table needs its own place in the manual.
 - The run's funnel `crates/podssh-cli/src/dispatch.rs` is 439 lines; `main_with_args` is at
-  `crates/podssh-cli/src/dispatch.rs:413`.
+  `crates/podssh-cli/src/dispatch.rs:418`.
 
 ## Approach
 

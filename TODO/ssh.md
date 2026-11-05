@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:734`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:735`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -2961,7 +2961,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
   after the login, as the failure's decode ends it. #83's 15 bytes are a failure's too, then: a
   Go server that knows no `keepalive@openssh.com` refuses it.
 - Read: the project carries a patched crate in `vendor/` through `[patch.crates-io]`, iroh-relay's
-  (`vendor/README.md:154-173`, `Cargo.toml:244-246`), and watches its upstream (T-341); russh's
+  (`vendor/README.md:154-173`, `Cargo.toml:245-247`), and watches its upstream (T-341); russh's
   copy went with T-356, as 0.65.0 gave what its patch had added.
 
 ## Approach
@@ -3093,7 +3093,7 @@ same day. The WIP `818f7fe` (branch `worktree-agent-t460-ssh`) is carried onto
   bytes)"). The rest the draft named for the main
   session: `cargo todo interop`; `cargo todo remap` of
   `Cargo.toml`, `docs/development.md`, `vendor/README.md`, `AGENTS.md`, `docs/cli.md` and
-  `docs/STATUS.md` (the draft moved their citations by hand, `Cargo.toml:219` among them);
+  `docs/STATUS.md` (the draft moved their citations by hand, `Cargo.toml:220` among them);
   and TruffleHog: the test keys of russh 0.65.0 are where 0.64.1 held them, so after the commit
   on `main` add to `.github/secrets-allow.txt`, with that commit's first 12 digits for COMMIT
   (and the draft branch's commit, if it is pushed):

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**632 entries: 99 open, 10 partial, 3 blocked, 520 done.**
+**634 entries: 100 open, 10 partial, 3 blocked, 521 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 248 | 277 |
-| P3 | 74 | 4 | 3 | 206 | 287 |
-| **All** | 99 | 10 | 3 | 520 | 632 |
+| P3 | 75 | 4 | 3 | 207 | 289 |
+| **All** | 100 | 10 | 3 | 521 | 634 |
 
 ## Entries
 
@@ -698,7 +698,7 @@ repository and CI).
 | [T-665](roads.md) | P3 | S | M10 | measurement | partial | QUIC on the iroh road, tuned and measured on a wide-area path |
 | [T-666](roads.md) | P3 | M | M10 | feature | partial | Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection |
 | [T-667](mesh.md) | P3 | L | M10 | feature | done | QUIC on UDP 443 to podssh's relay role, raced with its TCP roads where a probe found that UDP passes |
-| [T-668](reverse.md) | P3 | L | M10 | feature | open | A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state |
+| [T-668](reverse.md) | P3 | L | M10 | feature | done | A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state |
 | [T-669](ssh.md) | P3 | S | M10 | measurement | done | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |
 | [T-670](ssh.md) | P3 | M | M10 | feature | partial | The download's rate while a key waits on a slow path: win back what T-661 gives up |
 | [T-671](relay.md) | P2 | S | M10 | defect | done | The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them |
@@ -708,3 +708,5 @@ repository and CI).
 | [T-675](ssh.md) | P1 | S | M10 | defect | done | The gate red since T-664: the record of the keys that hosts took loses a change, and the stall's check names the old first request |
 | [T-676](roads.md) | P2 | S | M10 | defect | done | A WARP test inherits an earlier test's memory of a re-terminated TLS at a reused port |
 | [T-677](relay.md) | P2 | S | M10 | defect | done | A role with some 200 pairs or more does not start again: its file of pairs is read as a file of the cache |
+| [T-678](reverse.md) | P3 | M | M10 | feature | open | A node on Windows ends its sessions at its upgrade: no handover of its sockets and its state |
+| [T-679](reverse.md) | P3 | M | M10 | feature | open | A node of the iroh, DERP, quick tunnel, Piping Server or OpenTunnel road ends its sessions at its upgrade |

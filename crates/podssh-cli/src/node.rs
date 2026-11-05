@@ -35,6 +35,9 @@ use podssh_ws::Trust;
 
 use crate::exitmap::Fault;
 pub(crate) use crate::node_target::{probe, serving};
+// Ctrl-C and SIGTERM, with the upgrade's own signal beside them (T-668).
+use crate::node_upgrade as upgrade;
+pub(crate) use crate::node_upgrade::stop_signal;
 use crate::pairs;
 use crate::relay_settings::Refusal;
 
@@ -51,6 +54,8 @@ pub use crate::node_args::NodeArgs;
 
 /// Run the verb; returns the process exit code.
 pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
+    // The sessions of the binary before this one, before anything connects (T-668).
+    crate::node_upgrade::start(err);
     // How long the node keeps a lost session, on each road (T-306); its exit (T-431).
     if let Err(refusal) = crate::node_flags::deadline(args).and_then(|()| crate::node_exit::check(args)) {
         return refusal.report("node", err);
@@ -130,7 +135,14 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     };
     // A run of --restart beats from this runtime, while it polls (T-394).
     crate::detach::beat::keep(runtime.handle());
-    let code = runtime.block_on(serve(ready, err));
+    let mut code = runtime.block_on(serve(ready, err));
+    // An upgrade whose binary did not start: this one serves its sessions again (T-668).
+    while code == crate::node_upgrade::AGAIN {
+        code = match prepare(args) {
+            Ok(ready) => runtime.block_on(serve(ready, err)),
+            Err(refusal) => refusal.report("node", err),
+        };
+    }
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     code
@@ -337,6 +349,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             crate::detach::on_line("node", &line);
         }
     });
+    crate::node_upgrade::lines(say.clone());
     // Its expiry said before it comes, and the next pair taken at it (T-395).
     let (repair, expiry) = crate::node_expiry::watch(&label, &pair, stored, say.clone(), &trust);
     let mut config = NodeConfig {
@@ -362,7 +375,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         let handler = crate::node_udp::handler(first, DIAL_LIMIT, flow_say);
         let exit = with_handler(&mut config, handler, plain, channel).await;
         expiry.abort();
-        return finish(&label, exit, err);
+        return upgrade::or_finish(|| finish(&label, exit, err)).await;
     }
     let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
     let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
@@ -372,7 +385,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         let beside = crate::node_transit::Beside { label: &label, stored, trust: &trust, url, say: say.clone() };
         let exit = Box::pin(beside.run(&mut config, tcp, node.clone(), routes)).await;
         expiry.abort();
-        return finish(&label, exit, err);
+        return upgrade::or_finish(|| finish(&label, exit, err)).await;
     }
     // TARGET at `open` with no layer: an operator that does not speak the
     // layer can use the node, and a lost leg ends the session. With the
@@ -380,47 +393,56 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     // new one, with the same connection to TARGET, dialled only after the
     // layer's handshake. The channel (T-088) runs above the layer, and
     // reaches TARGET only once the operator's key is let in.
+    // The keeper of each layered arm is the upgrade's, which hands its
+    // sessions to the next binary and takes those of the one before (T-668).
+    let (stop, deadline) = (upgrade::stop, settings.resume_deadline);
     let exit = match (plain, channel, routes) {
         // Routes (T-089): the target of the route that each operator named.
         (true, Some(node), Some(routes)) => {
-            Box::pin(reverse::run(&mut config, Arc::new(Routed::new(routes, node)), stop_signal())).await
+            Box::pin(reverse::run(&mut config, Arc::new(Routed::new(routes, node)), stop())).await
         }
         (false, Some(node), Some(routes)) => {
-            let handler = Arc::new(Layered::new(Routed::new(routes, node), settings, budget));
-            Box::pin(reverse::run(&mut config, handler, stop_signal())).await
+            let keeper = upgrade::channel_keeper(&node, deadline);
+            let handler = Arc::new(Layered::with_keeper(Routed::new(routes, node), settings, budget, keeper));
+            Box::pin(reverse::run(&mut config, handler, stop())).await
         }
-        (true, None, _) => Box::pin(reverse::run(&mut config, Arc::new(tcp), stop_signal())).await,
-        (true, Some(node), None) => {
-            Box::pin(reverse::run(&mut config, Arc::new(E2e::new(tcp, node)), stop_signal())).await
-        }
+        (true, None, _) => Box::pin(reverse::run(&mut config, Arc::new(tcp), stop())).await,
+        (true, Some(node), None) => Box::pin(reverse::run(&mut config, Arc::new(E2e::new(tcp, node)), stop())).await,
         (false, None, _) => {
-            let handler = Arc::new(Layered::new(tcp, settings, budget));
-            Box::pin(reverse::run(&mut config, handler, stop_signal())).await
+            let handler = Arc::new(Layered::with_keeper(tcp, settings, budget, upgrade::tcp_keeper(deadline)));
+            Box::pin(reverse::run(&mut config, handler, stop())).await
         }
         (false, Some(node), None) => {
-            let handler = Arc::new(Layered::new(E2e::new(tcp, node), settings, budget));
-            Box::pin(reverse::run(&mut config, handler, stop_signal())).await
+            let keeper = upgrade::channel_keeper(&node, deadline);
+            let handler = Arc::new(Layered::with_keeper(E2e::new(tcp, node), settings, budget, keeper));
+            Box::pin(reverse::run(&mut config, handler, stop())).await
         }
     };
     expiry.abort();
-    finish(&label, exit, err)
+    upgrade::or_finish(|| finish(&label, exit, err)).await
 }
 
 /// Run the node with `inner` opening each session's target, as the TCP
 /// target's arms above do: at `open` with no layer, or after the layer's
-/// handshake, with the channel above the layer.
-async fn with_handler<H: Handler>(config: &mut NodeConfig<'_>, inner: H, plain: bool, channel: Option<Node>) -> Exit {
+/// handshake, with the channel above the layer. Its targets are pipes in
+/// this process, which an upgrade cannot move (T-668).
+async fn with_handler<H>(config: &mut NodeConfig<'_>, inner: H, plain: bool, channel: Option<Node>) -> Exit
+where
+    H: Handler<Stream = tokio::io::DuplexStream>,
+{
     let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
+    let (stop, deadline) = (upgrade::stop, settings.resume_deadline);
     match (plain, channel) {
-        (true, None) => Box::pin(reverse::run(config, Arc::new(inner), stop_signal())).await,
-        (true, Some(node)) => Box::pin(reverse::run(config, Arc::new(E2e::new(inner, node)), stop_signal())).await,
+        (true, None) => Box::pin(reverse::run(config, Arc::new(inner), stop())).await,
+        (true, Some(node)) => Box::pin(reverse::run(config, Arc::new(E2e::new(inner, node)), stop())).await,
         (false, None) => {
-            let handler = Arc::new(Layered::new(inner, settings, budget));
-            Box::pin(reverse::run(config, handler, stop_signal())).await
+            let handler = Arc::new(Layered::with_keeper(inner, settings, budget, upgrade::pipe_keeper(deadline)));
+            Box::pin(reverse::run(config, handler, stop())).await
         }
         (false, Some(node)) => {
-            let handler = Arc::new(Layered::new(E2e::new(inner, node), settings, budget));
-            Box::pin(reverse::run(config, handler, stop_signal())).await
+            let keeper = upgrade::channel_keeper(&node, deadline);
+            let handler = Arc::new(Layered::with_keeper(E2e::new(inner, node), settings, budget, keeper));
+            Box::pin(reverse::run(config, handler, stop())).await
         }
     }
 }
@@ -470,27 +492,4 @@ fn iroh(args: &NodeArgs, err: &mut dyn Write) -> i32 {
 fn iroh(_: &NodeArgs, err: &mut dyn Write) -> i32 {
     let _ = writeln!(err, "podssh node: {}", crate::ssh::iroh::not_built("--iroh"));
     crate::exit_codes::EXIT_NOT_IMPLEMENTED
-}
-
-/// Ctrl-C, or SIGTERM on Unix. When no signal can be watched, the node runs
-/// until the relay ends it, and does not stop at once.
-pub(crate) async fn stop_signal() {
-    #[cfg(unix)]
-    {
-        use tokio::signal::unix::{signal, SignalKind};
-        if let Ok(mut term) = signal(SignalKind::terminate()) {
-            tokio::select! {
-                stopped = tokio::signal::ctrl_c() => {
-                    if stopped.is_err() {
-                        term.recv().await;
-                    }
-                }
-                _ = term.recv() => {}
-            }
-            return;
-        }
-    }
-    if tokio::signal::ctrl_c().await.is_err() {
-        std::future::pending::<()>().await;
-    }
 }

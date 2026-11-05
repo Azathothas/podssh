@@ -1,0 +1,10 @@
+--- a/crates/podssh-cli/src/node_upgrade/pass.rs
++++ b/crates/podssh-cli/src/node_upgrade/pass.rs
+@@ -178,7 +178,6 @@
+         let (socket, channel) = match target {
+             Ok(Moved { socket, channel }) => {
+                 let fd = socket.into_raw_fd();
+-                let _ = inherited(fd, true);
+                 (Some(fd), channel)
+             }
+             Err(_) => (None, None),

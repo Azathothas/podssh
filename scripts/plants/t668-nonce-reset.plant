@@ -1,0 +1,7 @@
+# T-668: a held channel hands over its nonce out as 0, so the next binary
+# seals with a nonce that the operator's end used already; the test of a
+# session of the channel across a handover, its bytes whole, must fail.
+ENTRY=T-668
+GROUP=resume
+EXPECT='test a_session_of_the_channel_goes_on_across_a_handover_with_its_keys_and_nonces \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test session_handover -- a_session_of_the_channel_goes_on_across_a_handover_with_its_keys_and_nonces'

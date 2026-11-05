@@ -627,7 +627,7 @@ output. Planted defect: copy the password field into a comment; the secret test 
 tables at `crates/podssh-cli/src/flags.rs:428-429`,
 `crates/podssh-cli/src/positionals.rs:228-233`,
 `crates/podssh-cli/src/tree.rs:327-333` and
-`crates/podssh-cli/src/dispatch.rs:185-186`.
+`crates/podssh-cli/src/dispatch.rs:190-191`.
 - `cargo test -p podssh-cli --test config_import`: 5 passed. The fixture
   `crates/podssh-cli/tests/fixtures/ansible/inventory.ini`, read by
   ansible-core 2.21.0 in the build image (`inventory.list.json` and

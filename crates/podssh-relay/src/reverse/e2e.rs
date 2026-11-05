@@ -11,6 +11,7 @@ use tokio::io::DuplexStream;
 use super::framing::SessionId;
 use super::node::{Admit, Handler, Opening, NO_ROOM};
 use crate::e2e::ends::{serve_node, serve_routed, Node};
+use crate::e2e::hold::holding;
 use crate::e2e::Refusal;
 
 /// Each direction of the pipe between a session and its channel.
@@ -34,9 +35,9 @@ impl<H: Handler> Handler for E2e<H> {
     fn open(&self, id: SessionId) -> Opening<DuplexStream> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (inner, node) = (self.inner.clone(), self.node.clone());
-        tokio::spawn(async move {
+        tokio::spawn(holding(async move {
             serve_node(theirs, &node, || inner.open(id)).await;
-        });
+        }));
         Box::pin(async move { Ok(ours) })
     }
 
@@ -45,7 +46,8 @@ impl<H: Handler> Handler for E2e<H> {
     fn open_admitted(&self, id: SessionId, admit: Admit) -> Opening<DuplexStream> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (inner, node) = (self.inner.clone(), self.node.clone());
-        tokio::spawn(async move {
+        // A handover finds the channel by the layer's id of its session (T-668).
+        tokio::spawn(holding(async move {
             // As `serve_node`, with the budget's own refusal.
             serve_routed(theirs, &node, move |_, route: Option<String>| async move {
                 if let Some(route) = route {
@@ -57,7 +59,7 @@ impl<H: Handler> Handler for E2e<H> {
                 inner.open(id).await.map_err(Refusal::NoTarget)
             })
             .await;
-        });
+        }));
         Box::pin(async move { Ok(ours) })
     }
 
