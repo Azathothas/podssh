@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_opentunnel.rs
++++ b/crates/podssh-cli/src/node_opentunnel.rs
+@@ -382,7 +382,7 @@
+     tokio::pin!(both);
+     let ended = tokio::select! {
+         (ended, ()) = &mut both => ended,
+-        () = crate::node_upgrade::stop() => {
++        () = crate::node::stop_signal() => {
+             let _ = stop.send(true);
+             both.await.0
+         }

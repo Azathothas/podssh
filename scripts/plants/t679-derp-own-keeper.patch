@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_derp.rs
++++ b/crates/podssh-cli/src/node_derp.rs
+@@ -422,7 +422,7 @@
+     let budget = podssh_relay::reverse::layered::NODE_BUDGET;
+     // The upgrade's keeper, for each road of the node: the sessions of the
+     // binary before this one, and those that go to the next (T-679).
+-    let keeper = crate::node_upgrade::channel_keeper(&channel, settings().resume_deadline);
++    let keeper = Arc::new(Keeper::new(settings().resume_deadline));
+     crate::node_upgrade::lines(say.clone());
+     // The transit relay of Q65 for the pair's operators (T-436), beside the
+     // pair's road and with its keeper.

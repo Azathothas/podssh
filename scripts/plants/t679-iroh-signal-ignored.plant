@@ -1,0 +1,9 @@
+# T-679: the node of the iroh road waits for Ctrl-C and SIGTERM alone, as
+# before, so SIGUSR2, which every node ignores from its start, asks nothing and
+# no session is handed over; the test of a session over the iroh road across
+# the node's upgrade must fail.
+ENTRY=T-679
+GROUP=cli-tests
+EXPECT='test a_session_over_the_iroh_road_goes_on_across_the_node_s_upgrade \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --features iroh-test --test iroh_road -- a_session_over_the_iroh_road_goes_on_across_the_node_s_upgrade'
+LIMIT=2400

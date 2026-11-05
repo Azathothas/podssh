@@ -11,12 +11,15 @@
 //! PODSSH_OPENTUNNEL=no turns that off. A node with no door is refused (64);
 //! one with no pair and the DERP road off serves the road unasked (Q76).
 //! Planted (`scripts/plants/t531-no-door.patch`): the road starts with no
-//! `--allow`, and the test of its refusal fails.
+//! `--allow`, and the test of its refusal fails. A session goes on across
+//! the node's upgrade in place, as the node attaches its kept tunnel again
+//! (T-679, `upgrade_support`).
 
 mod cleanup;
 #[path = "../../podssh-relay/tests/opentunnel_stand_in/mod.rs"]
 mod opentunnel_stand_in;
 mod ssh_harness;
+mod upgrade_support;
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::Ipv4Addr;
@@ -304,6 +307,46 @@ fn with_the_pair_s_road_down_the_race_gives_the_session_to_opentunnel_and_a_kept
     assert_eq!(rc, 255, "stdout {out:?}, stderr {err}");
     assert!(!err.contains("OpenTunnel"), "no OpenTunnel road with PODSSH_OPENTUNNEL=no: {err}");
     assert_eq!(lab.stand_in.created.load(Ordering::SeqCst), 1, "one tunnel for the node");
+    drop(lab.runtime);
+}
+
+/// A session over the OpenTunnel road goes on across the node's upgrade in
+/// place (T-679): with the pair's road down, SIGUSR2 at a quarter of 16 MiB
+/// down, and the node, the same process, becomes its binary again (the
+/// test's own) with the session; it attaches its kept tunnel again, under
+/// the same name, and the client resumes there, its bytes whole. The
+/// service made one tunnel.
+#[cfg(unix)]
+#[test]
+fn a_session_over_the_opentunnel_road_goes_on_across_the_node_s_upgrade() {
+    const DOWN: u64 = 16 << 20;
+    let lab = Lab::new("upgrade");
+    lab.let_in();
+    lab.pair_down();
+    let (node, lines, name) = lab.node(&["--opentunnel"], &[]);
+    let pid = node.0.id();
+    let source = format!("source {DOWN}");
+    let mut client = lab
+        .ssh(&["--opentunnel-name", &name, "node://tester@lab", &source])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let came = upgrade_support::across(&mut client, DOWN, Duration::from_secs(180), || {
+        upgrade_support::ask(pid);
+        let went = wait_for(&lines, "sessions go to");
+        assert!(went.last().unwrap().contains("1 of 1 sessions go to"), "{went:#?}");
+        let took = wait_for(&lines, "sessions over from");
+        assert!(took.last().unwrap().contains("took 1 of 1 sessions over"), "{took:#?}");
+        let again = wait_for(&lines, "attached to OpenTunnel");
+        assert!(again.iter().any(|l| l.contains(&format!("name {name}"))), "the same name: {again:#?}");
+    });
+    assert_eq!(came.code, Some(0), "{}", came.err);
+    assert_eq!(came.total, DOWN, "{}", came.err);
+    assert!(upgrade_support::runs(pid), "the node runs on in its own process");
+    assert_eq!(lab.stand_in.created.load(Ordering::SeqCst), 1, "one tunnel for the node, across its upgrade");
+    drop(node);
     drop(lab.runtime);
 }
 

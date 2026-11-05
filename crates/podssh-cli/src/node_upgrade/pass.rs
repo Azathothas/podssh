@@ -15,7 +15,7 @@ use std::path::Path;
 
 use podssh_relay::session::handover::{Handed, LayerState, Moved};
 
-use super::state::{self, Session};
+use super::state::{self, Decoded, Part, Session};
 
 /// The value of the variable for the bytes in `fd`: `fd:N:pid:P`.
 pub fn value_of(fd: RawFd) -> String {
@@ -185,10 +185,11 @@ fn private_file() -> Result<OwnedFd, String> {
     Ok(OwnedFd::from(file))
 }
 
-/// Become `binary`, with this run's words and the handover of `handed`,
-/// written by `from`. Returns only when the binary did not start: then the
-/// sessions, back as the new binary would have read them, and why.
-pub fn become_binary(binary: &Path, from: &str, handed: Vec<Handed>) -> (Vec<Handed>, String) {
+/// Become `binary`, with this run's words and the handover of `handed` and
+/// of the run's `parts` (T-679), written by `from`. Returns only when the
+/// binary did not start: then the sessions, back as the new binary would
+/// have read them, and why; the parts stay this run's.
+pub fn become_binary(binary: &Path, from: &str, handed: Vec<Handed>, parts: &[Part]) -> (Vec<Handed>, String) {
     let mut sessions = Vec::with_capacity(handed.len());
     for Handed { state, target } in handed {
         let (socket, channel) = match target {
@@ -201,7 +202,7 @@ pub fn become_binary(binary: &Path, from: &str, handed: Vec<Handed>) -> (Vec<Han
         };
         sessions.push(Session { layer: state.encode(), socket, channel });
     }
-    let bytes = state::encode(from, &sessions);
+    let bytes = state::encode(from, &sessions, parts);
     let why = match memory(&bytes) {
         Ok(memory) => exec(binary, &value_of(memory.as_raw_fd())),
         Err(why) => why,
@@ -211,9 +212,17 @@ pub fn become_binary(binary: &Path, from: &str, handed: Vec<Handed>) -> (Vec<Han
     // Bytes that this build wrote a moment ago read back; were they not, a
     // socket is left open rather than closed twice.
     match taken(&bytes) {
-        Ok((_, handed)) => (handed, why),
+        Ok(Taken { handed, .. }) => (handed, why),
         Err(lost) => (Vec::new(), format!("{why}; and its sessions could not be read back: {lost}")),
     }
+}
+
+/// What the binary before this one handed over: its line, each session,
+/// and the parts of the run (T-679).
+pub struct Taken {
+    pub from: String,
+    pub handed: Vec<Handed>,
+    pub parts: Vec<Part>,
 }
 
 /// `execve` of `binary`, with this run's words, and the variable: an
@@ -234,9 +243,9 @@ fn exec(binary: &Path, value: &str) -> String {
 }
 
 /// The sessions in `bytes`, each socket adopted: one that is no socket is
-/// a session that ends at its resume, with why.
-pub fn taken(bytes: &[u8]) -> Result<(String, Vec<Handed>), String> {
-    let (from, sessions) = state::decode(bytes).map_err(|e| e.to_string())?;
+/// a session that ends at its resume, with why; and the parts of the run.
+pub fn taken(bytes: &[u8]) -> Result<Taken, String> {
+    let Decoded { from, sessions, parts } = state::decode(bytes).map_err(|e| e.to_string())?;
     let mut handed = Vec::with_capacity(sessions.len());
     for Session { layer, socket, channel } in sessions {
         let state = LayerState::decode(&layer).map_err(|e| e.to_string())?;
@@ -246,7 +255,7 @@ pub fn taken(bytes: &[u8]) -> Result<(String, Vec<Handed>), String> {
         };
         handed.push(Handed { state, target });
     }
-    Ok((from, handed))
+    Ok(Taken { from, handed, parts })
 }
 
 #[cfg(test)]

@@ -15,7 +15,14 @@
 //! conversations on both (T-099). With `--sshd`, the node is a roost: its
 //! sshd's version line is checked at the start and on each road's sessions
 //! (T-166). With `--derp`, it serves the DERP road too, with the same keeper
-//! and channel (T-379, `node_derp`).
+//! and channel (T-379, `node_derp`). At SIGUSR2 the node hands its sessions
+//! to the binary that takes its place, as the pair's road's node does
+//! (T-679, `node_upgrade`), which opens its endpoint again under the same
+//! key, a key for this run only too, so that the ticket stays.
+
+// Its key and who may connect (`node_iroh_door.rs`).
+#[path = "node_iroh_door.rs"]
+mod admission;
 
 use std::future::Future;
 use std::io::Write;
@@ -26,14 +33,13 @@ use std::time::Duration;
 use iroh::{PublicKey, RelayUrl};
 use podssh_iroh::keys::{self, Place};
 use podssh_iroh::version::Offline;
-use podssh_iroh::{ticket, Allowlist, Options, Udp};
+use podssh_iroh::{ticket, Options, Udp};
 use podssh_relay::e2e::ends;
-use podssh_relay::identity::PublicKey as IdentityKey;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::{Route, Routes};
 use podssh_relay::reverse::{self, Handler, Layered, NodeConfig, TcpHandler, Wire};
 use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::{OsEntropy, Settings};
+use podssh_relay::session::Settings;
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::watch;
@@ -67,7 +73,15 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     crate::detach::beat::keep(runtime.handle());
     // On the heap, as each large future here: Windows gives the main
     // thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(serve_tcp(ready, targets, args.sshd, err)));
+    let mut code = runtime.block_on(Box::pin(serve_tcp(ready, targets, args.sshd, err)));
+    // An upgrade whose binary did not start: this one serves its sessions
+    // again, from a new start of the road (T-679).
+    while code == crate::node_upgrade::AGAIN {
+        code = match prepare(args) {
+            Ok((ready, targets)) => runtime.block_on(Box::pin(serve_tcp(ready, targets, args.sshd, err))),
+            Err(refusal) => refusal.report("node", err),
+        };
+    }
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     code
@@ -187,7 +201,9 @@ async fn serve_tcp(ready: Ready, targets: Vec<Route>, roost: bool, err: &mut dyn
     };
     let serving = format!("serving {target}");
     let roads = Roads { verb: "node", serving, after: " until Ctrl-C", handler, open, routes };
-    serve(ready, roads, crate::node::stop_signal(), err).await
+    // Ctrl-C, or an upgrade, whose handover ends this binary (T-679).
+    let code = serve(ready, roads, crate::node_upgrade::stop(), err).await;
+    crate::node_upgrade::or_finish(|| code).await
 }
 
 /// What a node of both roads serves: its words, and each session's stream
@@ -225,9 +241,11 @@ where
     // The pair's road needs these after the iroh road has taken its own.
     let (label_text, trust_pair) = (label.clone(), trust.clone());
     let proxy = ProxyChoice::FromEnvironment;
-    let key = match keys::load(&place, &mut OsEntropy) {
+    // A node of `podssh node` takes an upgrade in place, never `podssh chat` (T-679).
+    let upgrades = verb == "node";
+    let key = match admission::key(&place, upgrades) {
         Ok(key) => key,
-        Err(why) => return Refusal::config(format!("the node's key: {why}")).report(verb, err),
+        Err(refusal) => return refusal.report(verb, err),
     };
     // A member of the net lets in its members on both roads (T-429); with the
     // DERP road and no --allow, them alone, on each road (T-452).
@@ -315,7 +333,7 @@ where
     let _ = writeln!(err, "podssh {verb}: {label}: ticket {}", ticket::of(&endpoint, &relay));
     // The endpoint is up with its home relay: a detached node goes on (T-380).
     crate::detach::ready("node");
-    let _ = writeln!(err, "podssh {verb}: {label}: {}", who_may(allow.as_deref()));
+    let _ = writeln!(err, "podssh {verb}: {label}: {}", admission::who_may(allow.as_deref()));
     if let Some(line) = crate::net::admit::line(&me) {
         let _ = writeln!(err, "podssh {verb}: {label}: {line}");
     }
@@ -356,7 +374,7 @@ where
     let (_record, tell) = crate::node_record::keep(&endpoint, pkarr, &asked_trust, &asked_proxy, say.clone(), line);
     let admit = {
         let say = say.clone();
-        move |key: &PublicKey| admits(allow.as_deref(), &me, key, &say)
+        move |key: &PublicKey| admission::admits(allow.as_deref(), &me, key, &say)
     };
     // Each session of either road is a pipe (T-164): with the channel, the
     // target is reached once the operator's key is let in.
@@ -369,8 +387,17 @@ where
     };
     let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings().off_the_pair() };
     let budget = podssh_relay::reverse::layered::NODE_BUDGET;
-    // One keeper for both roads: a session resumes on either (T-164).
-    let keeper = Arc::new(Keeper::new(settings.resume_deadline));
+    // One keeper for both roads: a session resumes on either (T-164). A
+    // node's is the upgrade's, which hands its sessions to the next binary
+    // and takes those of the one before (T-679).
+    let keeper = match (upgrades, &channel) {
+        (true, Some(node)) => crate::node_upgrade::channel_keeper(node, settings.resume_deadline),
+        (true, None) => crate::node_upgrade::pipe_keeper(settings.resume_deadline),
+        (false, _) => Arc::new(Keeper::new(settings.resume_deadline)),
+    };
+    if upgrades {
+        crate::node_upgrade::lines(Arc::new(say.clone()));
+    }
     let (stop, stopped) = watch::channel(false);
     let until_stopped = |mut stopped: watch::Receiver<bool>| async move {
         let _ = stopped.wait_for(|stop| *stop).await;
@@ -443,58 +470,9 @@ where
     }
     follow.abort();
     let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
-    say("stopped".into());
+    // At an upgrade the node goes on in the binary after, which says so.
+    if !crate::node_upgrade::upgrading() {
+        say("stopped".into());
+    }
     0
-}
-
-/// Who may connect, as the node starts.
-fn who_may(allow: Option<&std::path::Path>) -> String {
-    let Some(path) = allow else {
-        return "no client may connect over the iroh road: --allow FILE names the client keys that may, one on each line".into();
-    };
-    match Allowlist::read(path) {
-        Ok(list) if list.bad_lines().is_empty() => {
-            format!("{} client keys may connect ({})", list.len(), path.display())
-        }
-        Ok(list) => format!(
-            "{} client keys may connect ({}); lines {} are not keys",
-            list.len(),
-            path.display(),
-            lines(list.bad_lines())
-        ),
-        Err(why) => format!("no client may connect yet: {why}"),
-    }
-}
-
-/// Whether the client `key` may connect: the allowlist is read again for
-/// each connection, so a key added counts at once. A refusal is said with
-/// the key, which is the line to add.
-fn admits(allow: Option<&std::path::Path>, me: &IdentityKey, key: &PublicKey, say: &impl Fn(String)) -> bool {
-    let shown = keys::fingerprint(key);
-    if crate::net::admit::lets_in(me, &keys::identity_key(key)) {
-        say(format!("the client key {shown} connected, a member of the net"));
-        return true;
-    }
-    let Some(path) = allow else {
-        say(format!("refused the client key {shown}: no --allow file"));
-        return false;
-    };
-    match Allowlist::read(path) {
-        Ok(list) if list.admits(key) => {
-            say(format!("the client key {shown} connected"));
-            true
-        }
-        Ok(_) => {
-            say(format!("refused the client key {shown}: it is not in {}", path.display()));
-            false
-        }
-        Err(why) => {
-            say(format!("refused the client key {shown}: {why}"));
-            false
-        }
-    }
-}
-
-fn lines(numbers: &[usize]) -> String {
-    numbers.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")
 }

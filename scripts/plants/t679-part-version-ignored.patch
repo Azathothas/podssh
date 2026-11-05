@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_upgrade/parts.rs
++++ b/crates/podssh-cli/src/node_upgrade/parts.rs
+@@ -63,7 +63,7 @@
+ pub(crate) fn part(name: &str) -> Option<Zeroizing<Vec<u8>>> {
+     let kept = lock();
+     match kept.get(name)?.split_first() {
+-        Some((&VERSION, body)) => Some(Zeroizing::new(body.to_vec())),
++        Some((_, body)) => Some(Zeroizing::new(body.to_vec())),
+         _ => None,
+     }
+ }

@@ -4546,11 +4546,135 @@ of each other road ignores SIGUSR2, so its sessions end at its next start.
 Each road's node takes T-668's keepers and its stop: its sessions' layer is the same, so the handover's
 bytes are the same; the road's own connection is made again, as the pair's relay socket is.
 
+## Decision
+
+2026-11-05 (the drafting agent of T-679), each call with what lost:
+
+1. **Each road's node takes T-668's keeper, stop and end, and nothing of its own**: the keeper of
+   `node_upgrade` for all the node's roads at once (`channel_keeper`; `pipe_keeper` for an iroh node of
+   `--no-e2e`), `node_upgrade::stop` in place of the stop of Ctrl-C, `or_finish` at the end, and a loop
+   in the road's `run` that serves again when a binary did not start (`AGAIN`), as `node.rs` does. Lost:
+   a keeper of the upgrade for each road (a session resumes on either road of a node, so the roads share
+   one keeper, T-164); a handover of each road's own (the layer and the channel are the same on each).
+2. **What a road needs to connect again as the same passes beside the sessions, as a part of the run**,
+   in the same anonymous memory (`crates/podssh-cli/src/node_upgrade/parts.rs`): a node's key of
+   `--ephemeral-key`, which the iroh road's endpoint and the DERP road's key at its server are, so that
+   the ticket stays; and the quick tunnel's id, name, account and secret, so that its name stays. The
+   binary after keeps them for its own next upgrade, and a binary that did not start leaves them to this
+   one, whose roads start again with the same. Where a system has neither `memfd_create` nor POSIX
+   shared memory, T-668's private file of the cache, unlinked at once, holds them for the exec, as it
+   holds the channels' keys. Lost: the environment, which each child of the node inherits; a file of the
+   cache by its path, as a key of `--ephemeral-key` is kept in no file and the tunnel's secret would
+   outlive the run; a new key or a new tunnel after the exec, which leaves each session's client with a
+   ticket or a name that no longer reaches the node.
+3. **The handover's bytes keep their version 1**: the parts follow the sessions only when a road keeps
+   one, so a run with none (a node of the pair's road with a key of a file, the case of T-668) writes the
+   bytes of T-668 alone, and a build of T-668 alone takes them, both ways. Each part begins with a version
+   of its own; a part of another version is left, and its road starts anew. Lost: version 2 with a reader
+   of both, whose probe would say two versions, for bytes that no release wrote (T-668 is unreleased); a
+   version of the whole that each new part moves.
+4. **The quick tunnel registers the tunnel of the binary before it again, with no request to the API**;
+   should the edge refuse it for good, the node asks the API for a new tunnel, under a new name, and says
+   that the sessions' clients do not hold it, rather than end (AGENTS.md, rule 7). At an upgrade the
+   node's connections to the edge unregister as at Ctrl-C. Lost: the node's end at such a refusal; a new
+   tunnel at each upgrade; a stop with no unregistration, which `podssh_relay::quick::keep` does not
+   offer, and whose effect on the edge is no better known.
+5. **A node of `--quick-tunnel --relay` takes no upgrade**: it waits for Ctrl-C alone, as the relay
+   role's minting tokens, random for each run, its pairs with no `--pairs` file and the sockets of its
+   reverse road live in its process. Lost: an upgrade that drops the role's state, after which each node
+   and client of the role would be refused. The role's own handover is a design of its own, for an entry
+   that the main session files from the report of this draft.
+6. **The OpenTunnel road reads its tunnel from the cache again**, as at any start, so its name stays. A
+   tunnel that no directory of the cache took is made anew at each start: the node says so as it starts,
+   as the binary after an upgrade would have a new name. Lost: the tunnel's record as a part of the run
+   (the record has no bytes of its own, and a host with no cache directory is rare; the line says it).
+7. **`podssh chat --listen NAME --iroh`, which serves through the iroh road's node code, takes no
+   upgrade**: that code knows a node by its verb, `node`. Lost: a field of the node's `Ready`, which the
+   chat's own file would have to set.
+8. **An iroh session of `--no-e2e` ends at its resume, with why**: it is a pipe that a task copies to
+   TARGET, so no channel stops and no socket moves (`pipe_keeper`). Lost: a TCP stream for such a
+   session on the iroh road, against T-164's one kind of session for both roads of a node.
+9. **The pair's road takes the run's key too** (`node.rs`), so a node of `--ephemeral-key` keeps its
+   key across its upgrade on each road. Lost: a new key of the pair's road at each upgrade, which an
+   operator that pinned the node's key would refuse.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-cli --test node_moves
+cargo test -p podssh-cli --lib -- node_upgrade node_quick::kept_tunnel
+cargo test -p podssh-cli --test node_moves --test derp_road --test opentunnel_road
+cargo test -p podssh-cli --features iroh-test --test iroh_road
+sh scripts/plant-each.sh --here t679-derp-own-keeper t679-opentunnel-signal-ignored t679-iroh-signal-ignored t679-parts-dropped t679-ephemeral-new-key t679-part-version-ignored t679-tunnel-secret-dropped
 ```
 
-A session through a node of each road goes on across the node's upgrade, its bytes whole.
+A session through a node of each road goes on across the node's upgrade, its bytes whole: the DERP road,
+the OpenTunnel road and the iroh road on the loopback, through their stand-ins. The Piping Server road
+and the quick tunnel have no stand-in at the command line: the first's servers are nwtgck's programs,
+which `piping.yml` installs, and the second's API and edge are Cloudflare's alone.
+
+## Correction
+
+2026-11-05 (the drafting agent of T-679), read in the tree of this draft:
+
+- The Premise holds: each node starts with the signal ignored
+  (`crates/podssh-cli/src/node_upgrade/mod.rs:118` says "libc::signal(libc::SIGUSR2, libc::SIG_IGN);"),
+  and at `e2507f4` the nodes of the iroh, DERP, Piping Server and OpenTunnel roads waited for the stop of
+  Ctrl-C alone, each with a keeper of its own, and the quick tunnel's with the keeper of `Layered::new`.
+- The Approach's "the handover's bytes are the same" holds for the sessions, but two roads need more of
+  the run to connect again as the same. A key of `--ephemeral-key` is made anew at each start
+  (`crates/podssh-relay/src/identity/file.rs:97` says "Place::Ephemeral => Ok(Key { identity:
+  make(entropy)?, path: None, made: true }),"), and it is the iroh road's endpoint
+  (`crates/podssh-cli/src/node_iroh.rs:272` says "secret: Some(key.secret.clone()),") and the DERP road's
+  key at its server (`crates/podssh-cli/src/node_derp.rs:198` says "let secret =
+  Arc::new(Secret::of_node(identity));"): a new key is a new ticket. A quick tunnel's name is new at each
+  request (`crates/podssh-cli/src/node_quick.rs:4` says "The name is new each run"), which the node made
+  at each start before (`crates/podssh-cli/src/node_quick.rs:241` says "asked = api::request(&trust,
+  &proxy, &*say) => asked,"). Both pass as parts of the run (Decision, items 2 and 3).
+- The Approach's "the road's own connection is made again" needs nothing more on two roads: the Piping
+  Server's door comes from the pair's secret (`crates/podssh-cli/src/node_piping.rs:232` says "let secret
+  = Arc::new(Secret::of_pair(&pair.name, pair.connect_token()));"), and the OpenTunnel road's route is in
+  its record of the cache (`crates/podssh-relay/src/opentunnel/record.rs:47` says "pub route: String,"),
+  save a tunnel that no directory took (Decision, item 6).
+- Two kinds of node cannot move whole, which the Approach did not name: an iroh session of `--no-e2e` is
+  a pipe that a task copies to TARGET (`crates/podssh-cli/src/channel.rs:396` says "let (ours, mut theirs)
+  = tokio::io::duplex(PIPE);"), and a node of `--quick-tunnel --relay` holds the role's tokens, random for
+  each run (`crates/podssh-cli/src/node_quick_relay.rs:99` says "let tokens =
+  serve::tokens::Tokens::random().map_err(Refusal::config)?;"). See Decision, items 5 and 8.
+- `podssh chat --listen NAME --iroh` runs the iroh road's node code
+  (`crates/podssh-cli/src/chat/iroh/listen.rs:81` says "let code = node_iroh::serve(node, roads,
+  flipped(stopped), &mut err).await;"), and takes no upgrade (Decision, item 7).
+- `crates/podssh-cli/src/node_iroh.rs` was at 500 lines: its key and its door went to
+  `crates/podssh-cli/src/node_iroh_door.rs` first; `crates/podssh-cli/src/node_derp.rs` passed 500 with
+  this change, and its test went to `crates/podssh-cli/src/node_derp_tests.rs`.
+
+## Done
+
+2026-11-05, drafted, unbuilt (the drafting agent of T-679); the main session fills each UNVERIFIED.
+
+- The parts of the run (`crates/podssh-cli/src/node_upgrade/parts.rs`), after the sessions in the
+  handover's bytes (`crates/podssh-cli/src/node_upgrade/state.rs`, `crates/podssh-cli/src/node_upgrade/pass.rs`),
+  read at the start (`crates/podssh-cli/src/node_upgrade/mod.rs`); the quick tunnel's part
+  (`crates/podssh-cli/src/node_quick_kept.rs`).
+- Each road's node takes the upgrade's keeper, stop and end: `crates/podssh-cli/src/node_iroh.rs` (its
+  door in `crates/podssh-cli/src/node_iroh_door.rs`), `crates/podssh-cli/src/node_derp.rs`,
+  `crates/podssh-cli/src/node_quick.rs`, `crates/podssh-cli/src/node_piping.rs`,
+  `crates/podssh-cli/src/node_opentunnel.rs`; the run's key on each road, `crates/podssh-cli/src/node.rs`
+  too.
+- The manual (`crates/podssh-cli/src/man/notes_upgrade.rs`), `docs/reverse.md` ("A node's upgrade in
+  place"), `docs/design.md` (section 5), `docs/STATUS.md`.
+- `cargo test -p podssh-cli --lib -- node_upgrade node_quick::kept_tunnel`: UNVERIFIED (the new tests: the
+  parts after the sessions, the run's key, a part of another version, a kept tunnel whole).
+- `cargo test -p podssh-cli --test node_moves --test derp_road --test opentunnel_road`: UNVERIFIED (the
+  new tests: 16 MiB down over the DERP road and over the OpenTunnel road, SIGUSR2 at a quarter, the bytes
+  whole, the same pid, the same ticket or name, one tunnel at the stand-in).
+- `cargo test -p podssh-cli --features iroh-test --test iroh_road`: UNVERIFIED (the new test: 16 MiB down
+  over the iroh road across the upgrade, the same node key).
+- Planted (`sh scripts/plant-each.sh --here t679-derp-own-keeper t679-opentunnel-signal-ignored
+  t679-iroh-signal-ignored t679-parts-dropped t679-ephemeral-new-key t679-part-version-ignored
+  t679-tunnel-secret-dropped`): UNVERIFIED.
+- Clippy with `-D warnings`, with and without `--features iroh-test`, and rustfmt: UNVERIFIED.
+- Waits: a session across the upgrade through the Piping Server road (nwtgck's servers behind TLS of the
+  test's CA, at the command line) and through a quick tunnel (a live run: whether the edge takes again a
+  quick tunnel whose connections all unregistered for the seconds of the exec); the relay role behind a
+  quick tunnel (Decision, item 5); Windows (T-678).
