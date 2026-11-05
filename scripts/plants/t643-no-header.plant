@@ -1,0 +1,7 @@
+# T-643: the dialer states its dialect on each upgrade but a reverse socket's,
+# so podssh's relay role reads none from a node of a later dialect; the test
+# of the header on a node's and an operator's socket alone must fail.
+ENTRY=T-643
+GROUP=resume
+EXPECT='test handshake::tests::a_reverse_socket_states_its_dialect_and_a_forward_one_none \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ws --lib -- handshake::tests'

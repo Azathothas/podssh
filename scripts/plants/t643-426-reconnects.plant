@@ -1,0 +1,7 @@
+# T-643: the node takes a relay's 426 to its upgrade for a failure that may
+# pass, and connects again with its backoff for ever, with no word; the test
+# of its end with the relay's words, at the first 426, must fail.
+ENTRY=T-643
+GROUP=resume
+EXPECT='test a_426_of_another_dialect_ends_the_node_with_the_relay_s_words \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair,plain-ws --test reverse_dialect -- a_426_of_another_dialect_ends_the_node_with_the_relay_s_words'

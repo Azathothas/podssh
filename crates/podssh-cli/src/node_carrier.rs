@@ -236,6 +236,9 @@ fn ended(end: End) -> (i32, String) {
             (unreachable, format!("the carrier's client closed the stream ({} {reason})", close.code))
         }
         End::Failed(e) => (unreachable, format!("the carrier's stream failed: {e}")),
+        // A client of another dialect of the reverse road (T-643): a new
+        // stream of the same client would say the same.
+        End::Unread(why) => (Fault::Config.code(), why),
     }
 }
 
@@ -295,5 +298,7 @@ mod tests {
         let failed = ended(End::Failed(podssh_ws::SessionError::ClosedWithoutClose("gone".into())));
         assert_eq!(failed.0, 69);
         assert!(failed.1.starts_with("the carrier's stream failed: "), "{}", failed.1);
+        // T-643: another dialect is a set-up that a new stream repeats.
+        assert_eq!(ended(End::Unread("update this node".into())), (78, "update this node".into()));
     }
 }

@@ -86,10 +86,12 @@ pub(crate) fn refusal(e: &PairError) -> Refusal {
 }
 
 /// A connection that failed, as `podssh proxy` reads it: a setting (78), a
-/// refusal (77), else no relay (69).
+/// refusal (77), else no relay (69). A relay that reads another dialect of
+/// the reverse road (426, T-643) is 78, as for a node: a retry repeats it.
 fn connect_code(e: &ConnectError) -> i32 {
     match e {
         ConnectError::Config(_) | ConnectError::Dial(DialError::BadProxy(_)) => Fault::Config.code(),
+        ConnectError::Refused { status: 426, .. } => Fault::Config.code(),
         ConnectError::Refused { status: 401 | 403, .. }
         | ConnectError::Dial(DialError::ProxyRefused { status: 403 | 407, .. }) => Fault::Auth.code(),
         _ => Fault::RelayUnreachable.code(),
@@ -267,5 +269,17 @@ mod tests {
     fn each_other_end_keeps_the_relays_code_and_reason() {
         assert_eq!(session_end(1011, "write failed"), "the relay ended the session (relay close 1011): write failed");
         assert_eq!(session_end(1013, "slow"), "the relay ended the session (relay close 1013): slow");
+    }
+
+    /// T-643: an operator whose dialect the relay does not read exits 78,
+    /// as a node does, with the relay's sentence.
+    #[test]
+    fn a_dialect_that_the_relay_does_not_read_is_78_with_its_words() {
+        let words = "reverse: the operator speaks the reverse road's dialect 2, and the relay reads dialect 1 alone: \
+                     update the relay";
+        let refused = podssh_ws::ConnectError::Refused { status: 426, body: words.into() };
+        let refusal = super::connect_refusal(&refused, "lab");
+        assert_eq!(refusal.code, 78);
+        assert!(refusal.message.ends_with("update the relay"), "{}", refusal.message);
     }
 }

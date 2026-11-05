@@ -3879,7 +3879,7 @@ order. Planted: the helper with `is_some()`, and the tests of `false` fail.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3931,14 +3931,56 @@ T-429 lets in by its door; a refusal would cut each member off each node that is
 refusal (that cost); silence (the defect the issue found). With `PROTO_MIN` equal to `PROTO` the
 version's check refuses nothing until the first change of the dialect, as the issue says.
 
+2026-11-05 (the drafting agent), the calls of the draft:
+
+1. `hello`'s `version` is read as any JSON value, not `Option<i64>`: a version of another type is
+   said as no dialect, where it made the whole `hello` fail to parse and drop, its limits with it,
+   with no word. Lost: `Option<i64>`, that silent drop.
+2. A dialect is a fourth kind of an answer's member (`crate::answer::dialect`, T-633's rule):
+   absent or null is the dialect of before, 1; a stated whole number is itself, zero too; any other
+   value is no dialect. Lost: the version as a hint, whose zero would read as 1, a dialect that no
+   podssh speaks taken for the contract's.
+3. The dialer states `X-Podssh-Proto` on the upgrade of a reverse socket alone, by its path, in
+   `podssh_ws::handshake::build_request`, whose `REVERSE_PROTO` is `control::PROTO`. Lost: a field of
+   `WsClientConfig` (30 constructions, in the crate of T-642's draft) or a second `connect` that
+   takes headers; the header on each upgrade, as a forward relay reads no dialect, and each header
+   more tells a stranger's relay what its client is.
+4. A `426` to a node's upgrade is final, whatever its body: the node sends a whole upgrade, so a
+   relay that answers `426` will answer each next one so (the default relay sends it for a request
+   with no upgrade alone). The node exits 78 (`Exit::Unusable`, which `--restart` does not start
+   again), an operator 78 at its first leg, and a session of the layer at its next leg. Lost: a
+   `426` judged by its words, which a relay of other words would have retried for ever; `Next::Exit`
+   with the sentence (the issue's own alternative: wider than this needs).
+5. On a `hello` of another dialect the node closes its socket as a stop does (each session's
+   `close`, which none has before `hello`, then Close 1000) and the run loop returns
+   `Exit::Unusable` with the sentence. Lost: a Close 1002 with the sentence, cut to 123 bytes, which
+   no relay reads, and a row more of the close table.
+6. The role checks the dialect after the token, as the issue asks, and before the name's `409`, a
+   halt (T-647), a planned stop's `503` and the spend of a token of `once` or of one leg: a peer that
+   no new connection lets in learns so first, and spends nothing. Lost: after the halt, where a
+   halted pair's operator of another dialect would wait for a resume that changes nothing.
+7. The channel's line goes at `-v` alone, through `podssh ssh`'s pair road and each command of
+   `crate::layered::carry_keeping`, once the node let the operator in: a member's session through a
+   node outside the net is a normal one (T-429), and a line of the default level each session would
+   be noise. `podssh operator` has no verbose level, so it says nothing. The roads raced in
+   `crates/podssh-cli/src/ssh/roads.rs` (497 lines) and those of iroh, DERP and Cloudflare keep
+   `channel::around`, which drops the line. Lost: a sayer of two levels through `channel::around`,
+   which changes the sayer of each of its callers, in a dozen files.
+8. `podssh status` does not say it (Approach item 4): it reads this host's state and opens nothing
+   (`crates/podssh-cli/src/status.rs:1-8`), and a session's channel is no state that outlives it.
+   Lost: a record for each node in the cache, read by `status --net`, whose rows are the net's
+   members, where a node outside the net, the case at hand, has none.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib reverse::control
-cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test reverse_node
-cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_contract
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib -- reverse::control answer serve::reverse::proto reverse::node
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test reverse_node --test reverse_dialect --test relay_serve_dialect
 cargo test -p podssh-relay --test e2e_net
+cargo test -p podssh-cli --lib -- layered pairs node_carrier man
+cargo test -p podssh-ws --lib handshake
+sh scripts/plant-each.sh --here t643-unread-reconnects t643-426-reconnects t643-role-reads-no-dialect t643-no-net-unsaid t643-no-header
 ```
 
 A `hello` of version 2 ends the node as unusable, with the sentence, and no second connection; a
@@ -3946,6 +3988,64 @@ A `hello` of version 2 ends the node as unusable, with the sentence, and no seco
 `X-Podssh-Proto: 2` and a good token, and `403` with a bad one; an operator with a document and a node with none open a
 session, and the operator's `-v` says it once. Planted: the arm that reconnects on the new exit, and
 the test of no second connection fails.
+
+## Correction
+
+2026-11-05 (the drafting agent). The Premise holds at `f45993d`: each cited line reads as written.
+The Approach is done but for item 4's `podssh status` (Decision 8), with the operator's line at
+`podssh ssh -v` through the pair's road (Decision 7); the role's `426` comes before the name's `409`
+and a halt too (Decision 6); and beside it, the dialer states its dialect (Decision 3) and a `426` is
+final at both ends (Decision 4). The Prove of the triage named `--test relay_serve_contract`, a file
+of 485 lines with no room: the role's tests are `--test relay_serve_dialect`, and the run loop's
+`--test reverse_dialect`, new; the Prove above names them, with the tests of the CLI and of
+podssh-ws, and the five plants.
+
+## Done
+
+DRAFT T-643, 2026-11-05, written with no build and no run (a drafting agent); each result below is
+UNVERIFIED until the merge runs it.
+
+- The dialect: `PROTO`, `PROTO_MIN`, `UNSTATED` and `Skew` beside `Hello`, whose `version` is any
+  JSON value (`crates/podssh-relay/src/reverse/control.rs`), by the fourth kind of
+  `crates/podssh-relay/src/answer.rs`; the dialer's `X-Podssh-Proto` of a reverse socket
+  (`crates/podssh-ws/src/handshake.rs`).
+- The node: `End::Unread` at a `hello` of another dialect (`crates/podssh-relay/src/reverse/serve.rs`),
+  which the run loop, and a `426` to its upgrade, end as `Exit::Unusable` with the sentence, never a
+  reconnection (`crates/podssh-relay/src/reverse/node.rs`); a carrier's node ends 78 on it
+  (`crates/podssh-cli/src/node_carrier.rs`).
+- The role: `crates/podssh-relay/src/serve/reverse/proto.rs`, asked in
+  `crates/podssh-relay/src/serve/reverse/mod.rs` after the token; its `hello` says `PROTO`. An
+  operator's `426` is final (`crates/podssh-cli/src/layered.rs`) and 78 at its first leg
+  (`crates/podssh-cli/src/pairs.rs`).
+- The channel: `Offered::net_unanswered` (`crates/podssh-relay/src/e2e/handshake.rs`),
+  `ends::operator_told` and `ends::NO_NET` (`crates/podssh-relay/src/e2e/ends.rs`),
+  `channel::around_told` (`crates/podssh-cli/src/channel.rs`), said at `-v` by `carry_keeping`.
+- The manual (`crates/podssh-cli/src/man/notes_dialect.rs`, the notes of node, operator, relay and
+  net, and the row 78 of EXIT STATUS), `docs/reverse.md` ("The dialect of the road" and its
+  pointers), `docs/relay.md` (the role's reverse road) and `docs/STATUS.md`.
+- `cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib --
+  reverse::control answer serve::reverse::proto reverse::node`: UNVERIFIED (no version and null are
+  1; 2 says both and "update this node", 0 "update the relay", a value of another type either side;
+  a `hello` whose version is a string keeps its limits; a peer's value one line and cut; the role's
+  header read alike; a `426`'s words on one line).
+- `--test reverse_node`: UNVERIFIED (a `hello` of version 2 gets a Close and no `ready`, and `serve`
+  ends with the sentence; one with no version serves on). `--test reverse_dialect`: UNVERIFIED (the
+  run loop ends at a `hello` of version 2 and at a `426`, each with one connection alone, the head
+  stating `X-Podssh-Proto: 1`; a `hello` of no version or of 1 keeps the node on its socket).
+  `--test relay_serve_dialect`: UNVERIFIED (`426` with both numbers and `X-Podssh-Proto: 1` for the
+  node's and the operator's path; `403` with no word of a dialect for a wrong token; no header joins;
+  the refusal before the `409`, and a token of `once` unspent by it; the role's `hello` read by the
+  node as `PROTO`).
+- `cargo test -p podssh-relay --test e2e_net`: UNVERIFIED (the operator knows an offer answered
+  plainly, by a node with no store or an empty one, and not otherwise; `ends::operator_told` says
+  `NO_NET` once and the bytes go both ways whole; not with a node that holds the document).
+- `cargo test -p podssh-cli --lib -- layered pairs node_carrier man`: UNVERIFIED (a `426` final for
+  a new leg; 78 with the relay's words at the first; a carrier's `Unread` 78; the notes' names).
+  `cargo test -p podssh-ws --lib handshake`: UNVERIFIED (a reverse socket states its dialect once, a
+  forward one none).
+- Planted, `sh scripts/plant-each.sh --here t643-unread-reconnects t643-426-reconnects
+  t643-role-reads-no-dialect t643-no-net-unsaid t643-no-header`: UNVERIFIED. Clippy and rustfmt:
+  UNVERIFIED.
 
 # T-647: A pair of the relay role is served or ended; no halt that keeps its name and its node's socket
 

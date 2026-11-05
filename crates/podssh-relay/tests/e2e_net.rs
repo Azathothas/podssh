@@ -3,15 +3,17 @@
 //! the other, the operator's before the node's verdict and the node's after
 //! it; nothing travels between two equal serials or two owners, to a peer
 //! that is not a member, or to an operator that the node refused; and an
-//! end with no documents, as a podssh of before, meets one that has them.
+//! end with no documents, as a podssh of before, meets one that has them;
+//! and an operator whose offer the node answered with a plain proof knows
+//! it, and says it once, as the session goes on (T-643).
 //! The documents here are the bytes `OWNER SERIAL MEMBER...`: the binary's
 //! check of the owner's signature is `podssh net`'s, tested there.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::e2e::net::{Docs, Held};
-use podssh_relay::e2e::{initiate_with, respond_with, Error, Refusal};
+use podssh_relay::e2e::net::{self, Docs, Held};
+use podssh_relay::e2e::{ends, initiate_with, respond_with, Error, Refusal};
 use podssh_relay::identity::{Identity, PublicKey};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -205,4 +207,85 @@ async fn an_end_with_no_documents_meets_one_that_has_them() {
     let (empty_op, empty_node) = (Arc::new(Memory::default()), Arc::new(Memory::default()));
     let (op_got, _) = meet(Some(empty_op), Some(empty_node), true).await.unwrap();
     assert_eq!(op_got, b"from the node");
+}
+
+/// T-643: the operator's handshake knows that it offered the net's document
+/// and got a plain proof, from a node that holds none or of before; not
+/// when the node answered in the net's form, nor when it offered none.
+#[tokio::test]
+async fn an_offer_answered_plainly_is_known_and_the_session_goes_on() {
+    let [op, node] = members();
+    let held = || Some(Memory::holding(9, 2, &[&op, &node]));
+    for (theirs, ours, unanswered) in [
+        (held(), None, true),
+        (held(), Some(Arc::new(Memory::default())), true),
+        (held(), held(), false),
+        (None, held(), false),
+    ] {
+        let (a, b) = tokio::io::duplex(1 << 16);
+        let node_side = async move {
+            let docs = ours.map(|m| m as Arc<dyn Docs>);
+            let asked = respond_with(b, &id(2), docs).await.expect("the node's handshake");
+            asked.admit().await.expect("the verdict goes")
+        };
+        let op_side = async move {
+            let docs = theirs.map(|m| m as Arc<dyn Docs>);
+            let offered = initiate_with(a, &id(1), docs).await.expect("the node's message");
+            let said = offered.net_unanswered();
+            offered.accept(None).await.expect("the node lets this end in");
+            said
+        };
+        let (_, said) = tokio::time::timeout(LIMIT, async { tokio::join!(node_side, op_side) }).await.unwrap();
+        assert_eq!(said, unanswered);
+    }
+}
+
+/// T-643: the operator's end, with this process's documents as the binary
+/// installs them, tells its caller once that the node gave no document, and
+/// the session's bytes go both ways whole; a node that holds the document
+/// gets no such word.
+#[tokio::test]
+async fn an_operator_whose_offer_got_a_plain_proof_says_it_once_and_goes_on() {
+    let [op, node] = members();
+    let installed: Arc<dyn Docs> = Memory::holding(9, 2, &[&op, &node]);
+    net::install(installed);
+    for (ours, lines) in [(None, 1), (Some(Memory::holding(9, 2, &[&op, &node])), 0)] {
+        let said: Arc<Mutex<Vec<String>>> = Arc::default();
+        let told = {
+            let said = said.clone();
+            move |line: String| said.lock().unwrap().push(line)
+        };
+        let (mut app, app_end) = tokio::io::duplex(4096);
+        let (cipher, session) = ends::operator_told(app_end, Arc::new(id(1)), |_| Ok(()), None, None, told);
+        let node_side = async move {
+            let docs = ours.map(|m| m as Arc<dyn Docs>);
+            let asked = respond_with(cipher, &id(2), docs).await.expect("the node's handshake");
+            let channel = asked.admit().await.expect("the verdict goes");
+            let (mut target, theirs) = tokio::io::duplex(4096);
+            let talk = async {
+                target.write_all(b"from the node").await.unwrap();
+                target.shutdown().await.unwrap();
+                let mut got = Vec::new();
+                target.read_to_end(&mut got).await.unwrap();
+                got
+            };
+            let (carried, got) = tokio::join!(channel.carry(theirs), talk);
+            carried.expect("the node's side carries");
+            got
+        };
+        let op_side = async {
+            app.write_all(b"from the operator").await.unwrap();
+            app.shutdown().await.unwrap();
+            let mut got = Vec::new();
+            app.read_to_end(&mut got).await.unwrap();
+            got
+        };
+        let all = async { tokio::join!(node_side, op_side, session) };
+        let (node_got, op_got, ended) = tokio::time::timeout(LIMIT, all).await.unwrap();
+        assert_eq!((op_got.as_slice(), node_got.as_slice()), (&b"from the node"[..], &b"from the operator"[..]));
+        assert_eq!(ended.expect("the session ends well"), node.public());
+        let said = said.lock().unwrap().clone();
+        assert_eq!(said.len(), lines, "{said:?}");
+        assert!(said.iter().all(|line| line == ends::NO_NET), "{said:?}");
+    }
 }

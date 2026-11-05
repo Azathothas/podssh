@@ -682,7 +682,7 @@ repository and CI).
 | [T-640](robustness.md) | P3 | M | none | feature | done | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |
 | [T-641](roads.md) | P3 | M | M10 | feature | done | `doctor` does not say whether this host's NAT keeps one mapping across destinations |
 | [T-642](ws.md) | P3 | L | none | feature | open | TLS sends each name in the clear: no Encrypted Client Hello from the name's HTTPS record |
-| [T-643](reverse.md) | P3 | M | M10 | feature | open | Neither end of the reverse road compares the `version` of the role's `hello`, and an operator's offer of the net answered plainly says nothing |
+| [T-643](reverse.md) | P3 | M | M10 | feature | partial | Neither end of the reverse road compares the `version` of the role's `hello`, and an operator's offer of the net answered plainly says nothing |
 | [T-644](relay.md) | P3 | M | M10 | feature | done | `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road |
 | [T-645](pipe.md) | P3 | M | none | feature | done | `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends |
 | [T-646](relay.md) | P3 | M | M10 | feature | done | `--mint keys:` takes a file alone, so a role in a read-only image changes whom it mints for only by a rebuild |

@@ -17,6 +17,7 @@
 //! the node's `hello` and `/relays.json` offer both (T-615, [`pairs::Leg`]).
 //! A role that mints for keys keeps a share of its pairs for each (T-630).
 //! The owner halts a pair and resumes it with its stop token ([`halt`], T-647).
+//! An upgrade of a dialect that the role does not read gets `426` ([`proto`], T-643).
 //!
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
@@ -31,6 +32,7 @@ pub mod node;
 pub mod operator;
 pub mod outbox;
 pub mod pairs;
+pub mod proto;
 
 pub use pairs::Pairs;
 
@@ -43,7 +45,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use self::pairs::{NotMade, Role};
 use super::{answer, docs, Config, Mint};
-use crate::reverse::framing::SessionId;
+use crate::reverse::{control::PROTO, framing::SessionId};
 
 /// The role pings each reverse socket this often, and drops one that answers
 /// nothing for so many intervals: a dead node's socket would else hold its
@@ -123,6 +125,11 @@ where
     let Some(pair) = found else {
         return answer(&mut stream, request::refusal(403, "reverse: forbidden", &[])).await;
     };
+    // A dialect that the role does not read, said once the token passed and
+    // before a token of `once` or of one leg is spent (T-643).
+    if matches!(kind, "node" | "connect") && proto::refused(&mut stream, &head, kind).await {
+        return;
+    }
     // A halted pair refuses each operator with its owner's words before a
     // token of `once` or of one leg is spent (T-647); a planned stop's first.
     if kind == "connect" && !cfg.pairs.stopping() && halt::refused(&mut stream, &pair).await {
@@ -333,11 +340,12 @@ fn new_id() -> Option<SessionId> {
 }
 
 /// The node's first frame, as the default relay sends it (measured
-/// 2026-10-09); with `offers`, the role's tokens of one leg and the stop
-/// token's rotation beside it (T-615), and its halt (T-647), which a node of
-/// before keeps as fields that it does not know.
+/// 2026-10-09), its version the role's dialect (T-643); with `offers`, the
+/// role's tokens of one leg and the stop token's rotation beside it (T-615),
+/// and its halt (T-647), which a node of before keeps as fields that it does
+/// not know.
 fn hello(offers: bool) -> String {
-    let mut hello = json!({ "type": "hello", "version": 1, "maxFrameBytes": 65536, "maxSessions": MAX_SESSIONS });
+    let mut hello = json!({ "type": "hello", "version": PROTO, "maxFrameBytes": 65536, "maxSessions": MAX_SESSIONS });
     if offers {
         hello[crate::e2e::legs::OFFER] = json!(true);
         hello[crate::reverse::legs::ROTATION] = json!(true);

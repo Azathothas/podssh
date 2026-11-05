@@ -251,6 +251,31 @@ where
     A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
 {
+    operator_told(app, identity, check, route, grant, |_| {})
+}
+
+/// What an operator hears, once, of a node that answered its offer of the
+/// net's document with a plain proof (T-643): T-429 lets such a node in by
+/// its own door, so the session goes on, and this says so where else
+/// nothing would.
+pub const NO_NET: &str = "the node answered with no document of the net (it holds none, or its podssh is \
+                          older); the session goes on without it";
+
+/// [`operator_granted`], with `told`, which hears a fact of the handshake
+/// that ends nothing, once the node let this end in: [`NO_NET`] (T-643).
+pub fn operator_told<A, C, T>(
+    app: A,
+    identity: Arc<Identity>,
+    check: C,
+    route: Option<String>,
+    grant: Option<Vec<u8>>,
+    told: T,
+) -> (DuplexStream, impl Future<Output = Result<PublicKey, Error>> + Send)
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
+    T: FnOnce(String) + Send + 'static,
+{
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let session = async move {
         let offered = initiate(theirs, &identity).await?;
@@ -259,7 +284,11 @@ where
             offered.reject().await;
             return Err(Error::NodeKey(why));
         }
+        let unanswered = offered.net_unanswered();
         let channel = offered.accept_granted(route.as_deref(), grant.as_deref()).await?;
+        if unanswered {
+            told(NO_NET.to_string());
+        }
         // The node's seed of the session's tokens of one leg (T-615), for
         // the legs that resume it.
         if let (Some(seed), Some(taker)) = (channel.leg_seed(), legs::current()) {
