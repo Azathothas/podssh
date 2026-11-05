@@ -68,14 +68,23 @@ pub fn adopt(fd: RawFd) -> Result<std::net::TcpStream, String> {
     Ok(unsafe { std::net::TcpStream::from_raw_fd(fd) })
 }
 
-/// Anonymous memory that holds `bytes`, open across `execve`.
+/// The bytes before the handover's own: their length, little-endian. The
+/// object's size is no length: macOS rounds a shared object's up to a page.
+const LENGTH: usize = 8;
+
+/// Anonymous memory that holds `bytes`, open across `execve`: their length,
+/// then them.
 pub fn memory(bytes: &[u8]) -> Result<OwnedFd, String> {
     let fd = anonymous()?;
+    let total = LENGTH + bytes.len();
     // SAFETY: a length for the object that this process just made.
-    if unsafe { libc::ftruncate(fd.as_raw_fd(), bytes.len() as libc::off_t) } != 0 {
+    if unsafe { libc::ftruncate(fd.as_raw_fd(), total as libc::off_t) } != 0 {
         return Err(format!("the handover's memory: {}", std::io::Error::last_os_error()));
     }
-    with_map(&fd, bytes.len(), true, |map| map.copy_from_slice(bytes))?;
+    with_map(&fd, total, true, |map| {
+        map[..LENGTH].copy_from_slice(&(bytes.len() as u64).to_le_bytes());
+        map[LENGTH..].copy_from_slice(bytes);
+    })?;
     inherited(fd.as_raw_fd(), true)?;
     Ok(fd)
 }
@@ -88,13 +97,20 @@ pub fn read_memory(fd: OwnedFd) -> Result<Vec<u8>, String> {
     if unsafe { libc::fstat(fd.as_raw_fd(), &mut st) } != 0 {
         return Err(format!("the handover's memory: {}", std::io::Error::last_os_error()));
     }
-    let len = usize::try_from(st.st_size).map_err(|_| "the handover's memory has no size".to_string())?;
-    if len == 0 {
+    let size = usize::try_from(st.st_size).map_err(|_| "the handover's memory has no size".to_string())?;
+    if size <= LENGTH {
         return Err("the handover's memory is empty".into());
     }
-    let mut out = vec![0u8; len];
-    with_map(&fd, len, false, |map| out.copy_from_slice(map))?;
-    Ok(out)
+    let mut out = Err("the handover's memory says a length past its end".to_string());
+    with_map(&fd, size, false, |map| {
+        let mut length = [0u8; LENGTH];
+        length.copy_from_slice(&map[..LENGTH]);
+        let len = usize::try_from(u64::from_le_bytes(length)).unwrap_or(usize::MAX);
+        if len <= size - LENGTH {
+            out = Ok(map[LENGTH..LENGTH + len].to_vec());
+        }
+    })?;
+    out
 }
 
 /// Run `f` on `len` bytes of `fd` mapped, writable when `write`.

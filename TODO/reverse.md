@@ -3676,6 +3676,10 @@ A new test: a session through a node goes on across the node's upgrade, its byte
   named for the node's lines); macOS and Windows wait for the gate's jobs. Two tests that needed
   `Debug` of the node's state match its `Err` instead, and the note of `podssh update` names the
   signal USR2 with no dash, which the manual's check read as a flag.
+- After the merge, the gate's `macos` job failed `the_memory_gives_its_bytes_back`: macOS rounds a
+  shared object's size up to a page, so the size read back was no length. The memory now begins with
+  the handover's length (8 bytes, little-endian), which the reader takes; Linux's tests pass again,
+  and macOS's wait for the gate.
 - Waits: the handover on Windows (T-678), and on the node's other roads (T-679).
 
 # T-630: The relay role's table of 4096 pairs keeps no share for each key, so one key of a list can take each place
