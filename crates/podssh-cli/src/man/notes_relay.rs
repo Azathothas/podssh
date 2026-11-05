@@ -233,6 +233,18 @@ pub const RELAY: &[&str] = &[
      signature that does not verify, a challenge that ended or was answered before, and a request \
      whose Host is not the name that its TLS asked for each get 403, which names the key's \
      fingerprint for the owner's list. podssh caches the token as any other.",
+    "FILE of --mint keys:FILE may be an https:// URL, for a relay whose image has no writable volume \
+     (T-646): the list is fetched through the host's proxy with the trust of --ca-file, 1 MiB at most, \
+     within 20 seconds and three redirects to https:// alone, once before the relay takes a connection, \
+     which stops the start (78) when it fails, then again each --list-ttl SECONDS (300). A fetch that \
+     fails leaves the copy to age, and a line on stderr says so; a copy older than its TTL and \
+     --list-stale SECONDS (3600) lets no key mint, as a file that cannot be read does, until a fetch \
+     works. An answer of the server is the list, whatever it holds: a page that is no list lets no key \
+     mint. A key taken off the list mints until the next fetch, not the next request, as a file's would. \
+     Its trust is TLS alone; --mint net, whose document its owner signs, is the stronger way. Each line \
+     names the URL by its host alone, as its path may hold a secret; an http:// URL is refused (64), and \
+     another FILE is a file, as before. The relay behind a node's quick tunnel takes the same words, at \
+     the defaults.",
     "--mint net mints tokens and makes pairs for the members of the net that this host holds (see podssh \
      net), each by the same signature with the key that the net names for it; --mint net,keys:FILE for \
      those and the keys of FILE. The document is read again, and its owner's signature checked, for each \

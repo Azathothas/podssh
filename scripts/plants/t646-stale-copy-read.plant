@@ -1,0 +1,8 @@
+# T-646: podssh's relay role reads the copy of a list of keys at a URL past
+# its TTL and its stale window, so a server that stopped answering keeps a
+# key that its owner took off minting for ever; the test of the stale window
+# must fail.
+ENTRY=T-646
+GROUP=resume
+EXPECT='test serve::keys::list::tests::a_copy_is_read_until_its_ttl_and_its_stale_window_pass_then_no_one_mints \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib serve::keys'

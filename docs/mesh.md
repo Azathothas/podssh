@@ -253,7 +253,8 @@ which `--pairs FILE` keeps across a restart:
   in place of its 404, over HTTP/2 and QUIC, with no listener, the tunnel's
   name the relay host and the keys of `--allow` its own by default (T-428);
 - for the keys of a list, each by its signature of the role's challenge
-  (`--mint keys:FILE`, T-448), and for the net's members by the same
+  (`--mint keys:FILE`, T-448; a file, or a URL's list fetched again at its
+  TTL, T-646), and for the net's members by the same
   signature, as the net's policy lets them reach `relay:*` or `relay:NODE`
   (`--mint net`, T-455); for anyone, only when the user asks;
 - with a brake of 120 mints and pairs a minute for each address, as the

@@ -8,9 +8,11 @@
 //! default, each by its signature of the role's challenge (T-448), and for
 //! another list, the members of the node's net (T-455, as its policy lets
 //! them reach `relay:NAME`, the node's name in the net, or `relay:*`),
-//! anyone or no one when `--mint` says so. It dials its targets through the
-//! host's `HTTPS_PROXY` when one is set (T-457), and private ones inside the
-//! ranges of `--routes` (T-635).
+//! anyone or no one when `--mint` says so; a list of `--mint keys:` may be
+//! an `https://` URL's, fetched with the trust of `--ca-file` and again each
+//! 5 minutes (T-646). It dials its targets through the host's `HTTPS_PROXY`
+//! when one is set (T-457), and private ones inside the ranges of
+//! `--routes` (T-635).
 
 use std::sync::Arc;
 
@@ -21,6 +23,7 @@ use podssh_relay::serve::{self, Config, Limits, Mint};
 
 use crate::node::NodeArgs;
 use crate::node_derp::Door;
+use crate::relay_serve::keys_url::{self, Lists};
 use crate::relay_settings::Refusal;
 
 /// The role of a node, its settings checked before anything connects.
@@ -49,7 +52,7 @@ pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     // The word now (64), before a key is loaded; whom it names is read once
     // the node's key is known (T-455).
     if let Some(word) = args.mint.as_deref() {
-        crate::relay_serve::mint_of(word, None)?;
+        crate::relay_serve::mint_of(word, None, &Lists::default())?;
     }
     // Its private ranges (T-635), as relay serve reads them (64).
     if args.relay {
@@ -71,10 +74,12 @@ pub(crate) fn precheck(args: &NodeArgs, door: &Door) -> Result<(), Refusal> {
 /// Whom the role mints for: `--mint`, else the node's own door: the keys of
 /// `--allow`, or the net's members with no `--allow` (T-550).
 fn mint_of(args: &NodeArgs, door: &Door, me: Option<PublicKey>) -> Result<Mint, Refusal> {
+    // A list of a URL with the node's trust, at the defaults of its copy.
+    let lists = Lists { trust: crate::pairs::trust(args.ca_file.as_deref()), ..Lists::default() };
     match (args.mint.as_deref(), door) {
-        (Some(word), _) => crate::relay_serve::mint_of(word, me),
-        (None, Door::Allow(allow)) => Ok(Mint::Keys(allow.clone())),
-        (None, Door::Net(_)) => crate::relay_serve::mint_of("net", me),
+        (Some(word), _) => crate::relay_serve::mint_of(word, me, &lists),
+        (None, Door::Allow(allow)) => Ok(Mint::Keys(allow.clone().into())),
+        (None, Door::Net(_)) => crate::relay_serve::mint_of("net", me, &lists),
     }
 }
 
@@ -86,7 +91,8 @@ pub(crate) fn role(args: &NodeArgs, label: &str, door: &Door, me: PublicKey) -> 
         return Ok(None);
     }
     let mint = mint_of(args, door, Some(me))?;
-    let who = crate::relay_serve::minting_for(&mint)?;
+    // A list of a URL comes now, before the tunnel takes a visitor (T-646).
+    let who = format!("{}{}", crate::relay_serve::minting_for(&mint)?, keys_url::first(&mint)?);
     // The host's proxy, which the node's own dial of the edge takes too
     // (T-457): behind a quick tunnel it may be the one way out.
     let egress = crate::relay_serve::egress_of()?;
@@ -126,6 +132,14 @@ pub(crate) fn role(args: &NodeArgs, label: &str, door: &Door, me: PublicKey) -> 
 }
 
 impl Role {
+    /// Its list of keys at a URL, if it has one, fetched again each 5
+    /// minutes in the node's runtime, each line of it the role's (T-646).
+    pub fn keep_lists(&self, label: &str) {
+        let label = label.to_string();
+        let say = move |line: &str| podssh_ssh::err_line!("podssh node: {label}: relay: {line}");
+        keys_url::start(&self.cfg.mint, Arc::new(say));
+    }
+
     /// The origin of the node's tunnel of the name `name`: the role's paths,
     /// or each path for a node with no TARGET.
     pub fn origin(&self, name: &str, alone: bool) -> Arc<dyn Origin> {

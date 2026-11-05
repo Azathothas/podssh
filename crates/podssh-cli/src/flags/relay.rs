@@ -12,7 +12,7 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
         "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
-        "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots); with serve --acme, for the ACME directory", None),
+        "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots); with serve --acme, for the ACME directory, and with serve --mint keys:https://URL, for the list's server", None),
     row(None, "operator-file", Some("FILE"), FlagKind::Supported,
         "pair: write the operator's part of the pair to FILE, a new file that only its owner can read", None),
     // A connect token of one upgrade, on podssh's relay role (T-226).
@@ -62,7 +62,7 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     row(None, "port-file", Some("FILE"), FlagKind::Supported,
         "serve: write the port that it listens on to FILE, for --listen ADDR:0", None),
     row(None, "mint", Some("WHO"), FlagKind::Supported,
-        "serve: who may mint a token at /v1/mint and make a pair at /v1/pair: anyone; keys:FILE, the keys of FILE (the format of podssh node --allow), each by its signature of the relay's challenge; net, the members of the net that this host holds, by the same signature, as its policy lets them reach relay:*; net,keys:FILE, both; or nobody (the default: 503, and tokens are given another way)", None),
+        "serve: who may mint a token at /v1/mint and make a pair at /v1/pair: anyone; keys:FILE, the keys of FILE (the format of podssh node --allow), each by its signature of the relay's challenge, FILE a file read again for each request or an https:// URL whose list is fetched again each --list-ttl; net, the members of the net that this host holds, by the same signature, as its policy lets them reach relay:*; net,keys:FILE, both; or nobody (the default: 503, and tokens are given another way)", None),
     row(None, "allow-private", None, FlagKind::Supported,
         "serve: dial private, loopback and other non-public addresses too (by default only public targets, as the default relay)", None),
     // The private targets of a list, between the two (T-635).
@@ -77,6 +77,11 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "serve --mint keys:FILE or net: each key's budget for a day (UTC), in MiB, both ways together, from 1 to 16777216: each session of the forward road is charged to its token's key at its end, and once the key spent it, a session gets 403 before its target is dialed, until the next day", None),
     row(None, "usage", Some("FILE"), FlagKind::Supported,
         "serve --mint keys:FILE or net: keep each key's totals of the day and the day before in FILE, of mode 0600, written each 2 s while a count moved, so that they outlive a restart; SIGHUP says them on stderr", None),
+    // A list of keys at a URL, and its copy's life (T-646).
+    row(None, "list-ttl", Some("SECONDS"), FlagKind::Supported,
+        "serve --mint keys:https://URL: fetch the list again each SECONDS, 1 to 86400 (default 300), through the host's proxy with the trust of --ca-file; a fetch that fails leaves the copy to age", None),
+    row(None, "list-stale", Some("SECONDS"), FlagKind::Supported,
+        "serve --mint keys:https://URL: read the copy for SECONDS more past its --list-ttl while its server fails, 0 to 604800 (default 3600); past that, no key mints until a fetch works", None),
     // The cleartext road beside TLS on the listener (T-326).
     row(None, "cleartext", Some("WORD"), FlagKind::Supported,
         "serve: yes (the default) or no: on the listener, a request whose first byte begins no TLS handshake gets the cleartext road, for a client whose proxy cuts TLS: /health, a token of one session (POST /v1/mint?once=1, as --mint says) and /connect/ with it, which its upgrade spends; each other request there is refused (403)", None),

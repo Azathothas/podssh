@@ -12,23 +12,25 @@
 //! Once its listener is bound, before the runtime starts a thread, it gives
 //! up the capabilities of its start (T-629, `relay_serve/harden.rs`). What
 //! each key carried, its budget for a day and the file that keeps the
-//! counts are `relay_serve/quota.rs`'s (T-636).
+//! counts are `relay_serve/quota.rs`'s (T-636); a list of keys at an
+//! `https://` URL, `relay_serve/keys_url.rs`'s (T-646).
 
 mod certs;
 mod harden;
 #[cfg(target_os = "linux")]
 mod harden_sys;
+pub(crate) mod keys_url;
 mod list;
 mod quota;
 mod resumes;
 
 use std::io::Write;
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::identity::PublicKey;
 use podssh_relay::serve::egress::Egress;
+use podssh_relay::serve::keys::List;
 use podssh_relay::serve::listener::Door;
 use podssh_relay::serve::ranges::Range;
 use podssh_relay::serve::{self, Config, Limits, Mint};
@@ -75,6 +77,10 @@ pub struct ServeArgs {
     /// A key's MiB for a day, and the file of each key's counts (T-636).
     pub quota: Option<String>,
     pub usage: Option<String>,
+    /// How often a list of keys at a URL is fetched, and how long past
+    /// that its copy is read while its server fails (T-646).
+    pub list_ttl: Option<String>,
+    pub list_stale: Option<String>,
 }
 
 impl ServeArgs {
@@ -106,6 +112,8 @@ impl ServeArgs {
             http2: get("http2"),
             quota: get("quota"),
             usage: get("usage"),
+            list_ttl: get("list-ttl"),
+            list_stale: get("list-stale"),
         }
     }
 
@@ -117,7 +125,13 @@ impl ServeArgs {
 
 /// Run `podssh relay serve`; returns the exit code.
 pub fn run(args: &RelayArgs, err: &mut dyn Write) -> i32 {
-    match prepare(&args.serve, args.ca_file.as_deref()) {
+    // The host of a list of keys at a URL by --relay-addr too, as each host
+    // that podssh reaches (T-646).
+    let pinned = match keys_url::named(args.serve.mint.as_deref()) {
+        true => crate::pins::apply(args.relay_addr.as_deref()),
+        false => Ok(()),
+    };
+    match pinned.and_then(|()| prepare(&args.serve, args.ca_file.as_deref())) {
         Ok(prepared) => {
             let _ = writeln!(err, "podssh relay serve: {}", prepared.shown);
             serve_until_stopped(prepared, err)
@@ -145,8 +159,10 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     // The private ranges that it dials too (T-635), read before anything.
     let routes = routes_of(s.routes.as_deref(), s.allow_private)?;
     let source = certs::Source::of(s, ca_file)?;
-    // No key of its own: the net's `relay:*` names this role (T-455).
-    let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"), None)?;
+    // No key of its own: the net's `relay:*` names this role (T-455); a
+    // list of a URL is fetched with the trust of --ca-file (T-646).
+    let lists = keys_url::Lists::of(s, ca_file)?;
+    let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"), None, &lists)?;
     let who = minting_for(&mint)?;
     // What each key carried, and its budget (T-636).
     let (usage, metered) = quota::of(s, &mint)?;
@@ -199,6 +215,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         let _ = writeln!(out, "{line}");
         let _ = out.flush();
     });
+    // A list of a URL, fetched with no privilege of the start (T-646).
+    let came = keys_url::first(&mint)?;
     let through = egress_shown(&egress);
     let cfg = Config {
         version: format!("podssh {}", env!("CARGO_PKG_VERSION")),
@@ -224,7 +242,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let dropped = dropped.unwrap_or_default();
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{metered}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{dropped}; {}",
+         {who}{came}{metered}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{dropped}; {}",
         serve::CONTRACT,
         certs.shown
     );
@@ -248,23 +266,27 @@ fn bind_then_drop(
 }
 
 /// The words of `--mint`, as a refusal names them.
-const MINT_WORDS: &str = "anyone, nobody, keys:FILE, net or net,keys:FILE";
+const MINT_WORDS: &str = "anyone, nobody, keys:FILE, net or net,keys:FILE, where FILE may be an https:// URL";
 
 /// Who `--mint WORD` mints for: anyone, nobody, the keys of a list (T-448),
 /// the members of the net that this host holds (T-455), or both of those
-/// (`net,keys:FILE`: FILE is the rest of the word, commas and all); the node
-/// behind a quick tunnel reads the same words (T-428), and names its key
-/// `me`, which the net's `relay:NODE` names.
-pub(crate) fn mint_of(word: &str, me: Option<PublicKey>) -> Result<Mint, Refusal> {
-    let list = |text: &str| text.strip_prefix("keys:").filter(|file| !file.is_empty()).map(PathBuf::from);
-    let net = |list: Option<PathBuf>| Mint::Net(Arc::new(crate::net::mint::Members::new(me)), list);
+/// (`net,keys:FILE`: FILE is the rest of the word, commas and all), a list
+/// of an `https://` URL fetched as `lists` says (T-646); the node behind a
+/// quick tunnel reads the same words (T-428), and names its key `me`, which
+/// the net's `relay:NODE` names.
+pub(crate) fn mint_of(word: &str, me: Option<PublicKey>, lists: &keys_url::Lists) -> Result<Mint, Refusal> {
+    let list = |text: &str| {
+        let rest = text.strip_prefix("keys:").filter(|rest| !rest.is_empty())?;
+        Some(keys_url::list_of(rest, lists))
+    };
+    let net = |list: Option<List>| Mint::Net(Arc::new(crate::net::mint::Members::new(me)), list);
     match word {
         "anyone" => Ok(Mint::Anyone),
         "nobody" | "none" => Ok(Mint::Nobody),
         "net" => Ok(net(None)),
         word => match (word.strip_prefix("net,").map(list), list(word)) {
-            (Some(Some(file)), _) => Ok(net(Some(file))),
-            (None, Some(file)) => Ok(Mint::Keys(file)),
+            (Some(Some(listed)), _) => Ok(net(Some(listed?))),
+            (None, Some(listed)) => Ok(Mint::Keys(listed?)),
             _ => Err(Refusal::usage(format!("--mint {word:?}: {MINT_WORDS}"))),
         },
     }
@@ -273,16 +295,17 @@ pub(crate) fn mint_of(word: &str, me: Option<PublicKey>) -> Result<Mint, Refusal
 /// Whom `mint` mints for, in the words of the first line. The list and the
 /// net's document are read again for each request; here, so that a list
 /// that cannot be read, or a net that this host does not hold or that
-/// ended, stops the start (78), and whom they hold is said.
+/// ended, stops the start (78), and whom they hold is said. A list of a URL
+/// is read by its first fetch (`keys_url::first`), whose words follow.
 pub(crate) fn minting_for(mint: &Mint) -> Result<String, Refusal> {
     Ok(match mint {
         Mint::Anyone => "anyone".to_string(),
         Mint::Nobody => "no one".to_string(),
-        Mint::Keys(file) => list_shown(file)?,
+        Mint::Keys(list) => list_shown(list)?,
         Mint::Net(net, list) => {
             let members = net.shown().map_err(|why| Refusal::config(format!("--mint net: {why}")))?;
             match list {
-                Some(file) => format!("{members}; and {}", list_shown(file)?),
+                Some(list) => format!("{members}; and {}", list_shown(list)?),
                 None => members,
             }
         }
@@ -330,8 +353,10 @@ pub(crate) fn inside_shown(private: bool, routes: &[(String, Range)]) -> String 
     }
 }
 
-/// The keys of the list in `file`, in the words of the first line.
-fn list_shown(file: &Path) -> Result<String, Refusal> {
+/// The keys of `list`, in the words of the first line: a file's, read now;
+/// a URL's by its host, whose copy has not come.
+fn list_shown(list: &List) -> Result<String, Refusal> {
+    let List::File(file) = list else { return Ok(format!("the keys of the list at {}", list.shown())) };
     let list = podssh_relay::identity::allow::Allowlist::read(file).map_err(Refusal::config)?;
     let bad = match list.bad_lines() {
         [] => String::new(),
@@ -369,6 +394,14 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
         let listener = tokio::net::TcpListener::from_std(listener).map_err(|e| e.to_string())?;
         // The lines of ACME's work, said here, as each other line of the role.
         let (say, mut lines) = tokio::sync::mpsc::unbounded_channel();
+        // A list of keys at a URL, fetched again each TTL; its lines too (T-646).
+        let listed = say.clone();
+        keys_url::start(
+            &cfg.mint,
+            Arc::new(move |line: &str| {
+                let _ = listed.send(line.to_string());
+            }),
+        );
         let mut keeper = tokio::spawn(kept.keeper(say));
         // Each key's counts into their file, each 2 s while one moved (T-636).
         tokio::spawn(cfg.usage.clone().keep());
@@ -445,49 +478,6 @@ async fn stopped() {
     }
 }
 
+// Its steps' tests, apart so that this file stays within 500 lines.
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // T-629: the drop comes once, after the bind, on a listener that is
-    // bound; a bind that fails drops nothing; a drop that fails refuses the
-    // start and its words reach the first line.
-    #[test]
-    fn the_drop_happens_once_and_only_after_the_bind() {
-        let mut seen = Vec::new();
-        let (listener, words) = bind_then_drop("127.0.0.1:0", |bound| {
-            seen.push(bound.local_addr().map(|a| a.port() != 0).unwrap_or(false));
-            Ok(Some(", dropped".into()))
-        })
-        .unwrap();
-        assert_eq!(seen, [true], "one drop, on a bound listener");
-        assert_eq!(words.as_deref(), Some(", dropped"));
-        let taken = listener.local_addr().unwrap().to_string();
-        let mut called = false;
-        let refused = bind_then_drop(&taken, |_| {
-            called = true;
-            Ok(None)
-        })
-        .unwrap_err();
-        assert_eq!(refused.code, EX_UNAVAILABLE, "{refused:?}");
-        assert!(!called, "a bind that failed dropped nothing");
-        let refused = bind_then_drop("127.0.0.1:0", |_| Err(Refusal::config("capset after the bind: no"))).unwrap_err();
-        assert_eq!((refused.code, refused.message.as_str()), (EX_CONFIG, "capset after the bind: no"));
-    }
-
-    // T-635: the ranges of --routes, strictly, never with --allow-private,
-    // and named in the first line.
-    #[test]
-    fn the_routes_are_read_strictly_and_never_beside_allow_private() {
-        assert_eq!(routes_of(None, true), Ok(Vec::new()));
-        let routes = routes_of(Some("10.4.0.9, 10.4.1.0/24"), false).unwrap();
-        assert_eq!(inside_shown(false, &routes), ", the private targets in 10.4.0.9, 10.4.1.0/24 too");
-        assert_eq!(inside_shown(false, &[]), "");
-        assert_eq!(inside_shown(true, &[]), ", private targets too");
-        let wide = routes_of(Some("10.0.0.5/8"), false).unwrap_err();
-        assert_eq!(wide.code, crate::exit_codes::EXIT_USAGE);
-        assert!(wide.message.starts_with("--routes 10.0.0.5/8: ") && wide.message.contains("10.0.0.0/8"), "{wide}");
-        let both = routes_of(Some("10.4.0.9"), true).unwrap_err();
-        assert!(both.code == crate::exit_codes::EXIT_USAGE && both.message.contains("--allow-private"), "{both}");
-    }
-}
+mod tests;

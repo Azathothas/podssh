@@ -822,7 +822,8 @@ through the default one:
 
 `podssh relay serve --mint keys:FILE` mints tokens, and makes pairs, for
 the keys of FILE alone, a list in the format of `podssh node --allow`,
-read again for each request. The contract's request, `{}`, gets `401` with
+read again for each request (a list of a URL is fetched again at its TTL:
+"A list of keys at a URL", below). The contract's request, `{}`, gets `401` with
 a challenge of the role's (`c1.<end-ms>.<nonce>.<mac>`, a minute of life,
 under the role's secret). podssh then sends the request once more, with
 the key of this client (`client.key` in the cache, the key that a node's
@@ -834,6 +835,44 @@ a challenge that is not its own, that ended or that was answered before,
 and a request whose `Host` is not the name that its TLS asked for; the
 `403` names the key's fingerprint, for the owner's list. A relay of the
 contract never answers `401`, so a client asks nothing more of it.
+
+## A list of keys at a URL (T-646)
+
+`--mint keys:https://HOST[:PORT]/PATH` (and `net,keys:https://...`) takes
+the list from a URL in place of a file, for a role run from an image with
+no writable volume, whose owner changes whom it mints for with no rebuild
+(GitHub #144). Each other rest of `keys:` is a file, as before; an
+`http://` URL is refused (64), as its list would come in cleartext and a hop
+could add a key.
+
+- **Fetched, not read for each request.** The role fetches the list through
+  the host's proxy, with the trust of `--ca-file`, 1 MiB at most, within
+  20 s and through three redirects to `https://` alone, as a subscription
+  of Shadowsocks is fetched: once after its listener is bound and its start
+  gave up its privileges, before it takes a connection, and a fetch that
+  fails stops the start (78); then again each `--list-ttl SECS` (300, from
+  1 to 86400). A request reads the copy in memory, with no wait
+  (`crates/podssh-relay/src/serve/keys/list.rs`), so a key taken off the
+  list mints until the next fetch, where a file's mints until its next
+  request.
+- **A server that fails.** A fetch that fails leaves the copy to age, and
+  is a line on stderr. A copy older than its TTL and `--list-stale SECS`
+  (3600, from 0 to 604800) lets no key mint, `403 ... this relay cannot
+  read its list of keys`, as a file that cannot be read does, until a fetch
+  works. An answer `200` is the list, whatever it holds: a page that is no
+  list lets no key mint, and the line says so.
+- **Its trust is TLS alone.** Whoever controls the URL's server, or a CA
+  that `--ca-file` (or the system's roots) trusts, decides whom the role
+  mints for. `--mint net`, whose document its owner signs
+  ("Tokens for the members of the net", below), is the stronger way.
+- Each line names the URL by its host alone, `https://HOST/...`, as its
+  path or query may hold a secret of its server. The first line says the
+  keys of the first copy, and how it is fetched. `--list-ttl` and
+  `--list-stale` with no list of a URL are usage errors (64); `--ca-file`
+  beside `--cert` and `--key` is the list's trust, and beside `--acme` the
+  trust of both. The host of the URL takes `--relay-addr` and
+  `PODSSH_RELAY_ADDR`, as each host that podssh reaches. The relay behind a
+  node's quick tunnel takes the same words, at 300 s and 3600 s.
 
 ## Tokens for the members of the net (T-455)
 

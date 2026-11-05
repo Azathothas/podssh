@@ -8,8 +8,8 @@
 //! its certificate read again on SIGHUP (T-447, `serve_certs`), and its
 //! forward road in the resumable layer, which `podssh proxy` and `podssh
 //! ssh` take when asked, across cuts of their link, and its budget (T-173,
-//! `serve_layer`), and what each of its threads holds after its bind (T-629,
-//! `serve_caps`). The
+//! `serve_layer`), what each of its threads holds after its bind (T-629,
+//! `serve_caps`), and its list of keys at a URL (T-646, `serve_list`). The
 //! suite of the stand-in also runs against the role with
 //! `PODSSH_RELAY_UNDER_TEST=podssh`.
 
@@ -17,6 +17,7 @@ mod live_harness;
 mod serve_caps;
 mod serve_certs;
 mod serve_layer;
+mod serve_list;
 mod serve_net;
 mod serve_proxy;
 mod ssh_harness;
