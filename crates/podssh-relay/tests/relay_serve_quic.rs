@@ -319,18 +319,26 @@ async fn open_raced(both: &Both, target: u16) -> (podssh_relay::Opened, Duration
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_opener_races_quic_where_offered_and_takes_tcp_where_udp_fails() {
     for name in ["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY"] {
-        std::env::remove_var(name);
+        // Edition 2024 marks a write of the environment unsafe (a read on another
+        // thread at the same time is undefined); this write is as it was before.
+        unsafe { std::env::remove_var(name) };
     }
     for name in ["PODSSH_OFFLINE", "PODSSH_H2", "PODSSH_QUIC", "PODSSH_RELAY_LAYER"] {
-        std::env::remove_var(name);
+        // Edition 2024 marks a write of the environment unsafe (a read on another
+        // thread at the same time is undefined); this write is as it was before.
+        unsafe { std::env::remove_var(name) };
     }
     let cache = std::env::temp_dir().join(format!("podssh-relay-serve-quic-{}-cache", std::process::id()));
     std::fs::create_dir_all(&cache).unwrap();
-    std::env::set_var("PODSSH_CACHE_DIR", &cache);
+    // Edition 2024 marks a write of the environment unsafe (a read on another
+    // thread at the same time is undefined); this write is as it was before.
+    unsafe { std::env::set_var("PODSSH_CACHE_DIR", &cache) };
     let target = echo_target(GREETING).await;
     // QUIC answers: its session is kept, as the TCP road waits 3 s.
     let quic = Both::start(Udp::Quic, Duration::from_secs(3), "opener-quic").await;
-    std::env::set_var("PODSSH_RELAY_TOKEN", quic.token());
+    // Edition 2024 marks a write of the environment unsafe (a read on another
+    // thread at the same time is undefined); this write is as it was before.
+    unsafe { std::env::set_var("PODSSH_RELAY_TOKEN", quic.token()) };
     kept::keep_now(&quic.relay(), &Offer { quic: Some(quic.port), ..Offer::default() });
     let (opened, _) = open_raced(&quic, target).await;
     assert_eq!(opened.road(), format!(", {WORDS}"));
@@ -351,6 +359,8 @@ async fn the_opener_races_quic_where_offered_and_takes_tcp_where_udp_fails() {
     let (opened, _) = open_raced(&unoffered, target).await;
     assert!(!opened.road().contains("QUIC"), "{:?}", opened.road());
     assert_eq!(unoffered.said("quic"), 0, "no QUIC to a host that offered none");
-    std::env::remove_var("PODSSH_RELAY_TOKEN");
+    // Edition 2024 marks a write of the environment unsafe (a read on another
+    // thread at the same time is undefined); this write is as it was before.
+    unsafe { std::env::remove_var("PODSSH_RELAY_TOKEN") };
     let _ = std::fs::remove_dir_all(&cache);
 }

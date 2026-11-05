@@ -128,7 +128,7 @@ pub(super) fn apply(path: &Path) -> Result<(), Refusal> {
     for (name, value) in vars {
         // The first thing that the node does, while this process has one
         // thread: no reader of a variable can race this write.
-        std::env::set_var(name, value);
+        unsafe { std::env::set_var(name, value) };
     }
     Ok(())
 }

@@ -5,10 +5,9 @@ target sandbox, and release it.
 
 ## Requirements
 
-- Rust 1.89 or later for the binary and the library crates, which keep no
-  older minimum (the operator's ruling of Q48). The `ts` feature needs Rust 1.92, and the `iroh`
-  feature 1.91. The gate checks each crate on the version that its manifest
-  declares.
+- Rust 1.97 or later, edition 2024: each crate declares the newest stable Rust
+  of the day, as the crates of PodUtils/podcrates do (the operator,
+  2026-11-05; T-685). The gate runs the build image's stable Rust.
 - A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,
   through `russh`). On Windows x86_64, also NASM: without it, aws-lc's build
   fails unless `AWS_LC_SYS_PREBUILT_NASM=1` asks for its prebuilt objects
@@ -120,7 +119,7 @@ cargo todo remap FILE...            # after an edit of FILE: move its citations 
 cargo todo check --base HEAD~1      # the same check against the last commit's parent, as CI runs it; remap takes --base too
 cargo deny --locked check advisories licenses bans sources   # the dependencies (deny.toml)
 cargo fmt -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-probe -p podssh-ts -p podssh-todo -- --check
-cargo clippy --locked --all-targets -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-probe -p podssh-ts -p podssh-todo -- -D warnings
+cargo clippy --locked --all-targets -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-probe -p podssh-ts -p podssh-todo -- -D warnings -A clippy::collapsible_if
 cargo deny --locked --all-features check licenses sources    # the same, with the Tailscale fork
 ```
 

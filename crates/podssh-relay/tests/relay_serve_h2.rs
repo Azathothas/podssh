@@ -361,12 +361,18 @@ async fn with_h2_not_offered_the_upgrade_goes_on_the_one_connection() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_opener_takes_the_road_to_a_host_that_the_user_named() {
     for name in ["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY"] {
-        std::env::remove_var(name);
+        // Edition 2024 marks a write of the environment unsafe (a read on another
+        // thread at the same time is undefined); this write is as it was before.
+        unsafe { std::env::remove_var(name) };
     }
     for name in ["PODSSH_RELAY_TOKEN", "PODSSH_OFFLINE", "PODSSH_H2"] {
-        std::env::remove_var(name);
+        // Edition 2024 marks a write of the environment unsafe (a read on another
+        // thread at the same time is undefined); this write is as it was before.
+        unsafe { std::env::remove_var(name) };
     }
-    std::env::set_var("PODSSH_CACHE_DIR", "none");
+    // Edition 2024 marks a write of the environment unsafe (a read on another
+    // thread at the same time is undefined); this write is as it was before.
+    unsafe { std::env::set_var("PODSSH_CACHE_DIR", "none") };
     let tls = Tls::start(&[H2, HTTP1], "opener").await;
     let target = echo_target(GREETING).await;
     let relays = RelayList { hosts: vec![Relay { host: NAME.into(), port: tls.port }], explicit: true };

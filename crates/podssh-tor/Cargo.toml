@@ -3,8 +3,7 @@ name = "podssh-tor"
 description = "Tor through Arti: a stream to a host and port through the Tor network, each first hop through podssh's own dial and proxy."
 version.workspace = true
 edition.workspace = true
-# arti-client 0.47.0 declares 1.92 (read from its Cargo.toml).
-rust-version = "1.92"
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 

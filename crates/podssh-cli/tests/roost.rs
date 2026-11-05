@@ -314,7 +314,7 @@ fn through_the_stand_in_with<'a>(
     s: &'a Session,
     target: u16,
     env: &[(&str, &str)],
-) -> Option<(impl Fn(&[String]) -> std::process::Command + 'a, std::sync::mpsc::Receiver<String>)> {
+) -> Option<(impl Fn(&[String]) -> std::process::Command + 'a + use<'a>, std::sync::mpsc::Receiver<String>)> {
     let cell = match Cell::fake_relay_mode(s, "normal", "the stand-in relay") {
         Ok(cell) => cell,
         Err((_, why)) => {

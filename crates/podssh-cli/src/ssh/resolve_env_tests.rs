@@ -35,7 +35,7 @@ fn no_line_for_the_uid_too_few_fields_or_an_empty_file_give_no_name() {
 }
 
 /// The variables of the process, as a test gives them.
-fn vars(set: &[(&'static str, &'static str)]) -> impl Fn(&str) -> Option<String> {
+fn vars(set: &[(&'static str, &'static str)]) -> impl Fn(&str) -> Option<String> + use<> {
     let set = set.to_vec();
     move |name| set.iter().find(|(n, _)| *n == name).map(|(_, v)| v.to_string())
 }

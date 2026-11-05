@@ -116,7 +116,9 @@ fn a_lifetime_ends_and_a_removal_of_all_takes_them() {
 /// sign, and the probe's reason goes to its stderr.
 #[test]
 fn a_signature_with_no_device_fails() {
-    std::env::set_var(DEVICE_VARIABLE, "none");
+    // Edition 2024 marks a write of the environment unsafe (a read on another
+    // thread at the same time is undefined); this write is as it was before.
+    unsafe { std::env::set_var(DEVICE_VARIABLE, "none") };
     let held = Held::default();
     let (request, blob) = add_request(Alg::Ed25519, &[]);
     run(held.answer(&request, false));

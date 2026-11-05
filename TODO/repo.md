@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:160-176`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:165-181`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -328,8 +328,8 @@ Read:
 - The help (`scripts/dev.sh` lines 331-366 at `912acd0`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:160-176`,
-  `scripts/gate.sh:313-315`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:165-181`,
+  `scripts/gate.sh:318-320`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -349,7 +349,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:132-347`).
+   (`scripts/gate.sh:137-352`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:835-948`): the
+5. docs/development.md, "Release builds" (`docs/development.md:834-947`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1759,7 +1759,7 @@ Read:
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
   (`.github/workflows/release.yml:123-129`), `dumpbin /dependents` on Windows
   (`:381-406`).
-- The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
+- The binary needs a C compiler for aws-lc (`docs/development.md:11-14`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
   `/proc/self/stat` when it can (`crates/podssh-ssh/src/terminal/ctty.rs:24`),
@@ -1898,7 +1898,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:210` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:208` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -2016,14 +2016,14 @@ the gate on any host that has a C++ compiler. The no-C rule held only because
 
 Read, in the tree as it is now:
 
-- `scripts/gate.sh:127-180`: the library crates build and test with
+- `scripts/gate.sh:127-185`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
 - scripts/plant.sh, read at `d4e186d` (T-685 replaced it with the plant of the static check): a
   crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:321-323` states the rule with `CXX`, and
+- `docs/development.md:320-322` states the rule with `CXX`, and
   `docs/STATUS.md:856` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -2542,7 +2542,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:239-246`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:244-251`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -2641,7 +2641,7 @@ command uses `podssh-probe`.
 2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
    example can use a dev-dependency, and the binary does not declare them.
 3. Move `libc` to the dependencies for Unix only, as
-   `crates/podssh-relay/Cargo.toml:127` does; else the lint of step 4 fails on
+   `crates/podssh-relay/Cargo.toml:126` does; else the lint of step 4 fails on
    Windows.
 4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
    `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the
@@ -3960,20 +3960,20 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 
 ## Premise
 
-- Read: `crates/podssh-ssh/Cargo.toml:25` and `crates/podssh-cli/Cargo.toml:98`
-  ask for `sha1` 0.10.7, and the root `Cargo.toml:135` for `hmac` 0.12;
+- Read: `crates/podssh-ssh/Cargo.toml:23` and `crates/podssh-cli/Cargo.toml:96`
+  ask for `sha1` 0.10.7, and the root `Cargo.toml:133` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
   builds on the newer line, so the binary holds both lines today. podssh's `sha1`
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
-- Read: the root `Cargo.toml:144` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:153` for `x25519-dalek` 2;
+- Read: the root `Cargo.toml:142` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:151` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `PodUtils/podssh:crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
   `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
-- Read: `vt100` 0.15 (`Cargo.toml:110`) is the model of the terminal
+- Read: `vt100` 0.15 (`Cargo.toml:108`) is the model of the terminal
   oracle (T-200) and of `podssh session` (T-186).
 
 ## Approach
@@ -5246,9 +5246,9 @@ builds with, so that its DNS packets and iroh's are of one type.
   box's CONNECT proxy (`scripts/box/proxy.py`), which `scripts/test_in_box.sh` and
   `scripts/chat-in-boxes.sh` build; `images/build/Dockerfile:6` pins `rust:1-alpine` by the digest
   `0cce0a5...`, the gate's image.
-- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:137`), and the lock holds 0.11.0; 0.11.1
+- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:135`), and the lock holds 0.11.0; 0.11.1
   needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:56`, Q48).
-- Read: `crates/podssh-iroh/Cargo.toml:54-57` takes `simple-dns` 0.12, "the simple-dns that
+- Read: `crates/podssh-iroh/Cargo.toml:53-56` takes `simple-dns` 0.12, "the simple-dns that
   iroh-dns builds and reads with, so no crate is added"; iroh-dns 1.4.1, which the lock holds,
   takes simple-dns 0.12.0, the lock's only version.
 - Inferred: Dependabot closes each pull request once `main` holds its version, as T-386's were.
@@ -5322,7 +5322,7 @@ built after the transfer refuses each release, whose signer names PodUtils/podss
 
 ## Premise
 
-- Read: `Cargo.toml:59` sets `repository = "https://github.com/Azathothas/podssh"`;
+- Read: `Cargo.toml:57` sets `repository = "https://github.com/Azathothas/podssh"`;
   `crates/podssh-cli/src/update/mod.rs:163` takes the repository from `CARGO_PKG_REPOSITORY`.
 - Read: `crates/podssh-cli/src/update/sigstore.rs:30` makes the signer's URI from that repository,
   and `crates/podssh-cli/src/update/sigstore.rs:134` refuses a leaf that does not name it.
@@ -5380,7 +5380,7 @@ The operator has transferred the repository to PodUtils/podssh.
   `cargo test -p podssh-cli --test update`: 19 passed.
 - Check 12 of `python scripts/check-repo.py` (`scripts/repo_names.py`): no tracked file names the
   old repository outside the dated records; it passed (2,916 files read). Planted, the old name back
-  in `Cargo.toml`: it failed and named `Cargo.toml:59`; `--plant-empty`: each of the 12 checks
+  in `Cargo.toml`: it failed and named `Cargo.toml:57`; `--plant-empty`: each of the 12 checks
   failed on an empty tree.
 - The frozen files of Q3a (`docs/decisions.md`) hold no old name: no file of podcrates' imports
   changed.
@@ -5485,7 +5485,7 @@ no backwards compat ... the only rule is: everything must be statically compiled
 **Milestone:** M10
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -5498,7 +5498,7 @@ compiled binary, has no check of its own beside the release's.
 
 - Read: `scripts/gate.sh:21` lists the steps `msrv`, `msrv_ssh`, `msrv_ts`, `msrv_iroh`,
   `msrv_warp` and `msrv_tor`, each a check of crates at a declared minimum Rust
-  (`scripts/gate.sh:263` and after); CI's matrix is `sh scripts/gate.sh --list`
+  (`scripts/gate.sh:268` and after); CI's matrix is `sh scripts/gate.sh --list`
   (`.github/workflows/build.yml:50`), so a step removed from the list leaves CI.
 - Read: `scripts/gate.sh` runs 17 commands under `env CC=/nonexistent CXX=/nonexistent`, which
   refuse a crate that builds C (`scripts/gate.sh:128` tells why).
@@ -5531,19 +5531,34 @@ on the release's binaries and fails on its plant.
 
 ## Correction
 
-2026-11-05. Approach 3 names "the build image's stable Rust" as `rust-version`. The build image has
-Rust 1.99.1, but a cloud session's host has 1.97 and the crates of podcrates declare 1.97 (the
-podcrates session's briefing: "the consumers move their toolchain to match"); a `rust-version`
-above a host's Rust stops each build there. The crates declare 1.97, raised with podcrates'.
+2026-11-05. Approach 3 names "the build image's stable Rust" (1.99.1) as `rust-version`. The crates
+of PodUtils/podcrates declare 1.97, and the owner's ruling is that the consumers match podcrates'
+toolchain (`docs/decisions.md`, "The crates of PodUtils/podcrates"): podssh's crates declare 1.97,
+raised with podcrates'. The gate still builds on the build image's 1.99.1.
 
 ## Done
 
-2026-11-05, partial. Done: Approach 1 and 2. `scripts/gate.sh` has no step `msrv*` and no
-`CC=/nonexistent`; the tests of the step `msrv_tor` are the new step `tor`. `scripts/check-static.sh`
-checks a Linux ELF (no `INTERP`, no `NEEDED`) in the step `release` and in the three Linux jobs of
-`release.yml`; the Mac and Windows jobs keep their own checks (`otool -L`, `dumpbin`).
-`scripts/plant.sh` (`sh scripts/dev.sh plant`, CI's job `plant`) now proves that the check refuses a
-program linked dynamically and passes it linked with `-static`, in the build image: passed. The
-comments and documents that stated the old rules say the new one. Next: Approach 3 (edition 2024,
-Rust 1.97), after the crates of podcrates' v0.1.0 are taken (T-684), whose patches were made at
-`d4e186d` and would not apply across `cargo fix --edition`.
+2026-11-05.
+
+- Approach 1 and 2 (`6514238`): `scripts/gate.sh` has no step `msrv*` and no `CC=/nonexistent`;
+  the tests of the step `msrv_tor` are the new step `tor`; `sh scripts/gate.sh --list` prints `lint
+  libs record ssh ts iroh tor m6 release`. `scripts/check-static.sh` checks a Linux ELF (no
+  `INTERP`, no `NEEDED`) in the step `release` and in the three Linux jobs of `release.yml`; the Mac
+  and Windows jobs keep their own checks (`otool -L`, `dumpbin`). `scripts/plant.sh` (`sh
+  scripts/dev.sh plant`, CI's job `plant`) proves that the check refuses a program linked
+  dynamically by the build image's cc (its `NEEDED` `libc.musl-x86_64.so.1` named) and passes it
+  linked with `-static`: passed in the build image.
+- Approach 3: edition 2024 and `rust-version = "1.97"` for each crate, from the workspace (the
+  crates' own minimums 1.89, 1.91 and 1.92 are gone). `cargo fix --edition --workspace
+  --all-targets --all-features` changed 11 files: `unsafe` around each write of the environment
+  (a comment says why), `use<..>` on three `impl Trait` returns; its rewrites of `if let ... else`
+  into `match` (the new scope of an `if let`'s temporaries changes nothing there) and of `expr`
+  into `expr_2021` were taken back. `rustfmt.toml` keeps `style_edition = "2021"`, so that no file
+  changes its order of `use`. Clippy of the edition asks for a chain of `let` in 137 places
+  (`collapsible_if`), some in the files that wait for podcrates: the gate allows that lint alone
+  (`LINTS_ALLOWED`); one `let_and_return` is repaired. The six clippy commands of the step `lint`,
+  warnings denied: no warning. `cargo test --locked --no-fail-fast` (the default members): 4,107
+  passed, 0 failed, 48 ignored (live tests and the long checks), on this host's Rust 1.99.1.
+- Waits: the gate in the build image runs in CI on the push (Q88: the session does not wait on it);
+  armv7's build takes Alpine's rust, and `scripts/check-rustc.sh` stops it with both versions named
+  if that rust is older than 1.97 (a release is not in this work's scope).

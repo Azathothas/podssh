@@ -914,7 +914,7 @@ Read: the row is at `crates/podssh-cli/src/flags.rs`, lines 293-294 at `efee2fc`
 (`crates/podssh-cli/src/ts.rs`, lines 314-316 at `efee2fc`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs`, lines 391-393 at `efee2fc`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs`, lines 179-187 at `efee2fc`, `crates/podssh-cli/src/non_interactive.rs`, lines 309-320 at `efee2fc`).
-`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:93`).
+`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:91`).
 
 ## Approach
 
@@ -1005,7 +1005,7 @@ its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/l
 `vendor/tailscale-rs/ts_runtime/src/control_runner.rs`, line 54 at `160773e`, `vendor/tailscale-rs/ts_runtime/src/control_runner.rs`, line 108 at `160773e`).
 
 Read: the relay token is a `Zeroizing<String>` (`crates/podssh-relay/src/token.rs:30`), and
-`zeroize` is a workspace dependency (`Cargo.toml:198`), but podssh-ts does not use it
+`zeroize` is a workspace dependency (`Cargo.toml:196`), but podssh-ts does not use it
 (`crates/podssh-ts/Cargo.toml`, lines 10-14 at `160773e`). The fork already depends on it
 (`vendor/tailscale-rs/Cargo.toml:106`). The comment at `crates/podssh-ts/src/secret.rs`, lines 3-5 at `160773e` names a
 model file that no longer exists.

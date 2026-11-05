@@ -3,9 +3,7 @@ name = "podssh-cli"
 description = "Argument parsing, subcommand dispatch, the doctor command."
 version.workspace = true
 edition.workspace = true
-# russh 0.65.0 declares 1.89 (read from its Cargo.toml); the library crates
-# keep the workspace minimum.
-rust-version = "1.89"
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 repository.workspace = true

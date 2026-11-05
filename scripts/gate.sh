@@ -129,6 +129,11 @@ PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p
 # 2026-11-05), which the step release checks (scripts/check-static.sh).
 LIBS="-p podssh-ws -p podssh-relay -p podssh-core -p podssh-probe"
 
+# Clippy's lints that the gate does not deny: `collapsible_if` asks, in edition
+# 2024, for a chain of `let` in about 140 places that read as well nested, some
+# of them in the modules that wait for the crates of podcrates (T-685).
+LINTS_ALLOWED="-A clippy::collapsible_if"
+
 # The format of the code (rustfmt.toml) and clippy's lints: the format needs
 # no build. The image has the minimal profile of rustup, so the two
 # components are added at each run.
@@ -137,26 +142,26 @@ step_lint() {
     # shellcheck disable=SC2086  # $PKGS is a list of flags
     run "the format of the code" cargo fmt $PKGS -- --check
     # shellcheck disable=SC2086
-    run "clippy: no warning in any target" cargo clippy --locked --all-targets $PKGS -- -D warnings
+    run "clippy: no warning in any target" cargo clippy --locked --all-targets $PKGS -- -D warnings $LINTS_ALLOWED
     run "clippy: no warning with the Tailscale feature" \
-        cargo clippy --locked --all-targets -p podssh-cli -p podssh-ts --features podssh-cli/ts -- -D warnings
+        cargo clippy --locked --all-targets -p podssh-cli -p podssh-ts --features podssh-cli/ts -- -D warnings $LINTS_ALLOWED
     # `iroh-test` is the feature `iroh` with the test relay: each target of
     # the road, its end-to-end test included.
     run "clippy: no warning with the iroh feature" \
-        cargo clippy --locked --all-targets -p podssh-cli -p podssh-iroh --features podssh-cli/iroh-test -- -D warnings
+        cargo clippy --locked --all-targets -p podssh-cli -p podssh-iroh --features podssh-cli/iroh-test -- -D warnings $LINTS_ALLOWED
     # WARP's road (T-352): the CLI's road with its feature, and the crate's
     # stand-in, which another crate's tests take; the quick tunnel's edge
     # inside it (T-374).
     run "clippy: no warning with the WARP feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-warp -p podssh-relay \
-            --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in -- -D warnings
+            --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in -- -D warnings $LINTS_ALLOWED
     # The relay role's tests on plain ws:// (T-427), which no other feature
     # set builds, and behind a quick tunnel (T-428).
     run "clippy: no warning in the relay role's tests" \
-        cargo clippy --locked --all-targets -p podssh-relay --features serve,plain-ws,quick,quic -- -D warnings
+        cargo clippy --locked --all-targets -p podssh-relay --features serve,plain-ws,quick,quic -- -D warnings $LINTS_ALLOWED
     # The Tor road (T-353): the crate and the CLI's road with its feature.
     run "clippy: no warning with the Tor feature" \
-        cargo clippy --locked --all-targets -p podssh-cli -p podssh-tor --features podssh-cli/tor -- -D warnings
+        cargo clippy --locked --all-targets -p podssh-cli -p podssh-tor --features podssh-cli/tor -- -D warnings $LINTS_ALLOWED
 }
 
 # The feature `blocking` of podssh-relay (the facade for podvm, T-081) brings

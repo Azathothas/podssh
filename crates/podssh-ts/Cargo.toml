@@ -2,8 +2,7 @@
 name = "podssh-ts"
 version.workspace = true
 edition.workspace = true
-# The vendored tailscale-rs fork declares rust-version 1.92.0.
-rust-version = "1.92"
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 

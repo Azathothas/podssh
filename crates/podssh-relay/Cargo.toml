@@ -55,8 +55,7 @@ crypto_box = { version = "0.9", default-features = false, features = ["alloc", "
 tokio-rustls = { workspace = true, optional = true }
 # The quick tunnel's edge inside WARP's tunnel (src/quick/edge_warp.rs,
 # T-374): a TCP stream to the edge's port 7844 on podssh-warp's road (T-352),
-# pure Rust, which needs Rust 1.91 (smoltcp's) where this crate declares
-# 1.89; only with the feature `warp`.
+# pure Rust; only with the feature `warp`.
 podssh-warp = { path = "../podssh-warp", optional = true }
 # Pairing by a short code (src/code/, T-086): SPAKE2 of RustCrypto's PAKEs,
 # the crate that magic-wormhole's Rust port interoperates with, on the

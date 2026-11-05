@@ -40,7 +40,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 1. A new crate, crates/podssh-iroh: a workspace member, not a default member,
    with `rust-version = "1.91"` and iroh `>=1.1, <2` on aws-lc-rs. A feature
    `iroh` in `crates/podssh-cli/Cargo.toml`, as for `ts`
-   (`crates/podssh-cli/Cargo.toml:21-27`), and a step in `scripts/gate.sh` as
+   (`crates/podssh-cli/Cargo.toml:19-25`), and a step in `scripts/gate.sh` as
    for `ts`. The default build and the releases stay without the feature.
 2. The endpoint: the `Minimal` preset, no pkarr or DNS discovery, and the
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
@@ -4204,7 +4204,7 @@ that says why.
 
 - Read: the release builds `podssh-cli` with no feature on each target
   (`.github/workflows/release.yml:119`, `:188`, `:254`, `:297`, `:368`); the feature `iroh` is
-  off by default, and `crates/podssh-cli/Cargo.toml:28-30` says "about 200 crates, needs Rust
+  off by default, and `crates/podssh-cli/Cargo.toml:26-28` says "about 200 crates, needs Rust
   1.91 and a C compiler" of it.
 - Read: `docs/decisions.md` line 41 at `27b8d8f` said "iroh is a road that the user must select", and made n0's
   public relays its default until the operator runs one. The row says nothing of the release
@@ -5099,7 +5099,7 @@ Arti brings C, as the features `ts` and `iroh` do.
   policy accepts port 22. Inferred: some targets refuse Tor's exits.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), so
   a transport must run in podssh's process; podssh-ws does CONNECT, TLS and the upgrade already.
-  C in a feature crate has a precedent in `ts` and `iroh` (`crates/podssh-cli/Cargo.toml:23-31`).
+  C in a feature crate has a precedent in `ts` and `iroh` (`crates/podssh-cli/Cargo.toml:21-29`).
 - Read in GitHub #63 (a tester's reading and count of 2026-10-31; not verified here): Arti's
   `reachable_addrs` holds its first hops to the ports that it lists, such as 443, 80 and 8443; 919
   of the 2,893 exits running then accepted port 22 (Onionoo's details). Inferred: Arti gives a

@@ -214,7 +214,7 @@ impl Certs {
 
     /// The work that keeps the certificate while the role runs: ACME's
     /// renewals, or nothing for files. Ends only with the reason to stop.
-    pub fn keeper(&self, say: acme::Say) -> impl std::future::Future<Output = String> + Send + 'static {
+    pub fn keeper(&self, say: acme::Say) -> impl std::future::Future<Output = String> + Send + 'static + use<> {
         let (ca, served, held) = (self.acme.clone(), self.served.clone(), self.leaf());
         async move {
             match ca {

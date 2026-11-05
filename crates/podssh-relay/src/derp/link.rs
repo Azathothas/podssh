@@ -300,12 +300,12 @@ impl Link {
     /// once for a node's link.
     pub async fn opened(&self) -> Result<(), String> {
         let mut seen = self.shared.opened.subscribe();
-        // The answer is cloned out before `seen` goes, as its guard borrows it.
-        let answer = match seen.wait_for(Option::is_some).await {
+        // The answer is cloned out of the guard, which borrows `seen`; in
+        // edition 2024 the tail's temporaries go before `seen` does.
+        match seen.wait_for(Option::is_some).await {
             Ok(answer) => answer.clone().unwrap_or(Ok(())),
             Err(_) => Err("the link ended".to_string()),
-        };
-        answer
+        }
     }
 
     /// The key of the far end.

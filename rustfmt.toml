@@ -2,4 +2,8 @@
 # line. Of the styles measured, it changed the fewest lines, and it keeps each
 # file at 500 lines or fewer. Tables keep one row to a line (rustfmt::skip).
 max_width = 120
+# The edition 2024 of the code keeps the style of 2021: the style of 2024 would
+# change the order of each `use` in some hundreds of files, a change of no
+# meaning that would bury the move to the edition (T-685).
+style_edition = "2021"
 use_small_heuristics = "Max"

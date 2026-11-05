@@ -396,7 +396,7 @@ declares `libc` (`crates/podssh-probe/Cargo.toml` line 11 at `f8a94ca`), which n
 `crates/podssh-probe/src/facts.rs` lines 3-6 at `f8a94ca` name a "startup assertion" that no command runs;
 `crates/podssh-probe/src/relay_facts.rs` lines 261-289 at `f8a94ca` are that unused startup part. CI runs
 `scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:193-223`).
-The gate runs the crate's tests with no C compiler (`scripts/gate.sh:160-176`). The build image
+The gate runs the crate's tests with no C compiler (`scripts/gate.sh:165-181`). The build image
 has no Python (`crates/podssh-probe/src/facts.rs:14-19`), so the crate is the only form of the
 check that the container gate can run.
 
@@ -4090,7 +4090,7 @@ Read at `2042200`:
   (`crates/podssh-relay/src/serve/reverse/pairs.rs:296`), and ACME's cache at each renewal. A root
   that dropped `CAP_DAC_OVERRIDE` reads a file of another owner only as its mode lets uid 0
   (Inferred from capabilities(7); not measured here).
-- `crates/podssh-cli/Cargo.toml:146` says "[target.'cfg(unix)'.dependencies]" above the binary's
+- `crates/podssh-cli/Cargo.toml:144` says "[target.'cfg(unix)'.dependencies]" above the binary's
   `libc` row, so the calls need no new crate and no C of a library crate (rule 4 of `AGENTS.md`).
 - `crates/podssh-cli/src/exitmap.rs:139` says "Fault::Capability | Fault::Config => sysexits::EX_CONFIG":
   78 is this host not set up for the mode.
@@ -4924,7 +4924,7 @@ Read at `2042200`:
   (`crates/podssh-relay/tests/opentunnel_stand_in/parse.rs:110` for the record's length, `:120` for the
   name), and routing by a name's label in OpenTunnel's road (`crates/podssh-relay/src/opentunnel/wire.rs:206`).
 - A node that ends a visitor's TLS with a name of its own exists for OpenTunnel (T-530):
-  `crates/podssh-relay/Cargo.toml:98` says "the key and the CSR of its" name come from the binary.
+  `crates/podssh-relay/Cargo.toml:97` says "the key and the CSR of its" name come from the binary.
 - Publishing a local HTTP service at a public name is T-180 (`podssh funnel`, TLS at the quick tunnel's
   edge); this entry is the role's form, with TLS at the node.
 

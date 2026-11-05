@@ -2934,7 +2934,7 @@ the names, with no word.
   `users-groups-by-id@openssh.com`, `0` for the owner and the group; the issue's line is the
   server's long name.
 - Read: `chrono`, with its local zone, is a dependency of `podssh-ssh` already
-  (`crates/podssh-ssh/Cargo.toml:65`, `crates/podssh-ssh/src/sshsig.rs:16`).
+  (`crates/podssh-ssh/Cargo.toml:63`, `crates/podssh-ssh/src/sshsig.rs:16`).
 
 ## Approach
 

@@ -563,10 +563,10 @@ and output; and opens a forward session as a `Read + Write` stream. Two
 threads carry each session, so a blocking read stalls no other session. A
 call from a thread that runs a tokio runtime is refused, and nothing panics.
 Its offline tests run against a stand-in relay over plain `ws://` (feature
-`plain-ws`), as podvm's can. The library crates declare Rust 1.89, the
-minimum of their dependencies: by the operator's ruling of Q48
-(2026-10-31), no older minimum of an embedder holds a dependency back, so
-podvm builds them with Rust 1.89 or later. The gate checks them on it.
+`plain-ws`), as podvm's can. Each crate declares the newest stable Rust of
+the day, 1.97 with edition 2024, as the crates of PodUtils/podcrates do
+(the operator, 2026-11-05; T-685): podvm builds them with that Rust or a
+later one.
 
 **What podvm needs (milestone M4), and what of it exists:**
 

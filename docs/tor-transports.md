@@ -33,7 +33,7 @@ chutney at the commit that `scripts/tor-net.sh` pins (c6b2c5fa).
 - **Read.** An embedder reaches the `ChanMgr` only through
   `TorClient::chanmgr()`. That method requires `experimental-api`
   (`client.rs:1859-1866`; the feature is `__is_experimental`, at
-  `Cargo.toml:93`). It also needs a running state. Without one it returns
+  `Cargo.toml:91`). It also needs a running state. Without one it returns
   `BootstrapRequired` (`client.rs:2500-2506`). The running state is built
   only inside `bootstrap` (`client.rs:2358-2399`) or when an onion service
   launches (`:2010`).
@@ -108,7 +108,7 @@ chutney at the commit that `scripts/tor-net.sh` pins (c6b2c5fa).
 - **Read.** Arti requires an RSA identity in each bridge line: "need an
   RSA identity" (`REG/tor-guardmgr-0.47.0/src/bridge/config.rs:68-70`,
   `:352-356`). A PT bridge may give `-` instead of an address
-  (`:60-66`, `:476-492`).
+  (`:58-64`, `:476-492`).
 - **Read.** `path_rules.reachable_addrs` filters a PT bridge by the
   address in its line. The guard filter checks
   `chan_method().socket_addrs()` (`tor-guardmgr/src/filter.rs:128-143`),

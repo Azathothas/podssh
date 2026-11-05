@@ -27,7 +27,7 @@ core: the handshake, a host key that does not change, and key authentication.
 - Read: no source in `crates/` uses `russh::server`. russh 0.64.1 builds its
   server module on each target except wasm, with no feature
   (`Eugeny/russh:russh/src/lib_inner.rs`, lines 69-70 at `22c3b88`), so
-  `crates/podssh-ssh/Cargo.toml:17` has it. `run_stream` serves one
+  `crates/podssh-ssh/Cargo.toml:15` has it. `run_stream` serves one
   connection over any stream, as `crates/podssh-ssh/src/run.rs:32-37` does.
   To reuse: `crates/podssh-ssh/src/keygen.rs:74-158` (a key, mode 0600, never
   over a file), `crates/podssh-ssh/src/known_hosts.rs:266-271` (a key line),
@@ -62,7 +62,7 @@ core: the handshake, a host key that does not change, and key authentication.
 Recommendation: the server goes in crates/podssh-ssh/src/server/, and only
 the command line in crates/podssh-cli/src/serve.rs. `docs/design.md:28-30`
 gives `podssh-ssh` the "russh client and server"; the crate links aws-lc
-already (`crates/podssh-ssh/Cargo.toml:12-17`), holds the helpers to reuse,
+already (`crates/podssh-ssh/Cargo.toml:10-15`), holds the helpers to reuse,
 and is read by the variable test (`crates/podssh-cli/src/man/facts/tests.rs:16-29`).
 A new crate lost: it repeats the russh dependency and its C exception, and
 makes the helpers public. `podssh-cli` lost: it is the command line.
@@ -112,7 +112,7 @@ and stderr apart, and an environment that a cage can give.
   lines 1350-1356): an unread channel stops the whole connection.
 - Read: the client side to match is `crates/podssh-ssh/src/io/msg.rs:11-76`;
   `crates/podssh-ssh/src/signals.rs:26-64` maps names to numbers only;
-  `tokio` with `process` is a dependency (`crates/podssh-ssh/Cargo.toml:21`).
+  `tokio` with `process` is a dependency (`crates/podssh-ssh/Cargo.toml:19`).
 
 ## Approach
 
@@ -641,7 +641,7 @@ one-time code (TOTP) needs only a shared secret and a clock.
   `crates/podssh-ssh/src/auth.rs:242-326`), through the terminal or
   `SSH_ASKPASS`.
 - Read: HMAC and SHA-1 are dependencies already
-  (`crates/podssh-ssh/Cargo.toml:24-25`).
+  (`crates/podssh-ssh/Cargo.toml:22-23`).
 - Read in the report of GitHub #18, not verified here: quic-ssh has TOTP in
   `VLOD-ZDOV/quic-ssh:src/totp.rs`.
 
@@ -699,7 +699,7 @@ syslog and no `/var`. A record must not leak secrets or session data.
 
 - Read: podssh's log goes to stderr or to a file
   (`crates/podssh-ssh/src/log.rs:46-62`), as lines with no structure.
-- Read: `serde_json` is a workspace dependency (`Cargo.toml:118`), but not a
+- Read: `serde_json` is a workspace dependency (`Cargo.toml:116`), but not a
   dependency of `podssh-ssh` yet.
 - Read in the report of GitHub #25, not verified here: USBoverSSH writes an
   audit log of connection events.

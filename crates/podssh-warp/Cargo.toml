@@ -3,9 +3,7 @@ name = "podssh-warp"
 description = "WARP's MASQUE road over HTTP/2: the registration, TLS with a client certificate and a pinned key, connect-ip's capsules, and TCP inside on smoltcp. No C compiler needed."
 version.workspace = true
 edition.workspace = true
-# smoltcp 0.14 declares 1.91 (read from its Cargo.toml), above the library
-# crates' 1.89; podssh-iroh declares 1.91 too.
-rust-version = "1.91"
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 

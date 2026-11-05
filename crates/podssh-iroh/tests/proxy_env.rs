@@ -24,9 +24,13 @@ static ENVIRONMENT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 /// Only `ALL_PROXY`, set to `url`, names a proxy.
 fn all_proxy_alone(url: &str) {
     for name in ["HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy", "all_proxy"] {
-        std::env::remove_var(name);
+        // Edition 2024 marks a write of the environment unsafe (a read on another
+        // thread at the same time is undefined); this write is as it was before.
+        unsafe { std::env::remove_var(name) };
     }
-    std::env::set_var("ALL_PROXY", url);
+    // Edition 2024 marks a write of the environment unsafe (a read on another
+    // thread at the same time is undefined); this write is as it was before.
+    unsafe { std::env::set_var("ALL_PROXY", url) };
 }
 
 /// An endpoint's options with the proxy of the environment: the relay, with
