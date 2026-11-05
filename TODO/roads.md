@@ -173,7 +173,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:366-367`,
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
    (`crates/podssh-relay/src/cache.rs`, lines 61-76 at `4dd52f8`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:321-346`: mode 0600, no
+   the token cache (`crates/podssh-relay/src/cache.rs:329-354`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket
@@ -4363,7 +4363,7 @@ The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): Tailscale's tail
   ticket no command would dial.
 - A node's DERP key: derived from the seed of its identity by HKDF-SHA256 with the label
   `podssh derp key, version 1`, so that its address stays across runs and no key does two jobs,
-  as the identity's channel key is derived (`crates/podssh-relay/src/identity/mod.rs:8-11`).
+  as the identity's channel key is derived (`PodUtils/podssh:crates/podssh-relay/src/identity/mod.rs:8-11`).
   Lost: the Montgomery form of the Ed25519 key, which a client could compute from the pinned key
   alone, but which makes the signing key agree keys too, as ed25519-dalek 2.2.0's own
   documentation of `to_scalar_bytes` advises against; and a second key file beside the node's,

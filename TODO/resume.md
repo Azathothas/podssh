@@ -51,7 +51,7 @@ drop or add frames (`SECURITY.md:33-36`).
    resume: `OPEN` names the session, and `PROOF` and `ACCEPT` carry an
    HMAC-SHA256 over both nonces and the sender's received offset.
 5. Use `x25519-dalek`, `hkdf`, `hmac`, `sha2` and `zeroize` (`Cargo.toml`), and
-   `rand` (`crates/podssh-relay/Cargo.toml:18`). Return an error when the
+   `rand` (`crates/podssh-relay/Cargo.toml:20`). Return an error when the
    system gives no random bytes (T-064). Keep the secret and the proofs out of
    output, logs and argv.
 6. `GREETING` names its features (`replay.v1`, `heartbeat.v1`, `move.v1`); a

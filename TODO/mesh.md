@@ -1168,7 +1168,7 @@ start, and the test of an added share fails.
 
 - The Premise holds: a node's routes name several services (`targets_of` in
   `crates/podssh-cli/src/node.rs`), and its allowlist is read again for each session
-  (`crates/podssh-relay/src/identity/allow.rs:106`).
+  (`PodUtils/podssh:crates/podssh-relay/src/identity/allow.rs:106`).
 - What the Premise leaves out: the routes were fixed at the node's start, an `Arc` of the command
   line's (`Routes` in `crates/podssh-relay/src/reverse/routes.rs`), and a node with no `ROUTE=` and
   no `--exit` had no routes at all: `routes_of` gave none, and each road served its TARGET through
@@ -3048,7 +3048,7 @@ The draft's calls, 2026-11-02:
    a role that restarted with another `--mint`. `/health` still says who the role mints for
    (`"mint": "keys"`). Lost: the read of `/health` first, of Approach item 2.
 3. The key: the client's of the cache (`client.key`), loaded or made by
-   `crates/podssh-relay/src/identity/file.rs` as the end-to-end channel loads it, so that one
+   `PodUtils/podssh:crates/podssh-relay/src/identity/file.rs` as the end-to-end channel loads it, so that one
    line on a node's list and on a relay's lets a user in. `--client-key` of `podssh ssh` names
    the channel's key and does not reach the mint, as `MintContext` has no key and its callers
    none at hand. Lost: a key on `MintContext`, which each caller of the mint would have to give;
@@ -3060,7 +3060,7 @@ The draft's calls, 2026-11-02:
    another's challenge and the signature made for it. Lost: the role's names read from its
    certificate, which the role does not parse (rustls takes the chain as it is), and which a
    role behind a quick tunnel (T-428) would not hold.
-5. The list: the format of `podssh node --allow` (`crates/podssh-relay/src/identity/allow.rs`),
+5. The list: the format of `podssh node --allow` (`PodUtils/podssh:crates/podssh-relay/src/identity/allow.rs`),
    its routes unread; read again for each request, as a node reads its own, so that a key added
    counts at once and one taken away at the next mint. A list that cannot be read stops the
    start (78), and later each proof gets `403`, which does not name the owner's file.
@@ -3112,7 +3112,7 @@ here; the net's members are T-455 (Correction).
   given to the role (`serve_named`), `"mint"` in `/health`.
 - The client: `crates/podssh-relay/src/keyed.rs`, which the mint (`token.rs`) and the pair
   (`pair.rs`) go through; `Identity::sign` and `PublicKey::verifies`
-  (`crates/podssh-relay/src/identity/mod.rs`). The manual's note, the flag's row, `docs/relay.md`
+  (`PodUtils/podssh:crates/podssh-relay/src/identity/mod.rs`). The manual's note, the flag's row, `docs/relay.md`
   ("Tokens for the keys of a list") and docs/mesh.md, section 4.
 - `cargo test -p podssh-relay --features serve --lib serve::`: 20 passed (a key of the list
   proves itself once; another key, a forged signature, another path, another relay, another TLS
@@ -3318,7 +3318,7 @@ without the file.
 The calls of the draft (2026-11-02), each with what lost:
 
 - **The door is read before the key is made.** A key made now is in no net, so the node reads
-  the key where it is kept with no write (`existing` in `crates/podssh-relay/src/identity/file.rs`,
+  the key where it is kept with no write (`existing` in `PodUtils/podssh:crates/podssh-relay/src/identity/file.rs`,
   the search of `load_in` with nothing made), and asks the net whether its document names it
   (`member_door` in `crates/podssh-cli/src/net/admit.rs`): a node with no key yet, a key for this
   run only, `PODSSH_NET=no`, no net held, a document that fails its check, one that does not name
@@ -3373,7 +3373,7 @@ measured by the main session the same day.
   the serving line, and takes `doors(.., true)` for the channel and the routes of both roads.
 - `crates/podssh-cli/src/net/admit.rs`: `member_door`, `members_only` (the closed door) and
   `doors`. `crates/podssh-cli/src/node_iroh.rs`: `--iroh --derp` reads the door, and its channel
-  and routes take `doors(.., derp)`. `crates/podssh-relay/src/identity/file.rs`: `existing` and
+  and routes take `doors(.., derp)`. `PodUtils/podssh:crates/podssh-relay/src/identity/file.rs`: `existing` and
   `existing_in`.
 - The manual (`crates/podssh-cli/src/flags/derp.rs`, `man/notes_pair.rs`, `man/notes_net.rs`),
   `docs/cli.md`, `docs/mesh.md` (section 3) and `docs/STATUS.md`.
@@ -6993,7 +6993,7 @@ the roads over TCP.
   with a request of ID 0x401 and the address; `docs/carriers.md:1136` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
-  packet of a reserved", and `crates/podssh-relay/Cargo.toml:39` says "The quick tunnel over
+  packet of a reserved", and `crates/podssh-relay/Cargo.toml:41` says "The quick tunnel over
   QUIC (src/quick/quic.rs, T-301): noq, the QUIC of the": a probe of UDP and a QUIC with no C
   exist.
 
@@ -7050,7 +7050,7 @@ road with no relay. podssh does not speak it (Q82).
 - `docs/carriers.md:1147-1148` says "a token of 32 bytes that the TLS keying material exporter
   derives", and `docs/carriers.md:1150-1151` says "as the server never answers a command";
   `docs/carriers.md:1153` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
-- `crates/podssh-relay/Cargo.toml:39` says "The quick tunnel over QUIC (src/quick/quic.rs,
+- `crates/podssh-relay/Cargo.toml:41` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 
 ## Approach
@@ -8916,7 +8916,7 @@ podssh's relay role speaks TCP alone.
 2026-11-05, with the draft (read in noq 1.4.0 and the crates that `Cargo.lock` holds):
 
 1. **QUIC is noq in podssh-relay, behind a feature `quic`.** The quick tunnel's QUIC (T-301) is noq
-   with no ring and no aws-lc (`crates/podssh-relay/Cargo.toml:43`), its TLS on podssh-ws's
+   with no ring and no aws-lc (`crates/podssh-relay/Cargo.toml:45`), its TLS on podssh-ws's
    provider, so rule 4 holds in the library crate, and Approach 3's other branch, a crate of its
    own, is needless; `quic` is `quick` with the role's endpoint and the client's race, and takes its
    noq, its endpoint and its probe. Lost: quinn, which is not in the lock and which noq forks.
@@ -9051,7 +9051,7 @@ Read at `2042200`:
 
 - The admission is a function of a key and its ask
   (`crates/podssh-relay/src/e2e/ends.rs:47`), read again for each session
-  (`crates/podssh-relay/src/identity/allow.rs:102-106`); the doors are made in
+  (`PodUtils/podssh:crates/podssh-relay/src/identity/allow.rs:102-106`); the doors are made in
   `crates/podssh-cli/src/net/admit.rs:114`, `crates/podssh-cli/src/net/admit.rs:225` and
   `crates/podssh-cli/src/channel.rs:338`.
 - The verdict: a grant decides first (`crates/podssh-relay/src/e2e/ends.rs:162` says "A grant decides

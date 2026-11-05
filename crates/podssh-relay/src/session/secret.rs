@@ -24,36 +24,7 @@ const SECRET_LABEL: &[u8] = b"podssh-session v1 secret";
 const CLIENT_PROOF_LABEL: &[u8] = b"podssh-session v1 client proof";
 const FAR_PROOF_LABEL: &[u8] = b"podssh-session v1 far proof";
 
-/// The system gave no random bytes. It is never answered with weaker bytes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NoRandom;
-
-impl fmt::Display for NoRandom {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("the system gave no random bytes")
-    }
-}
-
-impl std::error::Error for NoRandom {}
-
-/// Where the layer's random bytes come from: the OS, or a planted source in
-/// a test.
-pub trait Entropy {
-    fn fill(&mut self, buf: &mut [u8]) -> Result<(), NoRandom>;
-}
-
-/// The OS random source. Reading it can fail (no `getrandom`, a seccomp
-/// filter); `try_fill_bytes` then returns an error where `fill_bytes` would
-/// panic and end each session of the process (T-064).
-#[derive(Debug, Default, Clone, Copy)]
-pub struct OsEntropy;
-
-impl Entropy for OsEntropy {
-    fn fill(&mut self, buf: &mut [u8]) -> Result<(), NoRandom> {
-        use rand::TryRng;
-        rand::rngs::SysRng.try_fill_bytes(buf).map_err(|_| NoRandom)
-    }
-}
+pub use pod_core::entropy::{Entropy, NoRandom, OsEntropy};
 
 /// A session's name on the far end: 128 random bits. Not a secret: it
 /// crosses the relay in `OPEN`, and alone it resumes nothing.

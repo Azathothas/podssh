@@ -2266,7 +2266,7 @@ write the key with `OpenOptions`, as now; the test fails.
 `KeyFiles` (`crates/podssh-ssh/src/keygen.rs:112-173`), and the CLI passes podssh-relay's
 (`crates/podssh-cli/src/keygen.rs:371-378`): the private key by `create_new_private`, a missing
 directory by `private_dir`, and `FILE.pub` by the new `create_new_public`
-(`crates/podssh-relay/src/cache.rs:382-401`), on Windows with an access list of its own that lets
+(`crates/podssh-relay/src/cache.rs:390-409`), on Windows with an access list of its own that lets
 Everyone read it, as OpenSSH's `ssh-keygen` makes it. `FILE.pub` is removed and made again, so
 that it never keeps a list that lets others change it, also after `-c`.
 - `cargo test -p podssh-cli --test keygen -- private`: 2 passed. On Windows the test opened the

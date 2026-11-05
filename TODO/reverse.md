@@ -1417,7 +1417,7 @@ fail. Live: a second node with another key under the same label is refused by th
 
 2026-10-10, built with T-088, whose channel carries the proof, in `8e31960` (the libraries) and the
 commit that closes this entry (the ends of `podssh`). The identity of each end is
-`crates/podssh-relay/src/identity/` (no C): one Ed25519 key for each role, the key files of T-163
+`PodUtils/podssh:crates/podssh-relay/src/identity/` (no C): one Ed25519 key for each role, the key files of T-163
 moved from `podssh-iroh` and named `node-LABEL.key` and `client.key`, with the names of T-163 still
 read; a key shown by its SHA256 fingerprint, as OpenSSH shows one; a node's allowlist of keys or
 fingerprints (`--allow`, read again for each session); an operator's pins (`known-nodes`: the first
@@ -1706,8 +1706,8 @@ at `crates/podssh-relay/src/e2e/handshake.rs:27-32`, made at
 `crates/podssh-relay/src/e2e/handshake.rs:354-432`; the node's side of a
 routed session at `crates/podssh-relay/src/e2e/ends.rs:112-234`, and the
 operator's at `crates/podssh-relay/src/e2e/ends.rs` at `cbaa806`, lines 194-202. The grants at
-`crates/podssh-relay/src/identity/allow.rs:33-64` and
-`crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
+`PodUtils/podssh:crates/podssh-relay/src/identity/allow.rs:33-64` and
+`PodUtils/podssh:crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
 their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-178`.
 The command line: the targets at `crates/podssh-cli/src/node.rs:231-267`,
 `NAME/ROUTE` at `crates/podssh-cli/src/node.rs:269-284`, the dial of each
@@ -1894,7 +1894,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The
    node checks the grant before it dials the TARGET, so the dial moves after `ready` (`docs/reverse.md:16`):
    the seam of T-088 and T-089. Spent nonces are create-new private files
-   (`crates/podssh-relay/src/cache.rs:362-380`).
+   (`crates/podssh-relay/src/cache.rs:370-388`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
    (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:307-309`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the
@@ -1981,12 +1981,12 @@ parts, and the Decision above (the relay's shape, by the relay's operator) gives
   encrypted proof of the operator's key, with a version byte
   (`crates/podssh-relay/src/e2e/handshake.rs:28-32`), so a third version carries a grant that no
   relay sees. A grant is an OpenSSH user certificate over the grantee's Ed25519 key, signed by an
-  issuer that the node's allowlist names (`crates/podssh-relay/src/identity/allow.rs:1-8`) or by
+  issuer that the node's allowlist names (`PodUtils/podssh:crates/podssh-relay/src/identity/allow.rs:1-8`) or by
   the node's own key: a principal `node:SHA256:<the node's key>` (with `/ROUTE`), a validity
   window that it must have, a random serial, and the critical option `once@podssh`. OpenSSH's
   `ssh-keygen -s ... -O critical:once@podssh` mints one, and so does `podssh keygen -s`
   (`crates/podssh-cli/src/keygen_cert.rs:1-6`). The node checks it before it dials, records the
-  serial in a create-new private file (`crates/podssh-relay/src/cache.rs:362-368`), and refuses
+  serial in a create-new private file (`crates/podssh-relay/src/cache.rs:370-376`), and refuses
   a second use. Bound to the grantee's key, a leaked grant is worth nothing without that key,
   which answers the reporter's correction; a resume of the layer runs no new handshake, so a
   used grant ends no resumed session.
@@ -4623,7 +4623,7 @@ which `piping.yml` installs, and the second's API and edge are Cloudflare's alon
   Ctrl-C alone, each with a keeper of its own, and the quick tunnel's with the keeper of `Layered::new`.
 - The Approach's "the handover's bytes are the same" holds for the sessions, but two roads need more of
   the run to connect again as the same. A key of `--ephemeral-key` is made anew at each start
-  (`crates/podssh-relay/src/identity/file.rs:97` says "Place::Ephemeral => Ok(Key { identity:
+  (`PodUtils/podssh:crates/podssh-relay/src/identity/file.rs:97` says "Place::Ephemeral => Ok(Key { identity:
   make(entropy)?, path: None, made: true }),"), and it is the iroh road's endpoint
   (`crates/podssh-cli/src/node_iroh.rs:272` says "secret: Some(key.secret.clone()),") and the DERP road's
   key at its server (`crates/podssh-cli/src/node_derp.rs:198` says "let secret =

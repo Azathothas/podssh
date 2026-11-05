@@ -1256,7 +1256,7 @@ Read:
   `stty`, `vi`, `less`, `top`, `seq`, `sed` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
   `crates/podssh-ssh/src/prompt.rs:100`, and the `cfg(not(unix))` branches of
-  `crates/podssh-relay/src/cache.rs:354-488`.
+  `crates/podssh-relay/src/cache.rs:362-496`.
 
 ## Approach
 
@@ -2641,7 +2641,7 @@ command uses `podssh-probe`.
 2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
    example can use a dev-dependency, and the binary does not declare them.
 3. Move `libc` to the dependencies for Unix only, as
-   `crates/podssh-relay/Cargo.toml:125` does; else the lint of step 4 fails on
+   `crates/podssh-relay/Cargo.toml:127` does; else the lint of step 4 fails on
    Windows.
 4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
    `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the
@@ -3970,7 +3970,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 - Read: the root `Cargo.toml:144` asks for `aes-gcm` 0.10 and
   `Cargo.toml:153` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
-  hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
+  hold the calls, with `PodUtils/podssh:crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
   `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
 - Read: `vt100` 0.15 (`Cargo.toml:110`) is the model of the terminal
@@ -5407,7 +5407,7 @@ each free of `podssh-ws`'s types, serves the three.
 
 ## Premise
 
-- Read: `crates/podssh-relay/Cargo.toml:13` depends on `podssh-ws` with no feature; each road of
+- Read: `crates/podssh-relay/Cargo.toml:15` depends on `podssh-ws` with no feature; each road of
   the relay crate takes `podssh-ws`'s dial, TLS and WebSocket.
 - Read: `crates/podssh-ws/src/crypto/rsa_sig.rs` is the one user of `rsa` 0.9, to verify RSA
   signatures; RUSTSEC-2023-0071 is a timing attack on the private key's operations.
@@ -5466,7 +5466,15 @@ checks, and sends the podcrates session the new commit of `main`.
   terminal_oracle --test silent_notice`: 5 and 4 passed; `cargo test -p podssh-cli --test
   silent_notice`: 1 passed, 6 ignored (live); `cargo test -p podssh-cli --lib session::`: 17 passed.
 
-Next: `pod-identity`; then each crate of the next releases (`pod-tls` in `v0.2.0`,
+- `pod-identity` (with `pod-core`'s files and entropy): `podssh-relay`'s module `identity` re-exports
+  `pod-identity` with podssh's places; `cache.rs` and `session/secret.rs` take `pod-core`. The
+  citations of the files that left are written `PodUtils/podssh:PATH`, as of a tree before them.
+  `cargo check -p podssh-relay --all-features --tests`: passed; `cargo test -p podssh-relay --test
+  identity --test identity_file --test cache --test e2e --test e2e_faults`: 21, 10, 7, 10 and 10
+  passed; `cargo check -p podssh-cli -p podssh-iroh --tests --features iroh,warp`: passed; clippy
+  with `serve,plain-ws,quick,quic`: no warning.
+
+Each crate of `v0.1.0` is taken. Next: then each crate of the next releases (`pod-tls` in `v0.2.0`,
 then `pod-proxy`, `pod-dns`, `pod-ws`).
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
 

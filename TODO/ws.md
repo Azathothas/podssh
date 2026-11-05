@@ -1934,7 +1934,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
 - Read: the release builds two binaries for macOS and two for Windows
   (`.github/workflows/release.yml:283-294`, `:326-342`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
-  (`crates/podssh-relay/Cargo.toml:132-133`), a crate with no C; `rustls-native-certs` 0.8.4,
+  (`crates/podssh-relay/Cargo.toml:134-135`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
   (`Cargo.lock:4857-4858`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
@@ -2285,7 +2285,7 @@ and each other command print rustls's words alone. An error should tell what to 
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid
   yet") holds for both.
 - Read: the expiry of a cached token is read against the local clock, and a token that the relay
-  refuses is minted again once (`crates/podssh-relay/src/cache.rs:97`;
+  refuses is minted again once (`crates/podssh-relay/src/cache.rs:105`;
   `crates/podssh-relay/src/open.rs:389-401`): that case needs no hint.
 
 ## Approach

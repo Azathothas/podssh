@@ -37,6 +37,14 @@ pub use own::{create_file_in_first, create_private, read_own, Others};
 #[cfg(unix)]
 pub use owner::{make_dirs as make_dirs_with, passwd_home, Host};
 
+/// podssh's app for the files of `pod-core` (PodUtils/podcrates).
+pub const POD_APP: pod_core::files::App<'static> = pod_core::files::App { name: "podssh", dir_env: DIR_ENV };
+
+/// podssh's places as `pod-core` reads them, for `pod-identity`.
+pub fn pod_places() -> pod_core::files::Places {
+    pod_core::files::places_from(&POD_APP, &|name| std::env::var_os(name), std::env::current_dir().ok())
+}
+
 /// A cached token is reused only while it has at least this long left.
 pub const MIN_REMAINING_MS: i64 = 10 * 60 * 1000;
 

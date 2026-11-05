@@ -1363,7 +1363,7 @@ the request's target, would be the proxy that such a program points at.
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
   of its policy with a `403` that names it, `not in the ALLOW list` (`docs/relay.md:456-461`).
 - Read: a secret of the resumable layer is compared in constant time
-  (`crates/podssh-relay/src/session/secret.rs:247-251`).
+  (`crates/podssh-relay/src/session/secret.rs:218-222`).
 
 ## Approach
 

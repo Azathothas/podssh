@@ -4895,6 +4895,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-core"
+version = "0.1.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.1.0#57a731ef96be85c6f4bdd26b74ab6ab052b1f321"
+dependencies = [
+ "libc",
+ "rand 0.10.3",
+ "tokio",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "pod-identity"
+version = "0.1.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.1.0#57a731ef96be85c6f4bdd26b74ab6ab052b1f321"
+dependencies = [
+ "base64 0.23.1",
+ "ed25519-dalek 2.2.0",
+ "hkdf 0.13.0",
+ "libc",
+ "pod-core",
+ "sha2 0.11.1",
+ "x25519-dalek 3.0.0",
+ "zeroize",
+]
+
+[[package]]
 name = "pod-term"
 version = "0.1.0"
 source = "git+https://github.com/PodUtils/podcrates?tag=v0.1.0#57a731ef96be85c6f4bdd26b74ab6ab052b1f321"
@@ -5015,6 +5041,8 @@ dependencies = [
  "libc",
  "noq",
  "p256 0.14.0",
+ "pod-core",
+ "pod-identity",
  "podssh-warp",
  "podssh-ws",
  "proptest",
