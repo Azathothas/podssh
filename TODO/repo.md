@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:834-959`): the
+5. docs/development.md, "Release builds" (`docs/development.md:836-961`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1200,7 +1200,7 @@ informs lost: a check that cannot fail the run is not a check.
 ## Prove
 
 ```sh
-gh run download RUN_ID -R Azathothas/podssh -n box-log      # the log of the job box
+gh run download RUN_ID -R PodUtils/podssh -n box-log        # the log of the job box
 test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithful
 ```
 
@@ -1710,6 +1710,11 @@ runs as `sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh msrv msrv_ssh
 msrv_ts'`, and the plant of 1.89 is a call stable since 1.90, as `File::lock`
 is stable on 1.89.
 
+2026-11-05. The three commands of the Prove check crates at a declared minimum Rust, and name
+`podssh-transport` (moved into `podssh-relay` by T-082) and `podssh-terminal` (now `pod-term` of
+PodUtils/podcrates, T-684). The rule and its steps are retired (T-685, `docs/decisions.md`,
+2026-11-05): the gate has no step `msrv*`, and each crate declares Rust 1.97, edition 2024.
+
 ## Done
 
 2026-10-09, in the commit "The gate checks each crate on the minimum Rust
@@ -2023,7 +2028,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:320-322` states the rule with `CXX`, and
+- `docs/development.md:322-324` states the rule with `CXX`, and
   `docs/STATUS.md:856` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -2172,7 +2177,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:272-289` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:276-293` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:99-103`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -2257,7 +2262,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:272-289`,
+- The documents already state the rule as ruled (`docs/architecture.md:276-293`,
   `docs/target-environment.md:99-103`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32
@@ -4156,6 +4161,9 @@ client first, and that no legacy constraint, such as podbox's older minimum
 Rust, holds a dependency back (`docs/decisions.md`). The library crates
 declare Rust 1.89.
 
+2026-11-05. The gate's step `msrv` of the Prove is retired (T-685): the gate has no step at a
+minimum Rust, and the crates declare the Rust of the day in edition 2024.
+
 The test target `crypto_vectors` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs it, with its name.
 
 ## Done
@@ -5735,6 +5743,13 @@ cargo test -p podssh-ws --test doh_wire
 
 Each passes 50 runs in a row on CI's macOS runner.
 
+## Correction
+
+2026-11-05. Two parts, two homes. `crates/podssh-cli/tests/pipe_seen` stays podssh's. `doh_wire`
+tests the resolver, which goes to `pod-dns` of PodUtils/podcrates (Q101, wave 1, with `pod-proxy`'s
+dial). Until podcrates imports the module, the repair is a fix in podssh; then podcrates ports it
+and the test moves with the code (Rule Q3, `docs/decisions.md`).
+
 # T-689: `cargo test -p podssh-relay --test pair_code` overflows its stack on Rust 1.97 in a debug build
 
 **Source:** the podcrates session, 2026-11-05: its trial of `pod-tls` at `d4e186d`, with no patch
@@ -5768,4 +5783,11 @@ cargo +1.97 test -p podssh-relay --features pair,code,serve --test pair_code
 ```
 
 It passes on 1.97 and on the build image's Rust.
+
+## Correction
+
+2026-11-05. The pairing by a short code goes to `pod-wormhole` (`code/`) and `pod-relay` (the
+exchange) of PodUtils/podcrates (Q101, waves 3 and 2). Until podcrates imports it, the repair is a
+fix in podssh (the stack of the test, a thread with a stack of its own, is podssh's), and podcrates
+ports it (Rule Q3, `docs/decisions.md`).
 

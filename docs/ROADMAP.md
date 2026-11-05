@@ -77,7 +77,7 @@ The client is `russh` with the `aws-lc-rs` backend
       a shell with a pty and a raw local terminal; window size and resize;
       `~.`; keepalives every 60 s.
 - [x] The hand-written client and the unused `security` module are removed.
-- The line discipline in the process (`podssh-terminal`) moved to M5.
+- The line discipline in the process (`podssh-terminal`, now `pod-term` of PodUtils/podcrates) moved to M5.
 
 **Exit criteria**
 
@@ -184,7 +184,7 @@ no release has `podssh serve`.
   Authorized keys come from a flag or a file. It supplies exec, and
   direct-tcpip into the cage.
 - The terminal: a real pty when `/dev/ptmx` exists (T-110). Else the line
-  discipline in the process (`podssh-terminal`, with its defects T-125 to
+  discipline in the process (`pod-term`, once `podssh-terminal`, with its defects T-125 to
   T-129 repaired), which signals the process group of the child on Ctrl-C
   (T-111, [terminal.md](terminal.md)). Where `/dev/ptmx` is missing, podssh
   makes a tty when a probe allows it: a new devpts instance, or a tty in user
@@ -304,13 +304,16 @@ itself, so that no entry waits for another party.
   servers that a user runs (Q66): T-439, T-440, T-441; more that fit:
   T-442.
 - Repairs that the research found: T-443, T-444.
+- The move to PodUtils (2026-11-05): the repository (T-683), the crates that podssh shares with podnet
+  and podvm (T-684), the retired rules of the build (T-685), and the publish to crates.io (T-686,
+  T-687).
 - The release: betas `v1.1.0-beta.N`, then `v1.1.0` (T-446).
 
 **Exit criteria** (T-446)
 
 - Each entry of M10 is done; each test passes, and the gate is green.
 - Through `podssh relay serve` on a GitHub runner: the forward road, the
-  reverse road and `doctor` of a client of `v1.0.0` work unchanged, and each
+  reverse road and `doctor` of a client of `v1.0.0` work unchanged (since 2026-11-05 no test runs against a released binary: Q104), and each
   item of [relay-operator.md](relay-operator.md) that the role does is
   measured.
 - A net of three ends in GitHub Actions: a member joins by a short code;

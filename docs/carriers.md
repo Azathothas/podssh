@@ -708,7 +708,7 @@ The candidates, ranked:
      by the service; TLS ends at the node with podssh-ws's server. A
      client dials `ROUTE.<id>.opentunnel.xyz:443` and checks TLS with the
      host's trust; the layer and the channel run above. The key and the CSR
-     come from the binary's ACME client, as the library holds no C. Its
+     come from the binary's ACME client (which goes to `pod-acme` of PodUtils/podcrates, T-684). Its
      tests run against a stand-in written from the protocol, and
      `opentunnel-interop.yml` against OpenTunnel's own server, built from
      its source.

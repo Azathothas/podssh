@@ -191,7 +191,8 @@ current.
 | Change the SSH client | [docs/cli.md](docs/cli.md), `crates/podssh-ssh/` |
 | Change the terminal behaviour | [docs/terminal.md](docs/terminal.md) |
 | Change the relay selection, tokens or failover | [docs/relay.md](docs/relay.md), `crates/podssh-relay/` |
-| Change TLS, proxies or DNS | [docs/architecture.md](docs/architecture.md), `crates/podssh-ws/`; TLS itself is `pod-tls` of PodUtils/podcrates |
+| Change TLS, proxies or DNS | [docs/architecture.md](docs/architecture.md), `crates/podssh-ws/`; TLS is `pod-tls` of PodUtils/podcrates (T-684) |
+| Work on a module that moved to PodUtils/podcrates | [docs/decisions.md](docs/decisions.md) (section "The crates of PodUtils/podcrates", Rule Q3), Q101 of [TODO/PROGRESS.md](TODO/PROGRESS.md), T-684 in [TODO/repo.md](TODO/repo.md), and the crate's own `AGENTS.md` in PodUtils/podcrates |
 | Work on reverse mode (milestone M4) | [docs/reverse.md](docs/reverse.md), [docs/design.md](docs/design.md) |
 | Work on the resumable layer (milestone M6) | [docs/design.md](docs/design.md) (section 5), `crates/podssh-relay/src/session/`, [TODO/resume.md](TODO/resume.md) |
 | Work on IRC | [docs/irc.md](docs/irc.md) |
@@ -199,7 +200,7 @@ current.
 | Work on the mesh or the relay role (milestone M10) | [docs/mesh.md](docs/mesh.md), [docs/relay.md](docs/relay.md) (the contract that the role serves), `TODO/mesh.md`, [docs/carriers.md](docs/carriers.md) |
 | Work on the iroh road | [docs/design.md](docs/design.md) (section 7), `crates/podssh-iroh/` |
 | Repair a known defect, or do any open work | [TODO/PROGRESS.md](TODO/PROGRESS.md) (the order), [TODO/INDEX.md](TODO/INDEX.md) (each entry) |
-| File, close or reorder work; a GitHub issue | [TODO/RULES.md](TODO/RULES.md), [TODO/issues.md](TODO/issues.md), `cargo todo` (`crates/podssh-todo`) |
+| File, close or reorder work; a GitHub issue | [TODO/RULES.md](TODO/RULES.md), [TODO/issues.md](TODO/issues.md), `cargo todo` (`crates/podssh-todo`, a wrapper of `pod-todo`) |
 | Know where podssh goes, and why | [docs/design.md](docs/design.md) |
 | Know the security model | [SECURITY.md](SECURITY.md) |
 
@@ -359,14 +360,16 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | --- | --- |
 | `crates/podssh-cli` | The `podssh` binary: arguments, help, the manual and its tables (`src/man/`), the pager, dispatch, `proxy`, `ssh` options, `doctor`, `keygen` |
 | `crates/podssh-ssh` | The SSH client on `russh`: the relay stream, `known_hosts`, authentication, prompts, terminal, exit codes, key generation, the SFTP client (`sftp/`), security keys (`sk/`) |
-| `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener; the pairs, the codecs and the runners of the reverse road; the resumable layer (`session/`); UDP in a stream and its flow at a node (`udp/`); the blocking facade for podvm |
+| `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener; the pairs, the codecs and the runners of the reverse road; the resumable layer (`session/`); UDP in a stream and its flow at a node (`udp/`); the identity of an end, its key files, pins and allowlist (`identity.rs`, a re-export of `pod-identity`); the blocking facade for podvm |
 | `crates/podssh-ws` | TLS (`pod-tls` of PodUtils/podcrates with its pure-Rust rustls provider, in podssh's settings: `tls.rs`), proxies, DNS fallbacks, the WebSocket client |
 | `crates/podssh-core` | Sans-IO protocol code: `irc/` |
 | `crates/podssh-probe` | Facts about the relay document (tests only) |
 | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |
 | `crates/podssh-iroh` | The iroh road (feature `iroh`): the endpoint as podssh sets it up, the UDP probe, the session streams, the far end and its allowlist, the client, the keys and the tickets |
 | `crates/podssh-warp` | WARP's MASQUE road over HTTP/2 (feature `warp`): the device's registration and record, TLS with its pin and client certificate, connect-ip's capsules, TCP inside on smoltcp, names inside, and a stand-in edge for the tests |
-| `crates/podssh-todo` | The checker of the work record: `cargo todo check` (the gate runs it), `cargo todo set`, `counts`, `next`; `cargo todo interop`, the ids of the interop harnesses and a run's logs against `scripts/interop-baseline.txt` |
+| `crates/podssh-tor` | The Tor road through Arti (feature `tor`) |
+| `crates/podssh-todo` | `cargo todo`: a wrapper of `pod-todo` (PodUtils/podcrates) with this repository's facts in `TODO/todo.toml`: `check` (the gate runs it), `set`, `counts`, `next`, `remap`; and `cargo todo interop`, the ids of the interop harnesses and a run's logs against `scripts/interop-baseline.txt`, which stays here |
+| PodUtils/podcrates, by git tag | The crates that podssh shares with podnet and podvm (T-684, Q101 in `TODO/PROGRESS.md`): taken now `pod-todo`, `pod-term` (the line discipline and the terminal grammar; `crates/podssh-terminal` is gone), `pod-identity`, `pod-core`, `pod-testkit` and `pod-tls` (podssh-ws's TLS, behind thin wrappers). From the import of a module, podssh changes it for fixes only; after podssh takes the crate, work on it is done in PodUtils/podcrates under its `AGENTS.md` (Rule Q3, `docs/decisions.md`) |
 | `vendor/tailscale-rs` | A fork with local patches (`vendor/patches/`). It is outside the workspace and the 500-line rule. |
 | `vendor/russh` | russh 0.65.0 with three patches (`vendor/patches/russh/`, T-460, T-661 and T-664), in the place of the release through `[patch.crates-io]`. It is outside the workspace and the 500-line rule. |
 | `vendor/ssh-key` | ssh-key 0.7.0-rc.11, the keys that russh reads, with one patch (`vendor/patches/ssh-key/`, T-609), in the place of the release through `[patch.crates-io]`. It is outside the workspace and the 500-line rule. |

@@ -2282,7 +2282,7 @@ test of the order fails.
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:322`).
+(`docs/architecture.md:326`).
 
 ## Premise
 

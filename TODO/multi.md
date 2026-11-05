@@ -1180,7 +1180,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:282-290`,
   `crates/podssh-cli/src/ssh/hop.rs:106-117`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:300-306`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:301-307`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -1370,7 +1370,7 @@ expect rule.
    reads `\r`, `\n`, `\t` and `\xNN`. Each rule waits `--expect-timeout`
    (default 30 s); a miss ends the session with 255 and names the rule.
 3. No secrets: `--send` is on the command line, which each process can read
-   (`docs/architecture.md:312-314`). The manual says so; passwords come
+   (`docs/architecture.md:316-318`). The manual says so; passwords come
    through `SSH_ASKPASS`.
 4. Tasks before and after the connection: the shell does them
    (`cmd && podssh ssh host; cmd`). Only `LocalCommand` needs podssh,
@@ -1802,10 +1802,10 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:300-306`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:301-307`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:105-122`).
 - Read: credentials never go to output, logs, URLs or argv
-  (`docs/architecture.md:312-314`). The token type never shows itself
+  (`docs/architecture.md:316-318`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:28-57`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md` lines 1345-1347 at `48a8744`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the

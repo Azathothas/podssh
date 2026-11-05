@@ -2800,6 +2800,16 @@ sh scripts/release-check.sh v1.1.0
 
 The release check passes on the published files, with M10's rows.
 
+## Correction
+
+2026-11-05. Two statements changed with the move to PodUtils (`docs/decisions.md`, 2026-11-05, "No
+compatibility with the released binaries, for now"). The Decision's "breaks none of `1.0.0`" holds
+no more: the signer and the feed that `podssh update` takes, the pairing's AppID and a name of the
+wire may change, with no bridge release. And the release check of M10 has no test of a client of
+`v1.0.0` against the role (`docs/ROADMAP.md`, M10's exit criteria): Q104 of `TODO/PROGRESS.md` asks
+what the version number and that criterion become. The release URLs are `PodUtils/podssh` from the
+next beta on (T-683).
+
 ## Done
 
 Not done: `v1.1.0` waits for each other entry of M10. The betas so far:
@@ -3249,6 +3259,15 @@ cargo test -p podssh-relay --test transit -- --ignored
 
 Twenty runs in a row meet, from GitHub Actions and this host; the cause, planted, fails one.
 
+## Correction
+
+2026-11-05. The code of this entry (the transit road (`podssh-relay`'s `transit/`)) goes to
+`pod-transit` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the
+module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-451: The Piping Server road from end to end: `podssh node` and `ssh node://` behind a proxy that refuses the upgrade
 
 **Source:** the merge of T-437 (2026-11-02).
@@ -3290,6 +3309,15 @@ cargo test -p podssh-cli --test node_piping
 
 The session runs; planted, the node's probe that reads the relay's own refusal as a proxy's, and
 the node serves the pair's road alone, so the test fails.
+
+## Correction
+
+2026-11-05. The code of this entry (the Piping Server road (`podssh-relay`'s `piping/`)) goes to
+`pod-piping` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the
+module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 # T-452: A node of the DERP road whose key is a member of the net starts with no `--allow`
 
@@ -3858,6 +3886,15 @@ The stand-in of HTTP/1.1 carries a session over packet-up on two connections; `s
 server of HTTP/1.1 alone (Xray-core's port with `alpn` `http/1.1`) carries one, where its check of a
 refusal stands today. Planted, the second connection not opened, and the session fails.
 
+## Correction
+
+2026-11-05. The code of this entry (the VLESS and XHTTP road (`podssh-ws`'s `vless/`)) goes to
+`pod-egress` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the
+module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-457: The relay role dials its targets through the host's `HTTPS_PROXY`
 
 **Source:** the merge of T-428 (2026-11-02), its drafting agent's note.
@@ -4149,6 +4186,13 @@ it lifts the refusal and serves an exit's routes behind the tunnel, `node_quick.
 - The Approach's item 2, `podssh ssh --exit NAME` and `podssh exit` to a `cf://HOST` of the node, is
   not in the WIP: an exit's client names its node by the pair's roads alone.
 - So the effort is M, not S, and the WIP stays unmerged until both are written.
+
+2026-11-05. The code of this entry (the quick tunnel's node (`podssh-relay`'s `quick/`) and the
+reverse road's runner) goes to `pod-cloudflare` and `pod-relay` of PodUtils/podcrates (T-684; the
+waves are in Q101 of `TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`).
+Rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh
+makes fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which
+podssh takes by the next tag; a test of the moved code then runs there.
 
 # T-530: OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road
 
@@ -4541,6 +4585,15 @@ the test fails.
 
 T-180 and T-530 are done: `podssh funnel` and OpenTunnel's link exist.
 
+## Correction
+
+2026-11-05. The code of this entry (the OpenTunnel road (`podssh-relay`'s `opentunnel/`)) goes to
+`pod-opentunnel` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the
+module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-533: The manual says which public services podssh tries last, and which it never names
 
 **Source:** the triage of the operator's sweep of public relays (2026-11-02).
@@ -4704,6 +4757,17 @@ proxy (a harness as T-441's): sshd's banner and 1 MiB each way; a wrong password
 fingerprint and a target that the authfile does not allow, each refused with its words.
 Planted: the fingerprint not checked, and the test of the wrong fingerprint fails.
 
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). The Premise's line that rule 4 keeps russh's aws-lc out of
+podssh-ws holds no more; russh's client may carry the road wherever the road lives. A road of a
+server that the user runs is a `Dial` of `pod-egress` (PodUtils/podcrates, Q101, wave 4). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
+
 # T-491: Trojan over TLS and over a WebSocket
 
 **Source:** T-442 (2026-11-02); the operator's ruling Q66.
@@ -4752,6 +4816,15 @@ Against trojan-gfw's own server (release 1.16.0, its signature and a pinned SHA-
 0.10.6 over a WebSocket, and Xray-core v26.10.21 (pinned in `scripts/interop-vless.sh`) over TLS
 and a WebSocket, in containers through a plain squid: sshd's banner through each, and a wrong
 password named. Planted: the hash written in upper case, and each server's fallback answers.
+
+## Correction
+
+2026-11-05. The code of this entry (a Trojan road, beside `podssh-ws`'s `vless/`) goes to
+`pod-egress` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the
+module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 # T-492: Shadowsocks 2022 (SIP022) for `--shadowsocks`
 
@@ -4802,6 +4875,17 @@ Against shadowsocks-rust's `ssserver` (the gate's image installs it), with each 
 session and 1 MiB each way; a wrong key ends at the first chunk with the server named. Planted:
 the timestamp in milliseconds, and the server refuses each session.
 
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). `blake3` need not take its feature `pure`: a build with C is
+allowed if the binary stays static. The module is `podssh-ws`'s `shadowsocks/`, which goes to
+`pod-egress` (PodUtils/podcrates, Q101, wave 4). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-493: Shadowsocks in a WebSocket, as Outline's servers serve it, and `ssconf://` keys
 
 **Source:** T-442 (2026-11-02); the operator's ruling Q66.
@@ -4851,6 +4935,17 @@ in containers through a plain squid: an `ssconf://` key served over HTTPS, then 
 1 MiB each way in the WebSocket. Planted: text messages in place of binary ones, and the server
 ends the stream.
 
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). The Approach's "pure-Rust YAML crate" is any YAML crate that is
+licensed and small enough. The module is `podssh-ws`'s `shadowsocks/`, which goes to `pod-egress`
+(PodUtils/podcrates, Q101, wave 4). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-494: `--via` against NaiveProxy's server, and the words of a probe-resistant proxy
 
 **Source:** T-442 (2026-11-02).
@@ -4895,6 +4990,15 @@ Against the fork's Caddy (its release's tarball, a pinned SHA-256) in a containe
 `scripts/interop-via.sh`: sshd's banner and two sessions on one HTTP/2 connection; a wrong
 password with `probe_resistance` named in the words of step 2. Planted: those words removed, and
 the check of them fails.
+
+## Correction
+
+2026-11-05. The code of this entry (the `--via` road (`podssh-ws`'s `via/`)) goes to `pod-egress` of
+PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 # T-495: `-J upterm://SESSION@HOST`: a session of upterm's host as the first hop
 
@@ -5009,6 +5113,14 @@ test of the topic fails.
 
 T-086 is done: the pairing's exchange exists over a mailbox.
 
+## Correction
+
+2026-11-05. The meeting points of the pairing are in `podssh-relay`'s `code/`, which goes to
+`pod-wormhole` (mailboxes) and `pod-relay` (the exchange) of PodUtils/podcrates (Q101, waves 3 and
+2). Rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import
+podssh makes fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates,
+which podssh takes by the next tag; a test of the moved code then runs there.
+
 # T-497: A second public Piping Server, `piping.onrender.com`
 
 **Source:** T-442 (2026-11-02); the operator's ruling Q65.
@@ -5075,6 +5187,13 @@ from now on"). The Premise holds otherwise. The Approach gains:
    that the next run's links to it start in numbered pieces with no wait.
 5. The Prove's second server stands behind a stand-in that holds each request's body, as T-437's
    tests have one, so that the order of the servers and the numbered pieces are tested together.
+
+2026-11-05. The code of this entry (the Piping Server road (`podssh-relay`'s `piping/`) and its
+stand-in) goes to `pod-piping` of PodUtils/podcrates (T-684; the waves are in Q101 of
+`TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
 
 # T-498: frp's protocol: a podssh node behind the user's frps, and its visitor
 
@@ -5167,6 +5286,15 @@ Planted: a DATA capsule's length read as a byte, and the session's first megabyt
 ## Start condition
 
 draft-ietf-httpbis-connect-tcp is an RFC, and a server over HTTP/2 or HTTP/1.1 implements it.
+
+## Correction
+
+2026-11-05. The code of this entry (the `--via` road (`podssh-ws`'s `via/`)) goes to `pod-egress` of
+PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 # T-550: The quick tunnel's node takes its net's members as its door, with no `--allow`
 
@@ -5455,7 +5583,7 @@ that they let podssh in.
   which a server may count by,": a server may refuse podssh by the name of its program.
 - `crates/podssh-relay/tests/derp_live.rs:3` says "server of the fleet whose probe answers
   through the proxy of the": the live test of tailcat's fleet, 64 KiB each way, run by hand.
-- `AGENTS.md:259` says "session's own host: Tailscale's main DERP fleet, to learn whether it
+- `AGENTS.md:260` says "session's own host: Tailscale's main DERP fleet, to learn whether it
   lets": short runs from GitHub Actions and the session's host.
 
 ## Approach
@@ -5502,6 +5630,15 @@ derper on the loopback that closes after the client's info, as one with `--verif
 sends the node on to the next server. Live, short (Q74): the test of step 1. Planted: the main
 fleet put before tailcat's, and the test of the order fails.
 
+## Correction
+
+2026-11-05. The code of this entry (the DERP road (`podssh-relay`'s `derp/`)) goes to `pod-derp` of
+PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-535: The public Wisp servers that their operators run for that use, as forwarders after the demo server
 
 **Source:** the operator's ruling Q75 (2026-11-02).
@@ -5532,7 +5669,7 @@ taken over.
   proxies on", and `docs/carriers.md:247` says "No host names an operator, terms or limits. The
   sweep flagged 54 of": the sweep's hosts give no operator, and most are domains of other
   parties, so none of them is a source for this entry.
-- `AGENTS.md:260` says "podssh in (Q74); the public Wisp servers that their operators run for
+- `AGENTS.md:261` says "podssh in (Q74); the public Wisp servers that their operators run for
   that": short live runs may reach them.
 
 ## Approach
@@ -5569,6 +5706,15 @@ cargo test -p podssh-ws --test live_forwarder -- --ignored
 The words in their order, each new one after `wisp`; the fallback through stand-ins tries them
 after the demo server; live, GitHub's version line through each new server (Q75). Planted: a new
 server put before the demo server, and the test of the order fails.
+
+## Correction
+
+2026-11-05. The code of this entry (the forwarders and the Wisp road (`podssh-ws`'s `forwarder/` and
+`wisp/`)) goes to `pod-egress` of PodUtils/podcrates (T-684; the waves are in Q101 of
+`TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
 
 # T-536: NetBird: whether its relays or its signal server carry a podssh session with no account
 
@@ -5617,6 +5763,13 @@ cargo todo check
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where NetBird passes.
 
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
+library linked statically": a C library may carry the work if its size and its license are better.
+
 # T-537: Firezone: whether its relays or its portal carry a podssh session with no account
 
 **Source:** the operator's ruling Q77 (2026-11-02).
@@ -5653,6 +5806,13 @@ cargo todo check
 ```
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where Firezone passes.
+
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
+library linked statically": a C library may carry the work if its size and its license are better.
 
 # T-538: ZeroTier: whether its roots and its TCP relay on 443 carry a podssh session
 
@@ -5696,6 +5856,13 @@ cargo todo check
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where ZeroTier passes.
 
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
+library linked statically": a C library may carry the work if its size and its license are better.
+
 # T-539: Tox: whether its TCP relays on 443 carry a podssh session between two keys
 
 **Source:** the operator's ruling Q77 (2026-11-02).
@@ -5735,6 +5902,13 @@ cargo todo check
 ```
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where Tox passes.
+
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
+library linked statically": a C library may carry the work if its size and its license are better.
 
 # T-540: Yggdrasil again, under Q77: a port of its links and routing, over its peers on 443
 
@@ -5779,6 +5953,13 @@ cargo todo check
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where Yggdrasil passes.
 
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
+library linked statically": a C library may carry the work if its size and its license are better.
+
 # T-541: croc: whether a public croc relay carries a podssh session from a host with 443 alone
 
 **Source:** the operator's ruling Q77 (2026-11-02).
@@ -5816,6 +5997,13 @@ cargo todo check
 ```
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where croc passes.
+
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
+library linked statically": a C library may carry the work if its size and its license are better.
 
 # T-542: HyperDHT: whether Holepunch's DHT and its relays reach a podssh end by its key
 
@@ -5857,6 +6045,13 @@ cargo todo check
 ```
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where HyperDHT passes.
+
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
+library linked statically": a C library may carry the work if its size and its license are better.
 
 # T-543: Cabal: whether it adds a carrier or a meeting point beyond HyperDHT
 
@@ -5958,7 +6153,7 @@ events become a meeting point of the pairing, tried unasked after podssh's own.
   `nostr` crate needs a C library.
 - `docs/carriers.md:765` says "Each relay has its own operator and its own policy", and
   `docs/carriers.md:766` says "which its NIP-11 document gives".
-- `TODO/reverse.md:1193` says "The meeting point: magic-wormhole's mailbox": T-086's exchange
+- `TODO/reverse.md:1200` says "The meeting point: magic-wormhole's mailbox": T-086's exchange
   runs over a mailbox that stores and forwards the messages of two sides.
 
 ## Approach
@@ -5999,6 +6194,17 @@ from the whole code, and the test of the tag fails.
 ## Start condition
 
 T-086 is done: the pairing's exchange exists over a mailbox.
+
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). The Premise's reason against the `nostr` crate, that it needs a C
+library, is gone: the entry may take it, or `secp256k1`, if its size and license suit and the binary
+stays static. The pairing's mailbox side is `pod-wormhole` (PodUtils/podcrates, Q101, wave 3), the
+exchange `pod-relay`; rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies:
+from the import podssh makes fixes only, and once podssh takes the crate the work is done in
+PodUtils/podcrates, which podssh takes by the next tag; a test of the moved code then runs there.
 
 # T-546: Trackers as meeting points: whether a BitTorrent or WebTorrent tracker passes the pairing's messages
 
@@ -6042,6 +6248,14 @@ cargo todo check
 ```
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where a tracker passes.
+
+## Correction
+
+2026-11-05. The meeting points of the pairing are in `podssh-relay`'s `code/`, which goes to
+`pod-wormhole` (mailboxes) and `pod-relay` (the exchange) of PodUtils/podcrates (Q101, waves 3 and
+2). Rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import
+podssh makes fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates,
+which podssh takes by the next tag; a test of the moved code then runs there.
 
 # T-547: The pub/sub networks and the public MQTT brokers, as carriers or meeting points
 
@@ -6168,6 +6382,15 @@ tunnel there, and `podssh ssh node://NAME 'echo ok'` passes through it with the 
 stderr has the line about the third party. Live, short, through Pinggy (the Decision). Planted: the
 client's check of the node's key skipped, and the test of a stranger's node fails.
 
+## Correction
+
+2026-11-05. The server TLS of `podssh-ws` (`tls_server.rs` and its siblings) is `pod-tls` of
+PodUtils/podcrates (T-684, `v0.2.0`; taken by podssh on 2026-11-05), and `podssh-ws` keeps
+a thin wrapper. The line that this entry cites in `tls_server.rs` is the wrapper's after the merge;
+the facts are `pod-tls`'s `src/tls_server.rs`. Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates"): a change of that code is done in PodUtils/podcrates under its `AGENTS.md` (or
+asked as an issue there), and podssh takes it by the next tag.
+
 # T-549: Serveo as a last fallback: a node's alias by SSH, and a client's hop through it
 
 **Source:** the operator's ruling Q78 (2026-11-02).
@@ -6272,6 +6495,15 @@ the remote forward, behind nginx that ends TLS and sends HTTP to it, with a plai
 proxy: `podssh node NAME TARGET` behind it and `podssh ssh node://NAME 'echo ok'` with the pair's
 road down. Live, short, through localhost.run (T-548's Decision). Planted: the visitor's channel joined to
 TARGET in place of the relay role, and the test of the contract fails.
+
+## Correction
+
+2026-11-05. The code of this entry (the relay role (`podssh-relay`'s `serve/`)) goes to
+`pod-relay-serve` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the
+module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 # T-566: srv.us as a last fallback: an HTTPS name derived from the node's SSH key
 
@@ -6435,6 +6667,13 @@ browser's `User-Agent` meets the page, which the test names; where it still gets
 bytes, the run is written in `docs/carriers.md` with its date, and the plant moves to a check that
 each request of the client carries the header.
 
+2026-11-05. The code of this entry (the relay role (`podssh-relay`'s `serve/`)) goes to
+`pod-relay-serve` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the
+module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-569: bore.pub as a last fallback: a raw TCP port for the node, reached by the client's other roads
 
 **Source:** the operator's ruling Q78 (2026-11-02).
@@ -6571,6 +6810,15 @@ container on port 443: two podssh ends meet, and 1 MiB goes each way under the c
 for another device ID gets no session. Live, short, through one relay of the pool on 443 (T-548's Decision).
 Planted: the invitation's key ignored, and the join of the session fails.
 
+## Correction
+
+2026-11-05. The server TLS of `podssh-ws` (`tls_server.rs` and its siblings) is `pod-tls` of
+PodUtils/podcrates (T-684, `v0.2.0`; taken by podssh on 2026-11-05), and `podssh-ws` keeps
+a thin wrapper. The line that this entry cites in `tls_server.rs` is the wrapper's after the merge;
+the facts are `pod-tls`'s `src/tls_server.rs`. Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates"): a change of that code is done in PodUtils/podcrates under its `AGENTS.md` (or
+asked as an issue there), and podssh takes it by the next tag.
+
 # T-572: File hosts and paste sites as a carrier that stores and forwards: the research
 
 **Source:** the operator's ruling Q78 (2026-11-02).
@@ -6657,6 +6905,17 @@ cargo todo check
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where VMess passes.
 
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). The ciphers that VMess needs are measured against podssh-ws's as
+they are; a cipher that only a C library gives is no reason to leave VMess out. Its road would live
+in `pod-egress` (PodUtils/podcrates, Q101, wave 4), as T-440's VLESS does. Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
+
 # T-574: The public proxy nodes of aggregator lists (VLESS, Trojan) as a last fallback of the forward road
 
 **Source:** the operator's ruling Q78 (2026-11-02).
@@ -6726,6 +6985,15 @@ named in a list that a stand-in HTTP server serves: the fallback takes the node 
 banner; a line that fronts another name is skipped; stderr has the line about the third party.
 Planted: the skip removed, and the test of the fronted line fails.
 
+## Correction
+
+2026-11-05. The code of this entry (the VLESS road (`podssh-ws`'s `vless/`) and the lists of nodes)
+goes to `pod-egress` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and
+the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-575: serv00's public Piping Server as the third server of the Piping Server road
 
 **Source:** the operator's ruling Q78 (2026-11-02).
@@ -6783,6 +7051,13 @@ as on T-497's second server (its Correction). Step 1 stays, measured through pod
 which of the two names serves; the Prove's third server stands behind a stand-in that holds each
 body.
 
+2026-11-05. The code of this entry (the Piping Server road (`podssh-relay`'s `piping/`) and its
+stand-in) goes to `pod-piping` of PodUtils/podcrates (T-684; the waves are in Q101 of
+`TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
+
 # T-576: HTTP Relay's demo server as a last fallback, in the Piping Server road's pieces
 
 **Source:** the operator's ruling Q78 (2026-11-02); T-442's verdict.
@@ -6824,6 +7099,15 @@ cargo test -p podssh-relay --features piping --test httprelay_pieces
 Against HTTP Relay's own server (its last release) in a container: the pieces of a session meet,
 1 MiB each way. Live, a short run (T-548's Decision) where the demo answers. Planted: a piece's number dropped,
 and the test of the order of the pieces fails.
+
+## Correction
+
+2026-11-05. The code of this entry (the Piping Server road (`podssh-relay`'s `piping/`) and its
+stand-in) goes to `pod-piping` of PodUtils/podcrates (T-684; the waves are in Q101 of
+`TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
 
 # T-577: Bare servers as a hop to a WebSocket road: the research
 
@@ -6923,6 +7207,15 @@ Against a private Tor network on the loopback (chutney, as T-353's tests run it)
 service reached by a client, 1 MiB each way under the channel; a client outside the restricted
 discovery cannot find it. Live, short, on the public Tor network, as the Decision says. Planted:
 the service's key not kept, and the test of a second start, which must keep its address, fails.
+
+## Correction
+
+2026-11-05. The code of this entry (`podssh-tor`) goes to `pod-tor` of PodUtils/podcrates (T-684;
+the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 # T-579: libp2p's public circuit relays: whether links of 128 KiB and 2 minutes carry a session
 
@@ -7033,6 +7326,15 @@ status but 233, and the road is refused; a stand-in that drops UDP makes the pro
 wait for QUIC. Planted: the check of the status 233 removed, and the test of the wrong password
 fails.
 
+## Correction
+
+2026-11-05. The code of this entry (a Hysteria 2 road, with the QUIC endpoint of `podssh-relay`'s
+`quick/`) goes to `pod-egress` of PodUtils/podcrates (T-684; the waves are in Q101 of
+`TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
+
 # T-581: TUIC version 5 as a client road over QUIC, where a probe found that UDP passes
 
 **Source:** the operator's ruling Q82 (2026-11-02).
@@ -7082,6 +7384,15 @@ Against a TUIC server of another project (sing-box, or `Itsusinn/tuic`) in a con
 banner through it; a wrong password closes the connection, and podssh says so. Planted: the
 exporter's label and context swapped, and the test of the banner fails.
 
+## Correction
+
+2026-11-05. The code of this entry (a TUIC road, with the QUIC endpoint of `podssh-relay`'s
+`quick/`) goes to `pod-egress` of PodUtils/podcrates (T-684; the waves are in Q101 of
+`TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
+
 # T-582: MASQUE over HTTP/3: WARP's connect-ip on UDP, where a probe found that UDP passes
 
 **Source:** the operator's ruling Q82 (2026-11-02).
@@ -7129,6 +7440,15 @@ cargo test -p podssh-warp --features h3 --test connect_ip_h3
 Against quic-go's connect-ip-go (MIT), as a proxy of connect-ip over HTTP/3 in a container: sshd's
 banner through it, and 1 MiB each way. Live, short, through WARP's endpoint over UDP from GitHub
 Actions (Q52, Q59). Planted: a datagram's context ID dropped, and the test of the banner fails.
+
+## Correction
+
+2026-11-05. The code of this entry (`podssh-warp`, which retires for podnet's WARP code) goes to
+`pod-warp` of PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module
+map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 # T-592: A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged
 
@@ -8118,6 +8438,15 @@ cargo test -p podssh-cli --features iroh --test opentunnel_road
 A record that names an OpenTunnel name is read back whole; a member's client with no name given
 reaches the node of the stand-in server through the name of its record.
 
+## Correction
+
+2026-11-05. The code of this entry (the OpenTunnel road (`podssh-relay`'s `opentunnel/`) and the
+iroh road's pkarr record) goes to `pod-opentunnel` and `pod-iroh` of PodUtils/podcrates (T-684; the
+waves are in Q101 of `TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`).
+Rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh
+makes fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which
+podssh takes by the next tag; a test of the moved code then runs there.
+
 # T-616: `podssh net invite`: a new device joins the net by a short code
 
 **Source:** T-086's draft (2026-11-04): its Decision leaves the net's own join by a code to an entry
@@ -8500,7 +8829,7 @@ through an HTTP CONNECT proxy.
 - RFC 6062 carries the bytes on a second TCP connection to the server, bound by `ConnectionBind`,
   while the control connection that holds the allocation stays open (Read in the archive's patch,
   its file crates/podssh-ws/src/turn/mod.rs, and its docs/poc.md: "proxy logs 2 CONNECTs").
-  `AGENTS.md:279` says "Make one outbound connection", with five exceptions, none for this road.
+  `AGENTS.md:280` says "Make one outbound connection", with five exceptions, none for this road.
 - podssh-ws holds the parts of TURN's long-term credential in pure Rust: `hmac`
   (`crates/podssh-ws/Cargo.toml:20`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:37-38`);
   and a resolver order of its own (`crates/podssh-ws/src/resolve.rs:2` says "resolver works. In
@@ -8567,6 +8896,16 @@ digests, and the squid's log holds two CONNECTs to the same name; a coturn with 
 refused in the words of step 5; a wrong password is refused; an allocation of 60 s lives past 90 s
 by its Refresh. Planted: the Refresh left out, and the session of 90 s ends.
 
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). The Approach's TURN module "pure Rust" may use a C library too.
+TURN is a road of `pod-egress` kind (PodUtils/podcrates, Q101, wave 4), and the resolver it uses
+goes to `pod-dns` (wave 1). Rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates")
+applies: from the import podssh makes fixes only, and once podssh takes the crate the work is done
+in PodUtils/podcrates, which podssh takes by the next tag; a test of the moved code then runs there.
+
 # T-623: smee.io, a POST in and server-sent events out, as a carrier where a proxy refuses the upgrade: the research
 
 **Source:** the operator's archive `ff-relay` of 2026-11-04 (its results/http-relay-hunt.json),
@@ -8623,6 +8962,15 @@ cargo todo check
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where smee.io passes.
 
+## Correction
+
+2026-11-05. The code of this entry (the Piping Server road (`podssh-relay`'s `piping/`) and its
+stand-in) goes to `pod-piping` of PodUtils/podcrates (T-684; the waves are in Q101 of
+`TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
+
 # T-624: hostc, Tunnelmole and Sandhole's public server as last fallbacks of the reverse road: the research
 
 **Source:** the operator's archive `ff-relay` of 2026-11-04 (its results/reverse.json and
@@ -8650,7 +8998,7 @@ tunnels of T-548 and T-565 to T-569 are.
   tunnel's client ran inside a WARP namespace of cfrs, as that host's proxy refused their ports
   (its tools/measure_reverse.py).
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `TODO/serve.md:1185` says "EpicEric/sandhole: reverse proxying through a stock": the record
+- `TODO/serve.md:1240` says "EpicEric/sandhole: reverse proxying through a stock": the record
   knows Sandhole as a project, not its public server as a carrier; it names neither hostc nor
   Tunnelmole (a search of `TODO/` and `docs/` on 2026-11-04).
 
@@ -8797,6 +9145,13 @@ cargo todo check
 ```
 
 The verdict of each and its sources in `docs/carriers.md`; a feature entry filed where one passes.
+
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
+library linked statically": a C library may carry the work if its size and its license are better.
 
 # T-628: The relay role's refusal of a target names the address that its name resolved to, so a holder of a token maps the role's network
 
@@ -9064,7 +9419,7 @@ Read at `2042200`:
   issuer must be let in by the same door for the same ask
   (`crates/podssh-relay/src/grant/door.rs:63-65`), as `crates/podssh-relay/src/grant/door.rs:22` says
   "reach itself, so that a grant never reaches more than its issuer."; that is T-226's Decision 4
-  (`TODO/reverse.md:1925` says "The issuers are the node's own key, and a key of").
+  (`TODO/reverse.md:1932` says "The issuers are the node's own key, and a key of").
 - The issue reads the role's forward token as too wide for a member: it names no target
   (`crates/podssh-relay/src/serve/tokens.rs:61`), as the contract's token does; the node's door, end to
   end, is what admits (Q4, `docs/decisions.md:85`).

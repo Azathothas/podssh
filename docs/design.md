@@ -17,7 +17,7 @@ Each fact has a label:
 
 - podssh gets out of a cage better than each sibling project.
 - podssh gets into a cage on the reverse road (M4), to a service that runs there; its own SSH server for the cage is M5, which the operator holds (Q32).
-- One architecture serves all three needs: a shared C-free relay library
+- One architecture serves all three needs: a shared relay library
   with several transport roads, a resumable session layer when both ends run
   podssh, and an SSH server in the process for the cage side.
 
@@ -30,14 +30,14 @@ Each fact has a label:
    |        podssh-ssh: russh client and server, terminal, SFTP     [C: aws-lc]
    |                       |
    `---- podssh-relay: roads, failover, liveness, resumable sessions,
-                       tokens, pairing, node/operator, blocking facade   [no C]
+                       tokens, pairing, node/operator, blocking facade
                                     |
    .--------------.-----------------+--------------.-------------.-----------.
  forward road   reverse road      iroh road      direct road   tailscale road
  any public     podssh at both    podssh at both TCP, through  feature ts
  TCP service    ends; resumable   ends; QUIC     HTTPS_PROXY
  (one-sided)    layer on top      [feature, C]
-   `--------------`-- podssh-ws: CONNECT proxy, TLS, WebSocket, DNS fallbacks [no C]
+   `--------------`-- podssh-ws: CONNECT proxy, TLS, WebSocket, DNS fallbacks
 ```
 
 ### Select a road

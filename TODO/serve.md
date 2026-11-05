@@ -396,6 +396,16 @@ discipline's count of the screen is wrong.
 
 2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
 the entry joins the work order by its priority.
+
+2026-11-05. `podssh-terminal` left this tree: its code is `pod-term` of PodUtils/podcrates, taken by
+the git tag `v0.1.0` (T-684; `crates/podssh-cli` depends on it). Each `podssh-terminal` of this
+entry reads `pod-term`, and a path under `PodUtils/podssh:crates/podssh-terminal/` is
+`PodUtils/podcrates:crates/pod-term/` now, with its own line numbers. The echo discipline,
+`Event::Signal`, the passthrough and the ring of T-221 are there. Rule Q3 holds: a change of the
+terminal code is done in PodUtils/podcrates (or asked as an issue there), and podssh takes it by the
+next tag. Approach item 1 reads: serve takes `pod-term` as a dependency of `podssh-ssh` (the "C-free
+crate" is no rule now), and the Prove's tests of the discipline itself run in PodUtils/podcrates
+(`cargo test -p pod-term`); `serve_line` stays podssh's.
 # T-112: An SFTP server in `podssh serve`
 
 **Source:** `docs/ROADMAP.md:192`, `docs/design.md:629-633`; GitHub #20
@@ -616,6 +626,12 @@ the pty check.
 T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
 request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
+
 # T-115: `podssh serve`: a TOTP second factor
 
 **Source:** GitHub #18 (VLOD-ZDOV/quic-ssh `src/totp.rs`: TOTP with no PAM).
@@ -680,6 +696,12 @@ replay test.
 T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
 request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
+
 # T-116: `podssh serve`: an audit log
 
 **Source:** GitHub #25 (ImKKingshuk/USBoverSSH `usboverssh/src/audit.rs`).
@@ -739,6 +761,12 @@ the session.
 
 T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
 request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
+
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
 
 # T-117: `podssh serve`: a clean stop, and SIGHUP reads the settings again
 
@@ -926,6 +954,12 @@ for exec fails the second check.
 T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
 request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
+
 # T-120: `podssh serve`: shell integration marks, when asked
 
 **Source:** GitHub #20 (l0ng-ai/tty7
@@ -985,6 +1019,21 @@ appends to `~/.bashrc` fails the digest check.
 T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
 request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
+## Correction
+
+2026-11-05. `podssh-terminal` left this tree: its code is `pod-term` of PodUtils/podcrates, taken by
+the git tag `v0.1.0` (T-684; `crates/podssh-cli` depends on it). Each `podssh-terminal` of this
+entry reads `pod-term`, and a path under `PodUtils/podssh:crates/podssh-terminal/` is
+`PodUtils/podcrates:crates/pod-term/` now, with its own line numbers. The echo discipline,
+`Event::Signal`, the passthrough and the ring of T-221 are there. Rule Q3 holds: a change of the
+terminal code is done in PodUtils/podcrates (or asked as an issue there), and podssh takes it by the
+next tag. The Premise's line of `echo.rs` that shows where a mark goes is `pod-term`'s
+`src/echo.rs`.
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
+
 # T-121: Install `podssh serve` or `podssh node` as a service with no privileges
 
 **Source:** GitHub #20 (l0ng-ai/tty7: a one-time install with no privileges);
@@ -1005,8 +1054,8 @@ with no privileges needs a way that the host allows, found by a probe.
 ## Premise
 
 - Read: podssh never assumes a tool or a privilege; it starts a program only
-  when a probe found it (`AGENTS.md:277-306`).
-- Read: a credential never goes on argv or into output (`AGENTS.md:229-234`).
+  when a probe found it (`AGENTS.md:278-307`).
+- Read: a credential never goes on argv or into output (`AGENTS.md:230-235`).
   The command line of a unit file is argv, so it must hold no token.
 - Read in the reports of GitHub #20 and #18, not verified here: tty7, zuko
   and iroh-ssh install services, and iroh-ssh adds a firewall rule (which
@@ -1141,7 +1190,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:277-306`, `docs/target-environment.md:116-118`).
+  found it (`AGENTS.md:278-307`, `docs/target-environment.md:116-118`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1179,6 +1228,12 @@ scope of an open session; that run is recorded in `docs/STATUS.md`.
 
 T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
 request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
+
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
 
 # T-123: `podssh serve` accepts `tcpip-forward` from a standard `ssh -R`
 
@@ -1246,6 +1301,12 @@ serve that binds a socket fails a check that counts the open sockets of serve.
 T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
 request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
+
 # T-124: `podssh serve --listen`: SSH on a TCP port on a host that allows it
 
 **Source:** GitHub #18 (EpicEric/sandhole `src/config.rs`, lines 197-210:
@@ -1269,7 +1330,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:279-285`, `docs/architecture.md:272-289`).
+  (`AGENTS.md:280-286`, `docs/architecture.md:276-293`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, listens once on each, and closes them at once
@@ -1295,7 +1356,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:279-285` and `docs/architecture.md:272-289`, which then name this
+   `AGENTS.md:280-286` and `docs/architecture.md:276-293`, which then name this
    exception and the ruling.
 
 ## Prove
@@ -1317,6 +1378,12 @@ the probe, or with no `--listen`, fails a check of its open sockets.
 
 T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
 request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
+
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
 
 # T-222: `podssh serve` finds a shell with no passwd entry and no `/etc/shells`, and names each candidate that failed (GitHub #32)
 
@@ -1481,7 +1548,7 @@ the decisions forbid it, and it does nothing to a static binary.
 
 ```sh
 podssh doctor                                      # one line for each route: ok, or the errno
-cargo test -p podssh-terminal                      # the termios model and the line discipline
+cargo test -p pod-term                            # the line discipline, in PodUtils/podcrates (T-684)
 cargo test -p podssh-cli --test serve_tty          # a child under route 2: test -t 0, stty size
 sh scripts/test_in_box.sh target/x86_64-unknown-linux-musl/release/podssh
 ```
@@ -1495,6 +1562,15 @@ test fails.
 
 2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
 the entry joins the work order by its priority.
+
+2026-11-05. `podssh-terminal` left this tree: its code is `pod-term` of PodUtils/podcrates, taken by
+the git tag `v0.1.0` (T-684; `crates/podssh-cli` depends on it). Each `podssh-terminal` of this
+entry reads `pod-term`, and a path under `PodUtils/podssh:crates/podssh-terminal/` is
+`PodUtils/podcrates:crates/pod-term/` now, with its own line numbers. The echo discipline,
+`Event::Signal`, the passthrough and the ring of T-221 are there. Rule Q3 holds: a change of the
+terminal code is done in PodUtils/podcrates (or asked as an issue there), and podssh takes it by the
+next tag. The Prove's `cargo test -p podssh-terminal` named a package that is gone; its line is
+dropped, and the line discipline's own tests run in PodUtils/podcrates (`cargo test -p pod-term`).
 
 # T-393: `--install` that always restarts: systemd without a start limit, a cron watchdog, a LaunchAgent; and `ssh -N -R --persist`
 
@@ -1671,7 +1747,7 @@ Read at `2042200`:
   `vendor/russh/src/server/mod.rs:1133` spawns.
 - In the session, the inactivity timer starts again at each event
   (`vendor/russh/src/server/session.rs:836-840`): a cut for silence, not a deadline.
-- T-124's step 4 asks for a cap with no time: `TODO/serve.md:1293-1294` says "a cap on connections at
+- T-124's step 4 asks for a cap with no time: `TODO/serve.md:1354-1355` says "a cap on connections at
   once and on connections that have not authenticated".
 - What a deadline needs is there: `vendor/russh/src/server/session.rs:457` (`Handle::disconnect`) and
   `vendor/russh/src/lib_inner.rs:317` says "TooManyConnections = 12,".

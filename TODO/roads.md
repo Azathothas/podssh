@@ -3332,6 +3332,14 @@ edge of T-300. Planted: the sequence number ignored; the digests differ. Live: i
 `.github/workflows/quick-tunnel-live.yml`, through a quick tunnel of the run, and on a GitHub
 runner where `podssh relay serve` runs.
 
+2026-11-05. The code of this entry (the HTTP road (`podssh-relay`'s `http_road/`, the role's
+`serve/` and `podssh-ws`'s `meek.rs`)) goes to `pod-relay`, `pod-relay-serve` and `pod-egress` of
+PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 ## Done
 
 Drafted 2026-11-04 (the drafting agent, `3739bcf`): its first part, the role's side and the
@@ -3648,6 +3656,16 @@ through the road, and `podssh each` over 8 hosts through one role is the CLI's (
 The resumable layer's links (`forward_layer`, T-173) and the reverse road keep their own upgrade.
 The relay crate's test takes the features `serve,plain-ws`: its role is `role_harness`'s, behind TLS
 of the test's CA.
+
+2026-11-05. The code of this entry (the HTTP/2 road (`podssh-ws`'s `h2_road/`, `podssh-relay`'s
+`h2_road.rs` and the role's `serve/`)) goes to `pod-ws`, `pod-relay` and `pod-relay-serve` of
+PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there. The TLS part (`crates/podssh-ws/src/tls.rs`, cited above) is `pod-tls`
+(T-684, `v0.2.0`; taken by podssh on 2026-11-05), so each line that this entry cites in
+`tls.rs` is a thin wrapper's after the merge; the facts are `pod-tls`'s `src/tls.rs`.
 
 ## Done
 
@@ -4687,7 +4705,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:314-319`; `docs/design.md:66`), and
+- Read: credentials never go in URLs (`docs/architecture.md:318-323`; `docs/design.md:66`), and
   `docs/decisions.md:85` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -5582,7 +5600,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:282-286`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:286-290`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
    `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
@@ -5721,7 +5739,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:279-289`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:280-290`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:363-377`, `crates/podssh-relay/src/open.rs:33`),
@@ -6063,7 +6081,7 @@ and no notice.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
   operator (`docs/relay-operator.md:97-101`).
-- Read: the test targets of a session are the operator's list (`AGENTS.md:242-271`), which names
+- Read: the test targets of a session are the operator's list (`AGENTS.md:243-272`), which names
   none of the three.
 
 ## Approach
@@ -6142,7 +6160,7 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
 Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md`, lines 315-322 at `80a6407`;
 `docs/relay-operator.md:97-101` is item 1's word on the drops of reverse sockets. The test targets
-of `AGENTS.md:241-258` name the three forwarders now, from GitHub Actions only, with short runs
+of `AGENTS.md:242-259` name the three forwarders now, from GitHub Actions only, with short runs
 (Q56, the same day); the Premise read them before that ruling.
 
 ## Done
@@ -6219,7 +6237,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
   they allow `direct-tcpip` was not measured.
-- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:242-271`). The
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:243-272`). The
   box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
   (`scripts/box/proxy.py:6-16`).
 
@@ -6437,7 +6455,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:314-319`); an `ss://` URI holds the password.
+  (`docs/architecture.md:318-323`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
@@ -6471,7 +6489,7 @@ cannot make it a road.
   `--via ss://...`, which puts the password in argv.
 - The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
   Its tests use servers that podssh did not write, never a public one: no public server is a test
-  target of the operator's (`AGENTS.md:242-271`).
+  target of the operator's (`AGENTS.md:243-272`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
 The draft's calls, 2026-11-01:
@@ -8761,6 +8779,14 @@ proxy too, the line names the certificate that the endpoint showed and says that
 re-terminates TLS or WARP's own side can show it, and that a second try tells them apart (WARP's
 side passes on a later try, a proxy fails each time).
 
+2026-11-05. The code of this entry (`podssh-warp`'s road, which retires) goes to `pod-warp` of
+PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there. Where `pod-warp` is built from podnet's `src/warp/`, check the same
+defect there: a repair of `podssh-warp` alone would be lost at the import.
+
 # T-590: A roost on a host with no sshd says `Connection refused`, not that no sshd is installed, and `doctor` has no line for a roost
 
 **Source:** GitHub #116 (a tester's agent, 2026-11-02), with `podssh 1.0.0 (35a0d19)`:
@@ -9113,6 +9139,15 @@ holds bodies does not open within the test's limit.
 
 T-319 is done: the HTTP road's split and serial forms exist.
 
+## Correction
+
+2026-11-05. The code of this entry (the HTTP road (`podssh-relay`'s `http_road/` and the role's
+`serve/`)) goes to `pod-relay` and `pod-relay-serve` of PodUtils/podcrates (T-684; the waves are in
+Q101 of `TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`). Rule Q3
+(`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
+fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
+takes by the next tag; a test of the moved code then runs there.
+
 # T-665: QUIC on the iroh road, tuned and measured on a wide-area path
 
 **Source:** the study of osewa, 2026-11-04 (Q99; `docs/research/osewa.md`, `docs/research/osewa-code.md`, `docs/research/osewa-paper.md`).
@@ -9190,6 +9225,15 @@ gh workflow run iroh-ab.yml --ref main -f arms='iroh;tuned' -f runs=5 -f mib=4
 ```
 
 The A/B runs, with their commands in `docs/STATUS.md`.
+
+## Correction
+
+2026-11-05. The code of this entry (`podssh-iroh`'s tuning) goes to `pod-iroh` of PodUtils/podcrates
+(T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 ## Done
 
@@ -9281,6 +9325,16 @@ sh scripts/plant-each.sh --here t666-share-while-made
 ```
 
 T-660's echo under load with a copy beside the terminal: lower than on one stream.
+
+## Correction
+
+2026-11-05. The code of this entry (`podssh-iroh`'s streams, the resumable layer (`podssh-relay`'s
+`session/`) and the HTTP/2 road) goes to `pod-iroh`, `pod-session` and `pod-ws` of
+PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 ## Done
 

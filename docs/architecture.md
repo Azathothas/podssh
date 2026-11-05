@@ -250,10 +250,14 @@ bytes. See [reverse.md](reverse.md).
 | `podssh-relay` | Relay hosts, the pool and failover, tokens (mint, cache, mint again), the forward opener; the pairs, the codecs (the framing of the node and operator legs, the control messages, the close table) and the runners of the reverse road (feature `pair`); the resumable layer between two podssh ends (`session/`: its records, offsets and handshake, sans-IO, and its two ends over tokio streams); UDP in a stream (`udp/`, T-168: each datagram after its length, and the flow at the far end, a UDP socket connected to the target); the blocking facade for podvm (feature `blocking`). No C. | `podssh-ws` |
 | `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with the pure-Rust provider of `pod-tls`, PodUtils/podcrates), the WebSocket client | `pod-tls` |
 | `podssh-core` | Protocol state machines with no I/O: `irc/` | none |
-| `pod-term` (PodUtils/podcrates, T-684; until then `podssh-terminal`) | A line discipline in the process, for `podssh serve` with no pty (not used yet, T-111); the grammar of a terminal's output and its ring, which `podssh session` reads | none |
+| `pod-term` (PodUtils/podcrates, taken by git tag, T-684) | A line discipline in the process, for `podssh serve` with no pty (not used yet, T-111); the grammar of a terminal's output and its ring, which `podssh session` reads | none |
 | `podssh-probe` | Facts about the structure of the relay's document (tests only) | none |
 | `podssh-ts` | The Tailscale adapter over `vendor/tailscale-rs` (feature `ts`) | the fork in `vendor/` |
 | `podssh-iroh` | The iroh road between two podssh ends (feature `iroh`, T-162, T-163): an iroh endpoint with podssh's relays, proxy, name resolution and trust store, UDP only after a probe, the resumable layer's sessions over QUIC streams, the keys in private files, the tickets, and the allowlist of a node | `podssh-relay`, `podssh-ws` |
+| `podssh-warp` | WARP's MASQUE road over HTTP/2 (feature `warp`): the device's registration, TLS with its pin, connect-ip's capsules, TCP inside on smoltcp, names inside | `podssh-ws` |
+| `podssh-tor` | The Tor road through Arti (feature `tor`) | `podssh-ws` |
+| `podssh-todo` | `cargo todo`: a wrapper of `pod-todo` (PodUtils/podcrates) with `TODO/todo.toml`, and `cargo todo interop` | none |
+| Crates of PodUtils/podcrates (T-684) | Taken by git tag: `pod-todo`, `pod-term`, `pod-identity`, `pod-core` and, in dev-dependencies, `pod-testkit`, and `pod-tls` (podssh-ws's TLS, behind thin wrappers); the others are Q101's waves (`TODO/PROGRESS.md`). From a module's import podssh changes it for fixes only (Rule Q3, `docs/decisions.md`) | none |
 
 ## Design rules
 

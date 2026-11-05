@@ -72,12 +72,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    (`crates/podssh-cli/src/man/examples.rs:8-316`; its test at
    `crates/podssh-cli/src/man/examples.rs:439-465` learns the new variant),
    `docs/design.md:1106-1115`, `docs/STATUS.md`. Each file stays under 500
-   lines (`AGENTS.md:311-312`).
+   lines (`AGENTS.md:312-313`).
 
 ## Decision
 
 Recommendation: `exec:` splits the words itself and starts no shell, because
-podssh must not assume a shell (`AGENTS.md:277-278`), and the user can name one
+podssh must not assume a shell (`AGENTS.md:278-279`), and the user can name one
 (`exec:sh -c 'CMD'`). The alternative, a `system:` address through
 `/bin/sh -c` as in socat, lost: Windows and some images have no `/bin/sh`.
 
@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:269-271`).
+   pump does not know the road (`docs/architecture.md:273-275`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:362-372` does;
    open with `crates/podssh-relay/src/open.rs:212-298`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1149-1151`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:279-285`, `docs/architecture.md:272-289`,
+  `AGENTS.md:280-286`, `docs/architecture.md:276-293`,
   `docs/target-environment.md:99-103`, `SECURITY.md:246-281`, `README.md:44-53`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:433`). The box refuses each `bind`, AF_UNIX too
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:279-285`, `docs/architecture.md:272-289` and
+allows: `AGENTS.md:280-286`, `docs/architecture.md:276-293` and
 `docs/target-environment.md:99-103` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -1006,6 +1006,13 @@ TLS. Planted: each request held until its whole body came; the WebSocket check f
 `.github/workflows/quick-tunnel-live.yml`: `curl` gets the body of a server of the runner at the
 printed `https://` name.
 
+2026-11-05. The code of this entry (the quick tunnel's node (`podssh-relay`'s `quick/`) and the HTTP
+heads of `podssh-ws`) goes to `pod-cloudflare` and `pod-proxy` of PodUtils/podcrates (T-684; the
+waves are in Q101 of `TODO/PROGRESS.md`, and the module map is `PodUtils/podcrates:docs/design.md`).
+Rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh
+makes fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which
+podssh takes by the next tag; a test of the moved code then runs there.
+
 # T-181: A `serial:` address for a local serial device
 
 **Source:** GitHub #21 (MobaRust, `OthmaneBlial/MobaRust:crates/mobarust-serial/`;
@@ -1157,7 +1164,7 @@ and with which limits.
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:475`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
-  privilege (`AGENTS.md:277-278`). The recipe uses the user's own `usbip` and
+  privilege (`AGENTS.md:278-279`). The recipe uses the user's own `usbip` and
   its privileges.
 
 ## Approach
@@ -1357,7 +1364,7 @@ the request's target, would be the proxy that such a program points at.
   takes one client by default, and with `--keep-listening` each client in turn, 8 at once at most,
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
-  loopback or AF_UNIX by default (`docs/decisions.md:75`; `docs/architecture.md:272-281`); the
+  loopback or AF_UNIX by default (`docs/decisions.md:75`; `docs/architecture.md:276-285`); the
   gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:98-122`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target

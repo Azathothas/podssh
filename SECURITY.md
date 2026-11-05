@@ -117,7 +117,7 @@ Each rule is implemented.
   proxy that intercepts TLS (T-067); a server that speaks 1.3 cannot be
   forced down to 1.2. There is no option that skips the verification, and no
   crate carries a verifier that accepts each certificate: a test scans the
-  source of each one (T-065). The verifier that prints a chain for a
+  source of each one of podssh (T-065), and `pod-tls` scans its own. The verifier that prints a chain for a
   diagnosis lives in an example of `podssh-ws`, outside each library. The
   node of `podssh ts` adds the CA file of `PODSSH_TS_TEST_CA_FILE` to its
   roots, for a test's stand-in control server (T-334): a root more, never a
@@ -409,7 +409,7 @@ Each rule is implemented.
   bits; `podssh keygen -t rsa` makes its key there; and `podssh agent` keeps
   no RSA key, as russh's agent server would sign with it through `rsa`. A
   test reads the source for each way back (T-257). The `rsa` crate stays for
-  the check of a server's RSA certificate, with the public key only, and in
+  the check of a server's RSA certificate (in `pod-tls` of PodUtils/podcrates), with the public key only, and in
   russh's reader of an RSA key in a PEM or PKCS#8 file, which computes with
   the key once, as it reads it.
 - **Old schemes are read, never written.** A key file encrypted as OpenSSL

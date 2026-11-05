@@ -883,6 +883,13 @@ is equal both ways. `scripts/ts-headscale.sh` gains a run of `relay` mode pinned
 with the two kept state files and the real tailnet, the first command and the repaired
 `ts_live_status_prints_the_node_line` exit 0.
 
+2026-11-05. The code of this entry (`podssh-ts` and its fork) goes to `pod-ts` of PodUtils/podcrates
+(T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
+
 # T-240: `podssh ts --jsonl` writes no JSON
 
 **Source:** found while T-100 to T-106 were written (finding 1). Measured here on `3ee70dc` with

@@ -34,7 +34,7 @@ drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:264-268`) in a new module
+1. A sans-IO codec (`docs/architecture.md:268-272`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -1553,6 +1553,22 @@ ring of step 1 exists: T-221's `Ring`
 (`PodUtils/podssh:crates/podssh-terminal/src/grammar/ring.rs`), which drops its oldest
 bytes only up to a boundary of the terminal's grammar.
 
+## Correction
+
+2026-11-05. `podssh-terminal` left this tree: its code is `pod-term` of PodUtils/podcrates, taken by
+the git tag `v0.1.0` (T-684; `crates/podssh-cli` depends on it). Each `podssh-terminal` of this
+entry reads `pod-term`, and a path under `PodUtils/podssh:crates/podssh-terminal/` is
+`PodUtils/podcrates:crates/pod-term/` now, with its own line numbers. The echo discipline,
+`Event::Signal`, the passthrough and the ring of T-221 are there. Rule Q3 holds: a change of the
+terminal code is done in PodUtils/podcrates (or asked as an issue there), and podssh takes it by the
+next tag. The ring of step 1 is `pod-term`'s `grammar/ring.rs`. The far end's sessions and its
+handover are in `podssh-relay`'s `session/`, which goes to `pod-session` of PodUtils/podcrates
+(Q101, wave 2); Rule Q3 applies to it as above.
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
+
 # T-160: Local echo and prediction for high latency
 
 **Source:** `docs/design.md:723-724`; GitHub #19 and GitHub #18 (Nemo-010,
@@ -1623,6 +1639,19 @@ far end. A model on the client alone would guess the ECHO flag, which the
 invariant forbids. Read at `d56d316` (2026-10-12): the verb table of
 `crates/podssh-cli/src/flags.rs` has no `serve`, and no source outside the
 tests uses `russh::server`.
+
+## Correction
+
+2026-11-05. Rule 4 of `AGENTS.md` (section 5) changed with T-685: C, zig and the newest stable Rust
+may be used in each crate, and the one rule of the build is a statically compiled binary
+(`docs/decisions.md`, 2026-11-05). The Approach's "no C" for a crate of the terminal model is gone:
+a crate that links C may be taken, with an MIT or Apache license, if the binary stays static. The
+grammar of the terminal is `pod-term`'s (PodUtils/podcrates, T-684), and the terminal oracle of
+T-200 is `pod-testkit`'s (its feature `screen`), taken by the same tag.
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
 
 # T-161: Screen state and scrollback when a client attaches
 
@@ -1706,6 +1735,17 @@ operator holds (Q32). T-158 made the client's side (`~d`, `--attach`,
 boundary of the replay is T-221's, done: its ring gives its bytes from a
 boundary.
 
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
+
+2026-11-05. The grammar of the terminal and its ring (T-221) are `pod-term` of PodUtils/podcrates
+(T-684), and the terminal oracle of T-200 that the Approach names is `pod-testkit`'s (its feature
+`screen`), both taken by the git tag `v0.1.0`. A change of that code is done in PodUtils/podcrates
+(Rule Q3, `docs/decisions.md`), and podssh takes it by the next tag.
+
 # T-221: Replayed output after dropped bytes starts at a boundary of the terminal grammar (GitHub #31)
 
 **Source:** GitHub #31 (2026-10-08: a rule for where a kept window may start),
@@ -1735,7 +1775,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:674-675`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:269-271`). The
+not know the protocol that they carry (`docs/architecture.md:273-275`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary
@@ -2114,6 +2154,12 @@ byte fails the check of the time.
 T-110 is done: `podssh serve` has a pty (the operator holds it, Q32); and T-161 has a model of the
 far end's screen.
 
+## Correction
+
+2026-11-05. The Start condition's "the operator holds them (Q32)" no longer holds: Q92 (2026-11-03,
+`docs/decisions.md`) released the holds, and T-107 to T-112 go by their priority
+(`TODO/PROGRESS.md`, "The holds are released"). The Start condition is the list of entries alone.
+
 # T-304: Keys and screen frames as QUIC datagrams on the iroh road
 
 **Source:** T-171 (`docs/design.md:750-764`): each datagram of Mosh is an idempotent difference
@@ -2169,6 +2215,15 @@ screen fails it.
 ## Start condition
 
 T-303 is done: frames of the screen exist.
+
+## Correction
+
+2026-11-05. The code of this entry (`podssh-iroh`) goes to `pod-iroh` of PodUtils/podcrates (T-684;
+the waves are in Q101 of `TODO/PROGRESS.md`, and the module map is
+`PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`, "The crates of
+PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
+crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
+moved code then runs there.
 
 # T-305: Roam at once: a new link beside a silent one
 

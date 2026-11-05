@@ -179,7 +179,7 @@ verified here).
 
 1. crates/podssh-relay/src/reverse/node.rs: `node::run(config, handler)`; `handler.open(id)` gives a byte stream
    or a reason to reject. It uses the codecs of `podssh-transport` until T-082. Invariant: no protocol above
-   bytes (`docs/architecture.md:269-271`).
+   bytes (`docs/architecture.md:273-275`).
 2. One task owns the write half; sessions send `(id, bytes)` through one bounded channel, cut by
    `chunk_for_node`. Invariant: no frame without its id; none for an id not readied, or closed.
 3. On `open`: call the handler with a limit under 15 s
@@ -581,7 +581,7 @@ and crates/podssh-transport/examples/live_forward.rs lines 23-25 at `e8bbd4d`; `
 (`crates/podssh-cli/Cargo.toml` line 34 at `e8bbd4d`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
 unused backpressure module goes." (`docs/design.md` lines 122-123 at `e8bbd4d`).
 
-Read: the comments of the crate break rule 6 of `AGENTS.md:313-314`: they carry the stop-sign marker,
+Read: the comments of the crate break rule 6 of `AGENTS.md:314-315`: they carry the stop-sign marker,
 session history and line numbers of documents, for example crates/podssh-transport/src/socket.rs lines 1-11 at `e8bbd4d`
 and crates/podssh-transport/src/control.rs lines 3-14 at `e8bbd4d`. The close rows cite lines of the pinned contract,
 and a test reads that copy to check them (crates/podssh-transport/src/closes.rs lines 45-59 at `e8bbd4d`).
@@ -592,11 +592,11 @@ and a test reads that copy to check them (crates/podssh-transport/src/closes.rs 
    and T-080 use the repaired codecs as a dependency until then.
 2. Move into crates/podssh-relay/src/reverse/: `framing.rs` and `framing/legs.rs`, `control.rs`,
    `closes.rs`, the retry parts of `error.rs`, and the name check of T-076, with their tests. Keep
-   each file at 500 lines or fewer (`AGENTS.md:311-312`).
+   each file at 500 lines or fewer (`AGENTS.md:312-313`).
 3. Delete, do not move: the backpressure module (T-074), the `Transport` trait and `backoff.rs`
    (T-077), and `RelayConfig` (`podssh-relay` has `Relay` and `RelayList`,
    `crates/podssh-relay/src/relay.rs:80-102`).
-4. Rewrite the comments of the moved code to `AGENTS.md:313-314`: why, in few words; no markers, no
+4. Rewrite the comments of the moved code to `AGENTS.md:314-315`: why, in few words; no markers, no
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
 5. Move the examples to `podssh_relay::open`, the forward path that the commands use. Then remove
@@ -1000,9 +1000,9 @@ facade later, as an operator action (the operator's ruling of 2026-10-08).
 ## Premise
 
 Read: the box like the target sandbox has one CONNECT proxy for ports 443, 80 and 8443 as its only
-way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:457-499`,
+way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:459-501`,
 `scripts/test_in_box.sh`). It allows `connect()` to loopback, which the real sandbox refuses
-(`docs/development.md:498-499`, `docs/target-environment.md:22`).
+(`docs/development.md:500-501`, `docs/target-environment.md:22`).
 
 Read: in such a sandbox nothing can listen (`docs/target-environment.md:25`, `:99-102`), so a node
 there has no local TCP service to offer before `podssh serve` (M5). Its TARGET must be a host that
@@ -1046,6 +1046,13 @@ M3 is complete and T-078 to T-084 are done.
 
 2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
 the entry joins the work order by its priority.
+
+2026-11-05. podbox is podvm (`docs/decisions.md`, 2026-11-05). The blocking facade of Approach item
+5 is `podssh-relay`'s `blocking/`, which goes to `pod-relay` of PodUtils/podcrates with the feature
+`blocking` (Q101, wave 2), and podvm takes it from there by a tag, not by a pin of a revision of
+podssh: "podvm pins the facade" below is that. The first half, two sessions through the relay from
+one box to a node in another, is podssh's and stands. Whether the second half stays here or goes to
+`pod-relay`'s record is Q103 of `TODO/PROGRESS.md`.
 
 # T-086: Pairing by a short one-time code, given out of band
 
@@ -1091,7 +1098,7 @@ short code safe.
 3. A meeting point that both reach with no pair: see the Decision.
 4. The code: three words from a fixed list and a number, used once, valid for 10 min. The node shows
    it only on its terminal, never in stdout, a log or argv; the operator types it at a prompt.
-5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:307-309`).
+5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:308-310`).
 6. Pitfalls: limit the attempts at the meeting point; one failed exchange ends the code; check the
    received part as T-076 and T-078 check a pair.
 
@@ -1487,7 +1494,7 @@ The resumable layer of M6 runs under SSH (`docs/design.md:674-686`).
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
 so that the relay cannot read a stream (`willykeenan/warren:src/noise.rs`).
 
-Read: the library crates must build with no C compiler (`AGENTS.md:307-309`, `scripts/gate.sh:130`).
+Read: the library crates must build with no C compiler (`AGENTS.md:308-310`, `scripts/gate.sh:130`).
 
 ## Approach
 
@@ -1775,7 +1782,7 @@ workloads (`arjun988/GPU-Share`); iroh-ssh has an open request for local discove
 56 of `rustonbsd/iroh-ssh`); cubic names and lists remote state (`cubic-vm/cubic:docs/howto/snapshots.rst`).
 
 Read: the measured sandbox refuses UDP (`docs/target-environment.md:23`), so mDNS cannot work there,
-and podssh must probe before it uses UDP (`AGENTS.md:277-278`).
+and podssh must probe before it uses UDP (`AGENTS.md:278-279`).
 
 ## Approach
 
@@ -1869,7 +1876,7 @@ ends each token at once (`docs/relay.md:615-617`). A text frame from the operato
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`PodUtils/podssh:crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `PodUtils/podssh:crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
-issue's "rule 8" is rule 6 (`docs/architecture.md:314-319`), and its "section 2" sentence about an allowlist of
+issue's "rule 8" is rule 6 (`docs/architecture.md:318-323`), and its "section 2" sentence about an allowlist of
 keys is in section 7 (`docs/design.md:1387-1388`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
@@ -1888,7 +1895,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
 1. On the relay: an endpoint in place of `POST /v1/pair` that returns a signed grant naming the node, the
    principals that may use it (key fingerprints, T-087), an expiry and a nonce. The relay records the nonce as
    spent and refuses a second use. podssh caches the grant and sends it in a header or a 0600 file, never in
-   a URL (`docs/relay.md:461-463`, `docs/architecture.md:314-319`).
+   a URL (`docs/relay.md:461-463`, `docs/architecture.md:318-323`).
 2. On the client: keep the pair's tokens, and add a signed grant inside the operator leg, which the relay has
    authenticated. A text frame closes that leg with `1003`, so the grant needs a typed binary header at the
    start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The
@@ -1896,7 +1903,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    the seam of T-088 and T-089. Spent nonces are create-new private files
    (`crates/podssh-relay/src/cache.rs:364-382`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
-   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:307-309`).
+   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:308-310`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the
    `connect_token`; T-087 gives the keys that a grant names.
 

@@ -816,7 +816,7 @@ measured: a race needs two processes; the test below makes it certain.
    (`crates/podssh-ssh/src/hostkey.rs:352-376`). Else append.
 3. Hold the lock only for the read and the write, never across a prompt.
 4. When the file system refuses locks, append as today, with a verbose note
-   (a fallback that says so, `AGENTS.md:315`).
+   (a fallback that says so, `AGENTS.md:316`).
 
 ## Prove
 
@@ -4438,6 +4438,13 @@ sh scripts/dev.sh run -- 'INTEROP_ONLY=faults sh /work/scripts/interop.sh BIN'
 On this cloud container's host, `faults.stuck_write` ends with 255 within 90 s and "no
 progress", as on the gate's runners. Planted: the new limit removed: it fails at 240 s again.
 
+## Correction
+
+2026-11-05. The write limit (`crates/podssh-ws/src/write_limit.rs`) goes to `pod-proxy` of
+PodUtils/podcrates (Q101, wave 1, the next to be taken). Until podssh takes it, the repair stays a
+fix of podssh's file, and podcrates ports it once it has imported the module (Rule Q3,
+`docs/decisions.md`); after, the repair is made in PodUtils/podcrates.
+
 # T-609: An ECDSA key of P-256 whose scalar OpenSSH writes in 31 bytes is refused: "SshKey: length invalid"
 
 **Source:** the gate at `b02d8c4` (run 41647533798, its job `gate (release)`, 2026-11-03):
@@ -5180,6 +5187,15 @@ trust, `Full`. Planted: a ticket written and not read, and the test fails.
 rustls's maintainers: a release of rustls that carries rustls/rustls#2907, which podssh's
 dependencies then take. Nothing in podssh waits for it but this entry; T-664 keeps the group of
 the key exchange, which the release of 0.23 lets a store keep.
+
+## Correction
+
+2026-11-05. The store of TLS sessions (`PodUtils/podssh:crates/podssh-ws/src/tls/store.rs`) is `pod-tls` of
+PodUtils/podcrates (T-684, `v0.2.0`; taken by podssh on 2026-11-05), and `podssh-ws` keeps
+a thin wrapper. The work of the Approach (item 2) is done in PodUtils/podcrates under its
+`AGENTS.md`, once rustls's release is there, and podssh takes it by the next tag (Rule Q3,
+`docs/decisions.md`). The test of the Prove, `tls_resume`, is then a test of `pod-tls` (`cargo test
+-p pod-tls --test tls_resume`), run in that repository. The Blocker stands.
 
 # T-673: The rate's best on a lossy link: a burst after a loss's stall read as the path's rate
 

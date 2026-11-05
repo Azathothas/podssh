@@ -13,6 +13,8 @@ target sandbox, and release it.
   fails unless `AWS_LC_SYS_PREBUILT_NASM=1` asks for its prebuilt objects
   (aws-lc-sys's README).
 - `cmake` and `perl` for the `ts` feature only.
+- Network to github.com for the first build: some crates come from PodUtils/podcrates by a tag of
+  that repository (T-684), the one source of that kind that `deny.toml` allows.
 - Python 3 for the repository checks.
 - For the container gate on Windows: Git Bash, PowerShell, and the
   operator's `wsl-toolkit`. On Linux: Docker or Podman, which
@@ -36,7 +38,7 @@ cargo build -p podssh-cli --features iroh                        # with the iroh
 cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test   # its tests
 cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:// to loopback, for tests
 cargo test -p podssh-ws --features plain-ws --test cloudflare_access # the road of cloudflared (T-264)
-cargo build -p podssh-cli --features warp                        # with WARP's road (T-352, Rust 1.91)
+cargo build -p podssh-cli --features warp                        # with WARP's road (T-352)
 cargo test -p podssh-warp -p podssh-cli --features podssh-cli/warp --lib   # its tests
 cargo test -p podssh-warp --test small_frames                    # its tunnel under volume (T-398)
 cargo test -p podssh-warp --features stand-in --test road        # the probe of an open tunnel (T-560)
@@ -318,7 +320,7 @@ The other steps make sure that:
    tmux, installed here and named by `PODSSH_TEST_TMUX`, shows each sequence
    of the terminal oracle's corpus as its model does (T-200,
    `docs/terminal.md`, "Tests").
-2. (`record`) The work record agrees with itself (`crates/podssh-todo`). Its
+2. (`record`) The work record agrees with itself (`crates/podssh-todo`, a wrapper of `pod-todo`). Its
    checker passes its tests, where each planted disagreement must be found,
    and then checks `TODO/`: the counts against the rows, the status, title and
    milestone of each row against its entry, each id that a document names,
@@ -556,7 +558,7 @@ podssh-core (and of `pod-term` in PodUtils/podcrates) state what must hold for e
 machine, and proptest checks it on inputs that it makes (T-202): frames
 and fragments of WebSocket, the sanitizer, relay lists and paths,
 `known_hosts` patterns, the escape filter, the IRC line framing and the
-line discipline. Each runs in the gate, on stable Rust, with no C.
+line discipline. Each runs in the gate, on stable Rust.
 
 ```sh
 cargo test -p podssh-ws --test properties

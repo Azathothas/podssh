@@ -305,7 +305,9 @@ that session lasts; `usbip detach` ends it.
 
 podssh is a Rust workspace (`crates/`). It needs Rust 1.99 or later and a C
 compiler: the SSH client uses aws-lc (through `russh`). Each released
-binary is statically compiled, and the gate checks it.
+binary is statically compiled, and the gate checks it. Some crates (the terminal's, the record's
+checker, the identity) come from [PodUtils/podcrates](https://github.com/PodUtils/podcrates) by a
+tag of that repository, so the first build needs github.com.
 
 ```sh
 export CARGO_BUILD_JOBS=4

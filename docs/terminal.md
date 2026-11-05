@@ -24,7 +24,7 @@ shows each key two times.
 | refused | terminal | Keeps the local terminal in its normal mode, so its line discipline gives echo and editing. Prints "no pty on the server" one time on stderr. |
 | refused | not a terminal | A plain pipe, as for a command. |
 
-The line discipline in the process (`pod-term` of PodUtils/podcrates, until T-684 `crates/podssh-terminal`) is for the
+The line discipline in the process (`pod-term` of PodUtils/podcrates, taken by T-684 in the place of `crates/podssh-terminal`) is for the
 case that remains: keys arrive raw, and nothing below edits them, neither a
 pty nor a line discipline. Three facts choose its mode (`Mode::select`):
 a pty below, a line discipline below, and the caller's selection. It

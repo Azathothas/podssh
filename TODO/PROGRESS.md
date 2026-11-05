@@ -5,7 +5,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## State
 
-- **Checkpoint, 2026-11-05, about 00:30 UTC: the end of the night of 2026-11-04 (Q98 to Q100).**
+- **Checkpoint, 2026-11-05, about 00:30 UTC: the end of the night of 2026-11-04 (Q98 to Q100); items 7
+    and 8 tell the move to PodUtils as it stood at the end of that morning.**
   1. **`v1.1.0-beta.2` is published** (from `dbd0fac`, 2026-11-04 18:48 UTC; its proofs passed).
      **`v1.1.0-beta.3` is published** (Q98), from `6d30328` at 01:30 UTC on 2026-11-05: made
      ready at `35e4932`, but the gate had been red since T-664 on three causes that the night read
@@ -28,20 +29,32 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      matrix): a key's echo beside a download is now about 100 to 140 ms on a cellular link
      (OpenSSH 1.6 s) and 0.4 to 0.8 s on a link of 1 Mbit/s (OpenSSH 16 s); a session resumes 1 s
      after a move; a cold connect is two round trips shorter than before and than OpenSSH's.
-  4. **Partial and watched:** T-465, T-627, T-319, T-321, T-253 (as before), and those of item 3.
-  5. **The work order** (below): the rest of osewa's entries (T-678 and the partial ones), then
-     GitHub #127 to #148's open entries by priority, then M10's items 2 and 3 (T-106, T-433,
-     T-180, T-434, T-459).
+  4. **Partial and watched:** T-465, T-627, T-319, T-321 (as before), T-684 (item 7), and those of item 3.
+  5. **The work order** (below): the move's open work (item 7), then the rest of osewa's entries
+     (T-678 and the partial ones), then GitHub #127 to #148's open entries by priority, then M10's
+     items 2 and 3 (T-106, T-180, T-434, T-459).
   6. **Two lessons of the night** (each in the paragraph of the drafts below): never commit while
      `scripts/plant-each.sh` runs; when the disk fills, remove `target/` whole.
-  7. **The move (2026-11-05, morning):** the repository goes to PodUtils/podssh and the shared
-     crates to PodUtils/podcrates (`docs/decisions.md`). No compatibility with the released binaries
-     for now (the operator): T-683 renames the repository's name after the transfer, with no bridge
-     release; T-684 waits for Q101, the list of crates
-     agreed with podnet's session. podbox is podvm.
-  8. **Whatever is necessary, statically compiled (2026-11-05, the operator):** C, zig and the
-     newest stable Rust in each crate; T-685 (P1) retires the gate's checks of the old rules, first
-     after the red gate of `b8816ca` (m6, likely T-682).
+  7. **The move to PodUtils (2026-11-05).** The repository is PodUtils/podssh and the shared crates
+     go to PodUtils/podcrates (`docs/decisions.md`). No compatibility with the released binaries for
+     now, and no bridge release (the operator). Done: T-683 (the name in the code, the manual, the
+     workflows and the documents); T-685 (the gate has no step at a minimum Rust and no
+     `CC=/nonexistent`; each crate is edition 2024 with Rust 1.97 from the workspace, moving to 1.99
+     with `pod-tls`; `scripts/check-static.sh` checks the one rule, a static binary); T-686
+     (`publish.yml`, its switch off). Partial: T-684. podssh takes each crate by a git tag of
+     PodUtils/podcrates (Q101, Rule Q3): `pod-todo` (`crates/podssh-todo` is a wrapper, with
+     `TODO/todo.toml`), `pod-term` (`podssh-terminal` is gone), `pod-identity` and `pod-core`
+     (`podssh-relay`'s `identity` re-exports them) are taken; `pod-tls` (`podssh-ws`'s TLS, with thin
+     wrappers) is taken; `pod-proxy` is being imported into podcrates, so its files of `podssh-ws`
+     (`dial.rs`, `proxy.rs`, `proxy_auth.rs`, `socks5.rs`, `mptcp.rs`, `race.rs`, `cut.rs`, `lowat.rs`,
+     `write_limit.rs`, `stun.rs`, `http.rs`, `http/`, the GET client of `client.rs`) take fixes only;
+     next `pod-dns` and `pod-ws`, then the waves of Q101. An
+     open entry whose code is in such a module has a `## Correction` of 2026-11-05 that names the
+     crate. Blocked: T-687 (Q102, the owner). Asked: Q103 (the facade for podvm, T-085) and Q104 (the
+     version of the next release, T-446). podbox is podvm.
+  8. **Whatever is necessary, statically compiled (2026-11-05, the operator):** C, zig and the newest
+     stable Rust in each crate (rule 4 of `AGENTS.md`); T-685 retired the checks of the old rules. An
+     entry that says "no C" or "pure Rust" for a crate has a `## Correction` that reads it so.
 
 - **The record.** The work is in `TODO/` since 2026-10-08 (T-204). Each open
   item of `docs/ROADMAP.md`, each row of the former defects page, each
@@ -217,6 +230,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   At 06:15 UTC a twelfth round was drafted: T-649 and T-650 (GitHub #147 and #148), T-433
   (`podssh share`), each merged, and T-679 (a node's upgrade on its other roads,
   `09ed1ba`), merged in `bbac5dc`; no draft waits.
+  On 2026-11-05 a thirteenth round, the audit of the record and the live documents after the move,
+  was drafted and merged the same day (`cargo todo check` at the merge); its worktree is gone.
   A merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
   `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
   applied in the tree then); and when the disk fills, remove `target/` whole, never files under
@@ -257,7 +272,8 @@ and `CARGO_BUILD_JOBS=4`:
   181 passed, 0 failed, 14 ignored (the live tests).
 - `sh scripts/dev.sh check` (after T-212): green; interop 103 of 103. The steps that
   later changes touched, each alone in the build image after them: green.
-- `cargo test -p podssh-todo` (2026-10-11): 77 passed: 15 unit tests, 37
+- `cargo test -p podssh-todo` (2026-10-11; since 2026-11-05 the package is a wrapper of `pod-todo`
+  of PodUtils/podcrates, whose tests are its own, T-684): 77 passed: 15 unit tests, 37
   plant tests (35 planted disagreements and two controls), 15 tests of the
   remap, 2 of `--base`, 7 tests of the writer, and the test of this record.
 - `cargo todo check`: the record agrees. `python scripts/check-repo.py`: ok.
@@ -274,6 +290,18 @@ Open includes parked work. `cargo todo check` verifies this line.
 Finish each entry, close it in place, update this page in the same commit,
 then take the next one. Each session runs unattended until the goal of
 `AGENTS.md` (section 2) is reached or the operator interrupts it.
+
+**First (2026-11-05): the move to PodUtils.** T-684, partial, is continued first, as `AGENTS.md`
+says: merge `pod-tls`, then take `pod-proxy`, `pod-dns` and `pod-ws` as the podcrates session hands
+each over (Rule Q3 of `docs/decisions.md`: from the import, podssh changes that code for fixes only;
+after podssh takes the crate, the work is done in PodUtils/podcrates). With it, the defects T-688 and
+T-689, tests that fail on one platform or one toolchain, before any other work. T-687 waits for the
+owner (Q102). Where a `## Correction` of 2026-11-05 says that the code of an entry is in a crate that
+podssh has taken (`pod-tls` once merged, `pod-term`, `pod-todo`, `pod-identity`), that change is made
+in PodUtils/podcrates, or asked there as an issue; the part of the entry that uses the crate stays
+podssh's (T-111's serve, for one). A crate that podssh has not taken yet is changed here, as before,
+and carried by the import. T-085's second half waits for Q103, and T-446's version and its
+criterion of a client of `v1.0.0` for Q104; their first parts go on.
 
 **After M3 and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: done.
@@ -401,8 +429,6 @@ it can start.
 | T-567 | T-565 is done: the module for a tunnel of HTTP made by `ssh -R` exists |
 | T-575 | T-497 is done: the road has public servers in order |
 | T-622 | T-319 is done: the HTTP road's split and serial forms exist |
-| T-250 | Each entry is done, except the relay's, and the gate is green |
-| T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 
 ## Questions for the operator
 
@@ -418,6 +444,24 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 (Q90: T-574's built-in nodes, T-612, T-613 and T-614); four more live test targets (Q91: T-463,
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
+
+**Q104 (2026-11-05): what is the number of the next release, and what takes the place of the
+criterion "a client of `v1.0.0` works unchanged"?** T-446's Decision says `1.1.0` "breaks none of
+`1.0.0`", and M10's exit criteria (`docs/ROADMAP.md`) ask that the forward road, the reverse road and
+`doctor` of a client of `v1.0.0` work unchanged through `podssh relay serve`. The operator ruled on
+2026-11-05 that there is no compatibility with released binaries for now, no bridge release and no
+test against one (`docs/decisions.md`). Recommendation: keep `v1.1.0` as the number, since only the
+operator's agents ran `v1.0.x`; replace the criterion by the same three checks run with the binary of
+the release itself against the role of the same commit, and write the break in the release notes.
+Blocks the last part of T-446 (the entry stays `partial`; its betas go on).
+
+**Q103 (2026-11-05): does podvm take the blocking facade from `pod-relay` in the place of a pin of
+podssh's revision?** T-085's second half asks a test in this repository of the facade for podvm, and
+the operator's action "pin the facade in podvm" waits for the release. `podssh-relay`'s `blocking/`
+goes to `pod-relay` of PodUtils/podcrates (Q101, wave 2), which podvm can take by a tag, as podssh does.
+Recommendation: yes. The test of two clients at once then goes with the facade into `pod-relay`, T-085
+keeps only the two boxes (its first half), and the operator action is dropped when podvm takes the crate.
+Until the operator rules, T-085's second half does not start; the entry stays `open` for its first half.
 
 **Q102 (2026-11-05): may podssh publish crates to crates.io, which, and under which names?**
 `publish.yml` is ready with its switch off (T-686). Blocks T-687: no crate can go as it is (the
@@ -447,12 +491,14 @@ Rust 1.97 and edition 2024, and podssh takes it by a git tag of PodUtils/podcrat
   `pod-e2e`; 3, `pod-warp` (with the stand-in edge into `pod-testkit`), `pod-cloudflare`,
   `pod-wormhole`, `pod-transit`; 4, `pod-relay-serve`, `pod-derp`, `pod-acme`, `pod-egress`,
   `pod-iroh`, `pod-ts` (with the headscale harness), `pod-tor`, `pod-piping`, `pod-opentunnel`.
-- The rules of each crate: no C, no `podssh-ws` type; the binary passes a rustls
-  `CryptoProvider` and a dialer; podssh's pure-Rust provider and the RSA verifier (rsa 0.9) behind
-  a feature of `pod-tls`; crates.io only, no git source; `pod-relay` keeps the `blocking` facade for
-  podvm, and the library crates Rust 1.89 (`pod-netstack` and `pod-warp` 1.91, smoltcp 0.14's);
-  a name of the wire may change, with no test against a released binary (the operator,
-  2026-11-05: no compatibility with the released binaries for now).
+- The rules of each crate (as changed on 2026-11-05 by T-685 and the owner's rulings; the first
+  text said no C, crates.io only and Rust 1.89):
+  no `podssh-ws` type; the binary passes a rustls `CryptoProvider` and a dialer; each crate may link
+  C and declares Rust 1.97, edition 2024; podssh takes it by a git tag of PodUtils/podcrates, not
+  from crates.io; podssh's pure-Rust provider and the RSA verifier (rsa 0.9) stay behind a feature
+  of `pod-tls`; `pod-relay` keeps the `blocking` facade for podvm; a name of the wire may change,
+  with no test against a released binary (the operator, 2026-11-05: no compatibility with the
+  released binaries for now).
 - Who builds: a new session in PodUtils/podcrates, fed by both repositories; neither podssh's
   session nor podnet's edits podcrates.
 - podssh keeps: `podssh-cli`, `podssh-ssh` (it takes the patched russh and ssh-key), the IRC of
@@ -670,19 +716,15 @@ None blocks a session. At any time: requiring the status `all` of the
 workflow `build` for `main`, if the operator wants a required check (T-212);
 `main` requires none today.
 
-Dependabot's updates reach `main` through a session (the operator,
-2026-10-30, `docs/decisions.md`). Azathothas/podssh#53 (the group of 11
-updates) fails the gate's step iroh (run 41075421658): the iroh road
-through a SOCKS5 proxy in `ALL_PROXY` never comes online
-(`crates/podssh-iroh/tests/proxy_env.rs`,
-`a_socks5_proxy_in_all_proxy_reaches_the_relay_by_name`), where `main`
-passes it; a session finds why, repairs it, and commits the updates.
+Dependabot's updates reach `main` through a session (the operator, 2026-10-30,
+`docs/decisions.md`). The group of 11 that failed the gate's step iroh (Dependabot's #53) is in `main` (T-329).
 
 After the release:
 
 - A run of T-004 and T-005 in a real sandbox, with the brief of
   `scripts/sandbox-check.sh`.
-- Pinning the facade of `podssh-relay` in podvm, formerly podbox (T-081, T-085).
+- Pinning the facade of `podssh-relay` in podvm, formerly podbox (T-081, T-085): replaced by podvm taking
+  `pod-relay`'s feature `blocking` by a tag, if the operator rules so (Q103).
 
 As the operator of the default relay, at any time and with no entry waiting: the notes of
 `docs/relay-operator.md`, each of which podssh's own relay role does since Q63 (2026-11-02).
