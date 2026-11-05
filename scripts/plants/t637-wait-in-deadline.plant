@@ -1,0 +1,7 @@
+# T-637: the wait at a host's gate counts against the attempt's deadline, so
+# a session held past it reads as a host that did not answer; the test of a
+# held session that is not a timeout must fail.
+ENTRY=T-637
+GROUP=resume
+EXPECT='test gate::tests::the_wait_never_counts_against_the_deadline \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- gate::tests::the_wait_never_counts_against_the_deadline'

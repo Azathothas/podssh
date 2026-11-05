@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/gate.rs
++++ b/crates/podssh-relay/src/gate.rs
+@@ -222,7 +222,7 @@ impl Gates {
+             match verdict {
+                 // An answer of this epoch opens the gate; one of an older
+                 // epoch would shorten a wait, and never does.
+-                Some(Verdict::Alive) if current && state.closed.is_some() => {
++                Some(Verdict::Alive) if state.closed.is_some() => {
+                     state.closed = None;
+                     state.epoch += 1;
+                 }

@@ -377,24 +377,9 @@ fn relay() -> Vec<Block> {
                 secs(failover::STAGGER)
             ),
         ),
-        item(
-            vec![lit("A host that failed")],
-            format!(
-                "A relay host that failed with an error that another host can repair, or that said nothing \
-                 while a host after it opened, is tried last for {w} min, in each run and each mode, also in \
-                 a list that you named; a note says so, and no host is left out. So is a host whose last {} \
-                 sessions were cut on its side (the link lost, or the relay's close for it) within {} s of \
-                 their open, for {} min. A host that opened in the last {w} min, with no failure since and its \
-                 last session not cut, is tried before the others. The record is {} in the cache, for each \
-                 road apart; a host that opens keeps its entry, with no failure. podssh status and podssh \
-                 doctor show it.",
-                podssh_relay::failures::STRIKES,
-                podssh_relay::failures::SHORT.as_secs(),
-                podssh_relay::failures::REST.as_secs() / 60,
-                podssh_relay::failures::FILE,
-                w = podssh_relay::failures::WINDOW.as_secs() / 60,
-            ),
-        ),
+        failed::host(),
+        // The gate that the sessions of one process share (T-637).
+        failed::gate(),
         item(
             vec![lit("A dropped session")],
             "podssh ssh tries a session again when the relay dropped it before any request reached the \
@@ -489,6 +474,7 @@ fn relay() -> Vec<Block> {
 
 mod cloud;
 mod exit;
+mod failed;
 mod http_road;
 mod iroh_road;
 mod net;

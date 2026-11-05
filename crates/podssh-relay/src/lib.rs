@@ -11,6 +11,8 @@
 //!   kept in the cache for a run whose resolver fails (T-344);
 //! - [`mod@open`]: a forward session, failing over from host to host with backoff,
 //!   one bounded attempt per host;
+//! - [`gate`]: each relay origin's gate in the process, which the sessions
+//!   of a process share, so that a wave of failures costs one probe (T-637);
 //! - [`cleartext`]: the road with no TLS on the relay's port, last, with a
 //!   token of one session, for a proxy that cuts TLS (T-326);
 //! - [`h2_road`]: which forward sessions are streams of one HTTP/2
@@ -74,6 +76,8 @@ pub mod e2e;
 pub mod failover;
 pub mod failures;
 pub mod forward_layer;
+// A gate for each relay origin, shared by the sessions of a process (T-637).
+pub mod gate;
 #[cfg(feature = "grant")]
 pub mod grant;
 pub mod h2_road;
