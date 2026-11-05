@@ -190,7 +190,7 @@ fn status_info_and_trace_read_the_role_as_they_read_the_default_relay() {
 #[test]
 fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
     let s = Session::start("serve-usage");
-    let cases: [(&[&str], &str); 10] = [
+    let cases: [(&[&str], &str); 12] = [
         (&["relay", "serve", "--cert", "c.pem", "--key", "k.pem"], "needs --listen"),
         (&["relay", "serve", "--listen", "127.0.0.1:0"], "needs --cert FILE and --key FILE"),
         (
@@ -213,6 +213,12 @@ fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
             "--allow-private dials each address",
         ),
         (&["relay", "status", "--routes", "10.0.0.0/8"], "go with `podssh relay serve` only"),
+        // A key's budget, and its counts, where no key mints (T-636).
+        (
+            &["relay", "serve", "--listen", "127.0.0.1:0", "--cert", "c", "--key", "k", "--quota", "10"],
+            "--quota counts the keys that mint",
+        ),
+        (&["relay", "info", "--usage", "counts.json"], "go with `podssh relay serve` only"),
     ];
     for (args, says) in cases {
         let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();

@@ -125,6 +125,11 @@ where
     if !token_ok {
         return write(stream, refuse(403, "http: missing or wrong token", &[], keep), keep).await;
     }
+    // The token's key, and its budget, before anything is dialed (T-636).
+    let meter = match super::usage::meter_of(cfg, head) {
+        Ok(meter) => meter,
+        Err(why) => return write(stream, refuse(403, &format!("http: {why}"), &[], keep), keep).await,
+    };
     let Some(asked) = forward::asked(&head.target.replacen(OPEN, "/connect/", 1)) else {
         let path = head.target.split('?').next().unwrap_or_default();
         return write(stream, refuse(400, &format!("{path}: the path is {OPEN}HOST/PORT"), &[], keep), keep).await;
@@ -156,7 +161,7 @@ where
         }
     };
     super::sockets::bound_unsent(&tcp);
-    let (session, key) = match Session::open(cfg.clone()) {
+    let (session, key) = match Session::open(cfg.clone(), meter) {
         Ok(opened) => opened,
         Err(why) => return write(stream, refuse(503, &format!("http: {why}"), &[], keep), keep).await,
     };

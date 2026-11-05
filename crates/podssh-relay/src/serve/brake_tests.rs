@@ -114,6 +114,7 @@ fn role(clock: Clock) -> (Arc<Config>, Arc<Mutex<Vec<String>>>) {
         resumes: Default::default(),
         answered: Default::default(),
         brake: Brake::new(PER_MINUTE, WINDOW_MS, ADDRESSES, clock),
+        usage: Default::default(),
         events: Some(say),
     };
     (Arc::new(cfg), said)

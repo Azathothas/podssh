@@ -18,6 +18,7 @@ use podssh_relay::relay::Relay;
 use podssh_relay::serve::egress::Egress;
 use podssh_relay::serve::layer::Resumes;
 use podssh_relay::serve::policy::Policy;
+use podssh_relay::serve::usage::Usage;
 use podssh_relay::serve::{self, Config, Limits, Mint};
 use podssh_ws::session::RelaySession;
 use podssh_ws::ConnectError;
@@ -68,6 +69,13 @@ impl Role {
         Role::serving(Mint::Anyone, policy, egress, resumes, pairs, limits).await
     }
 
+    /// The role for `mint`, with `policy`, its own `limits` and its counts of
+    /// each key, a budget among them (T-636).
+    pub async fn metered(mint: Mint, policy: Policy, limits: Limits, usage: Usage) -> Role {
+        let (egress, resumes, pairs) = Default::default();
+        Role::counted(mint, policy, egress, resumes, pairs, limits, usage).await
+    }
+
     async fn serving(
         mint: Mint,
         policy: Policy,
@@ -75,6 +83,18 @@ impl Role {
         resumes: Resumes,
         pairs: serve::reverse::Pairs,
         limits: Limits,
+    ) -> Role {
+        Role::counted(mint, policy, egress, resumes, pairs, limits, Usage::default()).await
+    }
+
+    async fn counted(
+        mint: Mint,
+        policy: Policy,
+        egress: Egress,
+        resumes: Resumes,
+        pairs: serve::reverse::Pairs,
+        limits: Limits,
+        usage: Usage,
     ) -> Role {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
         let port = listener.local_addr().unwrap().port();
@@ -92,6 +112,7 @@ impl Role {
             resumes,
             answered: Default::default(),
             brake: Default::default(),
+            usage,
             events: Some(say),
         });
         let served = cfg.clone();

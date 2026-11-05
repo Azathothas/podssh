@@ -285,6 +285,7 @@ mod tests {
             resumes: Default::default(),
             answered: Default::default(),
             brake: Default::default(),
+            usage: Default::default(),
             events: None,
         };
         let head = b"GET /relays.json HTTP/1.1\r\nHost: relay-a.test:8443\r\n\r\n";

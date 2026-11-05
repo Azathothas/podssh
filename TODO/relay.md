@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags/relay.rs:9-90`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags/relay.rs:9-95`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:340-361` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:345`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:346`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -3158,7 +3158,7 @@ URL written into each result, and a download target that is no test target of `A
   (`crates/podssh-cli/src/ping/mod.rs:167-172`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
   (`crates/podssh-cli/src/doctor/relay_checks.rs:197-228`); `--quick` keeps the relay's sections and
-  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:146-150`).
+  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:151-155`).
 - Read: `podssh relay trace` asks the relay to dial a target and gives its own times
   (`crates/podssh-cli/src/relay_diag.rs:182-185`); `relay info` gives the pool
   (`crates/podssh-cli/src/relay_diag.rs:133-135`).
@@ -4076,17 +4076,17 @@ so a fault in any of them runs with more than the role needs. Nothing after the 
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/relay_serve.rs:250` says "let listener = std::net::TcpListener::bind(listen)",
-  and `:185` reads its address; the runtime and its two workers come later, in
-  `crates/podssh-cli/src/relay_serve.rs:292`, which says "worker_threads(2)". Between the two the
+- `crates/podssh-cli/src/relay_serve.rs:260` says "let listener = std::net::TcpListener::bind(listen)",
+  and `:194` reads its address; the runtime and its two workers come later, in
+  `crates/podssh-cli/src/relay_serve.rs:302`, which says "worker_threads(2)". Between the two the
   process has one thread, so a drop there holds for each thread made after it. The issue's line
   numbers are of an older tree; the order is as it says.
-- The listener is the user's (Q1): `crates/podssh-cli/src/relay_serve.rs:171` says
+- The listener is the user's (Q1): `crates/podssh-cli/src/relay_serve.rs:180` says
   "crate::pipe::listen::allowed()?;" before the bind.
 - No source of the workspace calls `prctl` or `capset` (searched for `capset`, `NO_NEW_PRIVS` and
   `CAPBSET`), so no step drops a privilege today.
 - After the bind the role still reads files: the certificate on SIGHUP and when its files change
-  (`crates/podssh-cli/src/relay_serve.rs:333-340`, T-447), the file of pairs at each pair
+  (`crates/podssh-cli/src/relay_serve.rs:343-350`, T-447), the file of pairs at each pair
   (`crates/podssh-relay/src/serve/reverse/pairs.rs:292`), and ACME's cache at each renewal. A root
   that dropped `CAP_DAC_OVERRIDE` reads a file of another owner only as its mode lets uid 0
   (Inferred from capabilities(7); not measured here).
@@ -4224,12 +4224,12 @@ Read at `2042200`:
 - `crates/podssh-relay/src/serve/policy.rs:107-109` hands a name to the host's proxy unresolved only with
   `private`, so a role without `--allow-private` checks each address that it dials.
 - The flag: `crates/podssh-cli/src/flags/relay.rs:66` (the row `allow-private`),
-  `crates/podssh-cli/src/relay_serve.rs:214` says "private: s.allow_private", and the role behind a
+  `crates/podssh-cli/src/relay_serve.rs:223` says "private: s.allow_private", and the role behind a
   quick tunnel the same in `crates/podssh-cli/src/node_quick_relay.rs:104`.
 - Each road of the role goes through `Policy::plan`: `/connect/`
-  (`crates/podssh-relay/src/serve/forward.rs:91`), the resumable layer
-  (`crates/podssh-relay/src/serve/layer.rs:180`), the HTTP road
-  (`crates/podssh-relay/src/serve/http_road/mod.rs:137`) and `/trace`
+  (`crates/podssh-relay/src/serve/forward.rs:100`), the resumable layer
+  (`crates/podssh-relay/src/serve/layer.rs:185`), the HTTP road
+  (`crates/podssh-relay/src/serve/http_road/mod.rs:142`) and `/trace`
   (`crates/podssh-relay/src/serve/docs.rs:132`); one change there serves each.
 - podssh has this list already for an exit: `podssh node --exit --routes` takes ranges
   (`crates/podssh-cli/src/node_exit.rs:93`), each a `Range` of `ADDR/BITS` or one address
@@ -4338,7 +4338,7 @@ from there, so each reader of the net is unchanged.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4350,16 +4350,16 @@ and nothing says, or limits, what one key carried in a day. A restart forgets it
 
 Read at `2042200`:
 
-- One counter for both ways: `crates/podssh-relay/src/serve/forward.rs:238` says
-  "let moved = Arc::new(AtomicU64::new(0));", and `:312` ends the session at the cap;
-  `crates/podssh-relay/src/serve/mod.rs:74` says "Payload bytes, both ways together." The counter
+- One counter for both ways: `crates/podssh-relay/src/serve/forward.rs:250` says
+  "let moved = Arc::new(AtomicU64::new(0));", and `:330` ends the session at the cap;
+  `crates/podssh-relay/src/serve/mod.rs:76` says "Payload bytes, both ways together." The counter
   dies with its session.
 - A token names no key: `crates/podssh-relay/src/serve/tokens.rs:61` MACs the expiry alone under the
   run's secret, which `:52` draws at each start, so a restart ends each token
   (`docs/relay.md:92` says "a token is the contract's form under a secret of the run"). A ledger keyed
   by the token, as the issue first proposes, would count a principal that the next mint or restart
   replaces; the issue's own Risks say so.
-- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:336-340` takes the key that
+- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:368-372` takes the key that
   proved itself, and drops it after its line.
 - The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:446`)
   and a SHA-256 of each token (`:443`).
@@ -4391,12 +4391,37 @@ the token's digest; a new form of token that carries the key (the contract's for
 cache, and the digest's map does the same in the role's memory); budgets for each way apart (one
 budget holds what an owner lends; the counts keep both ways for the line).
 
+2026-11-05 (the drafting agent of T-636). Under a budget, a token that the role minted for a key and
+holds no more (past the key's 64) is refused, `403 forward: this relay counts each token for its key,
+and holds this one no more; mint another`, and podssh's client, which forgets a cached token that a
+relay refuses, mints once more: forgotten silently, its sessions would count against no key, and a key
+that minted 65 tokens would pass its budget. Without a budget nothing is refused, and such a token
+counts against no key. Two mints of one millisecond make one token (`ephm1.<expiry>.forward.<mac>`),
+so the second key's is minted a millisecond shorter, 64 times at most, then `503`; lost: a nonce in
+the token, which changes the contract's form. A session is charged once, at its end, so a key may pass
+its budget by the sessions that it holds open, 64 MiB each at most, and a session open at a stop or a
+crash is not kept; lost: a charge at each frame (a lock and a count of the file at each frame, and the
+plant), and a session cut at its key's budget, which the Approach does not ask and which would end a
+client's shell in the middle. A request that never became a session (a refusal, a target out of
+reach) charges nothing and counts no session: the count starts at the upgrade. Each link of the layer
+is a session of its own, its frames of the layer among its payload, as for its cap of 64 MiB. The file
+is read up to 16 MiB, not the cache's 64 KiB (`crates/podssh-relay/src/cache.rs:45`), which holds a few
+hundred keys: a role whose own file grew past it would not start. `--quota` is whole MiB from 1 to
+16777216; `--quota` and `--usage` beside `--mint anyone` or `nobody`, which count no key, are usage
+errors (64). The relay behind a quick tunnel counts in memory, with no budget; lost: `--quota` for
+`podssh node --relay` now, whose flags of the role are `relay serve`'s four. The Prove's test through
+the role is `--test relay_serve_usage`: `crates/podssh-relay/tests/relay_serve_contract.rs` holds 485
+lines.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib serve::usage
-cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_contract
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_usage
+cargo test -p podssh-cli --lib relay_serve::quota
+cargo test -p podssh-cli --test relay_serve serve_refuses
+sh scripts/plant-each.sh --here t636-charge-each-frame
 ```
 
 A new module's tests: a key's total comes back from the file after a restart; a half-written file
@@ -4404,6 +4429,42 @@ leaves the old one whole; a token minted for anyone is charged to no key; the da
 over. Through the role: a key over its budget is refused before the dial, and the stand-in target sees
 no connection; keepalives charge nothing; two keys count apart. Planted: the charge at each frame in
 place of the session's end, and the test that counts one session once fails.
+
+## Done
+
+2026-11-05, merged from its draft (`034dc65`).
+
+- The counts (`crates/podssh-relay/src/serve/usage.rs`, with `usage_keyed.rs` and `usage_file.rs`): at
+  each mint for a key, `/v1/mint` keeps the token's SHA-256 with the key's fingerprint, also a token
+  of one session of the cleartext road; `/connect/` (`forward.rs`), each link of `/v1/layer/`
+  (`layer.rs`) and `/v1/http/open/` (`http_road/`) take a `Meter` of the token's key before the dial,
+  `403` for a key whose budget is spent, count the payload each way, and charge once at the end (a
+  drop of the session's task charges too); `Config` holds the counts (`usage`). `relay serve
+  --quota MIB` and `--usage FILE` (`crates/podssh-cli/src/relay_serve/quota.rs`), the first line's
+  words, the keeper of the file each 2 s, a write at a planned stop, and each key's totals at SIGHUP.
+  The manual (the notes of `relay serve`, the rows of `--quota` and `--usage`), `docs/relay.md` ("What
+  each key carried, and its budget for a day") and `docs/cli.md` say it.
+- `cargo test ... --lib serve::usage`: 6 passed (one session charged once at its end, each way
+  apart, two keys apart, a refusal no session; a token of anyone's charged to no key, and refused
+  under a budget where the role mints for keys; 64 live tokens a key, one token one key's; the budget
+  spent, said once, and turned over by the day, the day before kept; the totals back from the file
+  after a restart, a private file, nothing after two days, a file cut short refused; a write that
+  fails leaves the file of before whole, and the next takes each count).
+- `cargo test ... --test relay_serve_usage`: 2 passed (through the role, `--mint keys:` of two
+  keys and a budget of 64 bytes: 40 bytes each way charged once; then `/connect/`, `/v1/layer/` and
+  `/v1/http/open/` refuse the key, also with a new token, and the target sees one connection alone;
+  the other key counts apart; keepalives each 100 ms and empty frames of the client charge nothing).
+- `cargo test -p podssh-cli --lib relay_serve::quota`: passed (the bounds of `--quota`, and both
+  flags refused where no key mints). `cargo test -p podssh-cli --test relay_serve serve_refuses`:
+  passed (`--quota` with `--mint nobody` is 64; `--usage` with another subcommand is 64).
+- Planted, a charge at each frame (`sh scripts/plant-each.sh --here t636-charge-each-frame`):
+  caught (the test of one session charged once failed); `t671-close-ends-the-session`, which the
+  draft brought up to date, caught.
+- The crates whole, at the merge onto T-667: the relay crate with each serve feature and `quic`,
+  869 passed; podssh-ws 481; the CLI 1,921; 0 failed. Clippy clean after two repairs of the draft's
+  tests (`expect_err`, and a conversion that only T-646's list needs); rustfmt rewrapped its lines.
+  `relay_serve.rs`'s tests moved to `relay_serve/tests.rs`, as the role's flags of both entries made
+  the file 513 lines.
 
 # T-637: Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline
 
@@ -4499,7 +4560,7 @@ Read at `2042200`:
   takes nothing.
 - So an SSH client, whose version line begins `SSH-`, meets the cleartext road, which reads an HTTP
   head (`crates/podssh-relay/src/serve/cleartext.rs:60`) under the role's 30 s
-  (`crates/podssh-relay/src/serve/mod.rs:59`): the client waits for a banner that never comes, then is
+  (`crates/podssh-relay/src/serve/mod.rs:61`): the client waits for a banner that never comes, then is
   cut (Inferred from the code; not measured). With `--cleartext no` it meets TLS, which fails at once.
 - The node's check of a standard sshd peeks for the version line in the same way
   (`crates/podssh-relay/src/reverse/sshd.rs:1-5`), each 20 ms (`:19`); the word is the node's
@@ -4558,14 +4619,14 @@ the start with a path that was never one.
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/relay_serve.rs:234-247` reads `keys:` and makes the rest a path, with no
-  other form; `crates/podssh-cli/src/relay_serve.rs:282-289` reads it at the start, and a file that
+- `crates/podssh-cli/src/relay_serve.rs:244-257` reads `keys:` and makes the rest a path, with no
+  other form; `crates/podssh-cli/src/relay_serve.rs:292-299` reads it at the start, and a file that
   does not read stops it (78). The role behind a quick tunnel reads the same words
   (`crates/podssh-cli/src/node_quick_relay.rs:70`).
 - The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs:80`, and
   `crates/podssh-relay/src/serve/keys.rs:84` says "this relay cannot read its list of keys";
   `docs/relay.md:828` says "read again for each request".
-- `crates/podssh-relay/src/serve/mod.rs:102` holds the list as a path; the net's members are a source
+- `crates/podssh-relay/src/serve/mod.rs:104` holds the list as a path; the net's members are a source
   that the binary gives (`crates/podssh-relay/src/serve/keys.rs:31`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.
 - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB
@@ -4682,7 +4743,7 @@ role's forward road.
 
 - `docs/relay.md:376` says "is no TCP half-close. But the target's bytes still come after the client's",
   measured on the default relay on 2026-10-09.
-- `crates/podssh-relay/src/serve/forward.rs:267` says "return End::Client;": the client's Close
+- `crates/podssh-relay/src/serve/forward.rs:283` says "return End::Client;": the client's Close
   ends the pump of both ways, after `to_target.shutdown()`.
 
 ## Approach

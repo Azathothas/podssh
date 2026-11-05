@@ -897,6 +897,51 @@ at least; the other half goes to whoever asks first.
   count of the net's members includes those that its policy refuses, which
   makes each reserve smaller, never one key's larger than its part.
 
+## What each key carried, and its budget for a day (T-636)
+
+A role that mints for keys (`--mint keys:FILE`, `--mint net`, or both)
+counts what each of them carried through its forward road, as an owner who
+lends the relay to their keys needs to know, and to bound
+(`crates/podssh-relay/src/serve/usage.rs`, GitHub #134).
+
+- **By the key, never by the token.** The contract's token names no key,
+  and a restart ends each one ("Tokens", above), so at each mint for a key
+  the role keeps the token's SHA-256, never the token, with the key's
+  fingerprint, in memory until the token ends: 64 live tokens a key at
+  most, the oldest forgotten first. Two mints in one millisecond make one
+  token, so the second key's is made a millisecond shorter. A token minted
+  for anyone counts against no key.
+- **Each session, once, at its end.** A session of `/connect/`, each link of
+  `/v1/layer/` (the layer's own frames among its payload, as for its cap of
+  64 MiB) and a session of the HTTP road count their payload each way
+  apart, and charge their token's key once, as they end; an empty
+  keepalive frame, either way, is no byte, and a request that the role
+  refused, or whose target it could not reach, is no session.
+- **`--quota MIB`**, a key's budget for a day (UTC), both ways together:
+  once a key spent it, each road of the forward path refuses its next
+  session before the dial, `403 forward: this key's quota of MIB for today
+  is spent` (`layer:` and `http:` on theirs), until the next day. A session
+  that began under the budget runs to its own end, so a key may pass its
+  budget by the sessions that it holds open, 64 MiB each at most. The
+  session that spent it is a line on stdout. Under a budget, a token that
+  the role holds no more (past a key's 64) gets `403 forward: this relay
+  counts each token for its key, and holds this one no more; mint
+  another`, as it would else count against no key; podssh's client forgets
+  a cached token that a relay refuses, and mints once more.
+- **`--usage FILE`** keeps each key's totals of today and the day before,
+  by its fingerprint, in a file of mode 0600, written through a private
+  file beside it and a rename, as the file of `--pairs` is, each 2 s while
+  a count moved and at a planned stop. A file that does not read, or that
+  others may read, stops the start (78), so that no start forgets what a
+  key spent; a write that fails is a line, and the next write takes each
+  count. A session open at a stop, or the last 2 s before a crash, is not
+  kept.
+- SIGHUP says each key's totals on stderr, beside the certificate's reload,
+  the most of today first, 50 keys at most. The first line names the
+  budget and the file. `--quota` and `--usage` with `--mint anyone` or
+  `nobody`, which count no key, are refused (64). The relay behind a quick
+  tunnel counts in memory alone, with no budget.
+
 ## The relay role behind a quick tunnel (T-428)
 
 Where nothing may listen, the node of a quick tunnel serves the role:

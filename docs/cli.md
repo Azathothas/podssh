@@ -3439,6 +3439,18 @@ commands. The rules behind them:
   offers `http/1.1` alone, as before; another word is a usage error (64).
   The first line says which ([relay.md](relay.md), "The relay role's
   HTTP/2").
+- **`relay serve` counts what each key carried (T-636).** With `--mint
+  keys:FILE` or `net`, each session of its forward road is charged to its
+  token's key at its end, each way apart; `--quota MIB` (1 to 16777216) is
+  each key's budget for a day (UTC), past which a session gets `403 forward:
+  this key's quota of MIB for today is spent` before its target is dialed,
+  and `--usage FILE` keeps each key's totals of today and the day before
+  across a restart, a private file written each 2 s while a count moved (a
+  file that does not read stops the start, 78). SIGHUP says each key's
+  totals on stderr. Either flag with `--mint anyone` or `nobody`, or a quota
+  that is no whole number in its bounds, is a usage error (64)
+  ([relay.md](relay.md), "What each key carried, and its budget for a
+  day").
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
   systemd when `systemctl --user` answers, else a LaunchAgent when

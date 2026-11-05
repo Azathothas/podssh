@@ -3826,7 +3826,7 @@ Read at `2042200`:
   (`crates/podssh-relay/src/serve/layer.rs:1-8`), which `proxy` and `ssh` take unasked for a relay
   host that the user named and that offers it (Q96, `docs/decisions.md:16`); and a node's sessions with
   `--no-e2e` (`crates/podssh-cli/src/flags/node.rs:136`).
-- The plain forward road keeps a half-close: `crates/podssh-relay/src/serve/forward.rs:264-267` shuts
+- The plain forward road keeps a half-close: `crates/podssh-relay/src/serve/forward.rs:280-283` shuts
   the target's writing side at the client's Close and goes on, as the default relay does
   (`docs/relay.md:346-349`). So `podssh proxy` to a target that reads until its end loses the answer on
   the layer road where it gets it on `/connect/` (Inferred from the code; not measured).
@@ -3935,8 +3935,8 @@ fails; no `END` again after a resume, and the test of a lost `END` fails; `podss
 
 - The Premise's role "goes on" after the client's Close, as the default relay does: it does not. At
   the client's Close the role's `/connect/` shuts the target's writing side and its `up` returns
-  `End::Client` (`crates/podssh-relay/src/serve/forward.rs:267` says "return End::Client;"), which
-  ends the `select!` of the session (`crates/podssh-relay/src/serve/forward.rs:325-326`): the target's
+  `End::Client` (`crates/podssh-relay/src/serve/forward.rs:283` says "return End::Client;"), which
+  ends the `select!` of the session (`crates/podssh-relay/src/serve/forward.rs:343-344`): the target's
   later bytes are not carried, where the contract says that they come until the target closes or is
   idle for 15 s (`docs/relay.md:346-349`). That is a difference of the role from the contract, outside
   this entry; the main session files it at the merge. And `podssh proxy` sends no Close at the end of

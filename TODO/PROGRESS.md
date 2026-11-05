@@ -14,8 +14,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      port's memory); T-675 and T-676 repaired them (`0500af1`). Then its gate passed (run
      41940971099), the release workflow by hand on `beta/v1.1.0-beta.3` (run 41941007776),
      `scripts/release-short.sh BINARY --net` on a static build of `6d30328`, the publish (run
-     41944902543) and the tag's run (41945306047); `release-proofs.yml` and `update-live.yml` were
-     dispatched after it. `docs/STATUS.md` marks its 19 rows. The lesson: read each failed job's
+     41944902543) and the tag's run (41945306047); then `release-proofs.yml` (run 41949133180) and
+     `update-live.yml` (run 41949136901) passed. `docs/STATUS.md` marks its 19 rows. The lesson: read each failed job's
      log before calling a red gate the place's.
   2. **GitHub #126 to #148** (Nemo-010) are T-628 to T-650 (Q100); done and closed: #126, #127,
      #128, #131, #132, #133, #137, #138, #143, #145, #146; #129's T-631 waits for T-124. The
@@ -198,10 +198,13 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   T-661 and T-662, T-663, T-629 and T-635, T-630 and T-648, T-632, T-664, T-671 and T-647, T-639
   and T-645, T-634 and T-640, T-665 and T-666, and T-670: each merged, their worktrees gone.
 
-  On 2026-11-05 a tenth round is drafted, unbuilt, one commit for each entry: T-631 and T-674
-  (`68687d5`, merged: T-631 parked until T-124, T-674 done), and still to merge: T-667
-  (`worktree-agent-a0e20fca8b0b9b7ca`), T-668 (`worktree-agent-a4bbc842962dedde7`), T-636 and
-  T-646 (`worktree-agent-ad7f7f02cd6f984d5`), T-641 and T-637 (`worktree-agent-a240a7353924c97ba`).
+  On 2026-11-05 a tenth round is drafted, unbuilt, one commit for each entry, each branch pushed
+  as `draft/worktree-agent-*`: T-631 and T-674 (`68687d5`, merged: T-631 parked until T-124, T-674
+  done), T-667 (`249f01f`, merged), T-636 (`034dc65`, merged), and still to merge: T-646
+  (`worktree-agent-ad7f7f02cd6f984d5`, `d69b76f`), T-641 and T-637
+  (`worktree-agent-a240a7353924c97ba`, `dfa734e` and `18b641c`), T-668
+  (`worktree-agent-a4bbc842962dedde7`, `8a39501`), and T-660's run of `tc netem` with osewa
+  (`worktree-agent-t660-netem`, `cf91fcd`).
   A merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
   `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
   applied in the tree then); and when the disk fills, remove `target/` whole, never files under
@@ -250,7 +253,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 631 entries: 103 open, 10 partial, 3 blocked, 515 done.
+`TODO/INDEX.md` holds 631 entries: 102 open, 10 partial, 3 blocked, 516 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

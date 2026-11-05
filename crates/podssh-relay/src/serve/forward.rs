@@ -9,6 +9,9 @@
 //! target's writing side, and the target's bytes still go to the client
 //! until it closes or is silent for 15 s, as the contract says (T-671); a
 //! link of the layer ends at its client's Close, as its session outlives it.
+//! Each session counts its payload each way for its token's key, which its
+//! end charges, and a key whose budget for today is spent is refused before
+//! the dial (T-636, `usage`).
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -24,6 +27,7 @@ use tokio::time::Instant;
 
 use super::egress::{self, Missed, Plan};
 use super::policy::shown;
+use super::usage::{self, Meter};
 use super::{answer, Config};
 
 /// The longest wait of `?precheck` for the target's first bytes, as the
@@ -79,6 +83,11 @@ where
     if !token_ok {
         return answer(&mut stream, request::refusal(403, "forward: missing or wrong token", &[])).await;
     }
+    // The token's key, and its budget, before anything is dialed (T-636).
+    let meter = match usage::meter_of(&cfg, &head) {
+        Ok(meter) => meter,
+        Err(why) => return answer(&mut stream, request::refusal(403, &format!("forward: {why}"), &[])).await,
+    };
     let key = match server::check_upgrade(&head) {
         Ok(key) => key,
         Err(refused) => return answer(&mut stream, refused.answer()).await,
@@ -134,6 +143,7 @@ where
                     let _ = session.send_close(1011, "write failed: the target took no bytes").await;
                     return;
                 }
+                meter.up(first.len());
                 tcp
             }
             Err(Some(why)) => {
@@ -144,7 +154,7 @@ where
         },
     };
     let after = AfterClose::Drains(cfg.limits.half_closed);
-    pump(session, tcp.into_split(), early, cfg, after).await;
+    pump(session, tcp.into_split(), early, cfg, after, meter).await;
 }
 
 /// The target `host` by `plan`, within the dial's limit in all; `Err` holds
@@ -222,13 +232,15 @@ pub(super) fn half_closed(idle: Duration) -> String {
 
 /// Bytes both ways between the client and the target's two halves until one
 /// side ends or a limit is met. The target is a TCP connection, or a link's
-/// end of the resumable layer (T-173); `after`, what the client's Close does.
+/// end of the resumable layer (T-173); `after`, what the client's Close does;
+/// `meter`, the payload of each way for its key, charged at the end (T-636).
 pub(super) async fn pump<S, R, W>(
     session: Arc<RelaySession<S>>,
     (mut from_target, mut to_target): (R, W),
     early: Vec<u8>,
     cfg: Arc<Config>,
     after: AfterClose,
+    meter: Meter,
 ) where
     S: AsyncRead + AsyncWrite + Send + 'static,
     R: AsyncRead + Unpin + Send,
@@ -236,6 +248,9 @@ pub(super) async fn pump<S, R, W>(
 {
     let started = Instant::now();
     let moved = Arc::new(AtomicU64::new(0));
+    // A session from here: a refusal, or a target out of reach, is none.
+    meter.start();
+    let meter = Arc::new(meter);
     // The time of the last payload, in ms after the start: keepalives and
     // pings do not count, as on the default relay.
     let heard = Arc::new(AtomicU64::new(0));
@@ -243,7 +258,7 @@ pub(super) async fn pump<S, R, W>(
     let stamp = |heard: &AtomicU64| heard.store(started.elapsed().as_millis() as u64, Ordering::SeqCst);
 
     let up = {
-        let (session, moved, heard) = (session.clone(), moved.clone(), heard.clone());
+        let (session, moved, heard, meter) = (session.clone(), moved.clone(), heard.clone(), meter.clone());
         async move {
             loop {
                 let f = match session.read_frame().await {
@@ -259,6 +274,7 @@ pub(super) async fn pump<S, R, W>(
                             return End::Close(1011, format!("write failed: {e}"));
                         }
                         moved.fetch_add(f.payload.len() as u64, Ordering::SeqCst);
+                        meter.up(f.payload.len());
                         stamp(&heard);
                     }
                     frame::OPCODE_CLOSE => {
@@ -272,13 +288,14 @@ pub(super) async fn pump<S, R, W>(
         }
     };
     let down = {
-        let (session, moved, heard) = (session.clone(), moved.clone(), heard.clone());
+        let (session, moved, heard, meter) = (session.clone(), moved.clone(), heard.clone(), meter.clone());
         async move {
             if !early.is_empty() {
                 if session.send_binary(&early).await.is_err() {
                     return End::Gone;
                 }
                 moved.fetch_add(early.len() as u64, Ordering::SeqCst);
+                meter.down(early.len());
                 stamp(&heard);
             }
             let mut buf = vec![0u8; 64 * 1024];
@@ -292,6 +309,7 @@ pub(super) async fn pump<S, R, W>(
                     return End::Gone;
                 }
                 moved.fetch_add(n as u64, Ordering::SeqCst);
+                meter.down(n);
                 stamp(&heard);
             }
         }
@@ -342,6 +360,9 @@ pub(super) async fn pump<S, R, W>(
     if let End::Close(code, why) = end {
         let _ = session.send_close(code, &why).await;
     }
+    // The session's one charge, at its end; a drop of this task charges it
+    // too, as the meter's last holder goes.
+    meter.settle();
 }
 
 /// Until the target was silent for `idle` since its last byte, or since the

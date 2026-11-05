@@ -101,13 +101,16 @@ LISTENERS = {
     # journal (T-640): a datagram socket in a scratch directory that stands
     # for the journal's own and reads what the sink sent; the sink itself
     # binds nothing. And the socket file of `ws-listen --cover`'s tests
-    # (T-639), as above. And the relay role's QUIC (T-667), as above.
+    # (T-639), as above. And the relay role's QUIC (T-667), as above. And the
+    # tests of `relay serve`'s bind, then its drop of capabilities (T-629),
+    # beside it so that it stays within 500 lines: the loopback's port 0.
     "bind(": [
         "crates/podssh-cli/src/journal/tests.rs",
         "crates/podssh-cli/src/pipe/cover_tests.rs",
         "crates/podssh-cli/src/exit/listen.rs",
         "crates/podssh-cli/src/relay_serve.rs",
         "crates/podssh-cli/src/relay_serve/quic.rs",
+        "crates/podssh-cli/src/relay_serve/tests.rs",
         "crates/podssh-iroh/src/test_pkarr.rs",
         "crates/podssh-iroh/src/endpoint_udp_tests.rs",
         "crates/podssh-relay/src/udp/flow.rs",
