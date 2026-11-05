@@ -140,7 +140,10 @@ pub async fn open(
     if !asks(mode, server_name, trust) {
         return road::plain(&dial).await;
     }
-    road::sealed(cache::process(), mode, &dial).await
+    // On the heap: the sealed road's future (a read of the name's record,
+    // then a sealed hello and its fallbacks) is large, and on the stack of
+    // each dial, ECH asked or not, it overflowed a test's thread.
+    Box::pin(road::sealed(cache::process(), mode, &dial)).await
 }
 
 /// [`open`] in `mode` with the lists of `cache`, as a test holds them.
@@ -152,7 +155,7 @@ pub async fn open_with(
     if !asks(mode, dial.server_name, dial.trust) {
         return road::plain(dial).await;
     }
-    road::sealed(cache, mode, dial).await
+    Box::pin(road::sealed(cache, mode, dial)).await
 }
 
 /// What ECH did for a name's last connection, as `podssh doctor` says it.

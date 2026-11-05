@@ -3224,3 +3224,7 @@ added.
   podssh doctor`, and a GET of `crypto.cloudflare.com` that rustls's `ech_status` calls accepted):
   not run, as no server of ECH is among the test targets of `AGENTS.md` (section 4); ECH is off by
   default, so it waits for the operator's answer to Q86 with its target.
+- After the merge, the gate's step `iroh` failed: `pkarr_lookup`'s test thread overflowed its stack,
+  as `ech::open` held the sealed road's future (the read of a record, the sealed hello and its
+  fallbacks) on the stack of each dial, ECH asked or not. The sealed road is boxed; podssh-iroh with
+  `test-relay`: 63 passed, the CLI's `iroh_road` passed.
