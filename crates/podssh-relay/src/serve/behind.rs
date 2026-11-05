@@ -61,6 +61,7 @@ mod tests {
             answered: Default::default(),
             events: None,
             brake: Default::default(),
+            usage: Default::default(),
         })
     }
 

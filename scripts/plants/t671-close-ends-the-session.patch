@@ -2,7 +2,7 @@ diff --git a/crates/podssh-relay/src/serve/forward.rs b/crates/podssh-relay/src/
 index ec93d2e..1c924b0 100644
 --- a/crates/podssh-relay/src/serve/forward.rs
 +++ b/crates/podssh-relay/src/serve/forward.rs
-@@ -123,7 +123,7 @@ where
+@@ -132,7 +132,7 @@ where
      }
      cfg.event("upgrade");
      // The client's Close is answered once the target's bytes are over.
@@ -11,12 +11,12 @@ index ec93d2e..1c924b0 100644
      let tcp = match dialed {
          Some(tcp) => tcp,
          // `?dial=lazy`: the target is dialed once the client's first bytes come.
-@@ -143,7 +143,7 @@ where
+@@ -153,7 +153,7 @@ where
              Err(None) => return,
          },
      };
 -    let after = AfterClose::Drains(cfg.limits.half_closed);
 +    let after = AfterClose::Ends;
-     pump(session, tcp.into_split(), early, cfg, after).await;
+     pump(session, tcp.into_split(), early, cfg, after, meter).await;
  }
  

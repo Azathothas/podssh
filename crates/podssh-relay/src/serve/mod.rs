@@ -20,7 +20,8 @@
 //! Its mailbox is a meeting point of the pairing by a short code
 //! ([`mailbox`], T-086). Beside the listener, QUIC on the same port of UDP
 //! carries each stream as a connection to these routes (`quic`, feature
-//! `quic`, T-667).
+//! `quic`, T-667). What each key carried, and its budget for a day, are
+//! counted for each session of the forward road ([`usage`], T-636).
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -48,6 +49,7 @@ pub mod ranges;
 pub mod reverse;
 pub mod sockets;
 pub mod tokens;
+pub mod usage;
 
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -156,6 +158,8 @@ pub struct Config {
     pub answered: keys::Answered,
     /// The counts of `/v1/mint` and `/v1/pair` for each address (T-454).
     pub brake: brake::Brake,
+    /// What each key carried, and its budget for a day (T-636).
+    pub usage: usage::Usage,
     /// Each mint, upgrade, read of `/relays.json` and client's Close as a
     /// line (`mint`, `upgrade`, `relays.json`, `close CODE`), and each step of
     /// the reverse road (`reverse ...`), as
@@ -286,15 +290,21 @@ where
         let why = "/v1/mint: this relay mints no token; its owner gives them";
         return answer(stream, request::refusal(503, why, &[])).await;
     }
-    if let Err(refusal) = proven(cfg, head, sni, "/v1/mint", &sent) {
-        return answer(stream, refusal).await;
-    }
+    // The key that proved itself counts each session of the token (T-636).
+    let maker = match proven(cfg, head, sni, "/v1/mint", &sent) {
+        Ok(maker) => maker.map(|key| key.fingerprint()),
+        Err(refusal) => return answer(stream, refusal).await,
+    };
     // A token of one session, which an upgrade spends: the one that the
     // cleartext road asks for, and the only one minted in cleartext.
     if cleartext::once_asked(&head.target) {
         cfg.event("mint once");
         let body = match cfg.tokens.mint_once(tokens::now_ms()) {
             Ok((token, expires)) => {
+                // Its nonce is drawn: no other key holds it.
+                if let Some(key) = &maker {
+                    cfg.usage.minted(&token, key, expires);
+                }
                 serde_json::json!({ "token": token, "expires": expires, "scope": "forward", "once": true })
             }
             Err(why) => return answer(stream, request::refusal(503, &format!("/v1/mint: {why}"), &[])).await,
@@ -302,9 +312,31 @@ where
         return answer(stream, docs::json(&body)).await;
     }
     cfg.event("mint");
-    let (token, expires) = cfg.tokens.mint(tokens::now_ms(), tokens::LIFETIME_MS);
+    let Some((token, expires)) = forward_token(cfg, maker.as_deref()) else {
+        let why = "/v1/mint: mints of one millisecond made one token for several keys; ask again";
+        return answer(stream, request::refusal(503, why, &[("Retry-After", "1")])).await;
+    };
     let body = serde_json::json!({ "token": token, "expires": expires, "scope": "forward" });
     answer(stream, docs::json(&body)).await;
+}
+
+/// A token of the contract's form, and its end, kept for `maker`'s count
+/// when a key proved itself (T-636). Two mints in one millisecond make one
+/// token, which counts for one key alone, so another key's is made a
+/// millisecond shorter, 64 times at most.
+fn forward_token(cfg: &Config, maker: Option<&str>) -> Option<(String, u64)> {
+    let now = tokens::now_ms();
+    for shorter in 0..64 {
+        let (token, expires) = cfg.tokens.mint(now, tokens::LIFETIME_MS - shorter);
+        let kept = match maker {
+            None => true,
+            Some(key) => cfg.usage.minted(&token, key, expires),
+        };
+        if kept {
+            return Some((token, expires));
+        }
+    }
+    None
 }
 
 /// The brake's `429`, with the seconds to wait in `Retry-After`, which

@@ -96,6 +96,7 @@ impl Run {
             resumes: Default::default(),
             answered: Default::default(),
             brake: Default::default(),
+            usage: Default::default(),
             events: Some(events),
         });
         let serving: Arc<Mutex<Vec<JoinHandle<()>>>> = Arc::default();

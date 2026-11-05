@@ -58,6 +58,7 @@ async fn write_up(session: Arc<Session>, mut to: OwnedWriteHalf) {
                 if let Err(e) = to.write_all(&batch).await {
                     return session.end(1011, format!("write failed: {e}"));
                 }
+                session.meter.up(batch.len());
                 session.with(|st| {
                     st.written += 1;
                     st.moved += batch.len() as u64;
@@ -91,6 +92,8 @@ async fn read_down(session: Arc<Session>, mut from: OwnedReadHalf) {
                 return;
             }
             Ok(n) => {
+                // The client's due, whether or not it fetches them.
+                session.meter.down(n);
                 session.with(|st| {
                     st.down.extend(&buf[..n]);
                     st.moved += n as u64;

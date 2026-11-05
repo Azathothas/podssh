@@ -165,6 +165,11 @@ where
     if !token_ok {
         return answer(&mut stream, request::refusal(403, "layer: missing or wrong token", &[])).await;
     }
+    // Each link is a session of its key's, with its budget (T-636).
+    let meter = match super::usage::meter_of(&cfg, &head) {
+        Ok(meter) => meter,
+        Err(why) => return answer(&mut stream, request::refusal(403, &format!("layer: {why}"), &[])).await,
+    };
     let key = match server::check_upgrade(&head) {
         Ok(key) => key,
         Err(refused) => return answer(&mut stream, refused.answer()).await,
@@ -204,7 +209,7 @@ where
         serve_link(ours, settings, budget, &keeper, open, &far_cfg).await;
     });
     // A link's Close ends the link alone: the layer's `END` is its half-close.
-    forward::pump(session, tokio::io::split(theirs), Vec::new(), cfg, forward::AfterClose::Ends).await;
+    forward::pump(session, tokio::io::split(theirs), Vec::new(), cfg, forward::AfterClose::Ends, meter).await;
 }
 
 /// The layer on one link: its handshake, then a resume goes on with the

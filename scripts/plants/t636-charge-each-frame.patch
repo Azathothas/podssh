@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/serve/usage.rs
++++ b/crates/podssh-relay/src/serve/usage.rs
+@@ -372,7 +372,9 @@
+ 
+     /// `n` bytes of the client's, written to its target.
+     pub fn up(&self, n: usize) {
+-        self.up.fetch_add(n as u64, Ordering::Relaxed);
++        if let Some(key) = &self.key {
++            self.usage.charge(key, n as u64, 0);
++        }
+     }
+ 
+     /// `n` bytes of the target's, sent to its client.

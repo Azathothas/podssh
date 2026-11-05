@@ -12,7 +12,8 @@
 //! Once its listener is bound, before the runtime starts a thread, it gives
 //! up the capabilities of its start (T-629, `relay_serve/harden.rs`). With
 //! `--quic yes` it serves QUIC on the listener's port of UDP too (T-667,
-//! `relay_serve/quic.rs`).
+//! `relay_serve/quic.rs`). What each key carried, its budget for a day and
+//! the file that keeps the counts are `relay_serve/quota.rs`'s (T-636).
 
 mod certs;
 mod harden;
@@ -20,6 +21,7 @@ mod harden;
 mod harden_sys;
 mod list;
 mod quic;
+mod quota;
 mod resumes;
 
 use std::io::Write;
@@ -74,6 +76,9 @@ pub struct ServeArgs {
     pub http2: Option<String>,
     /// yes or no: QUIC on the listener's port of UDP (T-667).
     pub quic: Option<String>,
+    /// A key's MiB for a day, and the file of each key's counts (T-636).
+    pub quota: Option<String>,
+    pub usage: Option<String>,
 }
 
 impl ServeArgs {
@@ -104,6 +109,8 @@ impl ServeArgs {
             resume_host: get("resume-host"),
             http2: get("http2"),
             quic: get("quic"),
+            quota: get("quota"),
+            usage: get("usage"),
         }
     }
 
@@ -148,6 +155,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     // No key of its own: the net's `relay:*` names this role (T-455).
     let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"), None)?;
     let who = minting_for(&mint)?;
+    // What each key carried, and its budget (T-636).
+    let (usage, metered) = quota::of(s, &mint)?;
     let egress = egress_of()?;
     // The cleartext road beside TLS, with tokens of one session (T-326).
     let cleartext = match s.cleartext.as_deref() {
@@ -221,6 +230,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         resumes: sessions,
         answered: Default::default(),
         brake: Default::default(),
+        usage,
         events: Some(events),
     };
     let inside = inside_shown(s.allow_private, &routes);
@@ -230,7 +240,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let dropped = dropped.unwrap_or_default();
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{over_udp}{dropped}; {}",
+         {who}{metered}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{over_udp}{dropped}; {}",
         serve::CONTRACT,
         certs.shown
     );
@@ -380,6 +390,8 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
         // The lines of ACME's work, said here, as each other line of the role.
         let (say, mut lines) = tokio::sync::mpsc::unbounded_channel();
         let mut keeper = tokio::spawn(kept.keeper(say));
+        // Each key's counts into their file, each 2 s while one moved (T-636).
+        tokio::spawn(cfg.usage.clone().keep());
         let mut watch = tokio::time::interval_at(tokio::time::Instant::now() + certs::WATCH, certs::WATCH);
         watch.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
@@ -394,6 +406,10 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
                 }
                 () = hangups.next() => {
                     let _ = writeln!(said, "podssh relay serve: {}", kept.reload("SIGHUP"));
+                    // Each key's totals, beside the reload (T-636).
+                    for line in cfg.usage.lines() {
+                        let _ = writeln!(said, "podssh relay serve: {line}");
+                    }
                 }
                 _ = watch.tick() => {
                     if let Some(line) = kept.reload_if_changed() {
@@ -411,6 +427,10 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
                     // A planned stop: each reverse socket hears 1012, which
                     // its client tells apart from a lost link (T-255).
                     cfg.pairs.restart(STOP_WAIT).await;
+                    // The counts of the last 2 s, which no later write takes.
+                    if let Err(why) = cfg.usage.save() {
+                        let _ = writeln!(said, "podssh relay serve: usage: the counts were not written: {why}");
+                    }
                     return Ok(());
                 }
             }
@@ -446,48 +466,4 @@ async fn stopped() {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // T-629: the drop comes once, after the bind, on a listener that is
-    // bound; a bind that fails drops nothing; a drop that fails refuses the
-    // start and its words reach the first line.
-    #[test]
-    fn the_drop_happens_once_and_only_after_the_bind() {
-        let mut seen = Vec::new();
-        let (listener, words) = bind_then_drop("127.0.0.1:0", |bound| {
-            seen.push(bound.local_addr().map(|a| a.port() != 0).unwrap_or(false));
-            Ok(Some(", dropped".into()))
-        })
-        .unwrap();
-        assert_eq!(seen, [true], "one drop, on a bound listener");
-        assert_eq!(words.as_deref(), Some(", dropped"));
-        let taken = listener.local_addr().unwrap().to_string();
-        let mut called = false;
-        let refused = bind_then_drop(&taken, |_| {
-            called = true;
-            Ok(None)
-        })
-        .unwrap_err();
-        assert_eq!(refused.code, EX_UNAVAILABLE, "{refused:?}");
-        assert!(!called, "a bind that failed dropped nothing");
-        let refused = bind_then_drop("127.0.0.1:0", |_| Err(Refusal::config("capset after the bind: no"))).unwrap_err();
-        assert_eq!((refused.code, refused.message.as_str()), (EX_CONFIG, "capset after the bind: no"));
-    }
-
-    // T-635: the ranges of --routes, strictly, never with --allow-private,
-    // and named in the first line.
-    #[test]
-    fn the_routes_are_read_strictly_and_never_beside_allow_private() {
-        assert_eq!(routes_of(None, true), Ok(Vec::new()));
-        let routes = routes_of(Some("10.4.0.9, 10.4.1.0/24"), false).unwrap();
-        assert_eq!(inside_shown(false, &routes), ", the private targets in 10.4.0.9, 10.4.1.0/24 too");
-        assert_eq!(inside_shown(false, &[]), "");
-        assert_eq!(inside_shown(true, &[]), ", private targets too");
-        let wide = routes_of(Some("10.0.0.5/8"), false).unwrap_err();
-        assert_eq!(wide.code, crate::exit_codes::EXIT_USAGE);
-        assert!(wide.message.starts_with("--routes 10.0.0.5/8: ") && wide.message.contains("10.0.0.0/8"), "{wide}");
-        let both = routes_of(Some("10.4.0.9"), true).unwrap_err();
-        assert!(both.code == crate::exit_codes::EXIT_USAGE && both.message.contains("--allow-private"), "{both}");
-    }
-}
+mod tests;
