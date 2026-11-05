@@ -5793,3 +5793,63 @@ Tailscale's `ping`, `status` and `netcheck` for the net of `podssh net`.
   relay section asks the relay hosts; one with no host is `????`. With
   `PODSSH_OFFLINE`, the net's line comes and no member relay is asked.
   `--quick` leaves out both sections.
+
+## The shares of a node
+
+`podssh share` (T-433, milestone M10, [mesh.md](mesh.md), section 5)
+offers a running node's local services by name to its net, as Tailscale's
+serve offers a node's; `podssh serve` is M5's server in the cage (T-248), so
+this one takes another word. A share is a route of the node (T-089) that
+the node reads from a file for each session, so that it is added and
+removed while the node runs.
+
+- **The commands**, on the node's host: `podssh share add NAME=HOST:PORT`
+  shares a TCP service as `node://NODE/NAME`, or gives a share a new
+  target; `podssh share rm NAME` takes it away (64 when there is none);
+  `podssh share ls` writes each share on stdout, its name and its target
+  apart by a tab. Each says on stderr what it did, the file and the address
+  that reaches it. A name has the form of a route's; a `udp:` target is
+  refused (64), as a UDP flow is a node's one TARGET (T-168).
+- **The node of this host**: `--node NAME`, the label of `podssh node
+  NAME`; with none, the one node whose key or shares are in the cache, else
+  a refusal that names them (64). `--shares FILE` names the file in place
+  of the cache's, as the node's own `--shares FILE` does.
+- **The file** (`crates/podssh-cli/src/share/file.rs`): `node-NAME.shares` in
+  the cache, beside the node's key, or the file of `podssh node --shares
+  FILE`; one `NAME=HOST:PORT` on each line, `#` before a comment, mode 0600.
+  A change takes the lock of `FILE.lock` beside it, reads the file again
+  there, and replaces it whole by a rename, so that two changes at once both
+  count and a node never reads half a file; a lock that another change
+  keeps for 5 s fails this one (75), and a file system with no locks takes
+  the change with none. The lines that a change does not touch stay, a
+  person's comments with them. 256 shares at most. `PODSSH_CACHE_DIR=none`
+  keeps no file: `--shares FILE` names one, on both sides (78 with neither).
+- **The node** (`crates/podssh-cli/src/share/serve.rs`): a node of the
+  end-to-end channel reads its file again for each session that names a
+  route of no target of its command line, on each of its roads but the
+  quick tunnel's, which serves one TARGET with no route; a route of the
+  command line wins over a share of its name. So it serves routes on each
+  road from its start, the share file empty or missing. Its first lines
+  say where the file is and what it holds; a line that is no share, or a
+  file that it refuses (one that others may change, a link), is said once,
+  until what it reads changes, and serves nothing. A share's target is
+  dialled at its session alone, never at the start, and checked as an
+  sshd on a roost (`--sshd`). `--shares` is refused (64) with `--no-e2e`,
+  `--temporary`, `--quick-tunnel` and a `udp:` TARGET, whose sessions carry
+  no route; `--install` keeps it, by its absolute path.
+- **Who reaches a share**: as a route. An allowlist's `routes=` names it;
+  the net's policy names it as `NODE/ROUTE`; a grant used once names it as
+  its route; with no allowlist and no net, each operator with the pair's
+  connect token. A share that the node does not hold, and one that the key
+  may not use, are refused with the same words, before any dial.
+- **The net's list** (T-429): the owner lists a node's shares by name in
+  the net's document, `podssh net add lab KEY --roles node,share --shares
+  web,db`, only with the role `share` (64), each a route's name; a member's
+  object then has `"shares"`, and one with none is written as before.
+  `podssh share ls --net` writes each share that the net held here lists,
+  the member, the name and `node://NODE/NAME` apart by tabs. The list is
+  the net's directory; each node serves what its own file holds.
+- **The budget of the layer** (T-300): a node's session through routes now
+  counts against the budget once the channel let its key in and its route
+  and grant passed, as a session of a node with no route did; before, a
+  routed node counted a visitor before its key was checked.

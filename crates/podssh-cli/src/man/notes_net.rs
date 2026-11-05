@@ -10,7 +10,8 @@ pub const NET: &[&str] = &[
      and which can stay on one host.",
     "The owner's subcommands each sign a new document, its serial one higher: init NAME (the first, with \
      --owner-key or ~/.ssh/id_ed25519), add NAME KEY (a member, or a new key, roles or tickets of one, with \
-     --roles, --iroh-ticket, --derp-ticket and an exit's --routes), rm NAME and renew (the same members, a new end). --days sets how \
+     --roles, --iroh-ticket, --derp-ticket, an exit's --routes and a node's --shares, the names of its shares, \
+     which podssh share --net lists with ls), rm NAME and renew (the same members, a new end). --days sets how \
      long a document lasts, a year by default: no end takes it after its end, and a node no longer lets in by it. \
      Each end's: ls, one line for each member on stdout (its name, roles, fingerprint and tickets, apart by tabs); \
      show, the document's bytes as signed, or with --signature its signature; take FILE, a document from its owner, \

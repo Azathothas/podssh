@@ -83,6 +83,7 @@ mod tests {
             tickets,
             routes: Vec::new(),
             relay: None,
+            shares: Vec::new(),
         }
     }
 

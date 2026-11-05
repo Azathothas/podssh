@@ -78,7 +78,9 @@ pub(super) const NODE: &[&str] = &[
      KEY routes=web,db, or routes=* for each; a key with no routes= reaches the TARGET with no route \
      alone. A route that the node does not have, or that the key may not use, is refused with the same \
      words, before any dial. With no allowlist, each operator may use each route. Each TARGET is \
-     dialled once at the start.",
+     dialled once at the start. A node of the channel serves its shares too, routes that podssh share adds \
+     and removes while it runs, read again for each session from node-NAME.shares in the cache or the file \
+     of --shares FILE, each dialled at its session alone (see podssh share).",
     "TARGET udp:HOST:PORT offers a UDP service, for a host that allows UDP: each session is one flow, \
      a UDP socket from this host to HOST:PORT, with each datagram after its length in two bytes in \
      the session's bytes, as podssh pipe udp:node:NAME carries them. The flow ends with its session, \

@@ -206,6 +206,8 @@ pub mod settings;
 pub mod sftp;
 // `--shadowsocks FILE`: Shadowsocks servers in place of the relay (T-373).
 pub mod shadowsocks;
+// `podssh share`: a running node's local services by name, for its net (T-433).
+pub mod share;
 // Commands of the settings file, shown and asked before they run (T-187).
 pub mod snippets;
 pub mod ssh;

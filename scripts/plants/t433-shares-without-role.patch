@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/net/edit.rs
++++ b/crates/podssh-cli/src/net/edit.rs
+@@ -219,7 +219,7 @@ pub(super) fn relay_host(text: Option<&str>, roles: &[String]) -> Result<Option<
+ /// `podssh share ls --net` shows.
+ pub(super) fn shares(text: Option<&str>, roles: &[String]) -> Result<Vec<String>, Refusal> {
+     let Some(text) = text else { return Ok(Vec::new()) };
+-    if !roles.iter().any(|role| role == "share") {
++    if roles.is_empty() {
+         return Err(Refusal::usage("--shares names a node's shares: give --roles with share too"));
+     }
+     let mut names: Vec<String> = Vec::new();

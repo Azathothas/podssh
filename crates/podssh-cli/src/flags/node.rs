@@ -182,6 +182,8 @@ pub const NODE_FLAGS: &[FlagRow] = &[
     // serials refused.
     super::grant::NODE_GRANT_TO, super::grant::NODE_GRANT_ROUTE, super::grant::NODE_GRANT_FOR,
     super::grant::NODE_REVOKED,
+    // The node's shares, by name, read again for each session (T-433).
+    super::share::NODE_SHARES,
     // A person at the node's terminal, after its door (T-638).
     row(None, "ask", None, FlagKind::Supported,
         "ask at this terminal of each operator key that the door or a grant lets in: y or n within 100 s, no answer a no; a yes lets the key in while one of its sessions is open and 120 s after its last, a no stands 15 s; stdin and stderr must be a terminal (else 78)", None),
@@ -206,6 +208,9 @@ pub const NET_FLAGS: &[FlagRow] = &[
     // Where a relay member's role serves its signed list (T-617).
     row(None, "relay-host", Some("HOST[:PORT]"), FlagKind::Supported,
         "add: where the member's relay role (podssh relay serve --deployment) serves its signed list, one host; with the role relay; each run on the default list asks it once a day, and takes the list there only by the member's key", None),
+    // The names of a node's shares, which podssh share ls --net lists (T-433).
+    row(None, "shares", Some("NAMES"), FlagKind::Supported,
+        "add: the names of the member's shares, separated by commas, which podssh share ls --net lists and an operator reaches as node://NAME/SHARE; with the role share; the node serves what its own share file holds", None),
     row(None, "days", Some("N"), FlagKind::Supported,
         "init, add, rm, renew, invite, policy set and policy clear: the days that the signed document lasts, 1 to 3650 (default 365); no end takes it after", None),
     row(None, "owner", Some("KEY"), FlagKind::Supported,

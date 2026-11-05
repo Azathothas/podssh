@@ -1,0 +1,7 @@
+# T-433: a change of a node's shares takes no lock, so two changes at once
+# can each write over the other; the test of a lock that another change
+# holds must fail with its words.
+ENTRY=T-433
+GROUP=cli-tests
+EXPECT='a change went on under another'
+RUN='cargo test --locked -p podssh-cli --lib -- share::tests::a_lock_held_past_the_wait_fails_the_change_with_75'

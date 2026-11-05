@@ -1,7 +1,8 @@
 //! The net's document (T-429): its name, a serial, when it was signed and
 //! when it ends, its owner's key, and its members, each with a name, an
-//! Ed25519 key, its roles, its tickets, an exit's routes (T-432) and a relay
-//! role's host (T-617); as one JSON object, whose bytes
+//! Ed25519 key, its roles, its tickets, an exit's routes (T-432), a relay
+//! role's host (T-617) and the names of a node's shares (T-433); as one JSON
+//! object, whose bytes
 //! the owner's key signs (`super::sign`). podssh writes it on one line, its
 //! keys in order, so that each change is a short diff of a text file.
 //!
@@ -54,6 +55,10 @@ pub struct Member {
     /// no `--relay-host`. A host that this podssh does not read is kept, and
     /// unused.
     pub relay: Option<String>,
+    /// The names of its shares (T-433), as the owner wrote them: `podssh
+    /// share ls --net` lists them, each reached as `node://NAME/SHARE`. The
+    /// node serves what its own share file holds; this is the net's list.
+    pub shares: Vec<String>,
 }
 
 impl Member {
@@ -259,6 +264,10 @@ pub fn member_value(member: &Member) -> Value {
     if let (Some(host), Some(object)) = (&member.relay, value.as_object_mut()) {
         object.insert("relay".into(), json!(host));
     }
+    // Only a node's shares, for the same reason (T-433).
+    if let (false, Some(object)) = (member.shares.is_empty(), value.as_object_mut()) {
+        object.insert("shares".into(), json!(member.shares));
+    }
     value
 }
 
@@ -293,18 +302,19 @@ fn member_of(item: &Value) -> Result<Member, String> {
             tickets.insert(kind.clone(), ticket.to_string());
         }
     }
-    let routes = match object.get("routes") {
-        None => Vec::new(),
-        Some(list) => list
-            .as_array()
-            .ok_or(format!("{name}: \"routes\" is not a list"))?
-            .iter()
-            .map(|r| r.as_str().map(str::to_string).ok_or(format!("{name}: a route that is not text")))
-            .collect::<Result<Vec<_>, _>>()?,
-    };
+    let routes = texts(object, name, "routes", "a route")?;
     let relay = object
         .get("relay")
         .map(|host| host.as_str().map(str::to_string).ok_or(format!("{name}: \"relay\" is not text")))
         .transpose()?;
-    Ok(Member { name: name.to_string(), key, roles, tickets, routes, relay })
+    let shares = texts(object, name, "shares", "a share")?;
+    Ok(Member { name: name.to_string(), key, roles, tickets, routes, relay, shares })
+}
+
+/// The list of text `field` of the member `name`, each as it was written;
+/// none when it is not there.
+fn texts(object: &Map<String, Value>, name: &str, field: &str, one: &str) -> Result<Vec<String>, String> {
+    let Some(list) = object.get(field) else { return Ok(Vec::new()) };
+    let list = list.as_array().ok_or(format!("{name}: \"{field}\" is not a list"))?;
+    list.iter().map(|r| r.as_str().map(str::to_string).ok_or(format!("{name}: {one} that is not text"))).collect()
 }

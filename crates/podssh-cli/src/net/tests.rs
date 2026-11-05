@@ -79,10 +79,12 @@ fn podssh_signs_a_document_that_it_reads_back_and_each_change_raises_the_serial(
         tickets: Default::default(),
         routes: Vec::new(),
         relay: None,
+        shares: Vec::new(),
     };
     let value = doc::member_value(&member);
     assert!(value.get("routes").is_none(), "a member with no route is written as before T-432");
     assert!(value.get("relay").is_none(), "a member with no relay host is written as before T-617");
+    assert!(value.get("shares").is_none(), "a member with no share is written as before T-433");
     let next = first.next(1_793_577_700, 4_102_444_800, |list| list.push(value)).unwrap();
     assert_eq!((next.serial, next.members.len()), (2, 1));
     let read = sign::verify_signed(&sign::sign_with(&next, &signing).unwrap().to_bytes()).unwrap();
@@ -166,6 +168,7 @@ fn an_exit_s_routes_are_written_read_back_and_a_word_that_is_no_range_is_kept_un
         tickets: Default::default(),
         routes: vec!["10.1.0.0/16".into(), "fd00::/8".into(), "a-later-form".into()],
         relay: None,
+        shares: Vec::new(),
     };
     let value = doc::member_value(&exit);
     assert_eq!(value["routes"], serde_json::json!(["10.1.0.0/16", "fd00::/8", "a-later-form"]));
@@ -195,6 +198,7 @@ fn a_relay_member_s_host_is_written_read_back_and_a_word_that_is_no_host_is_kept
         tickets: Default::default(),
         routes: Vec::new(),
         relay: Some("relay.example.org:8443".into()),
+        shares: Vec::new(),
     };
     let value = doc::member_value(&relay);
     assert_eq!(value["relay"], "relay.example.org:8443");
