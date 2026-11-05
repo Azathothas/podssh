@@ -1646,8 +1646,8 @@ Read at `2042200`:
   line to stderr, and `crates/podssh-ssh/src/log.rs:32-37` holds a level and stderr or a file; the
   level stops in the process.
 - `crates/podssh-cli/src/flags.rs:290` says "podssh does not write to syslog", for `-y`.
-- The unit that the install writes restarts the node (`crates/podssh-cli/src/node_install/text.rs:139`)
-  and stops on 64 and 78 (`crates/podssh-cli/src/node_install/text.rs:141` says
+- The unit that the install writes restarts the node (`crates/podssh-cli/src/node_install/text.rs:141`)
+  and stops on 64 and 78 (`crates/podssh-cli/src/node_install/text.rs:143` says
   "RestartPreventExitStatus=64 78"): a fault of the journal must never become one of those.
 - No source reads `JOURNAL_STREAM` (searched).
 

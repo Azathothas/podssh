@@ -201,6 +201,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Exit(args) if refusals("exit", &args.refused, s.err) => EXIT_USAGE,
         // Its lines go to stderr; it has no answer for stdout.
         Parsed::Exit(args) => crate::exit::run_exit(args, s.err),
+        Parsed::Share(args) if refusals("share", &args.refused, s.err) => EXIT_USAGE,
+        // A list on stdout; each change said on stderr.
+        Parsed::Share(args) => crate::share::run(args, s.out, s.err),
         Parsed::Agent(args) if refusals("agent", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Agent(args) => crate::agent::run(args, s.out, s.err),
         Parsed::Status { refused, .. } if refusals("status", refused, s.err) => EXIT_USAGE,

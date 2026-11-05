@@ -92,6 +92,9 @@ pub struct NodeArgs {
     /// `--ask`: a person at the node's terminal lets each key in, after the
     /// door (T-638).
     pub ask: bool,
+    /// `--shares FILE`: the node's share file, read again for each session
+    /// (T-433), in place of node-NAME.shares in the cache.
+    pub shares: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -141,6 +144,7 @@ impl NodeArgs {
             grant_for: get("grant-for"),
             revoked: get("revoked"),
             ask: matches.get_flag("ask"),
+            shares: get("shares"),
             refused,
         }
     }

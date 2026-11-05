@@ -756,7 +756,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:42-96` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:110-143`). New variables go in `VARIABLES`
+   (`crates/podssh-cli/tests/flag_table.rs:110-144`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:313` there), examples in
    `crates/podssh-cli/src/man/examples.rs:8-309`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
@@ -1708,10 +1708,10 @@ routed session at `crates/podssh-relay/src/e2e/ends.rs:112-234`, and the
 operator's at `crates/podssh-relay/src/e2e/ends.rs` at `cbaa806`, lines 194-202. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
-their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-127`.
-The command line: the targets at `crates/podssh-cli/src/node.rs:222-258`,
-`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:260-275`, the dial of each
-target at `crates/podssh-cli/src/node_target.rs:14-39`, the routes at
+their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-178`.
+The command line: the targets at `crates/podssh-cli/src/node.rs:226-262`,
+`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:264-279`, the dial of each
+target at `crates/podssh-cli/src/node_target.rs:18-43`, the routes at
 `crates/podssh-cli/src/node.rs:279-287`; the channel's glue at
 `crates/podssh-cli/src/channel.rs:354-363` and
 `crates/podssh-cli/src/channel.rs:408-427`; `node://NAME/ROUTE` at
@@ -2171,7 +2171,7 @@ session through a node loses a link that it need not lose.
 - Measured: CI's step `m6` at `a220c13` failed in that test with `relay close 1011: node
   unavailable`; the step had passed at each push since T-156.
 - Read: `podssh node` prints its `serving` line after its probe of TARGET, before its socket to
-  the relay opens (`crates/podssh-cli/src/node.rs:329-334`), and the tests waited for that line
+  the relay opens (`crates/podssh-cli/src/node.rs:320-325`), and the tests waited for that line
   (`crates/podssh-cli/tests/m6_exit.rs:99`, `crates/podssh-cli/tests/node_plain.rs:41`,
   `crates/podssh-cli/tests/pipe_remote.rs:194`).
 - Measured, native, 2026-10-10: on a host at 42 % of its CPU, the control lost a link in each of
@@ -2248,8 +2248,8 @@ podssh knew in advance, and said nowhere.
 
 ## Premise
 
-- Read, at `ea2bd4f`: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:108`).
-- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:360`, `repair:
+- Read, at `ea2bd4f`: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:110`).
+- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:351`, `repair:
   None`).
 
 ## Approach
@@ -2607,9 +2607,9 @@ documents works; the form that a user expects is missing.
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
   which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:143`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
-  (`crates/podssh-cli/src/man/notes_pair.rs:306-308`), and `pipe` takes `node:NAME`
+  (`crates/podssh-cli/src/man/notes_pair.rs:308-310`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
-  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:386`), with no word of a node.
+  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:388`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
   `iap://`, `eice://`, `warp://` and `tor://` (`crates/podssh-cli/src/proxy.rs:124-139`).
 

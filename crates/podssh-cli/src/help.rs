@@ -260,6 +260,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "relay" => "[OPTIONS] SUBCOMMAND [NAME | HOST PORT]",
         "node" => "[OPTIONS] NAME [TARGET] [ROUTE=TARGET]...",
         "exit" => "[OPTIONS] NAME --listen ADDR:PORT",
+        "share" => "[OPTIONS] SUBCOMMAND [NAME=TARGET | NAME]",
         "operator" => "[OPTIONS] NAME",
         "proxy" => "[OPTIONS] [--] HOST PORT | node://NAME[/ROUTE]",
         "health" => "[OPTIONS] [user@]host",

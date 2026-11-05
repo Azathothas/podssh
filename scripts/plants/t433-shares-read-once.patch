@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/share/serve.rs
++++ b/crates/podssh-cli/src/share/serve.rs
+@@ -75,7 +75,8 @@ pub fn shared() -> Option<Arc<Shared>> {
+         podssh_ssh::err_line!("podssh node: {}: {}", installed.label, installed.start_line());
+     }
+     installed.place.as_ref()?;
+-    let shared: Arc<Shared> = Arc::new(move || installed.now());
++    let first = installed.now();
++    let shared: Arc<Shared> = Arc::new(move || first.clone());
+     Some(shared)
+ }
+ 

@@ -23,6 +23,7 @@ use super::notes_proxy::PROXY;
 use super::notes_relay::RELAY;
 use super::notes_run::RUN;
 use super::notes_session::SESSION;
+use super::notes_share::SHARE;
 // ssh's own notes, then those of its roads to a server of the user's (T-441).
 use super::notes_roads::SSH;
 use super::notes_update::UPDATE;
@@ -46,6 +47,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "operator" => OPERATOR,
         "net" => NET,
         "exit" => EXIT,
+        "share" => SHARE,
         "chat" => CHAT,
         "relay" => RELAY,
         "doctor" => DOCTOR,

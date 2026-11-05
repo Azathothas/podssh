@@ -1,0 +1,18 @@
+--- a/crates/podssh-relay/src/reverse/routes.rs
++++ b/crates/podssh-relay/src/reverse/routes.rs
+@@ -114,12 +114,12 @@ impl Routes {
+         };
+         // A grant used once named this route already, and its issuer may use
+         // it (T-226): the key needs no line of its own.
+-        if let (Some(name), false) = (route, crate::e2e::ends::granted()) {
+-            (self.grant)(key, name).map_err(|_| refused())?;
+-        }
+         if !admit() {
+             return Err(no_room());
+         }
++        if let (Some(name), false) = (route, crate::e2e::ends::granted()) {
++            (self.grant)(key, name).map_err(|_| refused())?;
++        }
+         dial_target(&target.host, target.port, self.timeout, self.sshd).await.map_err(Refusal::NoTarget)
+     }
+ }

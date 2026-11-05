@@ -7,6 +7,10 @@
 //! An exit node (T-431) dials a target that the operator names too, by the
 //! binary's [`ExitDial`], which decides who may and which address. A grant
 //! used once (T-226) that named the route stands for the key's own line.
+//! The node's shares (T-433) are routes too, which [`Shared`] reads again
+//! for each session, so that one added while the node runs is reached at
+//! the next session and one removed is refused; a route of the command line
+//! wins over a share of its name.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -17,7 +21,7 @@ use tokio::io::DuplexStream;
 use tokio::net::TcpStream;
 
 use super::framing::SessionId;
-use super::node::{Handler, Opening};
+use super::node::{Admit, Handler, Opening, NO_ROOM};
 use super::tcp::dial_target;
 use crate::e2e::ends::{serve_asked, Node, NO_EXIT};
 use crate::e2e::{Ask, Refusal};
@@ -38,6 +42,10 @@ pub struct Route {
 /// log.
 pub type Grant = dyn Fn(&PublicKey, &str) -> Result<(), String> + Send + Sync;
 
+/// The node's shares now (T-433), each a route by its name: read again for
+/// each session that names a route of no other target.
+pub type Shared = dyn Fn() -> Vec<Route> + Send + Sync;
+
 /// An exit's dial of the target that the operator `key` named (T-431): the
 /// connection, or the refusal, whose words the operator gets.
 pub type ExitDial =
@@ -53,6 +61,8 @@ pub struct Routes {
     pub sshd: bool,
     /// The node's egress (T-431): none, and an exit's target is refused.
     pub exit: Option<Arc<ExitDial>>,
+    /// The node's shares (T-433): none, and only the routes above.
+    pub shared: Option<Arc<Shared>>,
 }
 
 impl Routes {
@@ -61,12 +71,26 @@ impl Routes {
     /// both, so that an operator learns no route that it may not use; an
     /// exit's target goes to the node's egress, when it lends one.
     pub async fn open(&self, key: &PublicKey, ask: &Ask) -> Result<TcpStream, Refusal> {
+        self.open_with(key, ask, || true).await
+    }
+
+    /// [`Routes::open`], with `admit` asked once the route and the key's
+    /// grant passed, before the dial: `false` refuses with the budget's
+    /// words. An exit's target asks it before the exit's own check.
+    pub async fn open_with(
+        &self,
+        key: &PublicKey,
+        ask: &Ask,
+        admit: impl FnOnce() -> bool,
+    ) -> Result<TcpStream, Refusal> {
+        let no_room = || Refusal::Other(NO_ROOM.to_string());
         let route = match ask {
             Ask::Exit { host, port } => {
-                return match &self.exit {
-                    Some(exit) => exit(*key, host.clone(), *port).await,
-                    None => Err(Refusal::Other(NO_EXIT.into())),
-                };
+                let Some(exit) = &self.exit else { return Err(Refusal::Other(NO_EXIT.into())) };
+                if !admit() {
+                    return Err(no_room());
+                }
+                return exit(*key, host.clone(), *port).await;
             }
             Ask::Route(name) => Some(name.as_str()),
             Ask::Target => None,
@@ -79,11 +103,22 @@ impl Routes {
             }
             None => Refusal::Other("the node has a target for each route only: name one, as NAME/ROUTE".into()),
         };
-        let target = self.routes.iter().find(|r| r.name.as_deref() == route).ok_or_else(refused)?;
+        let fixed = self.routes.iter().find(|r| r.name.as_deref() == route).cloned();
+        // A share of that name, read now, where the command line has none.
+        let target = match (fixed, route, &self.shared) {
+            (Some(target), _, _) => target,
+            (None, Some(name), Some(shared)) => {
+                shared().into_iter().find(|r| r.name.as_deref() == Some(name)).ok_or_else(refused)?
+            }
+            _ => return Err(refused()),
+        };
         // A grant used once named this route already, and its issuer may use
         // it (T-226): the key needs no line of its own.
         if let (Some(name), false) = (route, crate::e2e::ends::granted()) {
             (self.grant)(key, name).map_err(|_| refused())?;
+        }
+        if !admit() {
+            return Err(no_room());
         }
         dial_target(&target.host, target.port, self.timeout, self.sshd).await.map_err(Refusal::NoTarget)
     }
@@ -111,6 +146,22 @@ impl Handler for Routed {
         // A handover finds the channel by the layer's id of its session (T-668).
         tokio::spawn(crate::e2e::hold::holding(async move {
             serve_asked(theirs, &node, move |key, ask: Ask| async move { routes.open(&key, &ask).await }).await;
+        }));
+        Box::pin(async move { Ok(ours) })
+    }
+
+    /// The client counts against the layer's budget once the channel let
+    /// its key in and its route passed, as [`super::E2e`]'s does: a visitor
+    /// with no key, or a route refused, never takes the room of a session,
+    /// now that each node of the channel serves its shares through routes
+    /// (T-433).
+    fn open_admitted(&self, _id: SessionId, admit: Admit) -> Opening<DuplexStream> {
+        let (ours, theirs) = tokio::io::duplex(PIPE);
+        let (routes, node) = (self.routes.clone(), self.node.clone());
+        // A handover finds the channel by the layer's id of its session (T-668).
+        tokio::spawn(crate::e2e::hold::holding(async move {
+            let open = move |key: PublicKey, ask: Ask| async move { routes.open_with(&key, &ask, admit).await };
+            serve_asked(theirs, &node, open).await;
         }));
         Box::pin(async move { Ok(ours) })
     }

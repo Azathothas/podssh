@@ -46,8 +46,8 @@ Most of the mesh is built: the expansion joins what M4, M6 and the roads
 gave.
 
 - A node and its operator: `podssh node NAME TARGET [ROUTE=TARGET]...`
-  ([reverse.md](reverse.md)). Its routes already name several services of
-  one node, which `podssh share` manages (T-433).
+  ([reverse.md](reverse.md)). Its routes name several services of one
+  node, and `podssh share` adds and removes more while it runs (T-433).
 - The end-to-end channel: Noise XX with each end's Ed25519 key, under the
   carrier; the node lets in the keys of its `--allow` file before it dials
   ([design.md](design.md), section 5; `crates/podssh-relay/src/e2e/`).
@@ -348,6 +348,20 @@ carries sessions between two other members that no other road joins
 - **Share** (T-433). `podssh share` adds, removes and lists the services of
   a running node by name, for the members that the policy lets in: a
   service is reached as `node://NODE/NAME`.
+
+  What T-433 built (drafted 2026-11-05; [cli.md](cli.md), "The shares of a
+  node"): a share is a route that the node reads for each session from its
+  share file, `node-NAME.shares` beside its key or the file of `--shares
+  FILE` (`crates/podssh-cli/src/share/serve.rs`), so a node of the channel
+  serves routes on each road from its start, and `podssh share add
+  NAME=HOST:PORT`, `rm NAME` and `ls` change and read that file under its
+  lock (`crates/podssh-cli/src/share/file.rs`); the policy, an allowlist's
+  `routes=` and a grant hold a share as a route, at the node
+  (`crates/podssh-relay/src/reverse/routes.rs`). The net's document lists
+  each node's shares by name, as its owner writes them (`podssh net add
+  NAME KEY --roles node,share --shares NAMES`), and `podssh share ls --net`
+  lists them; each node serves what its own file holds, as the owner's key,
+  which may be on another host, signs the list.
 - **Funnel** (T-180). `podssh funnel TARGET` publishes a local HTTP service
   at a public `https://` name through the quick tunnel that podssh makes:
   a random name with no account, or a named tunnel of the user's own

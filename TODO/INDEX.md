@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**637 entries: 99 open, 10 partial, 3 blocked, 525 done.**
+**637 entries: 98 open, 10 partial, 3 blocked, 526 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
-| P2 | 26 | 4 | 0 | 248 | 278 |
+| P2 | 25 | 4 | 0 | 249 | 278 |
 | P3 | 73 | 4 | 3 | 211 | 291 |
-| **All** | 99 | 10 | 3 | 525 | 637 |
+| **All** | 98 | 10 | 3 | 526 | 637 |
 
 ## Entries
 
@@ -504,7 +504,7 @@ repository and CI).
 | [T-430](mesh.md) | P2 | M | M10 | feature | done | The net's policy: who may reach which node, share and exit |
 | [T-431](mesh.md) | P1 | L | M10 | feature | done | Exit mode: a node's egress for its owner's forward road |
 | [T-432](mesh.md) | P2 | M | M10 | feature | done | Routes: a node reaches its private networks for the net |
-| [T-433](mesh.md) | P2 | M | M10 | feature | open | `podssh share`: a node's local services by name, for the net |
+| [T-433](mesh.md) | P2 | M | M10 | feature | done | `podssh share`: a node's local services by name, for the net |
 | [T-434](mesh.md) | P2 | M | M10 | feature | open | A member that relays between two other members |
 | [T-435](mesh.md) | P2 | M | M10 | feature | done | `status`, `ping` and `doctor` for the net |
 | [T-436](mesh.md) | P2 | M | M10 | feature | done | The magic-wormhole transit relay as a carrier of a pair's road |

@@ -322,6 +322,7 @@ mod run;
 mod scp;
 mod session;
 mod shadowsocks;
+mod share;
 mod signal;
 mod snippet;
 mod ts;
@@ -351,6 +352,7 @@ pub use relay::{DOCTOR_FLAGS, PROXY_FLAGS, RELAY_FLAGS, STATUS_FLAGS};
 pub use run::RUN_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 pub use session::SESSION_FLAGS;
+pub use share::SHARE_FLAGS;
 pub use ts::TS_FLAGS;
 pub use update::{ROLLBACK_SINCE, UPDATE_FLAGS};
 
@@ -393,6 +395,8 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "net", aliases: &["net"], flags: NET_FLAGS,
         about: "your own nodes as one net: their names and keys, signed by your key, kept by each" },
     Verb { name: "exit", aliases: &["exit"], flags: EXIT_FLAGS, about: "a SOCKS5 and HTTP CONNECT proxy here, whose connections start at an exit node of your net" },
+    Verb { name: "share", aliases: &["share"], flags: SHARE_FLAGS,
+        about: "a running node's local services by name, for its net: add, rm and ls, each reached as node://NODE/NAME" },
     Verb { name: "chat", aliases: &["chat", "irc"], flags: CHAT_FLAGS,
         about: "messages and files with another podssh, end to end encrypted" },
     Verb { name: "cp", aliases: &["cp"], flags: CP_FLAGS,

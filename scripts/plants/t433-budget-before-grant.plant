@@ -1,0 +1,8 @@
+# T-433: a routed node takes the room of a session in the layer's budget
+# before the key's grant of its route is checked, so a route refused fills
+# the budget; the test of a share that the grant refuses must fail with its
+# words.
+ENTRY=T-433
+GROUP=resume
+EXPECT='no room taken, no dial'
+RUN='cargo test --locked -p podssh-relay --features pair --test routes_shared -- a_key_s_grant_holds_a_share_as_a_route_and_the_budget_comes_after_it'

@@ -56,7 +56,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:11-28`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:463-471`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:467-475`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1384-1385`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:364-365`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:366-367`,
 `crates/podssh-cli/src/ts.rs:181`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:364-365`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1112`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:163-485`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:163-493`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`).
 
 ## Decision
@@ -6816,7 +6816,7 @@ ask, and nothing does so.
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
   (`crates/podssh-cli/src/node_iroh.rs:364-365`), and `podssh node` sends `--iroh` there
-  (`crates/podssh-cli/src/node.rs:110-112`).
+  (`crates/podssh-cli/src/node.rs:114-116`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-76`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and
@@ -8785,8 +8785,8 @@ as a firewall or a wrong port; it never says that this host has no sshd, or what
 ## Premise
 
 - Read: a roost dials each TARGET once before it registers, and a failed dial is the TARGET and
-  the dial's error, with 69 (`crates/podssh-cli/src/node_target.rs:24-25`); only a dial that
-  worked reaches the check of the version line, whose refusal names `--sshd` (`:29-35`).
+  the dial's error, with 69 (`crates/podssh-cli/src/node_target.rs:28-29`); only a dial that
+  worked reaches the check of the version line, whose refusal names `--sshd` (`:33-39`).
 - Read: the row of `--sshd` says that each TARGET "is a standard sshd"
   (`crates/podssh-cli/src/flags/node.rs:126-127`), and the manual that the node "serves a standard
   sshd" (`crates/podssh-cli/src/man/notes_pair.rs:34`); neither says that it must run already.

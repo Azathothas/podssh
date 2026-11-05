@@ -53,6 +53,8 @@ mod notes_relay;
 mod notes_roads;
 mod notes_run;
 mod notes_session;
+// `podssh share` (T-433).
+mod notes_share;
 mod notes_ssh;
 mod notes_ssh_more;
 mod notes_update;

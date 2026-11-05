@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/share/file.rs
++++ b/crates/podssh-cli/src/share/file.rs
+@@ -250,7 +250,7 @@ fn hold(path: &Path) -> Result<Option<File>, Refusal> {
+     let Ok(file) = options.open(&lock) else { return Ok(None) };
+     let deadline = Instant::now() + WAIT;
+     loop {
+-        match file.try_lock() {
++        match Ok::<(), std::fs::TryLockError>(()) {
+             Ok(()) => return Ok(Some(file)),
+             Err(std::fs::TryLockError::WouldBlock) if Instant::now() < deadline => {
+                 std::thread::sleep(Duration::from_millis(20))

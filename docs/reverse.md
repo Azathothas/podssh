@@ -804,3 +804,21 @@ Measured on 2026-11-05, each passed (T-643's Prove): `cargo
 test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code
 --test reverse_node --test reverse_dialect --test relay_serve_dialect`, and
 `cargo test -p podssh-relay --test e2e_net`.
+
+## Shares
+
+A node's routes (T-089) are fixed on its command line; its shares (T-433)
+are routes that it reads again for each session from a file, so that
+`podssh share add NAME=HOST:PORT` gives a running node a service, and
+`podssh share rm NAME` takes it away, with no restart
+([cli.md](cli.md), "The shares of a node"). The file is
+`node-NAME.shares` in the cache, beside the node's key, or the file of
+`--shares FILE`; an operator names a share as it names a route
+(`podssh operator NAME/SHARE`, `podssh ssh node://NAME/SHARE`), in the
+end-to-end channel, so the relay never sees it. The door holds a share as
+a route: an allowlist's `routes=`, the net's policy, a grant. A route of
+the command line wins over a share of its name, and the node's TARGET with
+no route stays its own. A node of the channel serves its sessions through
+its routes from its start, so that a share added later is reached; such a
+session counts against the layer's budget once its key, its route and its
+grant passed, as a session of a node with no route did.

@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:5560-5681`, FILES (`crates/podssh-cli/src/man/data.rs:163-485`) and the
+7. Change `docs/cli.md:5560-5681`, FILES (`crates/podssh-cli/src/man/data.rs:163-493`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -541,7 +541,7 @@ work.
 
 ## Premise
 
-Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:372-436`).
+Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:374-440`).
 `serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:93`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
@@ -564,9 +564,9 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
    a comment line. Never drop it silently.
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
-   (`crates/podssh-cli/src/flags.rs:374-450`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:248-273`), the manual's notes and examples, and
-   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-143`).
+   (`crates/podssh-cli/src/flags.rs:376-454`), the arguments, `usage_tail`
+   (`crates/podssh-cli/src/help.rs:248-274`), the manual's notes and examples, and
+   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-144`).
 
 ## Decision
 
@@ -624,8 +624,8 @@ output. Planted defect: copy the password field into a comment; the secret test 
 `crates/podssh-cli/src/config_import/mod.rs:171-175` and the options of
 `ansible_ssh_common_args` at
 `crates/podssh-cli/src/config_import/mod.rs:177-230`; the verb in the
-tables at `crates/podssh-cli/src/flags.rs:428-429`,
-`crates/podssh-cli/src/positionals.rs:228-233`,
+tables at `crates/podssh-cli/src/flags.rs:432-433`,
+`crates/podssh-cli/src/positionals.rs:236-241`,
 `crates/podssh-cli/src/tree.rs:327-333` and
 `crates/podssh-cli/src/dispatch.rs:190-191`.
 - `cargo test -p podssh-cli --test config_import`: 5 passed. The fixture

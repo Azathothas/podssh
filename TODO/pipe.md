@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:372-436`).
+  row (`crates/podssh-cli/src/flags.rs:374-440`).
 - Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:107-247`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,12 +37,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:372-436`, two
-   required positionals (`crates/podssh-cli/src/positionals.rs:7-262`), a
-   `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:10-217`), a
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:374-440`, two
+   required positionals (`crates/podssh-cli/src/positionals.rs:7-270`), a
+   `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:10-219`), a
    dispatch arm, and `pipe` in `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:110-143`). No `--timeout` row: the
-   gate at `crates/podssh-cli/src/dispatch.rs:345-366` would require it.
+   (`crates/podssh-cli/tests/flag_table.rs:110-144`). No `--timeout` row: the
+   gate at `crates/podssh-cli/src/dispatch.rs:348-369` would require it.
 2. The grammar, in a new crates/podssh-cli/src/pipe/address.rs: `KIND:REST`.
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
    both sides exits 64. Invariant: both addresses are valid before anything
@@ -68,7 +68,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
-   (`crates/podssh-cli/src/man/notes.rs:31-67`), two examples
+   (`crates/podssh-cli/src/man/notes.rs:32-69`), two examples
    (`crates/podssh-cli/src/man/examples.rs:8-316`; its test at
    `crates/podssh-cli/src/man/examples.rs:439-465` learns the new variant),
    `docs/design.md:1103-1112`, `docs/STATUS.md`. Each file stays under 500
@@ -724,7 +724,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:242-252`); a client that calls
+  (`crates/podssh-cli/src/man/notes.rs:244-254`); a client that calls
   `connect()` itself needs a listener (`docs/design.md:1149-1152`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
@@ -844,7 +844,7 @@ The calls made where the Approach left a choice:
   (`crates/podssh-cli/src/man/examples.rs:319`). It has no
   `ServerAliveInterval`, so that its line stays within rustfmt's 120
   columns; the note of proxy asks for it
-  (`crates/podssh-cli/src/man/notes.rs:253`).
+  (`crates/podssh-cli/src/man/notes.rs:255`).
 - Form b runs with `--direct`, as `scripts/interop-pipe.sh` runs `ssh:`;
   forms a and c go through the stand-in relay.
 - The citations of `crates/podssh-cli/src/man/examples.rs` in

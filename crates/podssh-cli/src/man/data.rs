@@ -341,6 +341,14 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec!["node-NAME.shares".to_string(), "node-NAME.shares.lock".to_string()],
+            "The shares of podssh node NAME (T-433), in the cache beside its key, or the file of podssh node --shares \
+             FILE: one name=HOST:PORT on each line, which the node reads again for each session, and which podssh \
+             share changes under the lock of FILE.lock beside it, the file replaced whole. Mode 0600; the node \
+             refuses one that others may change, as it names what the node dials."
+                .to_string(),
+        ),
+        (
             vec![format!("{}/", crate::ssh::cloud::tor::DIR_NAME)],
             "The Tor road's directory (tor://, in a build with the feature tor), in the cache, mode 0700: \
              Arti's state (its guards, which Tor asks a client to keep) in state/, and its copy of Tor's \

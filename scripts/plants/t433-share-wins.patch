@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/reverse/routes.rs
++++ b/crates/podssh-relay/src/reverse/routes.rs
+@@ -103,7 +103,8 @@ impl Routes {
+             }
+             None => Refusal::Other("the node has a target for each route only: name one, as NAME/ROUTE".into()),
+         };
+-        let fixed = self.routes.iter().find(|r| r.name.as_deref() == route).cloned();
++        let first = self.shared.as_ref().and_then(|s| s().into_iter().find(|r| r.name.is_some() && r.name.as_deref() == route));
++        let fixed = first.or_else(|| self.routes.iter().find(|r| r.name.as_deref() == route).cloned());
+         // A share of that name, read now, where the command line has none.
+         let target = match (fixed, route, &self.shared) {
+             (Some(target), _, _) => target,
