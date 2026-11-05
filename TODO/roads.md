@@ -9354,12 +9354,43 @@ for its references; `PODSSH_STUN=no` turns it off. Lost: a line that waits for `
 issue prefers and which almost no one would set; one server, which tells nothing (two answers are the
 whole signal).
 
+2026-11-05 (the drafting agent), within that call:
+
+- The STUN codec is a module of podssh-ws, `podssh_ws::stun` (`crates/podssh-ws/src/stun.rs`), pure
+  Rust and with no I/O, where T-621's step 2 puts its TURN module: TURN builds its attributes and
+  MESSAGE-INTEGRITY on its reader. Lost: podssh-core, which holds sans-IO protocols too, but where the
+  TURN road would not be; a codec inside `doctor`, which T-621 could not share.
+- UDP goes straight out whether a proxy is set or not, as the iroh road's probe sends it
+  (`crates/podssh-iroh/src/probe.rs:4` says "drop its datagrams further on, as a network whose way out"):
+  the line asks about direct
+  paths, which the iroh road tries behind a proxy too. Lost: nothing sent behind a proxy, as `UDP out`
+  does; that line tells what the quick tunnel's node takes, which behind a proxy is HTTP/2 whatever
+  UDP does.
+- IPv4 alone: the socket binds `0.0.0.0:0`, and each server's first IPv4 address is asked. Lost: an
+  IPv6 socket too, which would double the datagrams for a family that has no NAT as a rule.
+- This host's own address is read from the same socket, connected to the first server that answered
+  once the questions are done: a `connect` of UDP sends nothing, and its local address is the route's.
+  Lost: a second socket for the route alone; the host's interfaces, which need `getifaddrs` and C
+  types in the binary's code.
+- `XOR-MAPPED-ADDRESS` first, then `MAPPED-ADDRESS` where an older server sends it alone (RFC 8489
+  keeps it for RFC 3489's servers); an error response is named with its code. Rule 7 of `AGENTS.md`.
+- `PODSSH_STUN` takes 2 to 4 servers, asked in turn from the one socket until two gave an address, so
+  that a silent server has a successor (rule 7); one or more than four, a bad host or port 0 is 78
+  before any probe, as the run's other variables are. Lost: exactly two; a `FAIL` line for a bad
+  value, as the line is never `FAIL`.
+- `PODSSH_STUN=no` gives a `????` line that says so, as `PODSSH_OPENTUNNEL=no` and the carriers' `no`
+  do. Lost: no line, which a reader of `--json` could take for an older binary.
+- `--quick` leaves the line out and names it in its last line: `ssh` and `proxy` do not need it.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-cli --lib doctor::nat
-cargo test -p podssh-cli --test doctor
+cargo test -p podssh-ws --lib stun
+cargo test -p podssh-cli --lib doctor::
+cargo test -p podssh-cli --lib man::
+cargo test -p podssh-cli --test doctor --test doctor_nat --test doctor_jobs --test doctor_tls
+python scripts/check-repo.py
 ```
 
 Against two stand-in servers on the loopback: one mapped address for both is one mapping; two ports
@@ -9367,6 +9398,40 @@ differ; silence is unknown with exit 0; an answer with no mapped address is no v
 transaction id and a stranger's datagram are skipped; offline, the count of unknowns grows by one.
 `python scripts/check-repo.py` names the new socket. Planted: the two questions on two sockets, and the
 stand-ins' test of one mapping reads two.
+
+## Done
+
+2026-11-05, drafted (UNVERIFIED: no build ran in the draft).
+
+- `crates/podssh-ws/src/stun.rs`: STUN's codec (a Binding Request, a Binding success as a server writes
+  it, a message read with the cookie, the length and each attribute's length checked before its value,
+  `XOR-MAPPED-ADDRESS` then `MAPPED-ADDRESS`, `ERROR-CODE`), with `stun_tests.rs`: RFC 5769's three
+  vectors (2.1, 2.2, 2.3; their bytes compared with the RFC's text, fetched through the services of
+  web.pkgforge.dev, by a script: equal) read field by field, the writer held to the vectors' bytes, and
+  each form that is no message refused.
+- `crates/podssh-cli/src/doctor/nat.rs`: the line `nat` in the section `egress`, a part of its own
+  after the quick tunnel's (`sections.rs`, `Kind::Nat`), left out by `--quick`; `PODSSH_STUN` read
+  with the run's other variables (`mod.rs`), and the line offline. The servers' sources were read on
+  2026-11-05: Cloudflare's Realtime TURN page names `stun.cloudflare.com` on 3478/udp, and WebRTC's
+  samples (`webrtc/samples`, trickle-ice) name `stun:stun.l.google.com:19302`.
+- Tests: `nat_tests.rs` (stand-in STUN servers of `tokio` on the loopback: two echoing servers see one
+  socket and read no NAT; one NAT's address for both is one mapping; two ports are a mapping for each
+  destination; a silent server is `????` after its tries, each with the same id; no address, and an
+  error 400, are no verdict; a wrong id, a stranger's datagram and one that is no STUN are skipped; the
+  servers are asked in turn until two answered; the whole line through `check`; each form of the
+  verdict; the variable; offline and `no`), and `tests/doctor_nat.rs` (as a process: offline one `????`
+  in `egress` and none with `--quick`; `no` and a bad value, 78; through a stand-in proxy that refuses
+  each CONNECT, against stand-in servers of `std` written apart from the codec: no NAT, one mapping,
+  and a silent server `????`). `doctor_jobs.rs` and `doctor_tls.rs` set `PODSSH_STUN=no`, so that no
+  datagram leaves the loopback, and the former holds `--quick` to no line `nat`.
+- The manual (a note of `doctor`, `--quick`'s list, `PODSSH_STUN` in ENVIRONMENT), `docs/cli.md`,
+  `SECURITY.md`, `docs/architecture.md`, and the listener's list (`scripts/repo_listeners.py`, the rows
+  `UdpSocket` and `bind(`). `AGENTS.md`'s rule 2 is left to the operator's confirmation of Q86.
+- `python scripts/check-repo.py`: ok in the draft (2026-11-05), the new socket within its allowance.
+  `cargo test -p podssh-ws --lib stun`: UNVERIFIED. `--lib doctor::`: UNVERIFIED. `--lib man::`:
+  UNVERIFIED. `--test doctor --test doctor_nat --test doctor_jobs --test doctor_tls`: UNVERIFIED. The
+  plants `t641-two-sockets`, `t641-stranger-taken` and `t641-length-trusted`: UNVERIFIED. A live run of
+  `podssh doctor` here, against the two public servers: UNVERIFIED.
 
 # T-676: A WARP test inherits an earlier test's memory of a re-terminated TLS at a reused port
 

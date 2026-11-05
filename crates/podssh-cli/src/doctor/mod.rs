@@ -49,6 +49,8 @@ mod ipv6;
 mod iroh;
 pub mod listeners;
 mod names;
+// Whether the NAT keeps one mapping across destinations (T-641).
+mod nat;
 mod net;
 mod pairs;
 // The sections that run at once, each into its own part (T-511).
@@ -172,6 +174,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         Ok(asked) => asked,
         Err(refusal) => return refusal.report("doctor", err),
     };
+    let stun = match nat::setting() {
+        Ok(stun) => stun,
+        Err(refusal) => return refusal.report("doctor", err),
+    };
     let (trust, trust_from) = match (&args.ca_file, cert_env, &settings.ca_file) {
         (Some(file), ..) => (Trust::File(file.into()), "--ca-file"),
         (None, Some(file), _) => (Trust::File(file.into()), "SSL_CERT_FILE"),
@@ -234,6 +240,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         if exit.is_some() {
             report.unknown("exit", "not attempted: PODSSH_OFFLINE is set");
         }
+        if !args.quick {
+            nat::offline(&mut report, &stun);
+        }
         if args.quick {
             sections::left_out_line(&mut report);
             return report.finish();
@@ -258,6 +267,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
                 quick: args.quick,
                 jobs,
                 stream: stream.section(),
+                stun: &stun,
             };
             runtime.block_on(sections::network(&mut report, &checks));
             // A probe may have left a task behind (a relay leg still closing);

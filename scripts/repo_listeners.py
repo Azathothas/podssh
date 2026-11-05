@@ -64,12 +64,20 @@ LISTENERS = {
     # UDP before QUIC (T-400), with the same flag and only with no proxy set:
     # a socket of port 0 for each address probed, connected to it, which
     # sends one packet and closes within 300 ms; doctor's --full sends it too.
+    # And doctor's line nat (T-641, the call of Q86 that the operator is to
+    # confirm): one socket of port 0, not connected while it asks two STUN
+    # servers in turn, 3 tries of 1 s each, taking only their answers, then
+    # connected to the first that answered to read this host's address, and
+    # closed; PODSSH_STUN=no and PODSSH_OFFLINE send nothing; its tests' stand-in
+    # STUN servers on the loopback.
     "UdpSocket": [
         "crates/podssh-iroh/src/probe.rs",
         "crates/podssh-iroh/src/endpoint_udp_tests.rs",
         "crates/podssh-relay/src/udp/flow.rs",
         "crates/podssh-relay/src/quick/quic.rs",
         "crates/podssh-relay/src/quick/probe.rs",
+        "crates/podssh-cli/src/doctor/nat.rs",
+        "crates/podssh-cli/src/doctor/nat_tests.rs",
     ],
     # The bind probes of `podssh doctor`, which close at once and never listen;
     # and the iroh road's probe and endpoint, as above, with the commands that
@@ -89,8 +97,11 @@ LISTENERS = {
     # journal (T-640): a datagram socket in a scratch directory that stands
     # for the journal's own and reads what the sink sent; the sink itself
     # binds nothing. And the socket file of `ws-listen --cover`'s tests
-    # (T-639), as above.
+    # (T-639), as above. And doctor's line nat and its stand-ins (T-641), as
+    # above.
     "bind(": [
+        "crates/podssh-cli/src/doctor/nat.rs",
+        "crates/podssh-cli/src/doctor/nat_tests.rs",
         "crates/podssh-cli/src/journal/tests.rs",
         "crates/podssh-cli/src/pipe/cover_tests.rs",
         "crates/podssh-cli/src/exit/listen.rs",

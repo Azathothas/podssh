@@ -6,8 +6,8 @@
 //! of --via (T-439), the wstunnel server of --wstunnel (T-441), the OpenTunnel
 //! road (T-531), the cleartext road on the relay's port (T-326), the
 //! resumable layer at podssh's relay role (T-173), and the keys of a signed
-//! list of relay deployments (T-346), and the WebSocket over HTTP/2
-//! (T-321).
+//! list of relay deployments (T-346), the WebSocket over HTTP/2 (T-321),
+//! and the STUN servers of doctor's line nat (T-641).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -188,6 +188,14 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
         &["PODSSH_WSTUNNEL_SECRET_FILE"],
         "The secret file of the server of --wstunnel or PODSSH_WSTUNNEL, as --wstunnel-secret-file, which wins: a \
       private file of path-prefix PREFIX, credentials USER[:PASSWORD] or authorization VALUE (see FILES).",
+    ),
+    (
+        &["PODSSH_STUN"],
+        "The STUN servers of podssh doctor's line nat (T-641), in place of stun.cloudflare.com:3478 and \
+      stun.l.google.com:19302: HOST[:PORT], 2 to 4 of them separated by commas, the port 3478 when none is \
+      named, asked in turn from one UDP socket until two gave the address that they saw. no: the line asks \
+      none, and says so as ????. Unset or empty: the two by default. Another value is a configuration error \
+      (78), before any probe.",
     ),
     (
         &["INVOCATION_ID", "WSL_DISTRO_NAME", "TERMUX_VERSION"],

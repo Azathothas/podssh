@@ -73,6 +73,8 @@ pub mod session;
 pub mod shadowsocks;
 mod socks5;
 pub mod stores;
+// STUN's messages, for doctor's line nat and the TURN road (T-641, T-621).
+pub mod stun;
 pub mod text;
 pub mod tls;
 pub mod tls_server;

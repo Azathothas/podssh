@@ -1,0 +1,13 @@
+--- a/crates/podssh-cli/src/doctor/nat.rs
++++ b/crates/podssh-cli/src/doctor/nat.rs
+@@ -222,9 +222,7 @@ pub(super) async fn ask(
+                     break;
+                 }
+             };
+-            if from != to {
+-                continue;
+-            }
++            let _ = from;
+             let Ok(message) = stun::parse(&buffer[..n]) else { continue };
+             if message.id != *id {
+                 continue;

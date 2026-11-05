@@ -2622,7 +2622,8 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   DERP servers and the quick tunnel's edge). Each section still reaches its
   servers one after another, so a run holds at most one connection for
   each section that runs, five in a run with no flag, no stored pair and no member relay
-  (the egress, the relay, OpenTunnel, DERP, the public carriers), and the relay's forward races its hosts as `ssh` does
+  (the egress, the relay, OpenTunnel, DERP, the public carriers), with the one UDP socket of the
+  line `nat` (T-641), and the relay's forward races its hosts as `ssh` does
   (Q10). `--jobs N` (1 to 64), or `DoctorJobs N` in the settings file,
   starts at most N together, in the order of the report; `--jobs 1` is one
   after another, as before. A bad value is 64 for the flag, 78 for the
@@ -2631,7 +2632,7 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   what each run of `ssh` and `proxy` needs, with the section of each road
   that the run names (`--forwarder`, `--shadowsocks`, `--via`, `--vless`).
   It leaves out the quick tunnel's edge (its roots, `UDP out`, `edge
-  road`), iroh and tor in a build with them, OpenTunnel, DERP, the public carriers, the pairs and the net, and says
+  road`), the line `nat`, iroh and tor in a build with them, OpenTunnel, DERP, the public carriers, the pairs and the net, and says
   so in its last line, `sections` in the section `left out`, as `????`: a
   check that did not run. The MCP tool `doctor` takes it as `quick`.
 - `ok`: the check ran and podssh can work with the result. A condition that
@@ -2789,6 +2790,32 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   the feature `warp` and with a device of WARP kept in the cache, inside
   WARP's tunnel (`warp://`, above); doctor registers no device. TLS closes
   at once, with nothing registered. A run without `--full` says so.
+- **The line `nat`** (T-641, GitHub #139), in the section `egress`, after
+  `edge road`: whether the NAT in front of this host keeps one mapping for a
+  local port whatever the destination, which decides whether a peer can
+  reach this host with no relay. One UDP socket of port 0 asks two STUN
+  servers in turn for the address that each saw: a Binding Request of
+  RFC 8489 (the codec is `podssh_ws::stun`, which the TURN road of T-621
+  builds on), 3 tries of 1 s with the same transaction id, an answer taken
+  only from the address asked and with that id, `XOR-MAPPED-ADDRESS` read
+  with each length checked (`MAPPED-ADDRESS` of an older server where it is
+  alone). The socket is not connected while it asks, so that one local port
+  asks both; at the end it is connected to the first server that answered,
+  which sends nothing and names this host's own address on that route. By
+  default, and unasked (the operator's call to confirm, Q86):
+  `stun.cloudflare.com:3478`, which Cloudflare's Realtime TURN
+  documentation names, then `stun.l.google.com:19302`, which WebRTC's
+  samples name. Both saw this host's own address: `no NAT`; both saw one:
+  `one mapping for all destinations` (hole punching can work); two: `a
+  mapping for each destination` (it will not; the relays carry each
+  session). Each is `ok`, a fact. Fewer than two mapped addresses, each
+  server named with what it did (silent, an error, no address), or no UDP
+  socket that binds: `????`, never `FAIL`. UDP goes straight out, as no
+  proxy carries it, whether a proxy is set or not, as the iroh road's probe
+  sends it. `PODSSH_STUN=HOST[:PORT],HOST[:PORT]` (2 to 4, asked in turn
+  until two answered) names other servers, `no` turns the line off (`????`,
+  nothing sent), and another value is 78 before any probe; offline it is
+  `????` and nothing is sent; `--quick` leaves it out.
 - `tor` (T-353), in a build with the feature `tor`, says with `--full`
   whether Arti bootstraps here as a `tor://` destination makes it: through
   the proxy, its first hops on the ports of `PODSSH_TOR_PORTS`, or the
