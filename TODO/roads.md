@@ -60,7 +60,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:233-265`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:246-281`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -4687,7 +4687,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:291-296`; `docs/design.md:66`), and
+- Read: credentials never go in URLs (`docs/architecture.md:313-318`; `docs/design.md:66`), and
   `docs/decisions.md:81` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -5523,7 +5523,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:210-215`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:212-217`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -5582,7 +5582,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:267-271`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:282-286`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
    `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
@@ -6212,7 +6212,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:185`).
+  port 443 answers (`docs/STATUS.md:186`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -6437,7 +6437,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:291-296`); an `ss://` URI holds the password.
+  (`docs/architecture.md:313-318`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
@@ -9318,7 +9318,7 @@ that is closed.
 
 Read at `2042200`:
 
-- The section is opened at `crates/podssh-cli/src/doctor/mod.rs:217`; its network part is
+- The section is opened at `crates/podssh-cli/src/doctor/mod.rs:219`; its network part is
   `crates/podssh-cli/src/doctor/net.rs:164`.
 - The two lines of UDP that exist each ask one server: `crates/podssh-cli/src/doctor/quick.rs:55`
   (`UDP out`, the quick tunnel's edge) and `crates/podssh-cli/src/doctor/iroh.rs:34` (`iroh UDP out`); a bind

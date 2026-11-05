@@ -85,6 +85,14 @@ pub(super) const DOCTOR_HTTP2: &str = "The line http2, in the section relay, aft
      PODSSH_H2 that is not auto, yes or no. With --forwarder, the section of the forwarders has the line for \
      each wss:// one, whose road keeps the upgrade of HTTP/1.1.";
 
+pub(super) const DOCTOR_ECH: &str = "The line ech, in the section relay, after http2, says what Encrypted \
+     Client Hello did for the same host at the connection of its /health, with no connection of its own: off, as \
+     by default (PODSSH_ECH, or ECH in the settings file, asks for it); the name went sealed, and whether with \
+     the retry configs that the server sent; or why its hello named it: the name publishes no list in its HTTPS \
+     record, the read of the record failed, the server refused the sealed hello, or one was refused within the \
+     last 5 minutes. The line is ok, a fact, as a plain hello reaches the host as before; ???? when no connection \
+     to the host was made; FAIL when PODSSH_ECH=strict sent no plain hello.";
+
 pub(super) const DOCTOR_STREAM: &str = "--stream URL checks this host, then what the path to URL does to a \
      stream, and nothing else, one connection at a time: URL is https://HOST[:PORT][/PATH] (TLS checked with \
      doctor's trust) or http://..., through HTTPS_PROXY as each road dials, the probes under PATH, /v1/probe by \

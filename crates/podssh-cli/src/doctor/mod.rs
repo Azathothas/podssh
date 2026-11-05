@@ -39,6 +39,8 @@ mod exit;
 mod opentunnel;
 // How each TLS handshake ended, and what they show together (T-487).
 mod diagnosis;
+// What Encrypted Client Hello did for the relay host (T-642).
+mod ech;
 // The forwarders of --forwarder (T-369).
 mod forwarder;
 mod host;

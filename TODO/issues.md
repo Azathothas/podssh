@@ -208,7 +208,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #137 | `ws-listen:` answers a request that is no upgrade with a page from a directory | closed 2026-11-04 (`240447e`), its entry done | T-639 (with the reason phrases of 404, 409, 411, 413 and 429, which read "Error") |
 | #138 | A service's lines keep their priority in the journal | closed 2026-11-04 (`91669ae`), its entry done | T-640; T-674, the SSH client's own lines, done 2026-11-05 (`bf55c13`) |
 | #139 | `doctor`: a `nat` line, one mapping or one for each destination | closed 2026-11-05, its entry done | T-641 (two public STUN servers by default, Q86) |
-| #140 | ECH from the name's HTTPS record | open | T-642 (behind a proxy no resolver runs, so the record is a read before the session; podssh's provider needs HPKE first) |
+| #140 | ECH from the name's HTTPS record | closed 2026-11-05, its entry done | T-642 (behind a proxy no resolver runs, so the record is a read before the session; podssh's provider needs HPKE first) |
 | #141 | Protocol version negotiation on the reverse road and the channel | closed 2026-11-05, its entry done | T-643 (a net offer answered plainly is T-429's design for an end outside the net or of before: said, not refused) |
 | #142 | `relay serve`: an SSH client shares the listener by its first bytes | closed 2026-11-05, its entry done | T-644 (the listener decides by the first byte already, T-326: an SSH client meets the cleartext road, not TLS) |
 | #143 | `ws-listen:` answers a keyless upgrade, as WebTunnel's client sends it | closed 2026-11-04 (`240447e`), its entry done | T-645 |

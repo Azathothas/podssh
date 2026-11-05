@@ -179,7 +179,7 @@ verified here).
 
 1. crates/podssh-relay/src/reverse/node.rs: `node::run(config, handler)`; `handler.open(id)` gives a byte stream
    or a reason to reject. It uses the codecs of `podssh-transport` until T-082. Invariant: no protocol above
-   bytes (`docs/architecture.md:254-256`).
+   bytes (`docs/architecture.md:269-271`).
 2. One task owns the write half; sessions send `(id, bytes)` through one bounded channel, cut by
    `chunk_for_node`. Invariant: no frame without its id; none for an id not readied, or closed.
 3. On `open`: call the handler with a limit under 15 s
@@ -750,11 +750,11 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:5315`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:5350`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
-   `crates/podssh-cli/src/doctor/relay_checks.rs:42-94` (zuko's doctor checks its ticket and state).
+   `crates/podssh-cli/src/doctor/relay_checks.rs:42-96` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-143`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:313` there), examples in
@@ -886,9 +886,9 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:274-280`); the
 operator leg receives text frames (`docs/relay.md:644-647`). A host key is recorded under the target
-host, never the relay's name (`SECURITY.md:222-232`); `HostKeyAlias` exists
+host, never the relay's name (`SECURITY.md:235-245`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:420`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:5311-5315`).
+`podssh proxy` sysexits (`docs/cli.md:5346-5350`).
 
 ## Approach
 
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:169`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:170`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1323,7 +1323,7 @@ Read: credentials are HMAC tokens scoped to a name and a role, issued by the rel
 over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`).
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
-(`SECURITY.md:92-96`, `:222-232`). `podssh serve` keeps its host key in a state file and takes
+(`SECURITY.md:105-109`, `:235-245`). `podssh serve` keeps its host key in a state file and takes
 authorized keys from a flag or a file (`docs/ROADMAP.md:180-185`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key
@@ -1869,7 +1869,7 @@ ends each token at once (`docs/relay.md:615-617`). A text frame from the operato
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
-issue's "rule 8" is rule 6 (`docs/architecture.md:291-296`), and its "section 2" sentence about an allowlist of
+issue's "rule 8" is rule 6 (`docs/architecture.md:313-318`), and its "section 2" sentence about an allowlist of
 keys is in section 7 (`docs/design.md:1384-1385`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
@@ -1878,7 +1878,7 @@ fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and
 Read, what a leaked token gives today. `connect_token`: sessions to the node; an SSH server's own
 authentication still stands, but a raw TCP TARGET (T-083) has no other gate. `node_token`: an impersonated node
 while the real one is away (one socket for each name, and a new node gets the new sessions: `:152-156` of the
-contract); for SSH, the operator's host-key check finds it (`SECURITY.md:92-96`). `stop_token`: a denial of
+contract); for SSH, the operator's host-key check finds it (`SECURITY.md:105-109`). `stop_token`: a denial of
 service; the node, its sessions and the pair end (`docs/relay.md:655-659`).
 
 ## Approach
@@ -1888,7 +1888,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
 1. On the relay: an endpoint in place of `POST /v1/pair` that returns a signed grant naming the node, the
    principals that may use it (key fingerprints, T-087), an expiry and a nonce. The relay records the nonce as
    spent and refuses a second use. podssh caches the grant and sends it in a header or a 0600 file, never in
-   a URL (`docs/relay.md:461-463`, `docs/architecture.md:291-296`).
+   a URL (`docs/relay.md:461-463`, `docs/architecture.md:313-318`).
 2. On the client: keep the pair's tokens, and add a signed grant inside the operator leg, which the relay has
    authenticated. A text frame closes that leg with `1003`, so the grant needs a typed binary header at the
    start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The

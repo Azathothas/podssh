@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**637 entries: 100 open, 10 partial, 3 blocked, 524 done.**
+**637 entries: 99 open, 10 partial, 3 blocked, 525 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 26 | 4 | 0 | 248 | 278 |
-| P3 | 74 | 4 | 3 | 210 | 291 |
-| **All** | 100 | 10 | 3 | 524 | 637 |
+| P3 | 73 | 4 | 3 | 211 | 291 |
+| **All** | 99 | 10 | 3 | 525 | 637 |
 
 ## Entries
 
@@ -681,7 +681,7 @@ repository and CI).
 | [T-639](pipe.md) | P3 | S | none | feature | done | `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory |
 | [T-640](robustness.md) | P3 | M | none | feature | done | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |
 | [T-641](roads.md) | P3 | M | M10 | feature | done | `doctor` does not say whether this host's NAT keeps one mapping across destinations |
-| [T-642](ws.md) | P3 | L | none | feature | open | TLS sends each name in the clear: no Encrypted Client Hello from the name's HTTPS record |
+| [T-642](ws.md) | P3 | L | none | feature | done | TLS sends each name in the clear: no Encrypted Client Hello from the name's HTTPS record |
 | [T-643](reverse.md) | P3 | M | M10 | feature | done | Neither end of the reverse road compares the `version` of the role's `hello`, and an operator's offer of the net answered plainly says nothing |
 | [T-644](relay.md) | P3 | M | M10 | feature | done | `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road |
 | [T-645](pipe.md) | P3 | M | none | feature | done | `ws-listen:` refuses an upgrade with no `Sec-WebSocket-Key`, which is the request that podssh's own WebTunnel client sends |

@@ -27,12 +27,27 @@ pub fn apply(flag: Option<&str>) -> Result<(), Refusal> {
         pins.extend(more.map_err(|e| Refusal::config(format!("{}: RelayAddr {}: {e}", value.at, value.text)))?);
     }
     podssh_ws::resolve::set_pins(pins);
+    // Encrypted Client Hello, when the variable or the file asks for it (T-642).
+    podssh_ws::ech::set_mode(ech_mode(file)?);
     // The addresses that carried a session, which the dialer asks after the
     // system resolver fails (T-344), and the TLS groups that servers took.
     podssh_relay::addresses::install();
     // The key that each host took last, for a login with no query (T-664).
     podssh_ssh::accepted::keep_in(Box::new(AcceptedInCache));
     Ok(())
+}
+
+/// The mode of Encrypted Client Hello: `PODSSH_ECH`, else the settings
+/// file's `ECH`, else off. A word of either that is none of its own is a
+/// configuration error, before anything connects.
+fn ech_mode(file: &crate::settings::Defaults) -> Result<podssh_ws::ech::Mode, Refusal> {
+    if let Some(mode) = podssh_ws::ech::Mode::from_env().map_err(Refusal::config)? {
+        return Ok(mode);
+    }
+    let Some(value) = &file.ech else { return Ok(podssh_ws::ech::Mode::Off) };
+    podssh_ws::ech::Mode::parse(Some(value.text.as_str()))
+        .map(Option::unwrap_or_default)
+        .map_err(|why| Refusal::config(format!("{}: ECH {:?}: {why}", value.at, value.text)))
 }
 
 /// The record of the keys that hosts took, a private file of the cache as

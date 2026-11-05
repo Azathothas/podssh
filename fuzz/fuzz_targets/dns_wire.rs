@@ -3,11 +3,14 @@
 //! ends on any bytes, an address has the family of the type asked, an SRV
 //! target is a name in lower case that a resolver can be asked for, NXDOMAIN
 //! is said for RCODE 3 of a response and for nothing else, and a name read
-//! from any offset ends within the bytes, at most 253 characters long.
+//! from any offset ends within the bytes, at most 253 characters long. An
+//! HTTPS record's list for Encrypted Client Hello (T-642,
+//! `podssh_ws::resolve::https`) is whole by its own lengths, within its
+//! bound, from an answer or from a record's data alone.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use podssh_ws::resolve::{wire, NXDOMAIN};
+use podssh_ws::resolve::{https, wire, NXDOMAIN};
 
 const NAME: &str = "tcp.ssh.relay.ajam.dev";
 const SRV_NAME: &str = "_v2-origintunneld._tcp.argotunnel.com";
@@ -28,6 +31,15 @@ fuzz_target!(|data: &[u8]| {
             }
         }
         Err(e) => assert_eq!(e == NXDOMAIN, rcode3, "{e}"),
+    }
+    let whole = |list: &[u8]| https::check_list(list).is_ok() && list.len() <= https::MAX_LIST;
+    match https::from_wire(data, NAME) {
+        Ok(Some(found)) => assert!(whole(&found.list), "{found:?}"),
+        Ok(None) => {}
+        Err(e) => assert_eq!(e == NXDOMAIN, rcode3, "{e}"),
+    }
+    if let Ok(Some((_, list))) = https::from_rdata(data) {
+        assert!(whole(&list), "{list:?}");
     }
     let start = data.first().map_or(0, |&b| usize::from(b) % data.len().max(1));
     if let Ok((name, end)) = wire::read_name(data, start) {

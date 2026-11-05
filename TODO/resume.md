@@ -34,7 +34,7 @@ drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:249-253`) in a new module
+1. A sans-IO codec (`docs/architecture.md:264-268`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -1735,7 +1735,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:674-675`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:254-256`). The
+not know the protocol that they carry (`docs/architecture.md:269-271`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary
