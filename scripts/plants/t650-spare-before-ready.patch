@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/serve/reverse/spares.rs b/crates/podssh-relay/src/serve/reverse/spares.rs
+index 70ee490e..71aa2352 100644
+--- a/crates/podssh-relay/src/serve/reverse/spares.rs
++++ b/crates/podssh-relay/src/serve/reverse/spares.rs
+@@ -121,7 +121,7 @@ impl Spares {
+     /// The youngest readied spare, which has the most of the node's 30 s
+     /// left; never one that the node has not readied.
+     fn take(&mut self) -> Option<(SessionId, Spare)> {
+-        let id = self.each.iter().filter(|(_, s)| s.ready).max_by_key(|(_, s)| s.opened).map(|(id, _)| *id)?;
++        let id = self.each.iter().max_by_key(|(_, s)| s.opened).map(|(id, _)| *id)?;
+         self.taken = true;
+         self.each.remove(&id).map(|spare| (id, spare))
+     }

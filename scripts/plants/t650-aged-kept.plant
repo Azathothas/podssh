@@ -1,0 +1,7 @@
+# T-650: a spare is kept past its age, where the node's handshake runs out;
+# the test of a spare that waited its age, which must close and be drawn
+# again, must fail.
+ENTRY=T-650
+GROUP=resume
+EXPECT='test a_spare_that_waited_its_age_closes_and_another_is_drawn \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_spares -- a_spare_that_waited_its_age_closes_and_another_is_drawn'

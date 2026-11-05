@@ -1,0 +1,14 @@
+diff --git a/crates/podssh-relay/src/serve/reverse/spares.rs b/crates/podssh-relay/src/serve/reverse/spares.rs
+index 70ee490e..435c4163 100644
+--- a/crates/podssh-relay/src/serve/reverse/spares.rs
++++ b/crates/podssh-relay/src/serve/reverse/spares.rs
+@@ -197,9 +197,6 @@ pub(super) fn admit(
+         return Ok((taken, node, true));
+     }
+     // A leg that found none asks for one more, up to the node's number.
+-    if state.spares.want > 0 {
+-        state.spares.level = (state.spares.level + 1).min(state.spares.want);
+-    }
+     // A spare never takes a leg's place: one that is still opening gives it.
+     if state.sessions.len() + state.spares.len() >= MAX_SESSIONS {
+         if let Some(spare) = state.spares.each.keys().next().copied() {

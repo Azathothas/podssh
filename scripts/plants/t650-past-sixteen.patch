@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-cli/src/node_flags.rs b/crates/podssh-cli/src/node_flags.rs
+index fc6c4449..16a22f54 100644
+--- a/crates/podssh-cli/src/node_flags.rs
++++ b/crates/podssh-cli/src/node_flags.rs
+@@ -68,7 +68,7 @@ pub(crate) fn spares(args: &NodeArgs) -> Result<u8, Refusal> {
+     }
+     let most = podssh_relay::reverse::spares::MOST;
+     match text.trim().parse::<u8>() {
+-        Ok(n) if n <= most => Ok(n),
++        Ok(n) if n <= most + 1 => Ok(n),
+         _ => Err(Refusal::usage(format!("--spares {text:?}: a whole number from 0 to {most}"))),
+     }
+ }

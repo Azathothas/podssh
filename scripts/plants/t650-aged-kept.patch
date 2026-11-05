@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/serve/reverse/spares.rs b/crates/podssh-relay/src/serve/reverse/spares.rs
+index 70ee490e..39399565 100644
+--- a/crates/podssh-relay/src/serve/reverse/spares.rs
++++ b/crates/podssh-relay/src/serve/reverse/spares.rs
+@@ -253,7 +253,7 @@ pub(super) fn keep(pair: &Pair, spacing: Spacing) {
+         .spares
+         .each
+         .iter()
+-        .filter(|(_, s)| now.saturating_duration_since(s.opened) >= spacing.age)
++        .filter(|(_, s)| s.opened > now)
+         .map(|(id, _)| *id)
+         .collect();
+     for id in aged {

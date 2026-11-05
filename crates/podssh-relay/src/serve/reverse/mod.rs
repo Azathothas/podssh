@@ -19,6 +19,7 @@
 //! The owner halts a pair and resumes it with its stop token ([`halt`], T-647).
 //! An upgrade of a dialect that the role does not read gets `426` ([`proto`], T-643).
 //! A name that the owner publishes is a session of its pair's node ([`publish`], T-649).
+//! A node that asks gets sessions readied ahead for its operators ([`spares`], T-650).
 //!
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
@@ -35,6 +36,7 @@ pub mod outbox;
 pub mod pairs;
 pub mod proto;
 pub mod publish;
+pub mod spares;
 
 pub use pairs::Pairs;
 
@@ -344,14 +346,15 @@ fn new_id() -> Option<SessionId> {
 /// The node's first frame, as the default relay sends it (measured
 /// 2026-10-09), its version the role's dialect (T-643); with `offers`, the
 /// role's tokens of one leg and the stop token's rotation beside it (T-615),
-/// and its halt (T-647), which a node of before keeps as fields that it does
-/// not know.
+/// its halt (T-647) and its sessions readied ahead (T-650), which a node of
+/// before keeps as fields that it does not know.
 fn hello(offers: bool) -> String {
     let mut hello = json!({ "type": "hello", "version": PROTO, "maxFrameBytes": 65536, "maxSessions": MAX_SESSIONS });
     if offers {
         hello[crate::e2e::legs::OFFER] = json!(true);
         hello[crate::reverse::legs::ROTATION] = json!(true);
         hello[halt::OFFER] = json!(true);
+        hello[spares::OFFER] = json!(true);
     }
     hello.to_string()
 }

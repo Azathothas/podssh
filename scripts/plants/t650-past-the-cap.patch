@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/serve/reverse/spares.rs b/crates/podssh-relay/src/serve/reverse/spares.rs
+index 70ee490e..c7c899ec 100644
+--- a/crates/podssh-relay/src/serve/reverse/spares.rs
++++ b/crates/podssh-relay/src/serve/reverse/spares.rs
+@@ -229,7 +229,7 @@ pub(super) fn fill(state: &mut State, node: Option<&Outbox>) {
+     if state.halted.is_some() || state.ended || state.spares.refused {
+         return;
+     }
+-    let room = MAX_SESSIONS.saturating_sub(state.sessions.len() + state.spares.len());
++    let room = MAX_SESSIONS.saturating_sub(state.spares.len());
+     let short = state.spares.level.saturating_sub(state.spares.len()).min(room);
+     for _ in 0..short {
+         let Some(id) = new_id() else { return };

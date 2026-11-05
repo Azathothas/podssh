@@ -123,6 +123,9 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "carry each session's bytes as they are, with no resumable layer, for an operator that does not speak it; a lost link ends the session", None),
     row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
         "keep a session whose link is lost for TIME, on each road, and tell its operator so: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default 10m)", None),
+    // Sessions that the pair's relay role readies ahead (T-650).
+    row(None, "spares", Some("N"), FlagKind::Supported,
+        "ask the pair's relay to keep up to N sessions, 0 to 16, open and readied ahead for this node's operators, so that a run of short connections waits for no open and ready; each is a session at rest here, drawn again each 15 to 20 s, and with --plain --no-e2e a connection to TARGET; podssh relay serve keeps them, a relay of the contract none (default 0, none)", None),
     row(None, "sshd", None, FlagKind::Supported,
         "a roost: each TARGET (default 127.0.0.1:22) is a standard sshd that runs already, which must send its SSH version line first, at the start and on each session's connection; podssh brings no sshd (podssh doctor's line sshd says whether this host has one)", None),
     row(None, "temporary", Some("KEY"), FlagKind::Supported,

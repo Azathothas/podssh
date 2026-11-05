@@ -3869,6 +3869,18 @@ commands. The rules behind them:
   it. An operator waits as long; with `--resume-deadline` of its own
   (`ssh`, `operator`), at most that. A session kept longer holds its replay
   buffers longer; the node's bound of 64 MiB holds.
+- **`node --spares N`** (T-650, GitHub #148; [reverse.md](reverse.md),
+  "Sessions readied ahead") asks the pair's relay to keep up to N sessions,
+  0 to 16, open and readied ahead for the node's operators, where the relay
+  is podssh's role, whose `hello` offers it: a leg then takes one with no
+  `open` and `ready` to wait for, so a run of short connections waits for
+  none. Each spare is a session at rest on the node, drawn again each 15 to
+  20 s; with `--plain --no-e2e` it is a connection to TARGET, which an sshd
+  counts among those that have not logged in (`MaxStartups`). The node's
+  line says once whether its relay keeps them. A number past 16, or the flag
+  with `--iroh`, `--derp`, `--opentunnel`, `--quick-tunnel`, `--carrier`,
+  `--temporary` or `PODSSH_PIPING`'s road, is refused (64); `--install`
+  writes it into the service.
 - **`node NAME udp:HOST:PORT` offers a UDP service** (T-168), on a host that
   allows UDP: the relay carries TCP only, so the datagrams leave from the
   node. Each session is one flow, a UDP socket from the node's host to

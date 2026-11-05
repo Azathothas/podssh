@@ -132,6 +132,8 @@ pub struct State {
     pub ended: bool,
     /// Its owner keeps its operators out, in memory alone (T-647).
     pub halted: Option<super::halt::Halt>,
+    /// The sessions readied ahead, which its node's socket asked for (T-650).
+    pub spares: super::spares::Spares,
 }
 
 impl State {
@@ -227,6 +229,8 @@ pub struct Pairs {
     pub mailbox: crate::serve::mailbox::table::Table,
     /// The places of the table: [`MAX_PAIRS`], or a test's ([`Pairs::with_room`]).
     room: Option<usize>,
+    /// The times of the nodes' spares, or a test's ([`Pairs::with_spacing`], T-650).
+    pub(super) spacing: super::spares::Spacing,
 }
 
 impl Pairs {
