@@ -69,6 +69,9 @@ pub struct Offered<T> {
     peer: PublicKey,
     proof: [u8; PROOF_LEN],
     net: Option<Talk>,
+    /// This end offered the net's document, and the node's proof took no
+    /// part of it (T-643).
+    unanswered: bool,
 }
 
 /// The node's side after the operator's proof: the operator's key, which the
@@ -120,17 +123,27 @@ pub async fn initiate_with<T: AsyncRead + AsyncWrite + Unpin>(
     let mut payload = vec![0u8; MAX_MESSAGE];
     let k = state.read_message(&message, &mut payload).map_err(not_noise("the node's message"))?;
     let read = proof_of(&payload[..k], state.get_remote_static(), docs.is_some())?;
+    // T-429 lets such a node in by its own door; its caller says it once.
+    let unanswered = docs.is_some() && read.net.is_none();
     let net = match (docs, read.net) {
         (Some(docs), Some((peer, _))) => Some(Talk { docs, peer }),
         _ => None,
     };
-    Ok(Offered { transport, state, peer: read.key, proof: proof(me), net })
+    Ok(Offered { transport, state, peer: read.key, proof: proof(me), net, unanswered })
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
     /// The node's key, which its message proved.
     pub fn peer(&self) -> PublicKey {
         self.peer
+    }
+
+    /// Whether this end offered the net's document and the node answered
+    /// with a plain proof: it holds none, or is a podssh of before (T-643).
+    /// The session goes on without the document, as T-429 lets such a node
+    /// in by its own door; the caller says it.
+    pub fn net_unanswered(&self) -> bool {
+        self.unanswered
     }
 
     /// Prove this end's key, with `route` of the node when one is asked
@@ -144,7 +157,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
     /// [`Offered::accept`] with `grant`, a grant used once (T-226), in the
     /// proof: it goes to the node whose key this end checked, encrypted.
     pub async fn accept_granted(self, route: Option<&str>, grant: Option<&[u8]>) -> Result<Channel<T>, Error> {
-        let Offered { mut transport, mut state, peer, proof, net } = self;
+        let Offered { mut transport, mut state, peer, proof, net, .. } = self;
         let gift = net.as_ref().and_then(|talk| talk.gift(&peer));
         let payload = match &net {
             Some(talk) => {

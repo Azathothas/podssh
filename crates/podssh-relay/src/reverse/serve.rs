@@ -41,6 +41,10 @@ pub enum End {
     /// The caller stopped the node: each session got `close`, the socket a
     /// Close 1000.
     Stopped,
+    /// The relay's `hello` states a dialect of the reverse road that this
+    /// node does not read (T-643): its sentence. The node closed the socket
+    /// as at a stop; a new one would meet the same.
+    Unread(String),
 }
 
 /// What a node needs for one socket, and how long it connects again after
@@ -175,6 +179,12 @@ where
         match frame {
             Ok(f) if f.opcode == frame::OPCODE_TEXT => match control::parse_inbound(&f.payload) {
                 Ok(NodeInbound::Hello(hello)) => {
+                    // A dialect that this node does not read ends it here,
+                    // not at a later frame that one side drops (T-643).
+                    if let Err(skew) = control::accept(hello.version.as_ref()) {
+                        let _ = tx.send(Out::Stop).await;
+                        break End::Unread(skew.sentence("this node", "the relay"));
+                    }
                     limits.apply(&hello);
                     // A role that registers tokens of one leg (T-615): the
                     // handler registers them on this socket from now on.
@@ -240,7 +250,7 @@ where
     // A stop's last frames (each session's `close`, the Close) go out
     // first. A socket that the relay closed, or that broke, takes nothing
     // more, so the node goes on at once (T-255).
-    if matches!(end, End::Stopped) {
+    if matches!(end, End::Stopped | End::Unread(_)) {
         let _ = tokio::time::timeout(Duration::from_secs(5), &mut writer.0).await;
     }
     end

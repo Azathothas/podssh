@@ -1,0 +1,7 @@
+# T-643: the run loop takes a relay of another dialect for a lost socket and
+# connects again, for as long as the node runs; the test of one connection
+# alone and of the node's end must fail.
+ENTRY=T-643
+GROUP=resume
+EXPECT='test a_hello_of_another_dialect_ends_the_node_with_no_second_connection \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair,plain-ws --test reverse_dialect -- a_hello_of_another_dialect_ends_the_node_with_no_second_connection'

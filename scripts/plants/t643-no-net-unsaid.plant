@@ -1,0 +1,7 @@
+# T-643: an operator that offered the net's document takes a node's plain
+# proof as an answer and says nothing, as before; the test of its one line
+# with a node that holds no document must fail.
+ENTRY=T-643
+GROUP=resume
+EXPECT='test an_operator_whose_offer_got_a_plain_proof_says_it_once_and_goes_on \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test e2e_net -- an_operator_whose_offer_got_a_plain_proof_says_it_once_and_goes_on'

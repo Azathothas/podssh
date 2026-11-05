@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/reverse/node.rs
++++ b/crates/podssh-relay/src/reverse/node.rs
+@@ -335,7 +335,7 @@ where
+             Err(ConnectError::Refused { status: 403, .. }) => return Exit::Forbidden,
+             // The relay reads another dialect of the reverse road, or takes
+             // no upgrade of this node's: the same request gets the same.
+-            Err(ConnectError::Refused { status: 426, body }) => return Exit::Unusable(refused_upgrade(&body)),
++            Err(ConnectError::Refused { status: 999, body }) => return Exit::Unusable(refused_upgrade(&body)),
+             Err(_) => Next::Reconnect,
+         };
+         match next {

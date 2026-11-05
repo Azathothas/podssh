@@ -337,6 +337,8 @@ pub const RELAY: &[&str] = &[
      address.",
     super::notes_grant::RELAY,
     super::notes_legs::RELAY,
+    // The dialect of the reverse road (T-643).
+    super::notes_dialect::RELAY,
     super::notes_doctor::RELAY_PROBES,
     super::notes_deployments::RELAY,
     super::notes_deployments::MEMBERS,

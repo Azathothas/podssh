@@ -1,0 +1,7 @@
+# T-643: podssh's relay role takes the upgrade of a node or an operator
+# whatever dialect it states, so the two ends meet at a frame that one of
+# them drops; the test of the 426 with both numbers must fail.
+ENTRY=T-643
+GROUP=resume
+EXPECT='test an_upgrade_of_another_dialect_gets_426_with_both_once_its_token_passed \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_dialect -- an_upgrade_of_another_dialect_gets_426_with_both_once_its_token_passed'

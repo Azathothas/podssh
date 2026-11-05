@@ -116,7 +116,8 @@ pub enum Exit {
     Forbidden,
     /// The node cannot connect as it is set up: an unusable proxy setting or
     /// trust store, or a host that plain `ws://` refuses. A reconnection would
-    /// repeat it.
+    /// repeat it. So would a relay of another dialect of the reverse road, by
+    /// its `hello` or its `426` (T-643): the sentence says whom to update.
     Unusable(String),
 }
 
@@ -184,7 +185,8 @@ pub fn ended_words(end: &End) -> Option<String> {
         shown => shown,
     };
     Some(match end {
-        End::Stopped => return None,
+        // The node ends on these: no line of a next try.
+        End::Stopped | End::Unread(_) => return None,
         End::Closed(close) if close.code == RESTART => {
             format!("the relay is restarting (relay close {RESTART}: {})", reason(&close.reason))
         }
@@ -196,6 +198,20 @@ pub fn ended_words(end: &End) -> Option<String> {
         }
         End::Failed(e) => format!("the link to the relay ended with no Close ({})", reason(&e.to_string())),
     })
+}
+
+/// What a `426` with no words says for the relay.
+const UNSAID_426: &str = "the relay refused this node's upgrade (426) and said no more: it may read another \
+                          dialect of the reverse road; update this node or the relay";
+
+/// The words of a `426` to this node's upgrade (T-643): the relay's own
+/// sentence, which podssh's relay role makes name both dialects and whom to
+/// update; a relay that gave none gets that said for it.
+pub fn refused_upgrade(body: &str) -> String {
+    match podssh_ws::text::one_line(body) {
+        said if said.is_empty() => UNSAID_426.to_string(),
+        said => format!("the relay refused this node's upgrade (426): {said}"),
+    }
 }
 
 /// Run the node until it ends; reconnect after a broken socket, at once the
@@ -267,6 +283,9 @@ where
                 ended = ended_words(&end);
                 match end {
                     End::Stopped => return Exit::Stopped,
+                    // Never a reconnection: the relay would say the same
+                    // dialect again, for as long as the node ran (T-643).
+                    End::Unread(why) => return Exit::Unusable(why),
                     End::Failed(_) => Next::Reconnect,
                     End::Closed(close) => match after_close(&close) {
                         Next::Exit("stopped") => {
@@ -314,6 +333,9 @@ where
             }
             Err(ConnectError::Refused { status: 403, .. }) if expired(&config.pair) => Next::Repair,
             Err(ConnectError::Refused { status: 403, .. }) => return Exit::Forbidden,
+            // The relay reads another dialect of the reverse road, or takes
+            // no upgrade of this node's: the same request gets the same.
+            Err(ConnectError::Refused { status: 426, body }) => return Exit::Unusable(refused_upgrade(&body)),
             Err(_) => Next::Reconnect,
         };
         match next {
@@ -390,5 +412,19 @@ mod tests {
         let words = dropped.as_deref().unwrap_or_default();
         assert!(words.starts_with("the link to the relay ended with no Close ("), "{words}");
         assert_eq!(ended_words(&End::Stopped), None, "a stop of the caller's is said by the caller");
+        assert_eq!(ended_words(&End::Unread("why".into())), None, "the node ends with its own words");
+    }
+
+    /// T-643: a `426` keeps the relay's sentence on one line, and one with
+    /// no words still says what it may be.
+    #[test]
+    fn a_426_says_the_relay_s_sentence() {
+        let said = refused_upgrade("reverse: the node speaks dialect 2,\nand the relay reads 1: update the relay");
+        assert_eq!(
+            said,
+            "the relay refused this node's upgrade (426): reverse: the node speaks dialect 2, and the relay reads \
+             1: update the relay"
+        );
+        assert!(refused_upgrade("  ").contains("update this node or the relay"));
     }
 }

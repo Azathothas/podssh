@@ -737,10 +737,22 @@ does not know it reads the answer as before:
   `POST /v1/stop/<name>`, each with its own token, from `X-Relay-Token` or
   `?token=`; a wrong one gets `403 reverse: forbidden`, a second node `409`
   before the upgrade, and a socket's path with no upgrade `426`.
-- The node gets `hello` (`maxSessions` 64, `maxFrameBytes` 65536), `open
-  {id}` and `close {id}`; the operator gets `ready` before the session's
-  first byte, and a `reject` with its whole reason before a Close whose
-  reason is cut to 123 bytes. Each fault of a node's bytes closes its socket
+- Beside the contract, the dialect of the road (T-643, GitHub #141;
+  [reverse.md](reverse.md), "The dialect of the road"): an upgrade of
+  `/v1/node/<name>` or `/v1/connect/<name>` may state its dialect in
+  `X-Podssh-Proto`, as podssh's node and operator state theirs, 1; none is
+  1, the dialect of the contract. Once the pair's token passed, and before
+  the name's `409`, a halt and a token of `once` or of one leg are spent, a
+  dialect that the role does not read gets `426` with one sentence that
+  names both and the side to update, as `reverse: the node speaks the
+  reverse road's dialect 2, and the relay reads dialect 1 alone: update the
+  relay`, and the role's own in `X-Podssh-Proto`; a wrong token gets the
+  `403` of each failed authentication, which says nothing of a dialect.
+  The role reads 1 alone.
+- The node gets `hello` (`version` 1, the role's dialect, `maxSessions` 64,
+  `maxFrameBytes` 65536), `open {id}` and `close {id}`; the operator gets
+  `ready` before the session's first byte, and a `reject` with its whole
+  reason before a Close whose reason is cut to 123 bytes. Each fault of a node's bytes closes its socket
   with its row of the close table, and each of its operators hears that
   cause; else a node that leaves gives them `1011 node disconnected`.
 - What the default deployment does not do. At most 1 MiB waits for a slow

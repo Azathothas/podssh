@@ -220,6 +220,8 @@ pub(super) const NODE: &[&str] = &[
     super::notes_legs::NODE,
     // A node's upgrade in place, its sessions with it (T-668).
     super::notes_upgrade::NODE,
+    // The dialect of the reverse road (T-643).
+    super::notes_dialect::NODE,
     "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
      Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
      each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge, and races \
@@ -370,6 +372,8 @@ pub(super) const OPERATOR: &[&str] = &[
     super::notes_grant::OPERATOR,
     // The tokens of one leg (T-615).
     super::notes_legs::OPERATOR,
+    // The dialect of the reverse road (T-643).
+    super::notes_dialect::OPERATOR,
 ];
 
 /// The note of `ssh node://NAME --carrier ADDR` (T-595), beside operator's.

@@ -5,7 +5,9 @@
 //! (T-615, `crate::e2e::legs`). The operator receives
 //! `ready`, `reject` and `close` as text, and never sends a text frame: the
 //! relay closes it with `1003` (`docs/reverse.md`). `hello` may never come, so
-//! the limits have a floor of their own.
+//! the limits have a floor of their own. Its `version` is the relay's
+//! dialect, and one that this node does not read ends the node with one
+//! sentence, as a new socket would meet the same (T-643, [`accept`]).
 
 use serde::{Deserialize, Serialize};
 
@@ -63,11 +65,14 @@ pub enum NodeOutbound {
 /// `{"type":"hello","version":1,"maxFrameBytes":65536,"maxSessions":64}`; no
 /// published document gives these fields, so each is optional. The relay's
 /// own client reads `maxFrameBytes` as the payload of a node frame, and a
-/// larger value is clamped to the published cap.
+/// larger value is clamped to the published cap. `version` is the relay's
+/// dialect ([`accept`], T-643).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Hello {
+    // Any JSON, so that a version of another type is said, not a `hello`
+    // that fails to parse and is dropped with its limits.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub version: Option<i64>,
+    pub version: Option<serde_json::Value>,
     // The relay's spelling: a renamed field would parse into nothing.
     #[serde(rename = "maxSessions", default, skip_serializing_if = "Option::is_none")]
     pub max_sessions: Option<u32>,
@@ -107,6 +112,72 @@ impl Default for NodeLimits {
     fn default() -> Self {
         Self::conservative()
     }
+}
+
+/// The dialect of the reverse road that this podssh speaks: the `version`
+/// of the role's `hello`, and the `X-Podssh-Proto` that the dialer writes on
+/// each node's and operator's upgrade (T-643).
+pub const PROTO: i64 = podssh_ws::handshake::REVERSE_PROTO;
+/// The oldest dialect that this podssh reads: [`PROTO`] until the dialect
+/// changes, so that the check refuses nothing before that change.
+pub const PROTO_MIN: i64 = 1;
+/// The dialect of a peer that states none: the contract's, which the default
+/// relay and each podssh of before speak. Never zero, which none speaks.
+pub const UNSTATED: i64 = 1;
+/// The header of an upgrade's dialect.
+pub const PROTO_HEADER: &str = podssh_ws::handshake::PROTO_HEADER;
+
+/// A peer's dialect that this end does not read: what the peer stated, as a
+/// line shows it, and whether it is past this end's range (`Some(true)`),
+/// short of it (`Some(false)`), or no number at all.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Skew {
+    pub stated: String,
+    pub newer: Option<bool>,
+}
+
+impl Skew {
+    /// One sentence for the user: the dialect that `peer` states, what
+    /// `reader` reads, and which of the two to update. A new connection
+    /// would meet the same, so no caller retries on it.
+    pub fn sentence(&self, reader: &str, peer: &str) -> String {
+        let range = match PROTO_MIN == PROTO {
+            true => format!("dialect {PROTO} alone"),
+            false => format!("dialects {PROTO_MIN} to {PROTO}"),
+        };
+        let update = match self.newer {
+            Some(true) => reader.to_string(),
+            Some(false) => peer.to_string(),
+            None => format!("{reader} or {peer}"),
+        };
+        format!("{peer} speaks the reverse road's dialect {}, and {reader} reads {range}: update {update}", self.stated)
+    }
+}
+
+/// Whether this end reads the dialect that `version` states, by the rule of
+/// a dialect (`crate::answer::dialect`): none, or null, is [`UNSTATED`].
+pub fn accept(version: Option<&serde_json::Value>) -> Result<i64, Skew> {
+    match crate::answer::dialect(version, UNSTATED) {
+        Ok(number) if (PROTO_MIN..=PROTO).contains(&number) => Ok(number),
+        Ok(number) => Err(Skew { stated: number.to_string(), newer: Some(number > PROTO) }),
+        Err(raw) => Err(Skew { stated: shown(&raw), newer: None }),
+    }
+}
+
+/// [`accept`] of an upgrade's `X-Podssh-Proto`, at podssh's relay role: no
+/// header is [`UNSTATED`], and a value that is no whole number no dialect.
+pub fn accept_header(value: Option<&str>) -> Result<i64, Skew> {
+    let stated = value.map(|text| match text.trim().parse::<i64>() {
+        Ok(number) => serde_json::Value::from(number),
+        Err(_) => serde_json::Value::String(text.to_string()),
+    });
+    accept(stated.as_ref())
+}
+
+/// A peer's value as a line says it: one line, 40 characters at most, as
+/// it reaches a terminal and a refusal's reason.
+fn shown(raw: &str) -> String {
+    podssh_ws::text::one_line(raw).chars().take(40).collect()
 }
 
 /// A `ready`. Only after the local side has accepted: a `ready` sent early
@@ -213,5 +284,75 @@ impl std::error::Error for ControlError {}
 impl From<CodecError> for ControlError {
     fn from(e: CodecError) -> Self {
         ControlError::Codec(e)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn hello(text: &str) -> Hello {
+        match parse_inbound(text.as_bytes()) {
+            Ok(NodeInbound::Hello(hello)) => hello,
+            other => panic!("not a hello: {other:?}"),
+        }
+    }
+
+    /// T-643: the relay of the contract states 1, and a relay of before may
+    /// state nothing; both are read, as is an upgrade with no header.
+    #[test]
+    fn a_hello_with_no_version_is_the_oldest_dialect() {
+        assert_eq!(accept(hello(r#"{"type":"hello","maxSessions":64}"#).version.as_ref()), Ok(UNSTATED));
+        assert_eq!(accept(hello(r#"{"type":"hello","version":null}"#).version.as_ref()), Ok(UNSTATED));
+        let measured = hello(r#"{"type":"hello","version":1,"maxFrameBytes":65536,"maxSessions":64}"#);
+        assert_eq!(accept(measured.version.as_ref()), Ok(PROTO));
+        assert_eq!(accept_header(None), Ok(UNSTATED));
+        assert_eq!(accept_header(Some(" 1 ")), Ok(PROTO));
+    }
+
+    /// T-643: a dialect that this node does not read is one sentence that
+    /// names what the peer states, what this end reads, and whom to update.
+    #[test]
+    fn a_hello_of_a_dialect_this_node_cannot_read_names_both_sides() {
+        let newer = accept(hello(r#"{"type":"hello","version":2}"#).version.as_ref()).unwrap_err();
+        assert_eq!(newer, Skew { stated: "2".into(), newer: Some(true) });
+        let words = newer.sentence("this node", "the relay");
+        assert!(words.contains("dialect 2") && words.contains(&format!("dialect {PROTO}")), "{words}");
+        assert!(words.ends_with(": update this node"), "{words}");
+        // Zero is a dialect that no podssh speaks, never an absence.
+        let older = accept(Some(&json!(0))).unwrap_err();
+        assert!(older.sentence("this node", "the relay").ends_with(": update the relay"));
+        // No number: quoted as the peer wrote it, and either side may be old.
+        for odd in [json!("2"), json!(1.5), json!({"major": 2}), json!(true)] {
+            let skew = accept(Some(&odd)).unwrap_err();
+            assert_eq!(skew.newer, None, "{odd}");
+            assert!(skew.sentence("this node", "the relay").ends_with(": update this node or the relay"), "{odd}");
+        }
+        // The role's reading of an upgrade's header.
+        assert_eq!(accept_header(Some("2")).unwrap_err().newer, Some(true));
+        let words = accept_header(Some("two")).unwrap_err().sentence("the relay", "the node");
+        assert!(words.starts_with("the node speaks the reverse road's dialect \"two\""), "{words}");
+    }
+
+    /// A version of another type keeps the rest of the `hello`: its limits
+    /// are taken, and the version is said, not dropped with the frame.
+    #[test]
+    fn a_hello_whose_version_is_no_number_keeps_its_limits() {
+        let odd = hello(r#"{"type":"hello","version":"1.0","maxSessions":8,"maxFrameBytes":4096}"#);
+        let mut limits = NodeLimits::conservative();
+        limits.apply(&odd);
+        assert_eq!(limits, NodeLimits { max_sessions: 8, max_frame_bytes: 4096 });
+        assert!(accept(odd.version.as_ref()).is_err());
+    }
+
+    /// A peer's text reaches a terminal and a refusal's reason: one line,
+    /// cut, with no control character.
+    #[test]
+    fn a_stated_value_is_shown_on_one_line_and_cut() {
+        let long = format!("{}\u{1b}[31m\nsecond line", "x".repeat(200));
+        let skew = accept_header(Some(&long)).unwrap_err();
+        assert!(skew.stated.chars().count() <= 40, "{}", skew.stated);
+        assert!(!skew.stated.chars().any(char::is_control), "{:?}", skew.stated);
     }
 }

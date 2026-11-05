@@ -31,6 +31,21 @@ pub fn generate_key_from(random: &dyn SecureRandom) -> Result<String, WsError> {
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
+/// The dialect of the reverse road that this podssh speaks, which each socket
+/// of that road states in [`PROTO_HEADER`] (T-643): podssh's relay role
+/// compares it, and a relay of the contract reads no such header.
+/// `podssh_relay::reverse::control::PROTO` is this number.
+pub const REVERSE_PROTO: i64 = 1;
+
+/// The header in which a socket of the reverse road states its dialect.
+pub const PROTO_HEADER: &str = "X-Podssh-Proto";
+
+/// Whether `path` is a socket of the reverse road, a node's or an
+/// operator's, which states its dialect; a forward session states none.
+pub fn reverse_socket(path: &str) -> bool {
+    path.starts_with("/v1/node/") || path.starts_with("/v1/connect/")
+}
+
 /// **The request is built as a byte string, not handed to a URL parser.**
 /// There is no query string to escape, and building the request directly means
 /// there is no code path in which a token could be appended to one.
@@ -44,6 +59,11 @@ pub fn build_request(host_header: &str, path: &str, token: &str, key: &str) -> V
     req.push_str("Sec-WebSocket-Version: 13\r\n");
     // The token, in a header. See the module comment.
     req.push_str(&format!("X-Relay-Token: {token}\r\n"));
+    // A reverse socket's dialect, so that a relay role that reads another
+    // can say so in a sentence, not in a frame that one side drops.
+    if reverse_socket(path) {
+        req.push_str(&format!("{PROTO_HEADER}: {REVERSE_PROTO}\r\n"));
+    }
     // **No `Sec-WebSocket-Protocol` line.** See the module comment.
     req.push_str("\r\n");
     req.into_bytes()
@@ -259,4 +279,27 @@ pub fn masking_key_from(random: &dyn SecureRandom) -> Result<[u8; 4], WsError> {
     let mut key = [0u8; 4];
     random.fill(&mut key).map_err(|e| WsError::Frame(format!("no OS entropy for a masking key: {e:?}")))?;
     Ok(key)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn request(path: &str) -> String {
+        String::from_utf8(build_request("relay.example:443", path, "tok", "k")).expect("ASCII")
+    }
+
+    /// T-643: a node's and an operator's socket state their dialect, once;
+    /// a forward session states none, as no relay of the contract reads it.
+    #[test]
+    fn a_reverse_socket_states_its_dialect_and_a_forward_one_none() {
+        for path in ["/v1/node/podssh-p-0123", "/v1/connect/podssh-p-0123"] {
+            let asked = request(path);
+            assert_eq!(asked.matches("X-Podssh-Proto: 1\r\n").count(), 1, "{asked}");
+            assert!(asked.ends_with("\r\n\r\n"), "{asked}");
+        }
+        for path in ["/connect/example.org/22", "/v1/status/podssh-p-0123", "/v1/nodes/x", "/x"] {
+            assert!(!request(path).to_ascii_lowercase().contains("x-podssh-proto"), "{path}");
+        }
+    }
 }
