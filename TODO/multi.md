@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:5346-5349`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:5360-5363`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:5560-5669`); they cannot define a group.
+  (`docs/cli.md:5574-5683`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:470`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:5346-5349`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:5360-5363`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:123-143`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:421-465`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:5346-5349`), which is not a failure of podssh.
+  status (`docs/cli.md:5360-5363`), which is not a failure of podssh.
 
 ## Approach
 
@@ -1924,7 +1924,7 @@ The premise of two writers is not whole. `Log` writes to the file of `-E`
 in place of stderr when it is given (`crates/podssh-ssh/src/log.rs:123-143`),
 and `podssh node`, `operator`, `chat`, `pipe` and `agent` write their lines
 while they serve with `eprintln!`, which is neither writer
-(`crates/podssh-cli/src/node.rs:330`). The report keeps what goes through
+(`crates/podssh-cli/src/node.rs:334`). The report keeps what goes through
 the two writers, the file of `-E` too; the lines of `eprintln!` are not
 kept, and `docs/cli.md` says so.
 
@@ -2017,7 +2017,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-154`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-155`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -2086,7 +2086,7 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-154`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-155`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.
 
 2026-10-13 (the draft of T-197): T-193 runs a job under tmux only; the
@@ -3522,7 +3522,7 @@ session on 2026-11-03.
   podssh-cli --test flag_table`: 9; `--lib session::`, 17; `--lib man`, 66; `--lib help`, 9.
 - Planted: `scripts/plants/t506-empty-silent.plant` (the line of an empty list never written):
   `sh scripts/plant-each.sh --here t506-empty-silent`: caught, the test of the empty list failed.
-- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:457-461`
+- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:460-464`
   (`TODO/cli.md`) and the citations of `docs/cli.md` were moved by hand; `cargo todo remap` from the
   tree before the draft confirmed them. rustfmt of `podssh-cli` (`exchange` of `session/client.rs`)
   and clippy of `podssh-cli` with `-D warnings`, all targets: clean.

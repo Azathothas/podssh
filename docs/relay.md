@@ -1558,3 +1558,71 @@ The tests (`crates/podssh-relay/tests/relay_serve_sshd.rs`, and
 `serve_sshd` of `crates/podssh-cli/tests/relay_serve.rs`) run a stand-in
 sshd that keeps each byte, OpenSSH's sshd, and OpenSSH's client logging in
 through the role's port with a key; measured on 2026-11-05: 8 and 27 passed.
+
+## A name published on the relay role's port (T-649)
+
+An owner with one public port, 443, and the role on it published SSH through
+a pair, not a node's own HTTPS site with its own certificate: the role
+answered each ClientHello with its own certificate before it knew the name
+(GitHub #147). `podssh relay serve --publish NAME=PAIR` publishes NAME, a DNS
+name, to the node of PAIR, a pair of the role's
+(`crates/podssh-relay/src/serve/published.rs`):
+
+- **The decision.** Before its own TLS, the listener peeks at the
+  connection's ClientHello, within 10 s and its one record of 16 KiB at
+  most, TLS's own bound of a record, and takes none of its bytes
+  (`crates/podssh-relay/src/serve/sni.rs`). A server name of the table, in
+  any case and with or without a trailing dot, as DNS matches names, goes to
+  the pair's node; each other start goes on as before: a client by address,
+  which sends no name; another name; a record cut short, which goes to the
+  role's TLS after the 10 s with what came; a record longer than 16 KiB, a
+  hello in two records, a second name, or lengths that contradict each
+  other, at once; and what is no TLS (the cleartext road, `--sshd`). With no
+  `--publish`, nothing changes. The role's QUIC (T-667) and the role behind a
+  quick tunnel (T-428) publish no name.
+- **The session.** The connection, each byte untouched from its first, is
+  one session of the pair's reverse road: the role is its operator in its
+  own process, a pipe that the operator's leg carries as it carries a
+  socket, so that the node hears `open`, its `ready` comes before any byte,
+  and each byte keeps the order and the bounds of an operator's leg
+  (`crates/podssh-relay/src/serve/reverse/publish.rs`). After the visitor's
+  end of its input, the node's bytes still go to it until the node ends the
+  session or is silent for 15 s, as the forward road keeps a target's
+  (T-671). The contract's bounds hold: 64 MiB a session, and 1 MiB for a
+  visitor that reads more slowly than its node sends (`1011 relay
+  backpressure`), as for an operator of a node with `--plain`; a site that
+  serves large files to slow visitors is better published by the quick
+  tunnel (`podssh funnel`, T-180).
+- **What the role sees.** The name, which routed the connection, and never a
+  byte of the session, as the node's TLS ends it: the role holds no key of
+  the name. A line on stdout names the name, the visitor's address and the
+  pair at the start, and the bytes each way at the end; the first line
+  names each published name and its pair.
+- **The node.** `podssh node NAME --publish-tls TARGET` serves the pair's
+  sessions as the site: each is one connection to TARGET, a TLS service of
+  its host that answers with its own certificate, the bytes as they came,
+  with no resumable layer and no end-to-end channel, which a visitor speaks
+  neither of. With `--acme SITE`, the node ends TLS itself with a
+  certificate for SITE from an ACME CA, and TARGET gets the cleartext. Its
+  first line names the pair's name, for `--publish`.
+- **ACME.** A CA's validation of a published name, which offers
+  `acme-tls/1` alone (RFC 8737), goes to the node too, so that the node
+  proves the name for a certificate of its own on the role's port and needs
+  none of its own. The role's `--acme` name is never published (64), so its
+  own validations stay the role's.
+- **A name with no node.** A name whose pair is not one of the role's, has
+  ended, or has no node joined, or a node that refuses the session, closes
+  the connection, as no TLS of the role's answers for a name that it
+  publishes; the line says why.
+- **The table.** Pairs are made after the role starts, and `--publish` is
+  read at the start: the owner keeps the pairs with `--pairs FILE`, makes
+  the pair, and starts the role again with `--publish NAME=PAIR`, its nodes
+  coming back after its `1012`. A node renews its pair at the role in its
+  last day (T-592), so the name that `--publish` names holds.
+
+The tests (`crates/podssh-relay/tests/relay_serve_publish.rs`, with the
+reader's own on the ClientHellos of RFC 8448 and RFC 9001 and on those that
+rustls writes, and `serve_publish` of
+`crates/podssh-cli/tests/relay_serve_node.rs`, through the binary with an
+HTTPS server and a client of Python's `ssl`) passed on 2026-11-05
+(T-649).

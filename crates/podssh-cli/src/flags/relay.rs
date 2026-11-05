@@ -88,6 +88,9 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     // An SSH client of the listener, to the owner's sshd (T-644).
     row(None, "sshd", Some("ADDR:PORT"), FlagKind::Supported,
         "serve: send each connection of the listener whose first four bytes are SSH-, an SSH client's version line, to the sshd at ADDR:PORT (an address, not a name), its bytes untouched, so that one port serves the relay and a shell: a shell for each client that reaches the port, behind that sshd's own authentication; each other start goes to TLS or the cleartext road, as before", None),
+    // A name published to a pair's node, by its ClientHello (T-649).
+    row(None, "publish", Some("NAME=PAIR"), FlagKind::Supported,
+        "serve: send each TLS connection whose ClientHello names NAME, a DNS name, to the node of PAIR, a pair of this relay (its name p-..., which the pair's file holds), before any handshake and with its bytes untouched, so that the node's own TLS answers it with its own certificate (podssh node --publish-tls); repeatable; the relay reads the name, never the bytes; a CA's validation of NAME (acme-tls/1) goes to the node too; NAME is never the name of --acme", None),
     // The signed list of deployments of /relays.json (T-346).
     row(None, "deployment", Some("NAME=HOSTS"), FlagKind::Supported,
         "serve: a deployment that /relays.json names in its signed list, NAME=HOST[:PORT][,HOST[:PORT]...], repeatable, in order; a client that trusts the list's key (PODSSH_RELAY_KEYS, RelayKeys, a member of its net with the role relay) tries those hosts after its default list, each with a token of its own", None),

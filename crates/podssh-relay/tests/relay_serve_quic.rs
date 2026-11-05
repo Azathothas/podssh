@@ -164,7 +164,7 @@ impl Both {
         let pair = podssh_ws::tls_server::certified(cert.as_bytes(), key.as_bytes()).expect("the leaf and its key");
         let served = Served::new(Some(pair));
         let acceptor = podssh_ws::tls_server::acceptor_for(served.clone(), &[HTTP1]).expect("an acceptor");
-        let door = Door { acceptor, cleartext: false, sshd: None };
+        let door = Door { acceptor, cleartext: false, sshd: None, published: Default::default() };
         let (tcp, socket) = ports();
         let port = tcp.local_addr().unwrap().port();
         tcp.set_nonblocking(true).unwrap();

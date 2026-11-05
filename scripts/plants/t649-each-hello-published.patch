@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/serve/published.rs
++++ b/crates/podssh-relay/src/serve/published.rs
+@@ -133,7 +133,9 @@ impl Published {
+ 
+     /// The route of a whole ClientHello: none with no name, or another.
+     fn routed(&self, hello: sni::Hello) -> Option<Routed> {
+-        let (name, pair) = self.route(hello.name.as_deref()?)?;
++        // Planted: each hello to the table's first pair, whatever its name.
++        let _ = hello.name;
++        let (name, pair) = self.rows().next()?;
+         Some(Routed { name: name.to_string(), pair: pair.to_string(), acme: hello.acme })
+     }
+ }

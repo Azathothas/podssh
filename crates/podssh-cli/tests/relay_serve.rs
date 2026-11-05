@@ -193,7 +193,7 @@ fn status_info_and_trace_read_the_role_as_they_read_the_default_relay() {
 #[test]
 fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
     let s = Session::start("serve-usage");
-    let cases: [(&[&str], &str); 14] = [
+    let cases: [(&[&str], &str); 17] = [
         (&["relay", "serve", "--cert", "c.pem", "--key", "k.pem"], "needs --listen"),
         (&["relay", "serve", "--listen", "127.0.0.1:0"], "needs --cert FILE and --key FILE"),
         (
@@ -228,6 +228,17 @@ fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
             "the address and the port of an sshd",
         ),
         (&["relay", "status", "--sshd", "127.0.0.1:22"], "go with `podssh relay serve` only"),
+        // A published name (T-649): a name and a pair, never the name of
+        // --acme, and serve alone.
+        (
+            &["relay", "serve", "--listen", "127.0.0.1:0", "--cert", "c", "--key", "k", "--publish", "site.test.org"],
+            "NAME=PAIR, a DNS name and the name of a pair of this relay",
+        ),
+        (
+            &["relay", "serve", "--listen", "127.0.0.1:0", "--acme", "r.test.org", "--publish", "R.test.org=p-1"],
+            "the name of --acme is the relay's own",
+        ),
+        (&["relay", "status", "--publish", "site.test.org=p-1"], "go with `podssh relay serve` only"),
     ];
     for (args, says) in cases {
         let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();

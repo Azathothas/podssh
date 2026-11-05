@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags/relay.rs:9-103`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags/relay.rs:9-106`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:348-369` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -915,7 +915,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:211-225`,
-   `crates/podssh-cli/src/man/data.rs:170-178`), the test of lines 365-377 at `22c3b88`, the comment
+   `crates/podssh-cli/src/man/data.rs:171-179`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
    notes (`crates/podssh-cli/src/man/notes.rs:253-337`).
 
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:355`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:356`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -3158,7 +3158,7 @@ URL written into each result, and a download target that is no test target of `A
   (`crates/podssh-cli/src/ping/mod.rs:167-172`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
   (`crates/podssh-cli/src/doctor/relay_checks.rs:199-230`); `--quick` keeps the relay's sections and
-  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:159-163`).
+  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:162-166`).
 - Read: `podssh relay trace` asks the relay to dial a target and gives its own times
   (`crates/podssh-cli/src/relay_diag.rs:182-185`); `relay info` gives the pool
   (`crates/podssh-cli/src/relay_diag.rs:133-135`).
@@ -4076,12 +4076,12 @@ so a fault in any of them runs with more than the role needs. Nothing after the 
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/relay_serve.rs:286` says "let listener = std::net::TcpListener::bind(listen)",
-  and `:218` reads its address; the runtime and its two workers come later, in
-  `crates/podssh-cli/src/relay_serve.rs:333`, which says "worker_threads(2)". Between the two the
+- `crates/podssh-cli/src/relay_serve.rs:293` says "let listener = std::net::TcpListener::bind(listen)",
+  and `:225` reads its address; the runtime and its two workers come later, in
+  `crates/podssh-cli/src/relay_serve.rs:340`, which says "worker_threads(2)". Between the two the
   process has one thread, so a drop there holds for each thread made after it. The issue's line
   numbers are of an older tree; the order is as it says.
-- The listener is the user's (Q1): `crates/podssh-cli/src/relay_serve.rs:204` says
+- The listener is the user's (Q1): `crates/podssh-cli/src/relay_serve.rs:211` says
   "crate::pipe::listen::allowed()?;" before the bind.
 - No source of the workspace calls `prctl` or `capset` (searched for `capset`, `NO_NEW_PRIVS` and
   `CAPBSET`), so no step drops a privilege today.
@@ -4224,7 +4224,7 @@ Read at `2042200`:
 - `crates/podssh-relay/src/serve/policy.rs:107-109` hands a name to the host's proxy unresolved only with
   `private`, so a role without `--allow-private` checks each address that it dials.
 - The flag: `crates/podssh-cli/src/flags/relay.rs:66` (the row `allow-private`),
-  `crates/podssh-cli/src/relay_serve.rs:249` says "private: s.allow_private", and the role behind a
+  `crates/podssh-cli/src/relay_serve.rs:256` says "private: s.allow_private", and the role behind a
   quick tunnel the same in `crates/podssh-cli/src/node_quick_relay.rs:110`.
 - Each road of the role goes through `Policy::plan`: `/connect/`
   (`crates/podssh-relay/src/serve/forward.rs:100`), the resumable layer
@@ -4352,14 +4352,14 @@ Read at `2042200`:
 
 - One counter for both ways: `crates/podssh-relay/src/serve/forward.rs:250` says
   "let moved = Arc::new(AtomicU64::new(0));", and `:330` ends the session at the cap;
-  `crates/podssh-relay/src/serve/mod.rs:78` says "Payload bytes, both ways together." The counter
+  `crates/podssh-relay/src/serve/mod.rs:84` says "Payload bytes, both ways together." The counter
   dies with its session.
 - A token names no key: `crates/podssh-relay/src/serve/tokens.rs:61` MACs the expiry alone under the
   run's secret, which `:52` draws at each start, so a restart ends each token
   (`docs/relay.md:92` says "a token is the contract's form under a secret of the run"). A ledger keyed
   by the token, as the issue first proposes, would count a principal that the next mint or restart
   replaces; the issue's own Risks say so.
-- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:371-375` takes the key that
+- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:377-381` takes the key that
   proved itself, and drops it after its line.
 - The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:451`)
   and a SHA-256 of each token (`:448`).
@@ -4631,7 +4631,7 @@ Read at `2042200`:
   takes nothing.
 - So an SSH client, whose version line begins `SSH-`, meets the cleartext road, which reads an HTTP
   head (`crates/podssh-relay/src/serve/cleartext.rs:60`) under the role's 30 s
-  (`crates/podssh-relay/src/serve/mod.rs:63`): the client waits for a banner that never comes, then is
+  (`crates/podssh-relay/src/serve/mod.rs:69`): the client waits for a banner that never comes, then is
   cut (Inferred from the code; not measured). With `--cleartext no` it meets TLS, which fails at once.
 - The node's check of a standard sshd peeks for the version line in the same way
   (`crates/podssh-relay/src/reverse/sshd.rs:1-5`), each 20 ms (`:19`); the word is the node's
@@ -4725,7 +4725,7 @@ listener given no sshd, and OpenSSH's login through the role's port fails.
 
 2026-11-05 (the drafting agent of T-644). Two citations of the Premise name other lines, at
 `2042200` as at this draft. The role's 30 s for a request's head is `HEAD_WAIT`:
-`crates/podssh-relay/src/serve/mod.rs:66` says "const HEAD_WAIT". The policy refuses the loopback
+`crates/podssh-relay/src/serve/mod.rs:72` says "const HEAD_WAIT". The policy refuses the loopback
 as an address that is not public:
 `crates/podssh-relay/src/serve/policy.rs:145` says "self.unlisted(&wanted)", and
 `crates/podssh-relay/src/serve/policy.rs:193` says "ip.is_loopback()". What the Premise says of them
@@ -4735,14 +4735,14 @@ holds. Its Approach, item 3, now follows the Decision of 2026-11-05.
 
 2026-11-05, merged from its draft (`edd405d`).
 
-- The decision (`crates/podssh-relay/src/serve/listener.rs:47`): with `--sshd`, after the first byte
+- The decision (`crates/podssh-relay/src/serve/listener.rs:54`): with `--sshd`, after the first byte
   that begins no TLS, `crates/podssh-relay/src/serve/sshd.rs:62` peeks up to four bytes within the
   same 30 s; `SSH-` goes to `crates/podssh-relay/src/serve/sshd.rs:88`, which dials the sshd by the
   role's way out, says `sshd from PEER, at the sshd as ADDR:PORT`, copies both ways with
   `TCP_NODELAY` and says its end; another start goes to the cleartext road, or to TLS with
   `--cleartext no`. An sshd that does not answer gets the client one line
   (`crates/podssh-relay/src/serve/sshd.rs:117`). The binary: `--sshd ADDR:PORT`
-  (`crates/podssh-cli/src/flags/relay.rs:89`), read at `crates/podssh-cli/src/relay_serve.rs:198`
+  (`crates/podssh-cli/src/flags/relay.rs:89`), read at `crates/podssh-cli/src/relay_serve.rs:203`
   (an address, else 64) and named in the first line; with another subcommand, 64. The manual (the
   row and a note of `relay serve`), `docs/relay.md` ("SSH on the relay role's port"),
   `docs/cli.md`, `docs/mesh.md` and `SECURITY.md` say it. The gate runs `relay_serve_sshd` in its
@@ -4792,14 +4792,14 @@ the start with a path that was never one.
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/relay_serve.rs:270-283` reads `keys:` and makes the rest a path, with no
+- `crates/podssh-cli/src/relay_serve.rs:277-290` reads `keys:` and makes the rest a path, with no
   other form; `crates/podssh-cli/src/relay_serve.rs` at `fed191c`, lines 292-299, reads it at the start, and a file that
   does not read stops it (78). The role behind a quick tunnel reads the same words
   (`crates/podssh-cli/src/node_quick_relay.rs:73`).
 - The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs` at `fed191c`, line 80, and
   `crates/podssh-relay/src/serve/keys.rs:87` says "this relay cannot read its list of keys";
   `docs/relay.md` at `fed191c`, line 849, says "read again for each request".
-- `crates/podssh-relay/src/serve/mod.rs:106` holds the list as a path; the net's members are a source
+- `crates/podssh-relay/src/serve/mod.rs:112` holds the list as a path; the net's members are a source
   that the binary gives (`crates/podssh-relay/src/serve/keys.rs:33`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.
 - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB
@@ -4903,7 +4903,7 @@ and the test of the stale window fails.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4915,9 +4915,9 @@ knows the name.
 
 Read at `2042200`:
 
-- `crates/podssh-relay/src/serve/listener.rs:60` runs the handshake first; the name comes after, from
-  the session (`crates/podssh-relay/src/serve/listener.rs:69`), and so does ACME's TLS-ALPN-01
-  (`:63`). The issue reads these in `relay_serve.rs`, where they were before the listener moved to
+- `crates/podssh-relay/src/serve/listener.rs:73` runs the handshake first; the name comes after, from
+  the session (`crates/podssh-relay/src/serve/listener.rs:82`), and so does ACME's TLS-ALPN-01
+  (`:76`). The issue reads these in `relay_serve.rs`, where they were before the listener moved to
   `podssh-relay`.
 - A pair is found by its name, its role and a token (`crates/podssh-relay/src/serve/reverse/pairs.rs:302`).
 - A reader of a ClientHello's name exists in a test's stand-in alone
@@ -4944,18 +4944,142 @@ Read at `2042200`:
    itself with a certificate of ACME's TLS-ALPN-01 for NAME; the line says what the role sees (the name,
    never the bytes).
 
+## Decision
+
+2026-11-05 (the drafting agent of T-649). No row of `docs/decisions.md` settles these, and none
+changes one; the first two go beside the calls of Q86 for the operator to confirm, as the issue asks
+otherwise.
+
+1. **A CA's validation of a published name goes to the node** (Approach, item 2), and the role's
+   `--acme` name may not be published (64), so that the role's own validations stay the role's.
+   Lost: the issue's "ALPN includes acme-tls/1 → the acceptor, whatever the name", with which a node
+   could never prove its name, and the role, which holds no certificate of the name, would fail the
+   validation anyway.
+2. **PAIR is the name of one of the role's pairs (`p-...`), read at the start**, as the pair's file
+   holds it; a node of `--publish-tls` names it on its first line. The owner keeps the pairs with
+   `--pairs FILE`, makes the pair, and starts the role again with `--publish`; a node renews its pair
+   at the role in its last day (T-592), so the name holds. Lost: a label (the role knows none); a
+   binding at run time by the pair's stop token (a new request, and a pair's holder is not the role's
+   owner, who alone chooses what its port publishes); a table read again on SIGHUP (a run's flags are
+   fixed, and the role's nodes come back after its `1012`).
+3. **A name matches with no case and no trailing dot**, as DNS compares names (RFC 4343) and as a
+   TLS server reads a server name; the table holds exact names, no wildcard. Lost: the bytes as sent
+   (a client may write capitals); `*.NAME` (a route that the owner did not write out).
+4. **One record of 16 KiB at most, within 10 s**, peeked each 20 ms as T-644's peek is, inside the
+   30 s of the handshake. A hello in two records, a second server_name or ALPN (RFC 8446, section
+   4.2), and lengths that contradict each other are no hello, and go to the role's TLS, whose
+   certificate is not the name's: a refusal, never a visitor sent to another node. Lost: the issue's
+   head of 4 KiB (a hello with post-quantum key shares passes 1 KiB, and its record may hold 16 KiB);
+   joining records (a reader of several records is more grammar where a mistake misroutes).
+5. **The role is the session's operator in its own process**: a pipe whose far end
+   `crate::serve::reverse::operator::leg` carries, as it carries a carrier's leg (T-595), so that
+   `open`, `ready` and the bytes after it keep one order in one code for both legs (Approach, item
+   4). Lost: the issue's `Outbox::over_raw` and an order extracted for two writers, a second place for
+   it to drift.
+6. **The contract's bounds hold** for a published session: 64 MiB, the bound of 1 MiB for a visitor
+   slower than its node (`1011 relay backpressure`), and the pair's life. Lost: no bound (a way around
+   the role's limits, on a socket that carries the node's other sessions); a flow control of one
+   session, which the reverse road has not, and which podssh's own clients keep with the layer's
+   window that a visitor does not speak. `docs/relay.md` points a site of large files to T-180.
+7. **After the visitor's end of its input, the node's bytes go on until it ends the session or is
+   silent for the role's `half_closed`** (15 s, T-671). Lost: an end at once, which loses the answer to
+   a client that half-closes; no bound.
+8. **A name whose pair is not the role's, ended, or has no node, closes the connection**, with a line
+   on stdout. Lost: the role's own TLS, whose certificate a visitor would see for a name that it is not.
+9. **The node: `--publish-tls TARGET` is a road of its own, before each other** (`node_publish.rs`):
+   no resumable layer and no end-to-end channel, as a visitor speaks neither; a TARGET beside it, and
+   each flag of another road, of the layer, of the channel, of a grant or of `--ask`, is refused (64);
+   `--plain` and `--no-e2e` are what it is already. `--acme SITE` names the published name, where the
+   Approach's "for NAME" would read as the label of `podssh node NAME`; `--acme-directory URL` beside
+   it, as on `relay serve`; the ACME directory is reached with the trust of `--ca-file`, as the relay.
+   Lost: a switch beside a positional TARGET (the Approach gives TARGET to the flag); the layer and
+   the channel above a visitor's TLS.
+10. **The node's first order of a certificate starts at its first `online`**, as the validation reaches
+    it only through the role then, and one that fails with no certificate kept stops the node (69), as
+    `relay serve --acme` stops; renewals that fail keep the certificate, as there. Each request to the
+    CA is a connection of its own through `HTTPS_PROXY` when it is set, as `relay serve --acme`'s
+    (T-447), beside the node's socket as its renewal of the pair is (T-592): asked with `--acme`, so no
+    exception of rule 2 is new. Lost: an order at the start (a validation before the node's socket
+    fails); a node that serves with no certificate.
+11. **A line on the role's stdout** names the name, the visitor's address and the pair at the start,
+    and the bytes each way at the end, as the sshd's (T-644). Lost: no line.
+12. **The tests** go into `relay_serve_publish` (`relay_serve_reverse.rs` is near 500 lines), beside
+    the Prove's own line, which stays; the reader's tests take the ClientHellos of RFC 8448 (section
+    3) and RFC 9001 (appendix A.2), and those that rustls writes, captured on the loopback.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_reverse
 cargo test -p podssh-cli --test relay_serve_node
+cargo test -p podssh-relay --features serve --lib -- serve::sni serve::published
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_publish
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_sshd --test relay_serve_cleartext --test relay_serve_h2
+cargo test -p podssh-relay --features serve,plain-ws,quic --test relay_serve_quic
+cargo test -p podssh-cli --lib -- relay_serve::publish node_publish
+cargo test -p podssh-cli --test relay_serve
+sh scripts/plant-each.sh --here t649-route-by-case t649-record-past-16-kib t649-second-name-taken
+sh scripts/plant-each.sh --here t649-peek-takes-bytes t649-each-hello-published t649-bytes-before-ready
+sh scripts/plant-each.sh --here t649-acme-name-published t649-target-beside t649-publish-unread
 ```
 
 A published name reaches a test's HTTPS server behind a node, and the client sees that server's
 certificate, not the role's; the role's own names, a client by address and a cut ClientHello go to the
 role as before; `acme-tls/1` for the role's name is the role's. Planted: a route that matches a name
-in another case only, and the test of the case fails.
+in another case only, and the test of the case fails. Planted too: a record past 16 KiB waited for,
+and the reader's test of a long record fails; a second server_name taken, and its test fails; a peek
+that takes the bytes, and the published name's test fails at its handshake; each hello sent to the
+node, and the test of the role's own name fails; the visitor's bytes sent before the node's `ready`,
+and the published name's test fails; the name of `--acme` published, and its unit test fails; a
+TARGET beside `--publish-tls` taken, and its unit test fails; `relay serve` that gives its listener no
+table, and the binary's test of a published name fails.
+
+## Done
+
+2026-11-05, merged from its draft (`c8a1360`); each test below passed at the merge.
+
+- The role: `crates/podssh-relay/src/serve/sni.rs` reads a ClientHello's server name and whether it
+  offers `acme-tls/1` alone, from one record of 16 KiB at most; `crates/podssh-relay/src/serve/published.rs`
+  holds the table of `--publish` and peeks within 10 s; the listener asks it before its own TLS
+  (`crates/podssh-relay/src/serve/listener.rs`), and a routed connection is a session of the pair's
+  node through `crates/podssh-relay/src/serve/reverse/publish.rs`. The binary: `relay serve --publish
+  NAME=PAIR` (`crates/podssh-cli/src/relay_serve/publish.rs`, repeatable, named in the first line,
+  64 for a row out of shape or the name of `--acme`, and with another subcommand); `node
+  --publish-tls TARGET`, with `--acme SITE` and `--acme-directory URL`
+  (`crates/podssh-cli/src/node_publish.rs`, `crates/podssh-cli/src/node_publish_end.rs`). The
+  manual (the rows of `relay` and `node`, and a note of each), `docs/relay.md` ("A name published on
+  the relay role's port"), `docs/cli.md`, `docs/mesh.md` and `SECURITY.md` say it; the gate runs
+  `relay_serve_publish` in its step of the role's tests (`scripts/gate.sh`).
+- `cargo test -p podssh-relay --features serve --lib -- serve::sni serve::published`: passed (the
+  names of RFC 8448's and RFC 9001's hellos; `acme-tls/1` alone a validation, beside `h2` or in an
+  empty list not; each part of a record waits, a record past 16 KiB, of no bytes, or a hello longer
+  than its record is none; HTTP, SSH, a record of data and a version of no TLS are none at once; a
+  second name, a second ALPN, and a name with a blank, a NUL, a `/` or a byte past ASCII are none; a
+  table of rows lower-cased, its refusals; a name in another case or with a trailing dot is its route).
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_publish`: passed (the
+  published name, as written and in capitals, reaches the node's HTTPS server, whose leaf the client
+  gets, never the role's, and 256 KiB come back whole; the role's own name and the loopback's address
+  get the role's leaf and `/health`, and the cleartext road `/health`, with no session of the node; a
+  hello of rustls's for the published name cut in half goes to the role's TLS after the wait, which
+  answers; `acme-tls/1` of the role's name gets its leaf of TLS-ALPN-01 and the handshake alone, and of
+  the published name the node's; a name whose pair has no node, or names none, closes, the role's line
+  saying why; rustls's hellos read as the role reads them). `--test relay_serve_sshd --test
+  relay_serve_cleartext --test relay_serve_h2 --test relay_serve_quic`: passed (their `Door`
+  publishes nothing).
+- `cargo test -p podssh-cli --lib -- relay_serve::publish node_publish`: passed (the rows and the
+  first line's words, the name of `--acme` refused; each flag of another road beside `--publish-tls`
+  refused, `--plain` and `--no-e2e` taken; `--acme` alone refused; a name of `--acme` out of shape).
+- `cargo test -p podssh-cli --test relay_serve_node`: passed (`serve_publish`: the role with
+  `--pairs` and `--publish`, `podssh node --publish-tls` before an HTTPS server of Python's `ssl` with a
+  certificate of openssl's for the name alone; Python's client of the name gets that certificate and
+  its answer, of the role's own name the role's and `/health`; the node's first line names the pair,
+  and the role's line the name). `--test relay_serve`: passed (a row with no pair, the name of
+  `--acme`, and `--publish` with `relay status`, 64).
+- The plants of the Prove: 9 caught.
+- The crates whole at the merge onto T-433: the relay crate with each serve feature and `quic`, 950
+  passed; podssh-ws 521; the CLI 1,975; 0 failed. Clippy clean after a test's type of a change and
+  its words was named; rustfmt rewrapped lines.
 
 # T-671: The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them
 

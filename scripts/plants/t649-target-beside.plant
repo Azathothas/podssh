@@ -1,0 +1,7 @@
+# T-649: podssh node takes a TARGET beside --publish-tls, whose value is the
+# one TARGET of a published site; the test of the flags that it refuses must
+# fail.
+ENTRY=T-649
+GROUP=cli-tests
+EXPECT='test node_publish::tests::a_published_site_refuses_each_flag_of_another_road_or_of_the_channel \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- node_publish::tests::a_published_site_refuses_each_flag_of_another_road_or_of_the_channel'

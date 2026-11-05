@@ -3556,10 +3556,10 @@ The draft's calls, 2026-11-02:
    each socket of both roads, which needs a token or a pair that the brake let through and is
    checked with a MAC or a digest and no state. Lost: a brake of the upgrades with no token, as
    the default relay counts them: the role's refusal of one costs less than the count.
-4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:441`), never a
+4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:448`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:196`),
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:202`),
    with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:53`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
@@ -3610,11 +3610,11 @@ first after the minute passes. Planted, the brake removed, and the test fails.
 
 2026-11-02 (the drafting agent). The Premise holds; the Approach needs two facts that it does not
 name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it:
-`crates/podssh-relay/src/serve/reverse/mod.rs:188` says "async fn pair". And the role had no
+`crates/podssh-relay/src/serve/reverse/mod.rs:190` says "async fn pair". And the role had no
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:209`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:215`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -7359,7 +7359,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:273-283`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:275-285`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -7713,8 +7713,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:282-283`), and needs the net's role exit, signed by
-  its owner (`:280-281`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:284-285`), and needs the net's role exit, signed by
+  its owner (`:282-283`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:111`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

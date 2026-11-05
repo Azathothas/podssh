@@ -1,0 +1,7 @@
+# T-649: the reader of a ClientHello waits for a record longer than TLS's
+# bound of 16 KiB, where it must give it to the role's own TLS at once; the
+# test of a record cut short and one too long must fail.
+ENTRY=T-649
+GROUP=resume
+EXPECT='test serve::sni::tests::a_record_cut_short_waits_and_one_too_long_is_none \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib -- serve::sni::tests::a_record_cut_short_waits_and_one_too_long_is_none'

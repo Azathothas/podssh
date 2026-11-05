@@ -1,0 +1,7 @@
+# T-649: the relay role sends each ClientHello to the node of its table's
+# first pair, whatever it names, so its own name and a client by address meet
+# the node's certificate; the test of the role's own name must fail.
+ENTRY=T-649
+GROUP=resume
+EXPECT='test the_role_s_own_name_an_address_and_cleartext_go_to_the_role \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_publish -- the_role_s_own_name_an_address_and_cleartext_go_to_the_role'

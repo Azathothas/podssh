@@ -137,7 +137,7 @@ impl Tls {
         let root = dir.join("root.pem");
         std::fs::write(&root, ca).unwrap();
         let acceptor = podssh_ws::tls_server::acceptor(cert.as_bytes(), key.as_bytes(), alpn).expect("an acceptor");
-        let door = Door { acceptor, cleartext: false, sshd: None };
+        let door = Door { acceptor, cleartext: false, sshd: None, published: Default::default() };
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let accepted = Arc::new(AtomicUsize::new(0));

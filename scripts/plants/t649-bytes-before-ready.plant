@@ -1,0 +1,7 @@
+# T-649: the relay role sends a visitor's bytes to the node before the
+# node's ready, which the operator's leg closes with 1008; the test of the
+# published name must fail.
+ENTRY=T-649
+GROUP=resume
+EXPECT='test a_published_name_reaches_the_node_s_server_with_its_own_certificate \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_publish -- a_published_name_reaches_the_node_s_server_with_its_own_certificate'

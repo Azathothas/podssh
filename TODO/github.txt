@@ -152,5 +152,5 @@
 144 issue closed
 145 issue closed
 146 issue closed
-147 issue open
+147 issue closed
 148 issue open

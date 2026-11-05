@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/node_publish.rs
++++ b/crates/podssh-cli/src/node_publish.rs
+@@ -81,7 +81,8 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> Option<i32> {
+ fn refused(args: &NodeArgs) -> Result<(), Refusal> {
+     let flags = crate::node_flags::key_flags(args)?;
+     let others = [
+-        (!args.targets.is_empty(), "a TARGET beside it (--publish-tls names the one)"),
++        // Planted: a TARGET beside the flag's, taken.
++        (args.targets.is_empty() && args.targets.len() > 1, "a TARGET beside it (--publish-tls names the one)"),
+         (args.carrier.is_some(), "--carrier"),
+         (args.temporary.is_some(), "--temporary"),
+         (args.iroh, "--iroh"),

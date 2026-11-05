@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/serve/published.rs
++++ b/crates/podssh-relay/src/serve/published.rs
+@@ -101,7 +101,8 @@ impl Published {
+     /// The name of the table and its pair for `name`, a server name as a
+     /// client wrote it: its case and a trailing dot do not matter, as in DNS.
+     pub fn route(&self, name: &str) -> Option<(&str, &str)> {
+-        let folded = name.strip_suffix('.').unwrap_or(name).to_ascii_lowercase();
++        // Planted: the name as the client wrote it, its case kept.
++        let folded = name.strip_suffix('.').unwrap_or(name).to_string();
+         self.names.get_key_value(&folded).map(|(name, pair)| (name.as_str(), pair.as_str()))
+     }
+ 

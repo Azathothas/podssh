@@ -6,7 +6,10 @@
 //! that the user asked for: the cleartext road adds none. A client whose TLS
 //! chose `h2` gets HTTP/2 with extended CONNECT ([`super::http2`], T-321).
 //! Where the owner named an sshd, a connection whose first four bytes are
-//! `SSH-` goes to it, peeked too ([`super::sshd`], T-644).
+//! `SSH-` goes to it, peeked too ([`super::sshd`], T-644). Where the owner
+//! publishes names, a ClientHello that names one goes to its pair's node
+//! before any handshake, peeked whole, so that the node's own TLS answers it
+//! ([`super::published`], T-649).
 
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
@@ -16,14 +19,15 @@ use podssh_ws::tls_server::{TlsAcceptor, ACME_TLS_1};
 use tokio::io::AsyncWriteExt as _;
 use tokio::net::TcpStream;
 
+use super::published::Published;
 use super::Config;
 
 /// How long a client has to begin, and to finish, TLS.
 pub const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
 
 /// How the listener takes a connection: TLS with `acceptor`, the cleartext
-/// road beside it when `cleartext`, and an SSH client to `sshd` when the
-/// owner named one.
+/// road beside it when `cleartext`, an SSH client to `sshd` when the owner
+/// named one, and a name of `published` to its pair's node.
 #[derive(Clone)]
 pub struct Door {
     pub acceptor: TlsAcceptor,
@@ -31,6 +35,9 @@ pub struct Door {
     /// The owner's sshd, for a connection whose first bytes are `SSH-`
     /// (T-644); none unless named.
     pub sshd: Option<SocketAddr>,
+    /// The names that the owner publishes, each to a pair's node (T-649);
+    /// none unless named.
+    pub published: Arc<Published>,
 }
 
 /// Serve `tcp`, of a client at `peer`, as `door` says.
@@ -56,6 +63,12 @@ pub async fn connection(tcp: TcpStream, peer: IpAddr, door: Door, cfg: Arc<Confi
             // Nothing came, or the client went: no TLS to wait for either.
             None => return,
         }
+    }
+    // A name that the owner publishes: the node's TLS answers it, each byte
+    // left in the socket for it; none at once with no name published.
+    if let Some(routed) = door.published.peek(&tcp).await {
+        // Boxed: a session's future stays off the caller's.
+        return Box::pin(super::reverse::publish::carry(tcp, routed, cfg)).await;
     }
     let Ok(Ok(mut tls)) = tokio::time::timeout(HANDSHAKE_WAIT, door.acceptor.accept(tcp)).await else { return };
     // A CA's validation of TLS-ALPN-01 wants the handshake alone (RFC 8737,

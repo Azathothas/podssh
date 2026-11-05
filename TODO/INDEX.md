@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**637 entries: 98 open, 10 partial, 3 blocked, 526 done.**
+**637 entries: 97 open, 10 partial, 3 blocked, 527 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 249 | 278 |
-| P3 | 73 | 4 | 3 | 211 | 291 |
-| **All** | 98 | 10 | 3 | 526 | 637 |
+| P3 | 72 | 4 | 3 | 212 | 291 |
+| **All** | 97 | 10 | 3 | 527 | 637 |
 
 ## Entries
 
@@ -688,7 +688,7 @@ repository and CI).
 | [T-646](relay.md) | P3 | M | M10 | feature | done | `--mint keys:` takes a file alone, so a role in a read-only image changes whom it mints for only by a rebuild |
 | [T-647](reverse.md) | P3 | M | M10 | feature | done | A pair of the relay role is served or ended; no halt that keeps its name and its node's socket |
 | [T-648](reverse.md) | P2 | M | none | feature | done | A node's socket queues each session's bytes in one line of 256 places, so one session's backlog delays each other session's |
-| [T-649](relay.md) | P3 | L | M10 | feature | open | The relay role ends TLS for each name on its listener, so a node's own HTTPS service cannot be published by its name |
+| [T-649](relay.md) | P3 | L | M10 | feature | done | The relay role ends TLS for each name on its listener, so a node's own HTTPS service cannot be published by its name |
 | [T-650](reverse.md) | P3 | L | M10 | feature | open | Each operator's leg waits for its node's `ready` before its first byte: no session opened ahead for a node that asks for spares |
 | [T-660](machine.md) | P2 | M | M10 | measurement | partial | What a user feels, measured on each road: a key's echo while a download runs, a cold connect and its first command, a bulk copy while one types |
 | [T-661](ssh.md) | P2 | M | M10 | feature | done | Typing-aware flow control in podssh's SSH client: a bulk channel's window held to a round trip and 40 ms while a key waits |

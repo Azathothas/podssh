@@ -215,7 +215,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #144 | `relay serve --mint keys:` from an `https://` URL | closed 2026-11-05, its entry done | T-646 (`--mint net` is the signed way that exists) |
 | #145 | A pair halted without its end, its node's socket kept | closed 2026-11-04 (`8caa6f0`), its entry done | T-647 (a planned stop already keeps the node, by `1012`, T-255) |
 | #146 | A node socket's data queue is one line for all its sessions | closed 2026-11-04 (`4ae2284`), its entry done | T-648 (the role's own socket in the same change) |
-| #147 | `relay serve` routes a published name by its ClientHello, TLS at the node | open | T-649 (the listener moved to `podssh-relay`; funnel at the edge is T-180) |
+| #147 | `relay serve` routes a published name by its ClientHello, TLS at the node | closed 2026-11-05, its entry done | T-649 (the listener moved to `podssh-relay`; funnel at the edge is T-180) |
 | #148 | A pool of sessions opened ahead for each node | open | T-650 (only for a node that asks, by its own flag) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of

@@ -22,7 +22,9 @@
 //! ([`mailbox`], T-086). Beside the listener, QUIC on the same port of UDP
 //! carries each stream as a connection to these routes (`quic`, feature
 //! `quic`, T-667). What each key carried, and its budget for a day, are
-//! counted for each session of the forward road ([`usage`], T-636).
+//! counted for each session of the forward road ([`usage`], T-636). A name
+//! that the owner publishes goes to its pair's node by the ClientHello, before
+//! the role's own TLS ([`published`], [`sni`], T-649).
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -41,6 +43,8 @@ pub mod listener;
 pub mod mailbox;
 pub mod policy;
 pub mod probe;
+// The names published to nodes, routed by the ClientHello (T-649).
+pub mod published;
 // QUIC on UDP beside the listener, each stream a connection (T-667).
 #[cfg(feature = "quic")]
 pub mod quic;
@@ -48,6 +52,8 @@ pub mod quic;
 // exit's and the net's routes read too.
 pub mod ranges;
 pub mod reverse;
+// The name of a ClientHello, read before any handshake (T-649).
+pub mod sni;
 pub mod sockets;
 pub mod sshd;
 pub mod tokens;

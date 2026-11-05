@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/relay_serve/publish.rs
++++ b/crates/podssh-cli/src/relay_serve/publish.rs
+@@ -25,7 +25,8 @@ pub(super) fn args(matches: &clap::ArgMatches) -> Vec<String> {
+ pub(super) fn of(rows: &[String], source: &Source) -> Result<Arc<Published>, Refusal> {
+     let table = Published::of(rows).map_err(|why| Refusal::usage(format!("--publish {why}")))?;
+     if let Source::Acme { name, .. } = source {
+-        if table.holds(name) {
++        // Planted: the name of --acme published as each other.
++        if table.holds(name) && name.is_empty() {
+             return Err(Refusal::usage(format!(
+                 "--publish {name}: the name of --acme is the relay's own, which the CA validates at the relay; \
+                  publish another name"

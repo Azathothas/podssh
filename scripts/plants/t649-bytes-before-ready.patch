@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/serve/reverse/publish.rs
++++ b/crates/podssh-relay/src/serve/reverse/publish.rs
+@@ -61,7 +61,9 @@ pub async fn carry(mut visitor: TcpStream, routed: Routed, cfg: Arc<Config>) {
+     let leg = Arc::new(RelaySession::new(near, Vec::new(), None, WRITE_TIMEOUT).naming("a published name's leg"));
+     let (mut frames, reader) = frames_of(leg.clone());
+     let started = Instant::now();
+-    match tokio::time::timeout(ANSWER_WAIT, answered(&mut frames)).await {
++    // Planted: the visitor's bytes go before the node's `ready`.
++    let _ = (ANSWER_WAIT, answered(&mut frames));
++    match Ok::<Result<(), String>, tokio::time::error::Elapsed>(Ok(())) {
+         Ok(Ok(())) => cfg.event(&format!("publish {shown} from {from}: to the node of {}", routed.pair)),
+         Ok(Err(why)) => {
+             reader.abort();
