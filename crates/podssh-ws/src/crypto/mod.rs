@@ -17,6 +17,8 @@ pub mod aead;
 pub mod hash;
 pub mod hkdf;
 pub mod hmac;
+// HPKE for Encrypted Client Hello, which rustls offers only from aws-lc (T-642).
+pub mod hpke;
 pub mod kx;
 pub mod quic;
 pub mod random;

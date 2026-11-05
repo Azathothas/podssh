@@ -386,5 +386,8 @@ fn dns_safe(host: &str) -> bool {
     !host.is_empty() && host.len() <= 253 && host.bytes().all(|b| b.is_ascii_alphanumeric() || b"-._".contains(&b))
 }
 
+// A name's HTTPS record, for Encrypted Client Hello (T-642).
+pub mod https;
+
 #[cfg(test)]
 mod tests;

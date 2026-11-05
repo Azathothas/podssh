@@ -1,7 +1,8 @@
 //! RFC 1035's messages as RFC 8484 carries them over HTTPS
 //! (`application/dns-message`): a query of one question, and the A, AAAA and
-//! SRV records of an answer (T-344). By hand, for three record types: a
-//! parser of untrusted bytes that the fuzzer reaches
+//! SRV records of an answer (T-344), and the data of HTTPS records, which
+//! `https.rs` reads for Encrypted Client Hello (T-642). By hand, for four
+//! record types: a parser of untrusted bytes that the fuzzer reaches
 //! (`fuzz/fuzz_targets/dns_wire.rs`), where a general DNS crate would be a
 //! large one that podssh does not fuzz.
 
@@ -15,6 +16,9 @@ use super::{dns_safe, Srv, NXDOMAIN};
 pub const A: u16 = 1;
 pub const AAAA: u16 = 28;
 pub const SRV: u16 = 33;
+/// The HTTPS record (RFC 9460), whose `ech` parameter Encrypted Client Hello
+/// needs (T-642).
+pub const HTTPS: u16 = 65;
 /// The class of each question and record here: the Internet.
 const IN: u16 = 1;
 
@@ -29,12 +33,14 @@ const RCODE: u16 = 0x000F;
 
 const CUT: &str = "not a DNS message: it ends before its last record";
 
-/// The type of `kind` (`A`, `AAAA` or `SRV`), as the JSON form names it.
+/// The type of `kind` (`A`, `AAAA`, `SRV` or `HTTPS`), as the JSON form
+/// names it.
 pub fn code(kind: &str) -> Option<u16> {
     match kind {
         "A" => Some(A),
         "AAAA" => Some(AAAA),
         "SRV" => Some(SRV),
+        "HTTPS" => Some(HTTPS),
         _ => None,
     }
 }
@@ -112,6 +118,12 @@ pub fn srv(msg: &[u8], name: &str) -> Result<Vec<Srv>, String> {
 /// [`NXDOMAIN`], each other "DNS status N", as the JSON form says), whose
 /// question, when it has one, is `name` and `kind`.
 fn records(msg: &[u8], name: &str, kind: u16) -> Result<Vec<(usize, usize)>, String> {
+    Ok(records_kept(msg, name, kind)?.into_iter().map(|(start, len, _)| (start, len)).collect())
+}
+
+/// [`records`], with the TTL of each record in seconds (RFC 1035, section
+/// 4.1.3): a name's list for Encrypted Client Hello is kept for it (T-642).
+pub(super) fn records_kept(msg: &[u8], name: &str, kind: u16) -> Result<Vec<(usize, usize, u32)>, String> {
     let header = msg.get(..HEADER).ok_or("not a DNS message: shorter than its header")?;
     let word = |at: usize| u16::from_be_bytes([header[at], header[at + 1]]);
     if (word(2) & RESPONSE) == 0 {
@@ -139,13 +151,14 @@ fn records(msg: &[u8], name: &str, kind: u16) -> Result<Vec<(usize, usize)>, Str
         let fixed = msg.get(at..at + 10).ok_or(CUT)?;
         let rtype = u16::from_be_bytes([fixed[0], fixed[1]]);
         let class = u16::from_be_bytes([fixed[2], fixed[3]]);
+        let ttl = u32::from_be_bytes([fixed[4], fixed[5], fixed[6], fixed[7]]);
         let len = usize::from(u16::from_be_bytes([fixed[8], fixed[9]]));
         let start = at + 10;
         if msg.len() - start < len {
             return Err(CUT.into());
         }
         if rtype == kind && class == IN {
-            found.push((start, len));
+            found.push((start, len, ttl));
         }
         at = start + len;
     }

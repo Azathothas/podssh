@@ -3088,6 +3088,41 @@ TTL, as a new exception of rule 2 of `AGENTS.md` beside Q96 and Q97. Lost: ECH b
 add a query to a public resolver before each session to a new name, where podssh behind a proxy asks
 none; ECH only where the resolver road runs anyway, which in the target host is never.
 
+2026-11-05 (the drafting agent), within that call:
+
+- The switch is `PODSSH_ECH` and the settings file's `ECH`, below the variable, both `yes`, `no` or
+  `strict`, not `-o ECH`: `-o` takes the keywords of `ssh_config` (`crates/podssh-cli/src/ssh/keywords.rs`),
+  which a file of OpenSSH's shares and where OpenSSH stops at a keyword that it does not know; and ECH is
+  a matter of each TLS connection of each command (`proxy`, `pipe`, `cp`, a mint), not of `ssh` alone.
+  `pins::apply`, where each command that reaches the relay starts, sets the process's mode; a bad word
+  of either is 78 before anything connects. Lost: `-o ECH` (above); the variable alone, which a user who
+  wants ECH on each run keeps in a profile where the settings file is podssh's own place.
+- `strict` beside `yes`, as the issue's "fallback is off": no plain hello to a name that was to be
+  sealed, for a user who would rather fail than name the host; it does not turn the cleartext road off,
+  which `PODSSH_CLEARTEXT=no` does, and the manual says so. Lost: `yes` alone, where a refusal by a hop
+  that strips ECH sends the name anyway.
+- Any failure of a sealed hello after its TCP opened goes on with one plain hello and cools the name for
+  5 minutes, not only a refusal with no retry configs: a TLS 1.2 interceptor (a sealed hello offers TLS
+  1.3 alone), a reset by a hop that strips ECH, or no answer within 10 s (`SEALED_WAIT`, less than a
+  step's 20 s, so that a hop that drops sealed hellos leaves the plain hello its time). Rule 7 of
+  `AGENTS.md`. A dial that failed is the dial's error, with no plain hello, which would meet the same.
+  Lost: a plain hello after the refusal alone, where any other failure of a sealed hello ends the
+  connection that a plain hello would have made.
+- Each connection of `podssh-ws` that opens TLS by a name goes through the same road
+  (`client::open_tls`, and the HTTP/2 road's own with its ALPN), so the relay host's name is hidden in
+  its mint, its session and its `/health` alike. Not a hop of `ssh+tls://` (`tls_over` on a stream that
+  is open already: a retry needs a new connection), nor a caller's own configuration
+  (`Trust::caller`), which cannot be made again with a list, nor an address or a name of one label.
+- The read is the SRV records' road (`doh_srv`): the resolvers in their order, JSON first then the wire
+  form, by the resolver's name through a proxy, 4 s at most (`READ_WITHIN`); its HTTPS requests take a
+  plain hello of their own, so that the read of a resolver's name never waits on a read. A list is kept
+  for its TTL, 30 s at least, 300 s with none, and a day at most (a long-lived node reads it again); a
+  name with no list, or a failed read, 30 s; one read of a name at a time, so a run that opens its
+  sessions at once asks once (the issue's "no single-flight"); each map 256 names at most. Lost: no
+  ceiling, where a node keeps a list that its server rotated, each connection then paying a retry.
+- The retry configs replace the list for 300 s and end the name's cool-down: rustls returns them only
+  after it checked the server's certificate for the list's public name.
+
 ## Prove
 
 ```sh
@@ -3095,10 +3130,94 @@ export CARGO_BUILD_JOBS=4
 cargo test -p podssh-ws --lib crypto
 cargo test -p podssh-ws --lib resolve
 cargo test -p podssh-ws --lib ech
+cargo test -p podssh-ws --test ech_handshake
+cargo test -p podssh-cli --lib doctor::ech
+cargo test -p podssh-cli --lib settings
+cargo test -p podssh-cli --lib man::
+python scripts/check-repo.py
 ```
 
 HPKE against RFC 9180's vectors; the reader against `HTTPS` records captured from a public resolver
 (a name of Cloudflare's that publishes `ech`), a parameter with no bytes, and a record cut short; the
 cache with an injected clock (a TTL of 5 s served 30 s, one query for two cold lookups, a refused name
-left 5 minutes, a retry config served at once); a handshake with a test server that holds an ECH key.
-Planted: the TTL's floor left out, and its test fails.
+left 5 minutes, a retry config served at once); a handshake with a test server that takes no ECH (see
+the Correction): the outer hello names the public name alone, the sealed part opens with the list's
+key to a hello that names the host, the refusal goes on with one plain hello, `strict` sends none.
+Planted: the TTL's floor left out, and its test fails; the nonce's sequence number left out of HPKE,
+and the vectors' test fails; the road's configuration with no list, and the handshake's test fails; a
+parameter's length past the record's end taken, and the test of a record cut short fails.
+
+## Correction
+
+2026-11-05 (the drafting agent), read at `f45993d`: each line of the Premise holds, and three facts are
+added.
+
+- **What ECH hides from a proxy.** Through `HTTPS_PROXY` the CONNECT names the host
+  (`crates/podssh-ws/src/resolve.rs:17` says "With an HTTP proxy none of this runs for the target"),
+  and a SOCKS5 proxy gets the name too: ECH hides the name from what reads hellos beyond the proxy, never
+  from the proxy itself, so an allowlist of names in the host's own proxy reads it as before. The
+  manual, `docs/cli.md` and `SECURITY.md` say so.
+- **HPKE needs no new crate and no fork.** rustls 0.23.46's ECH client takes any `Hpke` through a
+  public trait (`rustls/rustls:rustls/src/crypto/hpke.rs`), so podssh's provider implements it with the
+  crates that it holds already (x25519-dalek, hkdf, sha2, aes-gcm, chacha20poly1305); `Cargo.lock`
+  holds no HPKE crate (hpke-rs and its RustCrypto backend are not in the tree). The suite's own types
+  (`HpkeKem`, `HpkeAead`, `HpkeSymmetricCipherSuite`) are named under `rustls::internal` alone, which
+  rustls calls no stable interface: an update of rustls may move them, and the build then says where.
+- **No test server can hold an ECH key in the process.** rustls 0.23.46 has no ECH server
+  (`rustls/rustls:rustls/src/server/` holds no `encrypted_client_hello`), so the handshake of the Prove
+  is with a server that takes no ECH, as most servers are: it shows the refusal's road and the sealed
+  hello's contents (opened by the test with the list's key), and the acceptance is measured live only
+  (the Done).
+
+## Done
+
+2026-11-05, drafted (UNVERIFIED: no build ran in the draft).
+
+- `crates/podssh-ws/src/crypto/hpke.rs`: HPKE's base mode of RFC 9180 as rustls's `Hpke`,
+  DHKEM(X25519, HKDF-SHA256) with HKDF-SHA256, and AES-128-GCM or ChaCha20-Poly1305 (`SUITES`, in
+  that order), an all-zero Diffie-Hellman refused, each secret in `Zeroizing`, the ephemeral key from
+  the provider's `OsRandom`; `hpke_tests.rs` holds it to the RFC's A.1.1 and A.2.1 (each key pair from
+  its `ikm`, the KEM's shared secret, the key and the base nonce, and the six listed messages, sealed
+  at sequence numbers 0 to 256 and opened again), read from the RFC's text (fetched through the
+  services of web.pkgforge.dev and parsed by a script, so no byte was typed by hand), and rustls's
+  interface (a changed byte, AAD, info or key refused; two seals, two ephemeral keys).
+- `crates/podssh-ws/src/resolve/https.rs`: the reader of a name's `HTTPS` record (type 65) for its
+  `ech`, from the JSON API's presentation form and RFC 3597's generic form, and from the wire form
+  (`wire.rs` keeps each record's TTL now, `records_kept`), each length checked, the keys in increasing
+  order, the ECHConfigList's own lengths, 4096 bytes at most, the record of the lowest priority; and
+  `doh_https`, the read through the resolvers. `https_tests.rs` reads the answers captured on
+  2026-11-05 from Cloudflare's (JSON and wire) and Google's (JSON) resolvers for
+  `crypto.cloudflare.com` (the two forms agree; rustls takes the list with podssh's suites and finds
+  none with no suite), a parameter with no bytes, each cut of the answer and of the parameter, a list in
+  base64 cut short, an alias, no record, NXDOMAIN, the generic form, keys out of order or twice, a
+  compressed target, and two priorities. The fuzz target `dns_wire` reaches the reader.
+- `crates/podssh-ws/src/ech/`: the mode (`PODSSH_ECH`, `set_mode`), the cache on an injected clock
+  (`cache.rs`, `cache_tests.rs`: the TTL's floor, its ceiling, a miss and a failed read kept 30 s, a
+  refused name left 5 minutes, the retry configs served at once, two lookups at once one read, the
+  maps bounded), the configuration of a sealed hello kept for each trust, name, list and ALPN
+  (`config.rs`), the road (`road.rs`, `road_tests.rs`: rustls's refusal with retry configs gives the
+  captured list back byte for byte, with none or another failure a refusal in words), and each name's
+  last outcome for `doctor` (`tests.rs`). `client::open_tls` and the HTTP/2 road's dial go through it;
+  with the mode off, the connection is made as before.
+- `crates/podssh-ws/tests/ech_handshake.rs`: a server of rustls's on the loopback that takes no ECH and
+  keeps each ClientHello: the sealed hello names the public name and not the host, its sealed part
+  opens with the list's key (podssh's HPKE, with the AAD and the info that rustls's ECH made) to a hello
+  that names the host, the refusal goes on with one plain hello and then the name goes plain at once;
+  `strict` sends one sealed hello and no plain one; a name with no list goes plain, and `strict` sends
+  nothing to it.
+- The CLI: `ECH` in the settings file (`settings_tests.rs`: the first value wins, a bad word names its
+  line), `pins::apply` sets the mode (78 for a bad word), and `doctor`'s line `ech` in the section relay
+  (`crates/podssh-cli/src/doctor/ech.rs`, with a test of each verdict). The manual (`PODSSH_ECH` in
+  ENVIRONMENT, the trust's item, the settings file in FILES, the note of the line `ech`), `docs/cli.md`,
+  `docs/architecture.md` (TLS, rule 3, the two tables of limits) and `SECURITY.md`. `AGENTS.md`'s rule 2
+  is left to the operator's confirmation of Q86.
+- Planted (`scripts/plants/`): `t642-ttl-floor` (the floor left out), `t642-nonce-unsequenced` (HPKE's
+  nonce without the sequence number), `t642-hello-unsealed` (the road's configuration with no list),
+  `t642-length-past-end` (a parameter's length past the record's end taken).
+- `python scripts/check-repo.py`: UNVERIFIED in the draft. `cargo test -p podssh-ws --lib crypto`:
+  UNVERIFIED. `--lib resolve`: UNVERIFIED. `--lib ech`: UNVERIFIED. `--test ech_handshake`:
+  UNVERIFIED. `cargo test -p podssh-cli --lib doctor::ech`: UNVERIFIED. `--lib settings`: UNVERIFIED.
+  `--lib man::`: UNVERIFIED. Clippy `--all-targets -D warnings` on podssh-ws and podssh-cli:
+  UNVERIFIED. The four plants: UNVERIFIED. The fuzz target's build: UNVERIFIED. Live, a sealed hello
+  that a server opens (`PODSSH_ECH=yes podssh doctor`, whose line `ech` names the relay host's outcome,
+  and a GET of `crypto.cloudflare.com` that rustls's `ech_status` calls accepted): UNVERIFIED, not run.

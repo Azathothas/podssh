@@ -195,8 +195,8 @@ pub async fn open_tls(
     tls::config_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
     rustls_pki_types::ServerName::try_from(server_name.to_string())
         .map_err(|e| ConnectError::Config(format!("{server_name:?} is not a valid server name: {e}")))?;
-    let tcp = dial::dial(host, port, proxy, timeout).await.map_err(ConnectError::Dial)?;
-    crate::tls_wrap::tls_over(tcp, server_name, trust, timeout).await
+    // Sealed where the user asked for ECH and the name publishes a list (T-642).
+    crate::ech::open(host, port, server_name, trust, proxy, timeout, &[]).await.map(|(tls, _)| tls)
 }
 
 /// Send the upgrade request and read the answer. On `101`, returns the stream

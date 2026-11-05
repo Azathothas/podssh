@@ -68,6 +68,11 @@ async fn open(
     let kept = crate::tls::config_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
     let name = rustls_pki_types::ServerName::try_from(server_name.to_string())
         .map_err(|e| ConnectError::Config(format!("{server_name:?} is not a valid server name: {e}")))?;
+    // Sealed where the user asked for ECH and the name publishes a list, with
+    // this road's protocols (T-642).
+    if crate::ech::wanted(server_name, trust) {
+        return crate::ech::open(host, port, server_name, trust, proxy, limit, &[H2, HTTP1]).await;
+    }
     let tcp = crate::dial::dial(host, port, proxy, limit).await.map_err(ConnectError::Dial)?;
     let peer = tcp.peer_addr().ok();
     // A copy of the trust's own: the same verifier and the same cache of

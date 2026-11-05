@@ -1,0 +1,9 @@
+# T-642: HPKE's nonce left without the sequence number, so each message of a
+# context is sealed under the base nonce, which a seal and an open of podssh's
+# own would agree on; the test against RFC 9180's messages at sequence numbers
+# 1 to 256 must fail.
+ENTRY=T-642
+GROUP=cli-tests
+EXPECT='test crypto::hpke::tests::each_listed_message_seals_to_the_rfc_s_ciphertext_and_opens_again \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ws --lib -- crypto::hpke::tests'
+LIMIT=1800

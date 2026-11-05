@@ -516,6 +516,32 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `PODSSH_QUIC=yes` races it to each relay host, at its offered port or its
   own; `no` to none; another word to none. A caller's own TLS configuration
   takes no QUIC.
+- **Encrypted Client Hello, when the user asks for it** (T-642, GitHub
+  #140). With `PODSSH_ECH=yes`, or `ECH yes` in the settings file, each TLS
+  connection that podssh opens by a name (the relay hosts, the mint, the
+  HTTP/2 road, and each other HTTPS request of a run) seals the name inside
+  the hello where the name's `HTTPS` record (RFC 9460) publishes a list in
+  its `ech` parameter; the hello in the clear names the list's public name
+  (`cloudflare-ech.com` in Cloudflare's lists). The record is read before
+  the connection, from the resolvers of DNS over HTTPS in their order, by
+  their JSON API or RFC 8484's wire form, through `HTTPS_PROXY` as each
+  road dials (by the resolver's name first), 4 s at most, and kept for its
+  TTL (30 s at least, 300 s with none, a day at most); a name with no list,
+  or whose read failed, goes plain and is asked again 30 s later; one read
+  of a name goes at a time. HPKE is podssh's own (X25519 and HKDF-SHA256,
+  with AES-128-GCM or ChaCha20-Poly1305), and a sealed hello offers TLS 1.3
+  alone. A server that refuses it with retry configs gets one more hello
+  with them, which then replace the list; any other failure (a refusal with
+  none, a reset, no answer within 10 s) goes on with a plain hello, which
+  names the host, and the name is left alone for 5 minutes. `strict` sends
+  no plain hello to a name that was to be sealed: the connection fails, with
+  why. `no`, unset or empty: nothing is read and nothing sealed, the
+  default. Another word is refused (78). A proxy is still given the host's
+  name in its CONNECT, and the address, the times and the sizes stay as they
+  were: what ECH hides is the name in the hello, from what reads hellos on
+  the way. Never to an address, nor with a caller's own TLS configuration;
+  not on a hop of `ssh+tls://`, whose TLS runs over a stream that is open
+  already. `doctor`'s line `ech` says what it did.
 - **`--forwarder TEMPLATES` reaches the first hop through other products'
   WebSocket forwarders, in place of the relay** (T-369, GitHub #60). A
   forwarder dials the host and the port that a client names and carries the
@@ -2774,6 +2800,14 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   section of the forwarders has the line for each `wss://` one, whose road
   keeps the upgrade of HTTP/1.1. The line `forward` names the road that
   carried its session.
+- **The line `ech`** (T-642), in the section `relay`, after `http2`: what
+  Encrypted Client Hello did for the same host at the connection of its
+  `/health`, read from what the run kept, with no connection of its own:
+  `off`, as by default; the name went sealed, and whether with the server's
+  retry configs; or why its hello named it (no list in its `HTTPS` record,
+  a read that failed, a refusal, or the 5 minutes after one). It is `ok`, a
+  fact; `????` when no connection to the host was made; `FAIL` when
+  `PODSSH_ECH=strict` sent no plain hello.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,
@@ -5233,9 +5267,10 @@ or no, as `PODSSH_DIRECT`: the direct road after the relay hosts, T-363),
 `RelayRank` (yes, no or auto, as `PODSSH_RELAY_RANK`: the measured order of
 the default relay hosts, T-607, and with auto a rank in a session's
 background, T-608),
-`DoctorJobs` (1 to 64, as `doctor --jobs`, T-511) and `RelayKeys` (keys
+`DoctorJobs` (1 to 64, as `doctor --jobs`, T-511), `RelayKeys` (keys
 of a signed list of relay deployments, as `PODSSH_RELAY_KEYS`; each line
-adds, T-346). It has `Keyword value` lines, `Keyword=value` too, and `#`
+adds, T-346) and `ECH` (yes, no or strict, as `PODSSH_ECH`: Encrypted
+Client Hello, T-642). It has `Keyword value` lines, `Keyword=value` too, and `#`
 comments, read as an `ssh_config` line is; the first value of a keyword
 wins. The file is the one that `PODSSH_SETTINGS` names, an absolute path
 that must exist (`none` reads none); else the first that exists of

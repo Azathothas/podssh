@@ -26,7 +26,9 @@ pub(super) fn block() -> Block {
              podssh. podssh doctor says when the roots in the binary are older than 12 months. podssh offers \
              TLS 1.3 first, and TLS 1.2 with ECDHE and AES-GCM or ChaCha20-Poly1305, for a proxy that \
              intercepts TLS and speaks only 1.2; a server that speaks 1.3 gets 1.3, and a fall to 1.2 cannot \
-             be forced. There is no CBC suite and no RSA key exchange.",
+             be forced. There is no CBC suite and no RSA key exchange. Each hello names its host in the clear, \
+             unless PODSSH_ECH or ECH in the settings file asks for Encrypted Client Hello: then the name of a \
+             host that publishes a list in its HTTPS record goes sealed, over TLS 1.3 alone (see ENVIRONMENT).",
             podssh_ws::tls::ROOTS_VERSION,
             podssh_ws::tls::ROOTS_PUBLISHED,
             podssh_ws::bundle::BUNDLE_FILE_NAME,

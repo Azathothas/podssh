@@ -35,6 +35,8 @@ fn a_file_gives_each_setting_and_the_first_value_wins_but_for_relay_addr() {
     let d = read(&format!("RelayKeys SHA256:{}\nrelaykeys {zero}, {zero}\n", "A".repeat(43)));
     let keys: Vec<&str> = d.relay_keys.iter().map(|v| v.at.as_str()).collect();
     assert_eq!(keys, ["f:1", "f:2"]);
+    // Encrypted Client Hello (T-642): the first value wins.
+    assert_eq!(read("ECH strict\nech yes\n").ech.unwrap().text, "strict");
 }
 
 #[test]
@@ -79,6 +81,7 @@ fn a_bad_value_of_the_file_names_its_line() {
         ("DoctorJobs 0\n", "f:1: DoctorJobs \"0\": a number of sections from 1 to 64"),
         ("DoctorJobs all\n", "f:1: DoctorJobs \"all\": a number of sections from 1 to 64"),
         ("RelayKeys SHA256:short\n", "f:1: RelayKeys \"SHA256:short\" is not a key"),
+        ("ECH maybe\n", "f:1: ECH \"maybe\": give yes, no or strict"),
     ] {
         let err = parse(text, "f", None).unwrap_err();
         assert!(err.starts_with(says), "{text:?}: {err}");

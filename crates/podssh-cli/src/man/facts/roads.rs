@@ -7,8 +7,8 @@
 //! road (T-531), the cleartext road on the relay's port (T-326), the
 //! resumable layer at podssh's relay role (T-173), and the keys of a signed
 //! list of relay deployments (T-346), the WebSocket over HTTP/2 (T-321),
-//! QUIC to the relay role (T-667), and the STUN servers of doctor's line
-//! nat (T-641).
+//! QUIC to the relay role (T-667), the STUN servers of doctor's line nat
+//! (T-641), and Encrypted Client Hello (T-642).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -207,6 +207,22 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
       named, asked in turn from one UDP socket until two gave the address that they saw. no: the line asks \
       none, and says so as ????. Unset or empty: the two by default. Another value is a configuration error \
       (78), before any probe.",
+    ),
+    (
+        &["PODSSH_ECH"],
+        "Encrypted Client Hello (T-642). yes: the name of each host that podssh reaches over TLS by a name goes \
+      sealed inside the hello, where the name's HTTPS record publishes a list (its ech parameter), and the hello \
+      in the clear names the list's public name instead. The record is read before the connection, from the \
+      resolvers of DNS over HTTPS, through HTTPS_PROXY as each road dials, once for each name and its TTL (30 s \
+      at least, 300 s with none); a name with no list, or whose read failed, goes plain and is asked again 30 s \
+      later. A server that refuses the sealed hello with retry configs gets one more hello with them; any other \
+      refusal goes on with a plain hello, which names the host, and the name is left alone for 5 minutes. \
+      strict: as yes, but no plain hello ever goes to a name that was to be sealed; the connection fails, with \
+      why (the cleartext road, which PODSSH_CLEARTEXT=no turns off, still names the host). no, unset or empty: \
+      nothing is sealed and no record is read, the default. Over ECH of the settings file; another word is a \
+      configuration error (78). A proxy is still given the host's name in its CONNECT, and the address stays \
+      visible; never to an address, nor with a TLS configuration that a caller of the library gave. podssh \
+      doctor's line ech says what it did.",
     ),
     (
         &["INVOCATION_ID", "WSL_DISTRO_NAME", "TERMUX_VERSION"],
