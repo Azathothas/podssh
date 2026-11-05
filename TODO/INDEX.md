@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**631 entries: 108 open, 10 partial, 3 blocked, 510 done.**
+**631 entries: 107 open, 10 partial, 3 blocked, 511 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 247 | 276 |
-| P3 | 83 | 4 | 3 | 197 | 287 |
-| **All** | 108 | 10 | 3 | 510 | 631 |
+| P3 | 82 | 4 | 3 | 198 | 287 |
+| **All** | 107 | 10 | 3 | 511 | 631 |
 
 ## Entries
 
@@ -699,7 +699,7 @@ repository and CI).
 | [T-666](roads.md) | P3 | M | M10 | feature | partial | Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection |
 | [T-667](mesh.md) | P3 | L | M10 | feature | open | QUIC on UDP 443 to podssh's relay role, raced with its TCP roads where a probe found that UDP passes |
 | [T-668](reverse.md) | P3 | L | M10 | feature | open | A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state |
-| [T-669](ssh.md) | P3 | S | M10 | measurement | open | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |
+| [T-669](ssh.md) | P3 | S | M10 | measurement | done | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |
 | [T-670](ssh.md) | P3 | M | M10 | feature | partial | The download's rate while a key waits on a slow path: win back what T-661 gives up |
 | [T-671](relay.md) | P2 | S | M10 | defect | done | The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them |
 | [T-672](ssh.md) | P3 | M | backlog | feature | blocked | TLS tickets kept across runs, once a release of rustls lets a client write one |

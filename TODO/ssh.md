@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:724`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:725`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -4926,7 +4926,7 @@ was cut before it; the draft's entry of TLS tickets is T-672).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4957,6 +4957,33 @@ cargo test -p podssh-ssh --lib
 ```
 
 The figures, with their commands, in `docs/STATUS.md`.
+
+## Done
+
+2026-11-05, measured on the loopback with the static release binary of `6d30328`
+(`python3 scripts/compress-measure.py BINARY --port PORT --identity KEY --known-hosts FILE --seconds
+60 --log FILE`): a proxy that counts the bytes to the client, `top -d 0.5` on a pty for 60 s, and
+`cat` of a build's log (754,213 bytes of CI's output), each once with `Compression=no` and once with
+`-C`.
+
+| Server | `top`, 60 s | an hour of `top` | build's log | 64 MiB lasts, `top` |
+| --- | --- | --- | --- | --- |
+| OpenSSH 9.6p1's sshd | 215,659 to 117,059 bytes (1.8 times) | 12.3 to 6.7 MiB | 759,331 to 508,595 (1.5 times) | 5.2 to 9.6 h |
+| Dropbear 2022.83 | 204,126 to 11,758 bytes (17.4 times) | 11.7 to 0.7 MiB | 758,334 to 151,838 (5.0 times) | 5.5 to 95 h |
+
+- The server compresses what comes down, so the server decides the gain, not podssh: OpenSSH's own
+  client measured the same against the same sshd (1.8 and 1.5 times), and sshd's counters at `ssh
+  -v` read a factor of 0.67 on the log, where zlib at level 6 with a partial flush per message of
+  64 bytes to 32 KiB gives 0.19 to 0.28 on the same bytes, and Dropbear 0.19. Why OpenSSH's sshd
+  compresses this poorly is not known here.
+- podssh's CPU for 60 s of `top`: 0.04 s with `-C` and without; for the log, 0.01 and 0.02 s.
+- osewa's 6 to 8 times is its own server's zstd: a podssh client gets 5 to 17 times only from a
+  server that compresses well, and 1.5 to 1.8 times from OpenSSH's. The default stays off (the
+  Decision above): the figures go to the operator here and in `docs/STATUS.md`. With `top`, the
+  relay's 64 MiB lasts 5 h without `-C`, so a session to an OpenSSH server that runs a full screen
+  for a working day still meets it, `-C` or not.
+- `cargo test -p podssh-ssh --lib`: 341 passed.
+
 
 # T-670: The download's rate while a key waits on a slow path: win back what T-661 gives up
 

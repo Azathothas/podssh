@@ -25,7 +25,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      (OpenSSH 1.6 s) and 0.4 to 0.8 s on a link of 1 Mbit/s (OpenSSH 16 s); a session resumes 1 s
      after a move; a cold connect is two round trips shorter than before and than OpenSSH's.
   4. **Partial and watched:** T-465, T-627, T-319, T-321, T-253 (as before), and those of item 3.
-  5. **The work order** (below): the rest of osewa's entries (T-667, T-668, T-669, T-673), then
+  5. **The work order** (below): the rest of osewa's entries (T-667, T-668, T-673), then
      GitHub #127 to #148's open entries by priority, then M10's items 2 and 3 (T-106, T-433,
      T-180, T-434, T-459).
   6. **Two lessons of the night** (each in the paragraph of the drafts below): never commit while
@@ -242,7 +242,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 631 entries: 108 open, 10 partial, 3 blocked, 510 done.
+`TODO/INDEX.md` holds 631 entries: 107 open, 10 partial, 3 blocked, 511 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -282,7 +282,7 @@ operator and the parked ones.
 P1 defect, is in it); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first; its iroh and DERP rows),
 T-662 (a copy through a shaped link; the SSH client's flow control and liveness in round trips are done), T-670, T-665,
-T-666, T-667, T-668 and T-669; then GitHub #127 to #148 (`TODO/issues.md`) by
+T-666, T-667, T-668 and T-673 (compression's figures are done); then GitHub #127 to #148 (`TODO/issues.md`) by
 their priority, beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
 
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
