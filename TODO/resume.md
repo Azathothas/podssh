@@ -3973,3 +3973,43 @@ fails; no `END` again after a resume, and the test of a lost `END` fails; `podss
   its 60 s bound) and `t173-stdin-end-closes` caught. Clippy and rustfmt clean.
 - The draft found that the role's `/connect/` drops a target's bytes after the client's Close, where
   `docs/relay.md` says they still come: T-671.
+
+# T-682: M6's check of a stall of 3 minutes on the iroh road hung after its resume, once in CI
+
+**Source:** the gate of `cbaa806`, step `m6`, 2026-11-05.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`the_iroh_road_survives_a_stall_of_3_minutes` (`crates/podssh-cli/tests/m6_exit.rs`) failed once in
+the gate of `cbaa806`: the client said "the session resumed after 168.6 s, 1148361 bytes sent again",
+then the session did not end within 600 s. The code was the code of `07e65ed`, whose gate passed, and
+the check passed in each of the four gates since T-666 put the sessions of one process on one iroh
+connection; here it passed 3 runs of 3 (195 to 211 s). The failure showed the client's lines and the
+proxies' alone, so where the session hung is not known.
+
+## Premise
+
+- `crates/podssh-cli/tests/m6_exit.rs` at `96ad598`, line 378, read the node's stderr into a channel
+  for its ticket alone; a check that failed printed the logs of the session's directory, which held
+  no line of the node.
+
+## Approach
+
+1. The node's lines after its ticket go to `node.log` in the session's directory, which a failure
+   prints (done, 2026-11-05).
+2. At the next failure, read where the session hung (the client's link after its resume, the node's
+   lane of T-666, the layer's replay), repair it, and run the check 20 times on a runner.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --features iroh-test --test m6_exit -- --ignored --test-threads 1 the_iroh_road_survives_a_stall_of_3_minutes
+```
+
+20 runs in a row on a runner, each within its bound.

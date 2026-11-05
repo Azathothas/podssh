@@ -380,6 +380,17 @@ mod iroh {
             session.keep(node);
             let line = wait_for(&lines, "ticket iroh:").expect("the node's ticket");
             let ticket = line[line.find("iroh:").unwrap()..].trim().to_string();
+            // The node's lines after its ticket, kept as a log of the session's
+            // directory, so that a check that fails shows the node's side too:
+            // a run in CI hung after its resume with the client's lines alone.
+            let kept = session.home.join("node.log");
+            std::thread::spawn(move || {
+                use std::io::Write as _;
+                let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(kept) else { return };
+                for line in lines.iter() {
+                    let _ = writeln!(file, "{line}");
+                }
+            });
             Some(Road {
                 session,
                 _relay: relay,

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**636 entries: 102 open, 10 partial, 3 blocked, 521 done.**
+**637 entries: 103 open, 10 partial, 3 blocked, 521 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
-| P2 | 25 | 4 | 0 | 248 | 277 |
+| P2 | 26 | 4 | 0 | 248 | 278 |
 | P3 | 77 | 4 | 3 | 207 | 291 |
-| **All** | 102 | 10 | 3 | 521 | 636 |
+| **All** | 103 | 10 | 3 | 521 | 637 |
 
 ## Entries
 
@@ -712,3 +712,4 @@ repository and CI).
 | [T-679](reverse.md) | P3 | M | M10 | feature | open | A node of the iroh, DERP, quick tunnel, Piping Server or OpenTunnel road ends its sessions at its upgrade |
 | [T-680](machine.md) | P3 | M | M10 | measurement | open | A cold connect on a long path takes nine round trips, where osewa's takes three |
 | [T-681](machine.md) | P3 | M | M10 | measurement | open | The echo beside a download on cellular, wifi and the slow link is 1.5 to 3.5 times osewa's |
+| [T-682](resume.md) | P2 | M | M10 | defect | open | M6's check of a stall of 3 minutes on the iroh road hung after its resume, once in CI |
