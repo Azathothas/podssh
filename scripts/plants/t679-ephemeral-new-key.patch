@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_upgrade/parts.rs
++++ b/crates/podssh-cli/src/node_upgrade/parts.rs
+@@ -83,7 +83,7 @@
+         return crate::channel::load_node_key(place);
+     }
+     let kept = part(KEY).and_then(|body| <[u8; 32]>::try_from(&body[..]).ok()).map(Zeroizing::new);
+-    if let Some(seed) = kept {
++    if let Some(seed) = kept.filter(|_| false) {
+         return Ok(Key { identity: Identity::from_seed(&seed), path: None, made: false });
+     }
+     let key = crate::channel::load_node_key(place)?;

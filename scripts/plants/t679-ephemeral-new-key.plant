@@ -1,0 +1,8 @@
+# T-679: a node's key for this run only is made anew at each load, so the
+# binary after an upgrade, or a road that starts again after a binary that did
+# not start, has a new key, and the ticket of the iroh or DERP road that named
+# the old one finds nothing; the test of the run's key must fail.
+ENTRY=T-679
+GROUP=cli-tests
+EXPECT='test node_upgrade::parts::tests::a_key_for_this_run_only_stays_the_run_s \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- node_upgrade::parts::tests::a_key_for_this_run_only_stays_the_run_s'

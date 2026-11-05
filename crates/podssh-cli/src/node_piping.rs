@@ -15,7 +15,9 @@
 //! node waits at the transit relay of Q65 too (T-436, `node_transit`), as
 //! the node of the pair's road does. The road needs the resumable layer and
 //! the end-to-end channel, as the server would see each byte else. stdout
-//! stays empty: the lines are on stderr.
+//! stays empty: the lines are on stderr. At SIGUSR2 it hands its sessions to
+//! the binary that takes its place, as the pair's road's node does (T-679,
+//! `node_upgrade`), which waits at the same door: its path is the pair's.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -27,7 +29,6 @@ use podssh_relay::piping::probe::{self, Probe};
 use podssh_relay::piping::{self, Secret, Server};
 use podssh_relay::reverse::routes::Route;
 use podssh_relay::reverse::{self, Layered, NodeConfig, TcpHandler, Wire};
-use podssh_relay::session::keep::Keeper;
 use podssh_relay::session::Settings;
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::sync::watch;
@@ -82,14 +83,24 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> Option<i32> {
             return Some(Fault::SessionFault.code());
         }
     };
-    let ready = match prepare(args, label, pair, stored, trust) {
+    let ready = match prepare(args, label.clone(), pair, stored, trust.clone()) {
         Ok(ready) => ready,
         Err(refusal) => return Some(refusal.report("node", err)),
     };
     // A run of --restart beats from this runtime, while it polls (T-394).
     crate::detach::beat::keep(runtime.handle());
     // On the heap: Windows gives the main thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(serve(ready, server, None, None, err)));
+    let mut code = runtime.block_on(Box::pin(serve(ready, server.clone(), None, None, err)));
+    // An upgrade whose binary did not start: this one serves its sessions
+    // again, from a new start of the road (T-679).
+    while code == crate::node_upgrade::AGAIN {
+        let again = pair_of(args, &label)
+            .and_then(|(pair, stored)| prepare(args, label.clone(), pair, stored, trust.clone()));
+        code = match again {
+            Ok(ready) => runtime.block_on(Box::pin(serve(ready, server.clone(), None, None, err))),
+            Err(refusal) => refusal.report("node", err),
+        };
+    }
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     Some(code)
@@ -138,8 +149,9 @@ fn prepare(args: &NodeArgs, label: String, pair: Pair, stored: bool, trust: Trus
     let targets = crate::node::targets_of(&crate::node::words_of(args), false)?;
     let flags = crate::node::key_flags(args)?;
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
-    // The key is made only once each check passed.
-    let key = crate::channel::load_node_key(&place)?;
+    // The key is made only once each check passed; one for this run only
+    // stays across an upgrade in place (T-679).
+    let key = crate::node_upgrade::parts::node_key(&place)?;
     crate::node_exit::ready(&label, &key.identity.public())?;
     Ok(Ready { label, pair, stored, targets, roost: args.sshd, key, allow: flags.allow, trust })
 }
@@ -213,7 +225,10 @@ pub(crate) async fn serve(
         }
     };
     let budget = reverse::layered::NODE_BUDGET;
-    let keeper = Arc::new(Keeper::new(settings().resume_deadline));
+    // The upgrade's keeper, for each road of the node: the sessions of the
+    // binary before this one, and those that go to the next (T-679).
+    let keeper = crate::node_upgrade::channel_keeper(&channel, settings().resume_deadline);
+    crate::node_upgrade::lines(say.clone());
     let secret = Arc::new(Secret::of_pair(&pair.name, pair.connect_token()));
     let left = Duration::from_millis(pair.expires_ms.saturating_sub(crate::pairs::now_ms()).max(0) as u64);
     let alone = refused.is_some();
@@ -286,13 +301,18 @@ pub(crate) async fn serve(
             crate::journal::line(err, podssh_ssh::LogLevel::Error, &expired);
             return Fault::PairExpired.code();
         }
-        () = crate::node::stop_signal() => {
+        // Ctrl-C, or an upgrade (T-679).
+        () = crate::node_upgrade::stop() => {
             let _ = stop.send(true);
             both.await;
         }
     }
-    let _ = writeln!(err, "podssh node: {label}: stopped");
-    0
+    // An upgrade's handover ends this binary; else the stop's line.
+    crate::node_upgrade::or_finish(|| {
+        let _ = writeln!(err, "podssh node: {label}: stopped");
+        0
+    })
+    .await
 }
 
 #[cfg(test)]

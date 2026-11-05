@@ -34,9 +34,10 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
     (
         &["PODSSH_HANDOVER"],
         "Set by podssh alone, never by hand: between the two binaries of a node's upgrade in place (T-668, see \
-          the notes of podssh node), it names the descriptor of the memory that holds the node's sessions, and the \
-          node's pid, so that only that process reads it, never a program that the node starts. probe makes \
-          podssh --version add the line podssh-handover and the version of the sessions that this binary takes, \
+          the notes of podssh node), it names the descriptor of the memory that holds the node's sessions and what \
+          its roads keep of the run (a key for the run only, a quick tunnel's name, T-679), and the node's pid, \
+          so that only that process reads it, never a program that the node starts. probe makes podssh \
+          --version add the line podssh-handover and the version of the sessions that this binary takes, \
           which a node reads before it hands its sessions to a binary.",
     ),
 ];

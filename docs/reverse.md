@@ -717,8 +717,9 @@ A node of the pair's road now hands them to the binary that takes its place
    each node of `--detach` of the user that takes it (such a node writes
    `detached/NAME.upgrade`, its pid, beside its run's record), while the
    run's lock is held and the record names that pid; a unit of systemd
-   takes `systemctl kill -s USR2 UNIT`. A node of another road ignores the
-   signal, which no longer ends it.
+   takes `systemctl kill -s USR2 UNIT`. A node of `--carrier`, of
+   `--temporary` or of `--quick-tunnel --relay` ignores the signal, which
+   no longer ends it.
 2. The binary at the node's path runs once first, as `podssh --version`
    with `PODSSH_HANDOVER=probe`, 10 s at most, and must add the line
    `podssh-handover 1`: a build of before, a file that does not start, or
@@ -748,12 +749,42 @@ A node of the pair's road now hands them to the binary that takes its place
    no layer, ends at the stop. A binary that does not start after its probe
    gives the sessions back, and this one serves on.
 
+Each other road of a node hands its sessions over the same way (T-679,
+drafted 2026-11-05; `crates/podssh-cli/src/node_upgrade/parts.rs`): its
+sessions' layer and channel are the same, so their state is. Each road's own
+connection is made again by the new binary, as the same, so that each client
+finds the node where it was:
+
+1. The iroh road opens its endpoint again, and the DERP road comes home
+   again, under the same key, so the ticket stays. A key of
+   `--ephemeral-key` passes with the sessions, as a part of the run, so that
+   it lasts as long as the run, across its upgrades.
+2. The Piping Server road waits at the same door, as its path comes from
+   the pair's secret.
+3. The OpenTunnel road attaches its tunnel, kept in the cache, again under
+   the same name. A tunnel that no directory of the cache took is made anew
+   at each start, under a new name, and the node says so as it starts.
+4. The quick tunnel's id, name, account and secret pass with the sessions,
+   and the new binary registers the same tunnel again, with no request to
+   Cloudflare's API. Should the edge refuse it, the node asks for a new
+   tunnel, under a new name, which the clients of the sessions that came
+   over do not hold. A node of `--quick-tunnel --relay` takes no upgrade:
+   its relay role's tokens, pairs and sockets live in its process.
+5. The parts of the run follow the sessions in the same memory, only when a
+   road keeps one, so that a run with none writes the bytes of T-668 alone;
+   each part begins with a version of its own, and one of another version
+   is left, its road starting anew.
+6. A session of `--iroh --no-e2e`, a pipe in the process, ends at its
+   resume, with why.
+
 Windows has no such signal, and a process that started the new binary
 beside it would change the node's pid, which a supervisor takes for its
 end: a node there takes a new binary at its next start, its sessions ending
 as before. Measured on 2026-11-05 (`cargo test -p podssh-relay --test
 session_handover`, 3 passed; `cargo test -p podssh-cli --test node_moves`, 3
-passed), on Linux.
+passed), on Linux. The other roads (T-679): UNVERIFIED, `cargo test -p
+podssh-cli --test derp_road --test opentunnel_road`, and `--features
+iroh-test --test iroh_road`, a session across the node's upgrade on each.
 
 ## The dialect of the road
 

@@ -1,6 +1,6 @@
 //! A node that keeps its sessions across its own upgrade (T-668). SIGUSR2,
 //! which `podssh update` sends each node of `--detach` that it replaced,
-//! asks a node of the pair's road to take the binary now at its path: it
+//! asks a node to take the binary now at its path: it
 //! runs that binary once as a probe, which must say that it takes a node's
 //! sessions; then it stops its socket as a stop does, with each session's
 //! `close` saying that the node upgrades, hands each session of its keeper
@@ -16,8 +16,16 @@
 //!
 //! Where the system has no such signal (Windows), nothing asks, and a node
 //! goes on with its binary until it starts again, as before.
+//!
+//! Each road of a node takes the same keepers and stop (T-679): the iroh
+//! road, the DERP road, the quick tunnel, the Piping Server road and the
+//! OpenTunnel road, each with the pair's road beside it where it has one.
+//! Each makes its own connection again in the new binary, as the same: the
+//! parts of the run that it needs for that (`parts`) go with the sessions.
 
 pub mod mark;
+// What a road keeps of its run for the binary after (T-679).
+pub mod parts;
 #[cfg(unix)]
 mod pass;
 #[cfg(unix)]
@@ -105,7 +113,7 @@ where
 pub fn start(err: &mut dyn Write) {
     #[cfg(unix)]
     // SAFETY: the disposition of one signal, before the runtime starts;
-    // the pair's road listens for it again.
+    // each road that takes an upgrade listens for it again (T-679).
     unsafe {
         libc::signal(libc::SIGUSR2, libc::SIG_IGN);
     }
@@ -117,7 +125,9 @@ pub fn start(err: &mut dyn Write) {
     #[cfg(unix)]
     match read(&value) {
         Ok(None) => {}
-        Ok(Some((from, handed))) => {
+        Ok(Some(pass::Taken { from, handed, parts: kept })) => {
+            // Before any road reads them: its key, its tunnel (T-679).
+            parts::taken(kept);
             let moved = handed.iter().filter(|h| h.target.is_ok()).count();
             let _ = writeln!(
                 err,
@@ -136,10 +146,10 @@ pub fn start(err: &mut dyn Write) {
     let _ = (value, err);
 }
 
-/// The sessions in the memory that `value` names, when it names this
-/// process.
+/// The sessions and the parts in the memory that `value` names, when it
+/// names this process.
 #[cfg(unix)]
-fn read(value: &str) -> Result<Option<(String, Vec<Handed>)>, String> {
+fn read(value: &str) -> Result<Option<pass::Taken>, String> {
     use std::os::fd::{FromRawFd, OwnedFd};
     let Some(fd) = pass::fd_of(value)? else { return Ok(None) };
     // SAFETY: the descriptor that the binary before this one left open for
@@ -149,8 +159,9 @@ fn read(value: &str) -> Result<Option<(String, Vec<Handed>)>, String> {
     pass::taken(&bytes).map(Some)
 }
 
-/// The stop of a node of the pair's road: Ctrl-C or SIGTERM, as
-/// [`stop_signal`], or an upgrade whose binary passed its probe.
+/// The stop of a node of each road that takes an upgrade (T-668, T-679):
+/// Ctrl-C or SIGTERM, as [`stop_signal`], or an upgrade whose binary passed
+/// its probe.
 pub(crate) async fn stop() {
     #[cfg(unix)]
     {
@@ -210,6 +221,14 @@ async fn ready() -> bool {
     }
 }
 
+/// Whether the node stops for an upgrade whose binary passed its probe: a
+/// road's line of its stop then says nothing, as the node goes on (T-679).
+/// The iroh road's node reads it, in a build with that road.
+#[cfg_attr(not(feature = "iroh"), allow(dead_code))]
+pub(crate) fn upgrading() -> bool {
+    lock(&ASKED).is_some()
+}
+
 /// After the node's road ended: when an upgrade ended it, each session goes
 /// to the new binary, which takes this process's place; `Some(AGAIN)` when
 /// that binary did not start, its sessions back for this one. `None` for
@@ -241,7 +260,7 @@ pub(crate) async fn or_finish(finish: impl FnOnce() -> i32) -> i32 {
 
 #[cfg(unix)]
 fn hand(binary: PathBuf, handed: Vec<Handed>) -> Option<i32> {
-    let (back, why) = pass::become_binary(&binary, &crate::version::line(), handed);
+    let (back, why) = pass::become_binary(&binary, &crate::version::line(), handed, &parts::all());
     let shown = crate::update::replace::shown(&binary);
     say(format!("{shown} did not start ({why}): this binary serves its {} sessions again", back.len()));
     podssh_relay::reverse::node::set_upgrading(false);

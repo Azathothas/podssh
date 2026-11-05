@@ -1,0 +1,9 @@
+# T-679: the node of the DERP road keeps its sessions in a keeper of its own,
+# which the upgrade does not know, so it hands no session over and the client's
+# resume finds a forgotten session; the test of a session over the DERP road
+# across the node's upgrade, its bytes whole, must fail.
+ENTRY=T-679
+GROUP=cli-tests
+EXPECT='test a_session_over_the_derp_road_goes_on_across_the_node_s_upgrade \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test derp_road -- a_session_over_the_derp_road_goes_on_across_the_node_s_upgrade'
+LIMIT=2400

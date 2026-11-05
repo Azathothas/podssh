@@ -16,7 +16,10 @@
 //! and says so; `PODSSH_DERP=no` turns that off. Its record of pkarr names
 //! its DERP home, at n0's server unless `PODSSH_IROH_PKARR` names another or
 //! `off`, in a build with the iroh road (T-445, Q81, `node_record`). stdout
-//! stays empty: the lines are on stderr.
+//! stays empty: the lines are on stderr. At SIGUSR2 it hands its sessions to
+//! the binary that takes its place, as the pair's road's node does (T-679,
+//! `node_upgrade`), which comes home again under the same key, a key for
+//! this run only too, so that the ticket stays.
 
 use std::future::Future;
 use std::io::Write;
@@ -279,8 +282,9 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
     crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
     let record = crate::node_record::named()?;
     let trust = crate::pairs::trust(args.ca_file.as_deref());
-    // The key is made only once each check passed.
-    let key = crate::channel::load_node_key(&place)?;
+    // The key is made only once each check passed; one for this run only
+    // stays across an upgrade in place, as the ticket names it (T-679).
+    let key = crate::node_upgrade::parts::node_key(&place)?;
     crate::node_exit::ready(&label, &key.identity.public())?;
     Ok(Ready { label, targets, roost: args.sshd, key, door, servers, trust, pair, unasked, record })
 }
@@ -288,7 +292,7 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
 /// Run the node of the DERP road; `unasked` is why it serves the road with
 /// no `--derp`. Returns the process exit code.
 pub fn run(args: &NodeArgs, unasked: Option<String>, err: &mut dyn Write) -> i32 {
-    let ready = match prepare(args, unasked) {
+    let ready = match prepare(args, unasked.clone()) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report("node", err),
     };
@@ -302,7 +306,15 @@ pub fn run(args: &NodeArgs, unasked: Option<String>, err: &mut dyn Write) -> i32
     // A run of --restart beats from this runtime, while it polls (T-394).
     crate::detach::beat::keep(runtime.handle());
     // On the heap: Windows gives the main thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(serve(ready, err)));
+    let mut code = runtime.block_on(Box::pin(serve(ready, err)));
+    // An upgrade whose binary did not start: this one serves its sessions
+    // again, from a new start of the road (T-679).
+    while code == crate::node_upgrade::AGAIN {
+        code = match prepare(args, unasked.clone()) {
+            Ok(ready) => runtime.block_on(Box::pin(serve(ready, err))),
+            Err(refusal) => refusal.report("node", err),
+        };
+    }
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     code
@@ -408,7 +420,10 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     let budget = podssh_relay::reverse::layered::NODE_BUDGET;
-    let keeper = Arc::new(Keeper::new(settings().resume_deadline));
+    // The upgrade's keeper, for each road of the node: the sessions of the
+    // binary before this one, and those that go to the next (T-679).
+    let keeper = crate::node_upgrade::channel_keeper(&channel, settings().resume_deadline);
+    crate::node_upgrade::lines(say.clone());
     // The transit relay of Q65 for the pair's operators (T-436), beside the
     // pair's road and with its keeper.
     let transit = match (&pair, crate::node_transit::url()) {
@@ -454,34 +469,25 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             (channel.say)(format!("the pair's road ended: {why}; the DERP road goes on"));
         }
     };
-    // Until Ctrl-C, or until both roads ended by themselves.
+    // Until Ctrl-C, an upgrade (T-679), or until both roads ended by themselves.
     let both = async { tokio::join!(derp_road, pair_road) };
     tokio::pin!(both);
     tokio::select! {
         _ = &mut both => {}
-        () = crate::node::stop_signal() => {
+        () = crate::node_upgrade::stop() => {
             let _ = stop.send(true);
             both.await;
         }
     }
-    let _ = writeln!(err, "podssh node: {label}: stopped");
-    0
+    // An upgrade's handover ends this binary; else the stop's line.
+    crate::node_upgrade::or_finish(|| {
+        let _ = writeln!(err, "podssh node: {label}: stopped");
+        0
+    })
+    .await
 }
 
+// The tests, in a file of their own: this one is at its limit.
 #[cfg(test)]
-mod tests {
-    use super::fallback_from;
-
-    #[test]
-    fn podssh_derp_turns_the_fallback_off_with_no_and_refuses_another_word() {
-        for on in [None, Some(""), Some("yes"), Some("On"), Some("1")] {
-            assert!(fallback_from(on).unwrap(), "{on:?}");
-        }
-        for off in ["no", "OFF", "0", "false"] {
-            assert!(!fallback_from(Some(off)).unwrap(), "{off}");
-        }
-        let refused = fallback_from(Some("maybe")).unwrap_err();
-        assert_eq!(refused.code, 78);
-        assert!(refused.message.contains("PODSSH_DERP=maybe"), "{}", refused.message);
-    }
-}
+#[path = "node_derp_tests.rs"]
+mod tests;

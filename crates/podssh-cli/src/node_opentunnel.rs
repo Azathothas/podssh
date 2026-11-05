@@ -14,7 +14,10 @@
 //! node's key is one (T-452), as on the DERP road. A node with no pair, a
 //! door, and the DERP road turned off (`PODSSH_DERP=no`), so with no other
 //! road, serves it unasked, by the operator's ruling Q76, and says so;
-//! `PODSSH_OPENTUNNEL=no` turns the road off. stdout stays empty.
+//! `PODSSH_OPENTUNNEL=no` turns the road off. stdout stays empty. At SIGUSR2
+//! it hands its sessions to the binary that takes its place, as the pair's
+//! road's node does (T-679, `node_upgrade`), which attaches its kept tunnel
+//! again, under the same name.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -27,7 +30,6 @@ use podssh_relay::opentunnel::{self, dial, far, Credentials, Service, Setting, S
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::Route;
 use podssh_relay::reverse::{self, Layered, NodeConfig, TcpHandler, Wire};
-use podssh_relay::session::keep::Keeper;
 use podssh_relay::session::Settings;
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::sync::watch;
@@ -170,15 +172,16 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
     crate::pairs::online()?;
     crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
     let trust = crate::pairs::trust(args.ca_file.as_deref());
-    // The key is made only once each check passed.
-    let key = crate::channel::load_node_key(&place)?;
+    // The key is made only once each check passed; one for this run only
+    // stays across an upgrade in place (T-679).
+    let key = crate::node_upgrade::parts::node_key(&place)?;
     Ok(Ready { label, targets, roost: args.sshd, key, door, service, trust, pair, unasked })
 }
 
 /// Run the node of the OpenTunnel road; `unasked` is why it serves the road
 /// with no `--opentunnel`. Returns the process exit code.
 pub fn run(args: &NodeArgs, unasked: Option<String>, err: &mut dyn Write) -> i32 {
-    let ready = match prepare(args, unasked) {
+    let ready = match prepare(args, unasked.clone()) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report("node", err),
     };
@@ -192,7 +195,15 @@ pub fn run(args: &NodeArgs, unasked: Option<String>, err: &mut dyn Write) -> i32
     // A run of --restart beats from this runtime, while it polls (T-394).
     crate::detach::beat::keep(runtime.handle());
     // On the heap: Windows gives the main thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(serve(ready, err)));
+    let mut code = runtime.block_on(Box::pin(serve(ready, err)));
+    // An upgrade whose binary did not start: this one serves its sessions
+    // again, from a new start of the road (T-679).
+    while code == crate::node_upgrade::AGAIN {
+        code = match prepare(args, unasked.clone()) {
+            Ok(ready) => runtime.block_on(Box::pin(serve(ready, err))),
+            Err(refusal) => refusal.report("node", err),
+        };
+    }
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     code
@@ -312,7 +323,16 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     let budget = podssh_relay::reverse::layered::NODE_BUDGET;
-    let keeper = Arc::new(Keeper::new(settings().resume_deadline));
+    // The upgrade's keeper, for each road of the node: the sessions of the
+    // binary before this one, and those that go to the next (T-679).
+    let keeper = crate::node_upgrade::channel_keeper(&channel, settings().resume_deadline);
+    crate::node_upgrade::lines(say.clone());
+    if provisioned.path.is_none() {
+        // Its tunnel is made anew at each start: an upgrade gives a new name.
+        let words = "the tunnel is kept in no directory of the cache, so the binary after an upgrade makes a new \
+                     name, which the clients of its sessions do not hold";
+        say(words.to_string());
+    }
     let transit = match (&pair, crate::node_transit::url()) {
         (Ok((pair, stored)), Some(url)) => crate::node_transit::road(&label, pair, *stored, &trust, url, say.clone()),
         _ => None,
@@ -357,12 +377,12 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             (channel.say)(format!("the pair's road ended: {why}; the OpenTunnel road goes on"));
         }
     };
-    // Until Ctrl-C, or until both roads ended by themselves.
+    // Until Ctrl-C, an upgrade (T-679), or until both roads ended by themselves.
     let both = async { tokio::join!(tunnel_road, pair_road) };
     tokio::pin!(both);
     let ended = tokio::select! {
         (ended, ()) = &mut both => ended,
-        () = crate::node::stop_signal() => {
+        () = crate::node_upgrade::stop() => {
             let _ = stop.send(true);
             both.await.0
         }
@@ -373,9 +393,13 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             let message = format!("the OpenTunnel road ended: {why}");
             Refusal { message, code: Fault::RelayUnreachable.code() }.report("node", err)
         }
+        // An upgrade's handover ends this binary; else the stop's line.
         _ => {
-            let _ = writeln!(err, "podssh node: {label}: stopped");
-            0
+            crate::node_upgrade::or_finish(|| {
+                let _ = writeln!(err, "podssh node: {label}: stopped");
+                0
+            })
+            .await
         }
     }
 }

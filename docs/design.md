@@ -1067,7 +1067,10 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   the records may change between the two builds; a version of the handover's
   own bytes guards it, and a binary that reads another version is never
   asked. A session that cannot move waits as an ended one, and its resume
-  hears `CLOSE` with why. osewa's sessions outlive a restart of its server
+  hears `CLOSE` with why. Each road of a node takes it (T-679): the road's
+  own connection is made again by the new binary as the same, and what that
+  needs of the run (a key for the run only, a quick tunnel's name) passes
+  beside the sessions. osewa's sessions outlive a restart of its server
   as a process for each session does (`docs/research/osewa-paper.md`, G8);
   here the target's connection itself, an sshd's too, survives
   ([reverse.md](reverse.md), "A node's upgrade in place").

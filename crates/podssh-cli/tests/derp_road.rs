@@ -10,12 +10,14 @@
 //! server and says its new ticket, and a client of the old ticket finds it
 //! there; a client that tries the ticket's server alone does not. A node of
 //! no `--allow` whose key is a member of the net is the module `derp_net`
-//! (T-452).
+//! (T-452). A session goes on across the node's upgrade in place, as the
+//! node comes home again under the same key (T-679, `upgrade_support`).
 
 mod cleanup;
 mod derp_net;
 mod derp_support;
 mod ssh_harness;
+mod upgrade_support;
 // The TLS acceptor of the test's own CA.
 #[path = "update_support/mod.rs"]
 mod update_support;
@@ -373,5 +375,43 @@ fn a_client_of_the_old_ticket_finds_the_node_whose_home_moved_at_the_next_server
     // The ticket's server alone, as the planted client does: no node there.
     let (rc, out, err) = run(&mut lab.ssh(&["--derp-server", &lab.a.server(), &destination, "greet"]));
     assert_eq!(rc, 255, "the ticket's server alone found the node that moved: {out:?} {err}");
+    drop(lab.runtime);
+}
+
+/// A session over the DERP road goes on across the node's upgrade in place
+/// (T-679): SIGUSR2 at a quarter of 16 MiB down, and the node, the same
+/// process, becomes its binary again (the test's own) with the session; it
+/// comes home again under the same key, so its ticket stays, and the client
+/// resumes there, its bytes whole.
+#[cfg(unix)]
+#[test]
+fn a_session_over_the_derp_road_goes_on_across_the_node_s_upgrade() {
+    const DOWN: u64 = 16 << 20;
+    let lab = Lab::new("upgrade");
+    lab.let_in();
+    let (node, lines, started) = lab.node(&["--derp", "--derp-server", &lab.servers()]);
+    let ticket = ticket_in(&started, "ticket derp:");
+    let pid = node.0.id();
+    let (servers, destination, source) = (lab.servers(), format!("tester@{ticket}"), format!("source {DOWN}"));
+    let mut client = lab
+        .ssh(&["--derp-server", &servers, &destination, &source])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let came = upgrade_support::across(&mut client, DOWN, Duration::from_secs(180), || {
+        upgrade_support::ask(pid);
+        let went = wait_for(&lines, "sessions go to");
+        assert!(went.last().unwrap().contains("1 of 1 sessions go to"), "{went:#?}");
+        let took = wait_for(&lines, "sessions over from");
+        assert!(took.last().unwrap().contains("took 1 of 1 sessions over"), "{took:#?}");
+        let again = wait_for(&lines, "ticket derp:");
+        assert_eq!(ticket_in(&again, "ticket derp:"), ticket, "the same ticket: {again:#?}");
+    });
+    assert_eq!(came.code, Some(0), "{}", came.err);
+    assert_eq!(came.total, DOWN, "{}", came.err);
+    assert!(upgrade_support::runs(pid), "the node runs on in its own process");
+    drop(node);
     drop(lab.runtime);
 }
