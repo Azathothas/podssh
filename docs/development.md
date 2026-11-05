@@ -1026,3 +1026,40 @@ published release (the newest by default):
 ```sh
 gh workflow run update-live.yml --ref main -f tag=vX.Y.Z
 ```
+
+## What a user feels (T-660)
+
+`scripts/feel-matrix.py` measures what a user feels on each road, through
+each of the four links of osewa's lab (`docs/research/osewa-paper.md`,
+section 3.1): a key's echo idle and beside a download on the same
+connection, cold connects with `true`, and the download's rate while one
+types. Each cell's raw file goes under `--out`, with `summary.tsv`. It
+shapes the links in one of two ways:
+
+- `--links proxy`, the default: the stand-in proxy of
+  `scripts/fake-proxy.py`, with its `--shape`, in front of each client's
+  first hop, with the links of `scripts/fake_shape.py`. No root; each road
+  of podssh runs, and OpenSSH's client as the reference.
+- `--links netem`: `tc netem` on the loopback (`scripts/feel_netem.py`), the
+  same links read from `scripts/fake_shape.py`, each way on a netem of its
+  own for the far ends' ports alone, the loopback's MTU at 1500 and its
+  offloads off; all put back at the end. It needs root, or `sudo -n`. Only
+  the roads of one host run: OpenSSH's client, `--direct`, and osewa's
+  release binary over QUIC and over its WebSocket (`scripts/feel_osewa.py`,
+  a reference and never a road), whose server and files live in the run's
+  scratch directory and never update themselves. It is the reference for
+  the links in user space.
+
+```sh
+python3 scripts/feel-matrix.py target/x86_64-unknown-linux-musl/release/podssh --runs 3
+python3 -I scripts/feel-matrix.py PODSSH --links netem --osewa OSEWA --runs 3   # root, or sudo -n
+gh workflow run feel-netem.yml --ref main -f tag=v1.1.0-beta.3
+gh workflow run feel-netem.yml --ref main -f run=RUN   # a run's artifact podssh-x86_64-unknown-linux-musl
+```
+
+The workflow `feel-netem.yml`, by hand, runs the matrix with netem on a
+runner of GitHub Actions, which has root: podssh from a release, checked
+against its `SHA256SUMS`, or from a run's artifact; osewa's release, pinned
+by its version and the SHA-256 of its file. It uploads the raw files as an
+artifact, writes the summary in the step summary, and puts the loopback
+back after the run, also when the run ended early.
