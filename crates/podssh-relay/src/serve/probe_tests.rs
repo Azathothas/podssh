@@ -196,6 +196,7 @@ fn cfg() -> Arc<Config> {
         resumes: Default::default(),
         answered: Default::default(),
         brake: Default::default(),
+        usage: Default::default(),
         events: None,
     })
 }

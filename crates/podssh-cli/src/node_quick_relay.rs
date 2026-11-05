@@ -119,6 +119,7 @@ pub(crate) fn role(args: &NodeArgs, label: &str, door: &Door, me: PublicKey) -> 
         answered: Default::default(),
         events: Some(events),
         brake: Default::default(),
+        usage: Default::default(),
     };
     let who = format!("{who}{}", crate::relay_serve::inside_shown(args.allow_private, &routes));
     Ok(Some(Role { cfg: Arc::new(cfg), who, kept, through }))

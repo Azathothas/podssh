@@ -72,6 +72,11 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "serve: send each client an empty frame every SECONDS (default 25)", None),
     row(None, "pairs", Some("FILE"), FlagKind::Supported,
         "serve: keep the pairs of the reverse road in FILE, of mode 0600, so that they outlive a restart (the digests of their tokens, never a token)", None),
+    // What each key carried, and its budget for a day (T-636).
+    row(None, "quota", Some("MIB"), FlagKind::Supported,
+        "serve --mint keys:FILE or net: each key's budget for a day (UTC), in MiB, both ways together, from 1 to 16777216: each session of the forward road is charged to its token's key at its end, and once the key spent it, a session gets 403 before its target is dialed, until the next day", None),
+    row(None, "usage", Some("FILE"), FlagKind::Supported,
+        "serve --mint keys:FILE or net: keep each key's totals of the day and the day before in FILE, of mode 0600, written each 2 s while a count moved, so that they outlive a restart; SIGHUP says them on stderr", None),
     // The cleartext road beside TLS on the listener (T-326).
     row(None, "cleartext", Some("WORD"), FlagKind::Supported,
         "serve: yes (the default) or no: on the listener, a request whose first byte begins no TLS handshake gets the cleartext road, for a client whose proxy cuts TLS: /health, a token of one session (POST /v1/mint?once=1, as --mint says) and /connect/ with it, which its upgrade spends; each other request there is refused (403)", None),

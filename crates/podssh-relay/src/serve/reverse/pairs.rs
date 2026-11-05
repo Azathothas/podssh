@@ -443,7 +443,7 @@ fn load(path: &Path) -> Result<Vec<Kept>, String> {
 
 /// `body` into `path` through a private file beside it and a rename, so
 /// that no reader sees half of it, and nobody else may read it at any time.
-fn write_private(path: &Path, body: &[u8]) -> std::io::Result<()> {
+pub(crate) fn write_private(path: &Path, body: &[u8]) -> std::io::Result<()> {
     use std::io::Write as _;
     let dir = path.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or_else(|| Path::new("."));
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "pairs".into());

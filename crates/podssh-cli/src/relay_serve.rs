@@ -10,13 +10,16 @@
 //! road in the resumable layer take their budget, their deadline and this
 //! process's name from flags of their own (T-173, `relay_serve/resumes.rs`).
 //! Once its listener is bound, before the runtime starts a thread, it gives
-//! up the capabilities of its start (T-629, `relay_serve/harden.rs`).
+//! up the capabilities of its start (T-629, `relay_serve/harden.rs`). What
+//! each key carried, its budget for a day and the file that keeps the
+//! counts are `relay_serve/quota.rs`'s (T-636).
 
 mod certs;
 mod harden;
 #[cfg(target_os = "linux")]
 mod harden_sys;
 mod list;
+mod quota;
 mod resumes;
 
 use std::io::Write;
@@ -69,6 +72,9 @@ pub struct ServeArgs {
     pub resume_host: Option<String>,
     /// yes or no: HTTP/2 with extended CONNECT on the listener (T-321).
     pub http2: Option<String>,
+    /// A key's MiB for a day, and the file of each key's counts (T-636).
+    pub quota: Option<String>,
+    pub usage: Option<String>,
 }
 
 impl ServeArgs {
@@ -98,6 +104,8 @@ impl ServeArgs {
             resume_budget: get("resume-budget"),
             resume_host: get("resume-host"),
             http2: get("http2"),
+            quota: get("quota"),
+            usage: get("usage"),
         }
     }
 
@@ -140,6 +148,8 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     // No key of its own: the net's `relay:*` names this role (T-455).
     let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"), None)?;
     let who = minting_for(&mint)?;
+    // What each key carried, and its budget (T-636).
+    let (usage, metered) = quota::of(s, &mint)?;
     let egress = egress_of()?;
     // The cleartext road beside TLS, with tokens of one session (T-326).
     let cleartext = match s.cleartext.as_deref() {
@@ -205,6 +215,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         resumes: sessions,
         answered: Default::default(),
         brake: Default::default(),
+        usage,
         events: Some(events),
     };
     let inside = inside_shown(s.allow_private, &routes);
@@ -213,7 +224,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let dropped = dropped.unwrap_or_default();
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for \
-         {who}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{dropped}; {}",
+         {who}{metered}{inside}{kept}{through}{clear}{listed}{resumable}{h2}{dropped}; {}",
         serve::CONTRACT,
         certs.shown
     );
@@ -359,6 +370,8 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
         // The lines of ACME's work, said here, as each other line of the role.
         let (say, mut lines) = tokio::sync::mpsc::unbounded_channel();
         let mut keeper = tokio::spawn(kept.keeper(say));
+        // Each key's counts into their file, each 2 s while one moved (T-636).
+        tokio::spawn(cfg.usage.clone().keep());
         let mut watch = tokio::time::interval_at(tokio::time::Instant::now() + certs::WATCH, certs::WATCH);
         watch.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
@@ -373,6 +386,10 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
                 }
                 () = hangups.next() => {
                     let _ = writeln!(said, "podssh relay serve: {}", kept.reload("SIGHUP"));
+                    // Each key's totals, beside the reload (T-636).
+                    for line in cfg.usage.lines() {
+                        let _ = writeln!(said, "podssh relay serve: {line}");
+                    }
                 }
                 _ = watch.tick() => {
                     if let Some(line) = kept.reload_if_changed() {
@@ -390,6 +407,10 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
                     // A planned stop: each reverse socket hears 1012, which
                     // its client tells apart from a lost link (T-255).
                     cfg.pairs.restart(STOP_WAIT).await;
+                    // The counts of the last 2 s, which no later write takes.
+                    if let Err(why) = cfg.usage.save() {
+                        let _ = writeln!(said, "podssh relay serve: usage: the counts were not written: {why}");
+                    }
                     return Ok(());
                 }
             }

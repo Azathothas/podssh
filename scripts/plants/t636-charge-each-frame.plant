@@ -1,0 +1,8 @@
+# T-636: podssh's relay role charges a key at each frame of a session, in
+# place of once at the session's end, so one session counts as many and a
+# count moves before the session ends; the test that counts one session
+# once must fail.
+ENTRY=T-636
+GROUP=resume
+EXPECT='test serve::usage::tests::one_session_is_charged_once_at_its_end_each_way_apart \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib serve::usage'

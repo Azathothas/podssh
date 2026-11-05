@@ -249,6 +249,21 @@ pub const RELAY: &[&str] = &[
      gets 429 with its own count and share (this key holds N pairs, past its share of M while others \
      wait), which names no other key. A pair keeps the fingerprint of its key, also in --pairs FILE, so \
      that the share holds across a restart; a pair that is stopped or expires gives its place back.",
+    "With --mint keys:FILE or net, the relay counts what each key carried (T-636). A token names no key and \
+     ends at a restart, so at each mint for a key the relay keeps the token's SHA-256 with the key's \
+     fingerprint, in memory until the token ends, 64 live tokens a key at most. Each session of the forward \
+     road (/connect/, each link of /v1/layer/, a session of the HTTP road) counts its payload each way and \
+     charges its key once, at its end; an empty keepalive frame is no byte, and a refusal is no session. \
+     --quota MIB is each key's budget for a day (UTC), both ways together: once a key spent it, a session \
+     gets 403 forward: this key's quota of MIB for today is spent, before its target is dialed, until the \
+     next day, and a line on stdout says the session that spent it. A session that began under the budget \
+     runs to its own end, so a key may pass its budget by the sessions that it holds open. Under a budget, a \
+     token that the relay holds no more, past a key's 64, gets 403, and podssh mints another. --usage FILE \
+     keeps each key's totals of the day and the day before in FILE, of mode 0600, written through a file \
+     beside it and a rename each 2 s while a count moved, and at a planned stop, so that they outlive a \
+     restart; a file that does not read stops the start (78), and a write that fails is a line. SIGHUP \
+     says each key's totals on stderr, the most of today first. Both flags with --mint anyone or nobody, \
+     which count no key, are refused (64).",
     "The certificate and its key are read again on SIGHUP, and when either file changes, which the \
      role looks at each minute; on Windows, which has no SIGHUP, that is the way. The handshakes after \
      the read take the new pair, and each session that is open goes on with its own. A pair that does \

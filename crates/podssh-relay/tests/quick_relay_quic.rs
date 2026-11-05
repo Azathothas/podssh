@@ -38,6 +38,7 @@ fn cfg(mint: Mint) -> Arc<Config> {
         answered: Default::default(),
         events: None,
         brake: Default::default(),
+        usage: Default::default(),
     })
 }
 

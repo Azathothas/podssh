@@ -216,6 +216,7 @@ mod tests {
             resumes: Default::default(),
             answered: Default::default(),
             brake: Default::default(),
+            usage: Default::default(),
             events: None,
         }
     }

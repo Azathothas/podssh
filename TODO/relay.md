@@ -4391,12 +4391,37 @@ the token's digest; a new form of token that carries the key (the contract's for
 cache, and the digest's map does the same in the role's memory); budgets for each way apart (one
 budget holds what an owner lends; the counts keep both ways for the line).
 
+2026-11-05 (the drafting agent of T-636). Under a budget, a token that the role minted for a key and
+holds no more (past the key's 64) is refused, `403 forward: this relay counts each token for its key,
+and holds this one no more; mint another`, and podssh's client, which forgets a cached token that a
+relay refuses, mints once more: forgotten silently, its sessions would count against no key, and a key
+that minted 65 tokens would pass its budget. Without a budget nothing is refused, and such a token
+counts against no key. Two mints of one millisecond make one token (`ephm1.<expiry>.forward.<mac>`),
+so the second key's is minted a millisecond shorter, 64 times at most, then `503`; lost: a nonce in
+the token, which changes the contract's form. A session is charged once, at its end, so a key may pass
+its budget by the sessions that it holds open, 64 MiB each at most, and a session open at a stop or a
+crash is not kept; lost: a charge at each frame (a lock and a count of the file at each frame, and the
+plant), and a session cut at its key's budget, which the Approach does not ask and which would end a
+client's shell in the middle. A request that never became a session (a refusal, a target out of
+reach) charges nothing and counts no session: the count starts at the upgrade. Each link of the layer
+is a session of its own, its frames of the layer among its payload, as for its cap of 64 MiB. The file
+is read up to 16 MiB, not the cache's 64 KiB (`crates/podssh-relay/src/cache.rs:45`), which holds a few
+hundred keys: a role whose own file grew past it would not start. `--quota` is whole MiB from 1 to
+16777216; `--quota` and `--usage` beside `--mint anyone` or `nobody`, which count no key, are usage
+errors (64). The relay behind a quick tunnel counts in memory, with no budget; lost: `--quota` for
+`podssh node --relay` now, whose flags of the role are `relay serve`'s four. The Prove's test through
+the role is `--test relay_serve_usage`: `crates/podssh-relay/tests/relay_serve_contract.rs` holds 485
+lines.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib serve::usage
-cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_contract
+cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --test relay_serve_usage
+cargo test -p podssh-cli --lib relay_serve::quota
+cargo test -p podssh-cli --test relay_serve serve_refuses
+sh scripts/plant-each.sh --here t636-charge-each-frame
 ```
 
 A new module's tests: a key's total comes back from the file after a restart; a half-written file
@@ -4404,6 +4429,36 @@ leaves the old one whole; a token minted for anyone is charged to no key; the da
 over. Through the role: a key over its budget is refused before the dial, and the stand-in target sees
 no connection; keepalives charge nothing; two keys count apart. Planted: the charge at each frame in
 place of the session's end, and the test that counts one session once fails.
+
+## Done
+
+2026-11-05, drafted (`DRAFT T-636`), UNVERIFIED: no command below ran in the draft.
+
+- The counts (`crates/podssh-relay/src/serve/usage.rs`, with `usage_keyed.rs` and `usage_file.rs`): at
+  each mint for a key, `/v1/mint` keeps the token's SHA-256 with the key's fingerprint, also a token
+  of one session of the cleartext road; `/connect/` (`forward.rs`), each link of `/v1/layer/`
+  (`layer.rs`) and `/v1/http/open/` (`http_road/`) take a `Meter` of the token's key before the dial,
+  `403` for a key whose budget is spent, count the payload each way, and charge once at the end (a
+  drop of the session's task charges too); `Config` holds the counts (`usage`). `relay serve
+  --quota MIB` and `--usage FILE` (`crates/podssh-cli/src/relay_serve/quota.rs`), the first line's
+  words, the keeper of the file each 2 s, a write at a planned stop, and each key's totals at SIGHUP.
+  The manual (the notes of `relay serve`, the rows of `--quota` and `--usage`), `docs/relay.md` ("What
+  each key carried, and its budget for a day") and `docs/cli.md` say it.
+- `cargo test ... --lib serve::usage`: UNVERIFIED (one session charged once at its end, each way
+  apart, two keys apart, a refusal no session; a token of anyone's charged to no key, and refused
+  under a budget where the role mints for keys; 64 live tokens a key, one token one key's; the budget
+  spent, said once, and turned over by the day, the day before kept; the totals back from the file
+  after a restart, a private file, nothing after two days, a file cut short refused; a write that
+  fails leaves the file of before whole, and the next takes each count).
+- `cargo test ... --test relay_serve_usage`: UNVERIFIED (through the role, `--mint keys:` of two
+  keys and a budget of 64 bytes: 40 bytes each way charged once; then `/connect/`, `/v1/layer/` and
+  `/v1/http/open/` refuse the key, also with a new token, and the target sees one connection alone;
+  the other key counts apart; keepalives each 100 ms and empty frames of the client charge nothing).
+- `cargo test -p podssh-cli --lib relay_serve::quota`: UNVERIFIED (the bounds of `--quota`, and both
+  flags refused where no key mints). `cargo test -p podssh-cli --test relay_serve serve_refuses`:
+  UNVERIFIED (`--quota` with `--mint nobody` is 64; `--usage` with another subcommand is 64).
+- Planted, a charge at each frame (`sh scripts/plant-each.sh --here t636-charge-each-frame`):
+  UNVERIFIED (the test of one session charged once must fail).
 
 # T-637: Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline
 

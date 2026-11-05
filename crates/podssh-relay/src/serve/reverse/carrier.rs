@@ -81,6 +81,7 @@ impl Role {
             resumes: Default::default(),
             answered: Default::default(),
             brake: Default::default(),
+            usage: Default::default(),
             events,
         };
         let pair = Arc::new(Pair::carried(NAME));

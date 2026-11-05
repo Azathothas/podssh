@@ -15,6 +15,7 @@ use tokio::sync::Notify;
 use tokio::task::AbortHandle;
 use tokio::time::Instant;
 
+use super::super::usage::Meter;
 use super::super::Config;
 
 /// The batches up that the role holds for a target that has not taken them.
@@ -77,6 +78,8 @@ pub struct Session {
     /// Woken at each change: a batch stored or written, bytes read or
     /// acknowledged, the end.
     pub changed: Notify,
+    /// Its payload each way for its token's key, charged at its end (T-636).
+    pub meter: Meter,
 }
 
 /// Whether the bytes from an offset are there.
@@ -103,9 +106,9 @@ pub enum Stored {
 }
 
 impl Session {
-    /// A new session of `cfg`, its id and its key drawn: the session, and
-    /// the key that its client is given.
-    pub fn open(cfg: Arc<Config>) -> Result<(Arc<Session>, String), String> {
+    /// A new session of `cfg`, its id and its key drawn, its bytes counted
+    /// by `meter`: the session, and the key that its client is given.
+    pub fn open(cfg: Arc<Config>, meter: Meter) -> Result<(Arc<Session>, String), String> {
         let id: String = random(16)?.iter().map(|b| format!("{b:02x}")).collect();
         let key = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(random(32)?);
         let now = Instant::now();
@@ -125,8 +128,9 @@ impl Session {
             generation: 0,
             tasks: Vec::new(),
         };
-        let session =
-            Session { id, key: digest(&key), cfg, started: now, state: Mutex::new(state), changed: Notify::new() };
+        meter.start();
+        let (state, changed) = (Mutex::new(state), Notify::new());
+        let session = Session { id, key: digest(&key), cfg, started: now, state, changed, meter };
         Ok((Arc::new(session), key))
     }
 
@@ -166,6 +170,8 @@ impl Session {
         tasks.iter().for_each(AbortHandle::abort);
         self.changed.notify_waiters();
         self.cfg.event(&format!("http close {code}"));
+        // Its one charge, at its end, not when the table forgets it.
+        self.meter.settle();
     }
 
     pub fn ended(&self) -> Option<(u16, String)> {
