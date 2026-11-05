@@ -29,7 +29,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      (OpenSSH 1.6 s) and 0.4 to 0.8 s on a link of 1 Mbit/s (OpenSSH 16 s); a session resumes 1 s
      after a move; a cold connect is two round trips shorter than before and than OpenSSH's.
   4. **Partial and watched:** T-465, T-627, T-319, T-321, T-253 (as before), and those of item 3.
-  5. **The work order** (below): the rest of osewa's entries (T-678, T-679 and the partial ones), then
+  5. **The work order** (below): the rest of osewa's entries (T-678 and the partial ones), then
      GitHub #127 to #148's open entries by priority, then M10's items 2 and 3 (T-106, T-433,
      T-180, T-434, T-459).
   6. **Two lessons of the night** (each in the paragraph of the drafts below): never commit while
@@ -212,7 +212,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   was so pushed once, its one change the drop of an import); a new commit each time.
   At 06:15 UTC a twelfth round was drafted: T-649 and T-650 (GitHub #147 and #148), T-433
   (`podssh share`), each merged, and T-679 (a node's upgrade on its other roads,
-  `worktree-agent-a29eeb302f08f014e`, `09ed1ba`), still to merge.
+  `09ed1ba`), merged in `bbac5dc`; no draft waits.
   A merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
   `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
   applied in the tree then); and when the disk fills, remove `target/` whole, never files under
