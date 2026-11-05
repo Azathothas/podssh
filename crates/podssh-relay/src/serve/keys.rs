@@ -9,11 +9,13 @@
 //! taken once, so a signature that was seen cannot be sent again. The list,
 //! and the net's document, are read again for each request, so that a key
 //! added counts at once and one removed at its next request, as a node reads
-//! its own. The signature is checked before whom the key is: the net's words
-//! name the net and its member, for the key's holder alone.
+//! its own; a list of an `https://` URL is its copy, fetched again each TTL
+//! ([`list`], T-646). The signature is checked before whom the key is: the
+//! net's words name the net and its member, for the key's holder alone.
+
+pub mod list;
 
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Mutex;
 
 use base64::Engine as _;
@@ -21,9 +23,9 @@ use podssh_ws::http::request::Request;
 use serde_json::{json, Value};
 
 use super::{Config, Mint};
-use crate::identity::allow::Allowlist;
 use crate::identity::PublicKey;
 use crate::keyed::message;
+pub use list::List;
 
 /// The members of a net, for whom a role mints (T-455). The binary reads the
 /// net's document and checks its owner's signature, which this library does
@@ -45,7 +47,7 @@ pub trait Members: Send + Sync {
 /// both.
 #[derive(Clone, Copy)]
 pub struct Whom<'a> {
-    pub list: Option<&'a Path>,
+    pub list: Option<&'a List>,
     pub net: Option<&'a dyn Members>,
 }
 
@@ -53,22 +55,22 @@ impl<'a> Whom<'a> {
     /// Whom `mint` asks a key of; none for a mint that asks no key.
     pub fn of(mint: &'a Mint) -> Option<Whom<'a>> {
         match mint {
-            Mint::Keys(file) => Some(Whom::list(file)),
-            Mint::Net(net, list) => Some(Whom { list: list.as_deref(), net: Some(net.as_ref()) }),
+            Mint::Keys(list) => Some(Whom::list(list)),
+            Mint::Net(net, list) => Some(Whom { list: list.as_ref(), net: Some(net.as_ref()) }),
             Mint::Anyone | Mint::Nobody => None,
         }
     }
 
-    /// The keys of the list in `file` alone.
-    pub fn list(file: &'a Path) -> Whom<'a> {
-        Whom { list: Some(file), net: None }
+    /// The keys of `list` alone.
+    pub fn list(list: &'a List) -> Whom<'a> {
+        Whom { list: Some(list), net: None }
     }
 
     /// How many keys it lets in now, the list's and the net's, each read
     /// again as for each request, for each key's share of the pairs (T-630);
     /// a list that cannot be read counts none.
     pub fn count(&self) -> usize {
-        let listed = self.list.and_then(|file| Allowlist::read(file).ok()).map_or(0, |list| list.len());
+        let listed = self.list.and_then(|list| list.read().ok()).map_or(0, |list| list.len());
         listed + self.net.map_or(0, |net| net.count())
     }
 
@@ -76,11 +78,12 @@ impl<'a> Whom<'a> {
     /// (none for a key of the list), `Err` with why not.
     fn admits(&self, key: &PublicKey) -> Result<Option<String>, String> {
         let mut refused = Vec::new();
-        if let Some(file) = self.list {
-            match Allowlist::read(file) {
-                Ok(list) if list.admits(key) => return Ok(None),
+        if let Some(list) = self.list {
+            match list.read() {
+                Ok(read) if read.admits(key) => return Ok(None),
                 Ok(_) => refused.push(format!("the key {} is not on this relay's list", key.fingerprint())),
-                // The owner's file, which the client never sees named.
+                // The owner's file or URL, which the client never sees named;
+                // a copy of a URL's too old to read among them (T-646).
                 Err(_) => refused.push("this relay cannot read its list of keys".to_string()),
             }
         }
@@ -225,28 +228,29 @@ mod tests {
         request::parse_request(b"POST /v1/mint HTTP/1.1\r\nHost: relay-a.test:8443\r\n\r\n").unwrap()
     }
 
-    /// A private scratch file of a list, and its directory, which goes when
+    /// A list of a private scratch file, and its directory, which goes when
     /// the test ends, pass or fail: the gate counts what tests leave.
-    struct List {
+    struct Scratch {
         dir: std::path::PathBuf,
         path: std::path::PathBuf,
+        list: List,
     }
 
-    impl std::ops::Deref for List {
-        type Target = Path;
-        fn deref(&self) -> &Path {
-            &self.path
+    impl std::ops::Deref for Scratch {
+        type Target = List;
+        fn deref(&self) -> &List {
+            &self.list
         }
     }
 
-    impl Drop for List {
+    impl Drop for Scratch {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.dir);
         }
     }
 
     /// A list that holds the key of the seed 1, in a private scratch file.
-    fn list() -> List {
+    fn list() -> Scratch {
         let dir =
             std::env::temp_dir().join(format!("podssh-keys-{}-{:?}", std::process::id(), std::thread::current().id()));
         crate::cache::private_dir(&dir).unwrap();
@@ -254,7 +258,7 @@ mod tests {
         let _ = std::fs::remove_file(&path);
         let line = format!("{} the test's key\n", Identity::from_seed(&[1; 32]).public().fingerprint());
         std::fs::write(&path, line).unwrap();
-        List { dir, path }
+        Scratch { dir, list: List::File(path.clone()), path }
     }
 
     fn challenge(c: &Config, whom: &Whom<'_>) -> String {
@@ -379,7 +383,7 @@ mod tests {
     #[test]
     fn a_key_of_the_list_or_a_member_of_the_net_beside_it_mints_and_another_hears_both_refusals() {
         let (c, file, net) = (cfg(), list(), OneMember(3));
-        let whom = Whom { list: Some(&file), net: Some(&net) };
+        let whom = Whom { list: Some(&file.list), net: Some(&net) };
         let proved = |seed: u8| {
             let asked = challenge(&c, &whom);
             let key = Identity::from_seed(&[seed; 32]);
@@ -397,9 +401,9 @@ mod tests {
         );
         // The keys that each one's share of the pairs counts (T-630).
         assert_eq!((whom.count(), Whom::list(&file).count()), (2, 1), "the list's key and the net's member");
-        assert_eq!(Whom::list(&file.with_file_name("none")).count(), 0, "a list that cannot be read");
+        assert_eq!(Whom::list(&List::File(file.path.with_file_name("none"))).count(), 0, "a list that cannot be read");
         // Whom each mint asks a key of, and its word in /health.
-        let both = Mint::Net(std::sync::Arc::new(OneMember(3)), Some(file.to_path_buf()));
+        let both = Mint::Net(std::sync::Arc::new(OneMember(3)), Some(file.list.clone()));
         assert!(Whom::of(&both).is_some_and(|w| w.list.is_some() && w.net.is_some()));
         assert_eq!((both.word(), Mint::Net(std::sync::Arc::new(OneMember(3)), None).word()), ("net,keys", "net"));
         assert!(Whom::of(&Mint::Anyone).is_none() && Whom::of(&Mint::Nobody).is_none());

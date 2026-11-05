@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/keys/list.rs
++++ b/crates/podssh-relay/src/serve/keys/list.rs
+@@ -150,7 +150,7 @@
+         let now = (self.clock)();
+         match lock(&self.copy).as_ref() {
+             None => Err(format!("{}: no copy of the list has come", self.shown())),
+-            Some(copy) if now >= copy.at.saturating_add(ms(self.ttl.saturating_add(self.stale))) => {
++            Some(copy) if false && now >= copy.at.saturating_add(ms(self.ttl.saturating_add(self.stale))) => {
+                 let age = now.saturating_sub(copy.at) / 1000;
+                 Err(format!("{}: its copy of {age} s ago is past its TTL and its stale window", self.shown()))
+             }

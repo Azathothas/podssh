@@ -103,11 +103,12 @@ pub enum Mint {
     /// No one: `503`, which a client reads as "do not retry"; tokens come
     /// another way.
     Nobody,
-    /// The keys of this list, each by its signature of a challenge (T-448).
-    Keys(std::path::PathBuf),
+    /// The keys of this list, each by its signature of a challenge (T-448):
+    /// a file, or the copy of a URL's (T-646).
+    Keys(keys::List),
     /// The members of the net that the binary reads (T-455), each by the
     /// same signature, and the keys of a list beside them when one is named.
-    Net(Arc<dyn keys::Members>, Option<std::path::PathBuf>),
+    Net(Arc<dyn keys::Members>, Option<keys::List>),
 }
 
 impl Mint {
@@ -128,7 +129,7 @@ impl std::fmt::Debug for Mint {
         match self {
             Mint::Anyone => f.write_str("Anyone"),
             Mint::Nobody => f.write_str("Nobody"),
-            Mint::Keys(file) => f.debug_tuple("Keys").field(file).finish(),
+            Mint::Keys(list) => f.debug_tuple("Keys").field(list).finish(),
             // The net is the binary's, and has no words of its own here.
             Mint::Net(_, list) => f.debug_tuple("Net").field(list).finish(),
         }

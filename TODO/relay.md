@@ -4718,12 +4718,37 @@ Read at `2042200`:
 4. `docs/relay.md` says that a list of a URL is read again at its TTL, not at each request, and that
    its trust is TLS alone; `--mint net`, signed by its owner, is named as the stronger way.
 
+## Decision
+
+2026-11-05 (the drafting agent of T-646). The first fetch comes once the listener is bound and the
+start gave up its privileges (T-629), before the first connection, on a runtime of its own whose
+threads end before the role's: a start as root would else talk to the network, and read its answer,
+with the privileges that the bind alone needs. A fetch that fails stops the start (78) all the same,
+the port held a moment longer. Lost: the Approach's fetch before the bind. The copy lives in memory
+alone: a start whose fetch fails stops, so a copy on disk would serve no start, and the issue's image
+may have no writable cache. Lost: the Approach's copy in the cache. The role's list is an enum of a
+file and a URL's copy (`List`), the fetch behind a trait (`Fetch`) that the binary implements over
+podssh-ws's HTTPS client and a test with its own answers; each is read with no wait, and `keys::prove`
+stays as it is. Lost: one trait object for both, as the binary starts a copy's fetches, which it finds
+by the variant. An answer `200` is the list whatever it holds, so a page that is no list lets no key
+mint, where a failure or another status leaves the copy to age. Lost: the old copy kept on an answer
+that is no list, which keeps a key that its owner took off while a captive page or a cache's error
+page answers. An `http://` URL is refused (64), not read as a path that no one names. `--ca-file`
+beside `--cert` and `--key` is the list's trust, and beside `--acme` the trust of both; lost: a flag
+of its own. The URL's host takes `--relay-addr` and `PODSSH_RELAY_ADDR`, read only when a URL is
+named, so a role of a file reads nothing that it did not. `--list-ttl` is 1 to 86400 s, `--list-stale`
+0 to 604800 s, and either with no list of a URL is 64. The relay behind a quick tunnel takes the same
+words at the defaults, with the node's `--ca-file`; lost: `--list-ttl` on the node now.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code --lib serve::keys
 cargo test -p podssh-cli --test relay_serve
+cargo test -p podssh-cli --lib relay_serve
+cargo test -p podssh-cli --test node_quick_relay
+sh scripts/plant-each.sh --here t646-stale-copy-read
 ```
 
 A role whose list is served by a test's HTTPS server mints for its keys alone; a key taken off the list
@@ -4731,6 +4756,38 @@ is refused after the TTL; a server that answers 5xx keeps the copy until TTL and
 key mints; an answer that is no list lets no one mint; a fetch that fails at the start exits 78; a
 path that begins `keys:` and is no URL is a file as before. Planted: a stale copy that is still read,
 and the test of the stale window fails.
+
+## Done
+
+2026-11-05, drafted (`DRAFT T-646`), UNVERIFIED: no command below ran in the draft.
+
+- The list's sources (`crates/podssh-relay/src/serve/keys/list.rs`): `List`, a file read again for
+  each request or the copy of a URL's list, read with no wait, refused past its TTL and stale window,
+  fetched again each TTL in the role's runtime, its lines (a fetch that failed, the first that worked
+  after it, a count that moved, an answer that holds no key) to the binary; `Mint::Keys` and
+  `Mint::Net` hold a `List`. The binary's fetch (`crates/podssh-cli/src/relay_serve/keys_url.rs`):
+  `https://` alone, through the host's proxy, with the trust of `--ca-file`, 1 MiB, 20 s, three
+  redirects, the URL shown by its host alone; `--list-ttl` and `--list-stale`; the first fetch after
+  the bind (78 when it fails), its keys on the first line; `node --quick-tunnel --relay` takes the same
+  words. The manual (the notes and the rows of `relay serve`, the row of `node --mint`),
+  `docs/relay.md` ("A list of keys at a URL"), `docs/cli.md` and `docs/mesh.md` say it. The tests of
+  `relay_serve.rs` moved to `crates/podssh-cli/src/relay_serve/tests.rs`, so that it stays within 500
+  lines.
+- `cargo test ... --lib serve::keys`: UNVERIFIED (a copy read until its TTL and stale window pass,
+  then no key in, and again after a fetch that works; an answer is the list, a page and bytes that are
+  no text hold no key; the fetches again each TTL on a paused clock, a failure said once, the key taken
+  off refused; and the tests of T-448 and T-455 on a `List`).
+- `cargo test -p podssh-cli --lib relay_serve`: UNVERIFIED (`https://` is a copy shown by its host, an
+  `http://` URL 64, another rest a file; the bounds of `--list-ttl` and `--list-stale`, and 64 with no
+  list of a URL; `--mint keys:https://...` and the words of the first line before a copy).
+- `cargo test -p podssh-cli --test relay_serve`: UNVERIFIED (`serve_list`: a role whose first fetch
+  gets 503 exits 78 and names the URL's host alone; the list's key mints and another does not; a key
+  taken off is refused after the TTL of 1 s; a server that answers 503 keeps the copy, then no key
+  mints after the stale window of 2 s, then a fetch that works lets it in again; a page that is no
+  list lets no key mint; no line holds the URL's path, which the server saw). `--test
+  node_quick_relay`: UNVERIFIED (the words of `--mint`, which the refusal keeps).
+- Planted, a stale copy that is still read (`sh scripts/plant-each.sh --here t646-stale-copy-read`):
+  UNVERIFIED (the test of the stale window must fail).
 
 # T-649: The relay role ends TLS for each name on its listener, so a node's own HTTPS service cannot be published by its name
 

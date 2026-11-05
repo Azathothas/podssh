@@ -55,7 +55,7 @@ fn print(seed: u8) -> String {
 /// counts by `usage`.
 async fn role(keys: &Keys, limits: Limits, usage: Usage) -> Role {
     let policy = Policy { private: true, ..Policy::default() };
-    Role::metered(Mint::Keys(keys.path.clone()), policy, limits, usage).await
+    Role::metered(Mint::Keys(keys.path.clone().into()), policy, limits, usage).await
 }
 
 /// A token of the role's for the key of `seed`, as podssh's client mints
