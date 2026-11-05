@@ -3610,7 +3610,7 @@ first after the minute passes. Planted, the brake removed, and the test fails.
 
 2026-11-02 (the drafting agent). The Premise holds; the Approach needs two facts that it does not
 name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it:
-`crates/podssh-relay/src/serve/reverse/mod.rs:190` says "async fn pair". And the role had no
+`crates/podssh-relay/src/serve/reverse/mod.rs:192` says "async fn pair". And the role had no
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
@@ -7147,7 +7147,7 @@ pair that its operators hold.
 ## Premise
 
 - Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:28-29`,
-  set as the pair is made, `:272`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
+  set as the pair is made, `:276`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
   `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs`, line 57 at
   `b02d8c4`).
 - Read: the default relay renews no pair (T-395's Correction: no such request in its document); a
@@ -7350,7 +7350,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 ## Premise
 
 - Read: the node's side of the reverse road runs over any `RelaySession<S>`
-  (`crates/podssh-relay/src/reverse/serve.rs:155`), and a `RelaySession` is made over any stream,
+  (`crates/podssh-relay/src/reverse/serve.rs:162`), and a `RelaySession` is made over any stream,
   with no HTTP in it (`crates/podssh-ws/src/session.rs:107-111`).
 - Read: podssh's relay role serves the relay's side of a node's socket and of an operator's
   (`crates/podssh-relay/src/serve/reverse/mod.rs:1-3`, T-427).
@@ -7359,7 +7359,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:275-285`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:277-287`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -7713,8 +7713,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:284-285`), and needs the net's role exit, signed by
-  its owner (`:282-283`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:286-287`), and needs the net's role exit, signed by
+  its owner (`:284-285`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:111`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

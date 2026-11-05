@@ -5,7 +5,8 @@
 //! UDP one (T-168); the check of a roost's sshd (T-166); and an operator's
 //! legs with a token of one leg each, where podssh's relay role registers
 //! them (T-615); and the queue of a socket's data, a turn for each session
-//! (T-648), which both ends of a reverse socket use.
+//! (T-648), which both ends of a reverse socket use; and a node's ask for
+//! sessions readied ahead, where the role offers them (T-650).
 
 pub mod closes;
 pub mod control;
@@ -19,6 +20,7 @@ pub mod operator;
 pub mod routes;
 pub mod serve;
 pub mod sessions;
+pub mod spares;
 pub mod sshd;
 pub mod tcp;
 pub mod udp;

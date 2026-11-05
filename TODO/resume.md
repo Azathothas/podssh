@@ -780,7 +780,7 @@ as they are, with no resumable layer: the node's handler is then the TCP
 handler alone, which dials TARGET at `open`
 (`crates/podssh-cli/src/node.rs`, lines 152-163 at `8e31960`). The node's first line names its
 mode (`crates/podssh-cli/src/node.rs:334`). `--plain` with `--iroh` is
-refused with 64 (`crates/podssh-cli/src/node_flags.rs:53-55`, moved from `node.rs` by T-531): the iroh road
+refused with 64 (`crates/podssh-cli/src/node_flags.rs:106-108`, moved from `node.rs` by T-531): the iroh road
 always runs the layer. The flag's row, the manual's note of `node`,
 `docs/reverse.md` and `docs/cli.md`.
 - Native: `cargo test -p podssh-cli -- plain`, 3 passed. The argument test:
@@ -3825,7 +3825,7 @@ Read at `2042200`:
 - Sessions of the layer with no channel above it: the relay role's road for a standard sshd
   (`crates/podssh-relay/src/serve/layer.rs:1-8`), which `proxy` and `ssh` take unasked for a relay
   host that the user named and that offers it (Q96, `docs/decisions.md:16`); and a node's sessions with
-  `--no-e2e` (`crates/podssh-cli/src/flags/node.rs:136`).
+  `--no-e2e` (`crates/podssh-cli/src/flags/node.rs:139`).
 - The plain forward road keeps a half-close: `crates/podssh-relay/src/serve/forward.rs:280-283` shuts
   the target's writing side at the client's Close and goes on, as the default relay does
   (`docs/relay.md:367-370`). So `podssh proxy` to a target that reads until its end loses the answer on

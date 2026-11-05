@@ -1,0 +1,6 @@
+# T-650: a leg that finds no readied spare asks for no more; the test of two
+# such legs, which must see two more spares drawn, must fail.
+ENTRY=T-650
+GROUP=resume
+EXPECT='test legs_that_find_no_spare_ask_for_one_more_each \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_spares -- legs_that_find_no_spare_ask_for_one_more_each'

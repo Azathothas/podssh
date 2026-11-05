@@ -1,0 +1,6 @@
+# T-650: podssh node --spares takes 17, past the 16 that the role keeps; the
+# test of the flag's numbers must fail.
+ENTRY=T-650
+GROUP=cli-tests
+EXPECT='test node_flags::tests::spares_are_a_number_to_sixteen_on_the_pairs_road_alone \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- node_flags::tests::spares_are_a_number_to_sixteen_on_the_pairs_road_alone'

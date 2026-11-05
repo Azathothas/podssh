@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:551-560`).
+   and above all not the `stop_token` (`docs/reverse.md:601-610`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:356`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:357`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -4087,7 +4087,7 @@ Read at `2042200`:
   `CAPBSET`), so no step drops a privilege today.
 - After the bind the role still reads files: the certificate on SIGHUP and when its files change
   (`crates/podssh-cli/src/relay_serve.rs` at `ce411ac`, lines 341-377, T-447), the file of pairs at each pair
-  (`crates/podssh-relay/src/serve/reverse/pairs.rs:292`), and ACME's cache at each renewal. A root
+  (`crates/podssh-relay/src/serve/reverse/pairs.rs:296`), and ACME's cache at each renewal. A root
   that dropped `CAP_DAC_OVERRIDE` reads a file of another owner only as its mode lets uid 0
   (Inferred from capabilities(7); not measured here).
 - `crates/podssh-cli/Cargo.toml:146` says "[target.'cfg(unix)'.dependencies]" above the binary's
@@ -4361,8 +4361,8 @@ Read at `2042200`:
   replaces; the issue's own Risks say so.
 - The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:377-381` takes the key that
   proved itself, and drops it after its line.
-- The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:451`)
-  and a SHA-256 of each token (`:448`).
+- The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:455`)
+  and a SHA-256 of each token (`:452`).
 - The brake counts requests for each address (`crates/podssh-relay/src/serve/brake.rs:22` says
   "pub const PER_MINUTE: usize = 120;"), never bytes.
 
@@ -4635,7 +4635,7 @@ Read at `2042200`:
   cut (Inferred from the code; not measured). With `--cleartext no` it meets TLS, which fails at once.
 - The node's check of a standard sshd peeks for the version line in the same way
   (`crates/podssh-relay/src/reverse/sshd.rs:1-5`), each 20 ms (`:19`); the word is the node's
-  (`crates/podssh-cli/src/flags/node.rs:126`).
+  (`crates/podssh-cli/src/flags/node.rs:129`).
 - The role's policy refuses a loopback target (`crates/podssh-relay/src/serve/policy.rs:140-143`), so an
   sshd of this host is no target of `/connect/`.
 - `TODO/serve.md:1295-1296` plans the same choice for `podssh serve --listen` (T-124, step 5).
@@ -4919,7 +4919,7 @@ Read at `2042200`:
   the session (`crates/podssh-relay/src/serve/listener.rs:82`), and so does ACME's TLS-ALPN-01
   (`:76`). The issue reads these in `relay_serve.rs`, where they were before the listener moved to
   `podssh-relay`.
-- A pair is found by its name, its role and a token (`crates/podssh-relay/src/serve/reverse/pairs.rs:302`).
+- A pair is found by its name, its role and a token (`crates/podssh-relay/src/serve/reverse/pairs.rs:306`).
 - A reader of a ClientHello's name exists in a test's stand-in alone
   (`crates/podssh-relay/tests/opentunnel_stand_in/parse.rs:110` for the record's length, `:120` for the
   name), and routing by a name's label in OpenTunnel's road (`crates/podssh-relay/src/opentunnel/wire.rs:206`).

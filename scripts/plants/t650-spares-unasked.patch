@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/serve/reverse/spares.rs b/crates/podssh-relay/src/serve/reverse/spares.rs
+index 70ee490e..3e7f813c 100644
+--- a/crates/podssh-relay/src/serve/reverse/spares.rs
++++ b/crates/podssh-relay/src/serve/reverse/spares.rs
+@@ -246,7 +246,7 @@ pub(super) fn keep(pair: &Pair, spacing: Spacing) {
+     let mut guard = pair.lock();
+     let state = &mut *guard;
+     if state.spares.want == 0 {
+-        return;
++        (state.spares.want, state.spares.level) = (1, 1);
+     }
+     let (node, now) = (state.node_outbox(), Instant::now());
+     let aged: Vec<SessionId> = state

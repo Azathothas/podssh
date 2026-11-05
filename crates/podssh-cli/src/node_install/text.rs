@@ -40,6 +40,8 @@ pub(super) fn service_args(args: &NodeArgs, name: &str, env_file: &Path) -> Resu
         ("--derp-server", &args.derp_server),
         // The exit's ranges (T-431).
         ("--routes", &args.routes),
+        // The sessions that its relay readies ahead (T-650).
+        ("--spares", &args.spares),
     ];
     for (flag, value) in values {
         if let Some(value) = value {

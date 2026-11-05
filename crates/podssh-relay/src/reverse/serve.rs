@@ -9,6 +9,8 @@
 //! registers tokens of one leg says so in its `hello`, and the handler sends
 //! its registrations through the writer too (T-615, `crate::e2e::legs`).
 //! The sessions' bytes wait in a line each, a turn each (T-648, `super::fair`).
+//! A node that wants sessions readied ahead asks at the `hello` that offers
+//! them (T-650, `super::spares`).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -68,6 +70,10 @@ pub struct Settings {
     /// that ran just before this one, as at a restart (T-416). Zero exits at
     /// the first `409`.
     pub first_conflict: Duration,
+    /// The sessions that the relay role keeps readied ahead for this node's
+    /// operators, where its `hello` offers them (T-650): none by default, as
+    /// each is a session at rest here; `super::spares::MOST` at most.
+    pub spares: u8,
 }
 
 /// The default of [`Settings::first_conflict`].
@@ -81,6 +87,7 @@ impl Default for Settings {
             pings_allowed: podssh_ws::LIVENESS_ALLOWED,
             rejoin: crate::session::resume::RESUME_DEADLINE,
             first_conflict: FIRST_CONFLICT,
+            spares: 0,
         }
     }
 }
@@ -191,6 +198,10 @@ where
                     super::legs::heard(&hello);
                     if crate::e2e::legs::offered(&hello.extra) {
                         handler.attach(Some(frames(&tx)));
+                    }
+                    // Sessions readied ahead, which this node asks for (T-650).
+                    if let Some(ask) = super::spares::heard(&hello, settings.spares) {
+                        let _ = tx.send(Out::Text(ask)).await;
                     }
                 }
                 Ok(NodeInbound::Open { id }) => {

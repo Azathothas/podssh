@@ -222,6 +222,8 @@ pub(super) const NODE: &[&str] = &[
     super::notes_ask::NODE,
     // The tokens of one leg, and the stop token's rotation (T-615).
     super::notes_legs::NODE,
+    // The sessions that its relay readies ahead (T-650).
+    super::notes_spares::NODE,
     // A node's upgrade in place, its sessions with it (T-668).
     super::notes_upgrade::NODE,
     // The dialect of the reverse road (T-643).

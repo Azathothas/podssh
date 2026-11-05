@@ -1,0 +1,7 @@
+# T-650: podssh's node asks for spares of a relay whose hello offers none;
+# the test of a relay of the contract, whose first frame from the node must
+# be its ready, must fail.
+ENTRY=T-650
+GROUP=resume
+EXPECT='test a_node_asks_nothing_of_a_relay_that_offers_none_or_when_it_wants_none \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair --test reverse_spares -- a_node_asks_nothing_of_a_relay_that_offers_none_or_when_it_wants_none'

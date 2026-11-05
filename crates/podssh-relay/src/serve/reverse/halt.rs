@@ -145,6 +145,8 @@ impl Pairs {
         let ids: Vec<SessionId> = state.sessions.keys().copied().collect();
         let ended: Vec<(SessionId, Session)> = ids.iter().filter_map(|id| state.forget(id).map(|s| (*id, s))).collect();
         let node = state.node_outbox();
+        // No leg comes to take a spare of a halted pair (T-650).
+        super::spares::close_all(&mut state, node.as_ref(), HALTED);
         drop(state);
         for (id, session) in &ended {
             if let Some(node) = &node {
@@ -169,6 +171,8 @@ impl Pairs {
         }
         let was = state.halted.take().is_some();
         let node = state.node_outbox();
+        // The spares that its node asked for, drawn again (T-650).
+        super::spares::fill(&mut state, node.as_ref());
         drop(state);
         if let (true, Some(node)) = (was, node) {
             node.text(resumed());

@@ -384,6 +384,55 @@ drafted 2026-11-04; `crates/podssh-relay/src/e2e/legs.rs`,
 
 Measured on 2026-11-04: `relay_serve_once` 6 passed and `relay_serve_node` 6 passed (T-615's Prove).
 
+## Sessions readied ahead
+
+A run of short connections to one node (a copy of many files, a loop of
+commands) pays, at each leg, a round trip of `open` and `ready` and the
+node's open of its local side before the first byte. Through podssh's relay
+role, a node that asks gets a few sessions opened and readied ahead for its
+next operators (T-650, GitHub #148;
+`crates/podssh-relay/src/serve/reverse/spares.rs`,
+`crates/podssh-relay/src/reverse/spares.rs`):
+
+1. The role's `hello` on the node's socket says `"spares": true`, an offer
+   that a node of before keeps and reads nothing of. A node started with
+   `podssh node NAME TARGET --spares N` answers once on each socket that
+   heard it, `{"type":"spares","want":N}`, 16 at most; 0 asks for none. A
+   node that says nothing gets none: a spare is a session at rest at the
+   node, which its owner chooses to pay for. A relay of the contract offers
+   none, and the node's line says so once.
+2. The role sends `{"type":"open","id":ID,"spare":true}` for each, with the
+   node's sessions counted inside its 64. The node treats a spare as each
+   session: it readies it once its handler has the local side, which with the
+   resumable layer and the end-to-end channel is at once, TARGET dialled
+   only after the operator's handshake (rule 4 of "Node"); with `--plain
+   --no-e2e` a spare is a connection to TARGET with nobody on it.
+3. An operator's leg takes the youngest spare that the node readied, before
+   it opens a session of its own: the operator hears `ready` at once, then
+   the bytes that the node sent on the spare (a greeting, a banner, 64 KiB at
+   most, past which the spare closes), and its first byte goes to the node
+   with no `open`. A spare that the node has not readied is never taken, as
+   an early `ready` hands the operator a dead session. A leg that finds none
+   goes the way of before, and `spent` of a token of one leg (T-615) goes
+   before its first byte either way.
+4. The role keeps N while legs take them, falls to one after a minute in
+   which no leg took one, and asks for one more for each leg that found
+   none, up to N. A spare that waited 15 s closes and another is drawn, as
+   the layer's far end and the channel give a client 30 s for its handshake
+   from the session's `open`. A spare that the node refused stops them until
+   the next minute, so that a TARGET that refuses each connection costs a
+   round of opens a minute; one that the node closed is drawn again at the
+   next look, each 5 s. A leg that finds no room closes a spare: a spare
+   never takes a leg's place. A halt (T-647) closes them, and a resume draws
+   them again. Each `close` of a spare says why, and its id is that of a
+   session just ended, so a frame that crosses it is dropped (T-421).
+5. Only the pair's road of `podssh node` asks: `--spares` is refused with
+   `--iroh`, `--derp`, `--opentunnel`, `--quick-tunnel`, `--carrier`,
+   `--temporary` and `PODSSH_PIPING`'s road, and a carrier's role offers
+   none. `--install` writes it into the service.
+
+Measured on 2026-11-05: T-650's Prove passed.
+
 ## A member that an answer leaves out
 
 A relay of before, or one that is not podssh's, leaves out each member
@@ -395,8 +444,9 @@ each:
 - **A hint**, such as `hello`'s `maxSessions` and `maxFrameBytes`: absent,
   or zero, keeps podssh's own floor (16 sessions, the published cap of a
   frame), and never refuses; a value over the published cap is clamped.
-- **An offer of a feature**, such as `hello`'s `legTokens` and
-  `stopRotation`: only `true` offers. Absent, `false`, `"true"` and `1` are
+- **An offer of a feature**, such as `hello`'s `legTokens`,
+  `stopRotation` and `spares` (T-650): only
+  `true` offers. Absent, `false`, `"true"` and `1` are
   each no offer, and podssh goes on without the feature, as it did before
   the feature.
 - **A guarantee that this end asked for**, such as `/v1/pair`'s `once` for
