@@ -137,6 +137,11 @@ pub fn dispatch(args: &NodeArgs, out: &mut dyn Write, err: &mut dyn Write) -> i3
     if let Err(refusal) = crate::node_carrier::check(args) {
         return refusal.report("node", err);
     }
+    // A person at the node's terminal (T-638): before --detach leaves it, and
+    // before a service that has none.
+    if let Err(refusal) = crate::node_ask::check(args) {
+        return refusal.report("node", err);
+    }
     if let Some(file) = &args.env_file {
         if args.install || args.uninstall {
             let why = "--env-file is the file that --install writes for the service: give it to the node alone";

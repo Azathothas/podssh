@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/handshake.rs
++++ b/crates/podssh-relay/src/e2e/handshake.rs
+@@ -430,7 +430,7 @@
+ /// The wait for the node's verdict, which a node's person may answer first
+ /// (T-638): longer than a step's.
+ async fn verdict_within<R>(step_future: impl Future<Output = Result<R, Error>>) -> Result<R, Error> {
+-    tokio::time::timeout(super::VERDICT_LIMIT, step_future).await.map_err(|_| Error::Timeout(super::VERDICT_STEP))?
++    tokio::time::timeout(HANDSHAKE_LIMIT, step_future).await.map_err(|_| Error::Timeout(super::VERDICT_STEP))?
+ }
+ 
+ fn noise(e: snow::Error) -> Error {

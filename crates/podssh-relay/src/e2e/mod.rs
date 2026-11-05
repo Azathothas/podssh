@@ -22,7 +22,8 @@
 //! resumes it through podssh's relay role has a token of its own ([`legs`],
 //! T-615). A node's channel stops between two messages for the binary that
 //! takes its place, which carries it on from the same keys and nonces
-//! ([`hold`], T-668).
+//! ([`hold`], T-668). A node may ask a person after its door ([`person`],
+//! T-638), so the operator waits for the verdict longer than for a step.
 
 mod ask;
 mod channel;
@@ -32,6 +33,7 @@ mod handshake;
 pub mod hold;
 pub mod legs;
 pub mod net;
+pub mod person;
 
 use std::fmt;
 use std::time::Duration;
@@ -82,6 +84,14 @@ impl fmt::Display for Refusal {
     }
 }
 
+/// The bound on the operator's wait for the node's verdict: a step's, and
+/// the question of a node's person before it (T-638), so that an operator
+/// waits for the answer of a node of `podssh node --ask`.
+pub const VERDICT_LIMIT: Duration =
+    Duration::from_secs(HANDSHAKE_LIMIT.as_secs() + person::Times::DEFAULT.question.as_secs());
+/// The step of [`Error::Timeout`] that [`VERDICT_LIMIT`] bounds.
+pub const VERDICT_STEP: &str = "the node's verdict";
+
 /// Why the channel failed.
 #[derive(Debug)]
 pub enum Error {
@@ -125,7 +135,10 @@ impl fmt::Display for Error {
             Error::Cut => f.write_str("the channel was cut before its end: the last bytes may be missing"),
             Error::Refused(why) => write!(f, "the node refused the session: {why}"),
             Error::NodeKey(why) => write!(f, "the node's key is not the one expected: {why}"),
-            Error::Timeout(step) => write!(f, "{step} did not come within {} s", HANDSHAKE_LIMIT.as_secs()),
+            Error::Timeout(step) => {
+                let limit = if *step == VERDICT_STEP { VERDICT_LIMIT } else { HANDSHAKE_LIMIT };
+                write!(f, "{step} did not come within {} s", limit.as_secs())
+            }
             Error::Malformed(why) => write!(f, "the channel carried a message that it does not have: {why}"),
         }
     }

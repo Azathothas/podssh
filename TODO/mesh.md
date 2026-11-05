@@ -8971,12 +8971,61 @@ Read at `2042200`:
   member's reach, a new form of token and a new dimension of the net's policy, which the node's door
   makes needless for a node, and which does not exist for a public target.
 
+2026-11-05 (the drafting agent of T-638), each call with what lost:
+
+1. **The door first, then the person**, where the Approach's item 1 put the cover and the question
+   ahead of the door: a key that the door or a grant refused raises no question, and a yes or its
+   cover lets in nothing that they refused. Lost: the issue's order (a cover, a question, then the
+   door), in which a yes lets a key in past the door, so that on the DERP road, which any key
+   reaches, and on a pair's road with no `--allow`, whoever reaches the node puts questions to its
+   person, and one yes in haste widens the door; the question first and the door after it, which
+   still asks of strangers.
+2. **A no that stands is read before the door; a grant meets the question after its check, which
+   spends it.** A key refused within 15 s spends no grant, and the grant's record of its use stays
+   the one place that decides a second use. Lost: the question before the grant's check, which a
+   stranger's junk grant would raise; the check with its record after the answer, a second form of
+   `Door::redeem` for the case of a no alone, which T-226's Decision 5 already prices (a TARGET out
+   of reach spends a grant).
+3. **The operator waits 130 s for the node's verdict** (a step's 30 s and the question's 100 s,
+   `VERDICT_LIMIT`), and the client of an exit 160 s (`VERDICT_WAIT`), as an operator cannot know
+   that a node asks. Lost: the 30 s of before, after which no answer lets the session in (see the
+   Correction); a message "wait, asked" before the verdict, which each operator of before refuses
+   as a message of a type before the verdict, in the handshake that T-643 changes; a refusal at
+   once with a cover for the next session, which fails each first session.
+4. **A yes covers the key for each ask that the door lets it**, not only for what the question
+   named: the person let a device in, and the door still decides each route and each exit's
+   target. Lost: a cover for each key and ask, one question for each route of one device.
+5. **One question shows at a time on the terminal**, and each question's 100 s runs from its
+   session's arrival at the gate, so a question that waited its turn shows the time left. A line
+   typed before a question showed is no answer to it: a thread reads stdin from the start, each line
+   with the time it came. Lost: a turn whose time starts when it shows, past the operator's wait;
+   `tcflush` of the terminal's input, a call into the C library where the time of each line does.
+6. **The question names the key's member name in the net held there**; a key of `--allow` alone
+   shows its fingerprint. Lost: the comment of the allowlist's line, which the reader of T-087 does
+   not keep.
+7. **`--detach`, `--install`, `--uninstall`, `--temporary`, `--no-e2e` and `--carrier stdio` are
+   refused with `--ask` (64)**, before the probe of the terminal (78): with each, nobody could answer,
+   or there is no key to ask of. Lost: the probe's 78 for each, which hides the conflict of two
+   flags behind a probe.
+8. **The refusal is the door's**, `NotAllowed`: the operator hears that its key is not let in, and
+   the client's words of it name the person of `--ask` among the causes; the reason is in the node's
+   line. Lost: a refusal of its own, a new code of the verdict that each operator of before reads as
+   malformed.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test net
 cargo test -p podssh-relay --test e2e
+cargo test -p podssh-relay --lib -- e2e::person
+cargo test -p podssh-relay --test person
+cargo test -p podssh-relay --features pair,grant --test grant
+cargo test -p podssh-cli --lib -- node_ask man::
+cargo test -p podssh-cli --test node_ask
+sh scripts/plant-each.sh --here t638-grant-skips-the-person t638-person-before-the-door t638-no-only-said
+sh scripts/plant-each.sh --here t638-no-stands-not t638-cover-ends-with-the-yes t638-two-questions
+sh scripts/plant-each.sh --here t638-verdict-at-a-step-s-limit t638-typed-ahead-answers t638-one-terminal-will-do
 ```
 
 With a terminal of the test (a pty, where the host gives one): two sessions of one key raise one
@@ -8984,3 +9033,71 @@ question; a no stands 15 s; a yes covers the key while its session is open and 1
 again; a key that brings a grant meets the same gate; a refusal reaches no target, and the operator
 hears that its key is not let in; `--ask` with no terminal exits 78. Planted: the gate around the door
 alone, and the test of a grant at the gate fails.
+
+## Correction
+
+2026-11-05 (the drafting agent of T-638), read at `f45993d`:
+
+- The Premise holds at each cited line.
+- The Approach's question of 100 s is longer than the operator's wait for the verdict: the verdict
+  had a step's limit, `HANDSHAKE_LIMIT` of 30 s (`crates/podssh-relay/src/e2e/mod.rs`), with the
+  node's dial of TARGET, 20 s, inside it, so an answer after some 10 to 30 s reached an operator that
+  had left. The operator now waits longer for the verdict alone (Decision of 2026-11-05, item 3).
+- The Approach's "share": `podssh share` (T-433) is not built at `f45993d`. The gate is in
+  `serve_asked`, which each road of a node runs: the pair's, the iroh, DERP, OpenTunnel, Piping
+  Server, quick tunnel and transit roads, a carrier, and an exit's targets.
+- The Prove's two commands test the net's door and the channel, as before; the gate's own tests are
+  `crates/podssh-relay/tests/person.rs`, the grant's at the gate in
+  `crates/podssh-relay/tests/grant.rs`, the gate's unit tests on a paused clock, and
+  `crates/podssh-cli/tests/node_ask.rs`, whose pty is Linux's.
+
+## Done
+
+2026-11-05, drafted (unbuilt, UNVERIFIED); the main session merges, builds and measures it.
+
+- The gate (`crates/podssh-relay/src/e2e/person.rs`): one slot for each key (a question out, a
+  cover, a no that stands), a pass that holds the cover while its session lives, a question whose
+  session went taken back so the next session asks anew; its unit tests on tokio's paused clock
+  (`crates/podssh-relay/src/e2e/person_tests.rs`). `serve_asked` reads a standing no before the
+  door, crosses the gate after the door or the grant, and says by what each session came in
+  (`crates/podssh-relay/src/e2e/ends.rs`, `Node::gate`); the operator's wait for the verdict is
+  `VERDICT_LIMIT` (`crates/podssh-relay/src/e2e/mod.rs`, `crates/podssh-relay/src/e2e/handshake.rs`);
+  an exit's client waits `VERDICT_WAIT`, 160 s (`crates/podssh-cli/src/exit/open.rs`).
+- The node (`crates/podssh-cli/src/node_ask.rs`): `--ask` (`crates/podssh-cli/src/flags/node.rs`,
+  `crates/podssh-cli/src/node_args.rs`), its refusals and its probe in the node's dispatch
+  (`crates/podssh-cli/src/node_install/mod.rs`), the asker on the terminal and its reader of stdin,
+  the gate taken by each road's channel (`crates/podssh-cli/src/channel.rs`, `node_derp.rs`,
+  `node_opentunnel.rs`, `node_iroh.rs`; none for `node_temp.rs` and chat); the client's words of a
+  refusal name the person. The manual (`crates/podssh-cli/src/man/notes_ask.rs`), `docs/reverse.md`
+  ("A person at the node"), `docs/cli.md`, `docs/mesh.md`, `docs/STATUS.md`.
+- `cargo test -p podssh-relay --lib -- e2e::person`: UNVERIFIED (6 tests: two sessions and one
+  question; a no that stands 15 s; a cover while a session is open, an hour, and 120 s after its
+  last; no answer within 100 s; a question whose session went; two keys apart).
+- `cargo test -p podssh-relay --test person`: UNVERIFIED (5 tests: a no reaches no target and the
+  operator hears `NotAllowed`; a key that the door refuses raises no question; the lines by the
+  door and a yes, then by the cover, and by the door alone with no person; two sessions of one key
+  together raise one question; an answer after 50 s on a paused clock still lets the operator in).
+- `cargo test -p podssh-relay --features pair,grant --test grant`: UNVERIFIED (the new test: a grant
+  meets the person after its check, a no reaches no target and spends the grant, a yes lets the
+  next grant in by a grant and a yes).
+- `cargo test -p podssh-relay --test e2e` and `cargo test -p podssh-cli --test net`: UNVERIFIED, as
+  the node's line of a session now ends with by what it came in.
+- `cargo test -p podssh-cli --lib -- node_ask man::`: UNVERIFIED (the flags refused with 64, the
+  probe's 78, the answers, the question's words; the manual's names).
+- `cargo test -p podssh-cli --test node_ask`: UNVERIFIED (78 with no terminal, 64 beside each flag,
+  and on Linux in a pty: a `y` typed before the question answers nothing, `y` lets the operator of a
+  carrier `fd:3` in, `n` refuses it with 77 and no byte of TARGET).
+- The whole suites of the relay crate and of the CLI, clippy with `-D warnings` and `cargo fmt
+  --check`: UNVERIFIED.
+- Planted, the nine plants of the Prove: UNVERIFIED.
+- Found on the way: the plant `t429-net-gossip` no longer applied, as T-615 made the node's verdict
+  `admit_with` in `crates/podssh-relay/src/e2e/handshake.rs`; its patch is made again there, the
+  same defect (the node's newer document never given): UNVERIFIED (`sh scripts/plant-each.sh --here
+  t429-net-gossip`).
+- Waits: `cargo todo remap` at the merge of the files that this draft moved (`docs/cli.md`,
+  `docs/reverse.md`, `docs/mesh.md`, `docs/STATUS.md`, `crates/podssh-relay/src/e2e/ends.rs`,
+  `crates/podssh-relay/src/e2e/mod.rs`, `crates/podssh-cli/src/channel.rs`,
+  `crates/podssh-cli/src/man/mod.rs`, `crates/podssh-cli/src/man/notes_pair.rs`,
+  `crates/podssh-cli/src/node_derp.rs`, `crates/podssh-cli/src/node_iroh.rs`,
+  `crates/podssh-cli/src/chat/listen.rs`); a live run of a node of `--ask` on a pair's road
+  (Q88).

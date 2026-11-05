@@ -179,6 +179,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         say: say.clone(),
         redeem: None,
         leases: Default::default(),
+        // Nobody is at the far end of an upgrade to ask (T-638).
+        gate: None,
     };
     let settings = crate::layered::settings();
     let keeper: Arc<Keeper<DuplexStream>> = Arc::new(Keeper::new(settings.resume_deadline));

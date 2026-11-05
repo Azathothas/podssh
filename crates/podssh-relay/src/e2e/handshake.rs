@@ -165,7 +165,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
         if let Some(talk) = net {
             channel.set_net(talk.docs, peer);
         }
-        within("the node's verdict", channel.read_verdict()).await?;
+        verdict_within(channel.read_verdict()).await?;
         Ok(channel)
     }
 
@@ -425,6 +425,12 @@ fn whole(read: bool) -> Result<(), Error> {
 
 async fn within<R>(step: &'static str, step_future: impl Future<Output = Result<R, Error>>) -> Result<R, Error> {
     tokio::time::timeout(HANDSHAKE_LIMIT, step_future).await.map_err(|_| Error::Timeout(step))?
+}
+
+/// The wait for the node's verdict, which a node's person may answer first
+/// (T-638): longer than a step's.
+async fn verdict_within<R>(step_future: impl Future<Output = Result<R, Error>>) -> Result<R, Error> {
+    tokio::time::timeout(super::VERDICT_LIMIT, step_future).await.map_err(|_| Error::Timeout(super::VERDICT_STEP))?
 }
 
 fn noise(e: snow::Error) -> Error {

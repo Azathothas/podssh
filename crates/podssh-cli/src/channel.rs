@@ -229,7 +229,8 @@ pub fn judged(e: &e2e::Error, me: Option<&Identity>) -> Option<(Fault, String)> 
             Fault::Auth,
             format!(
                 "the node refused this client's key{mine}: not in its allowlist, nor a member that its net's policy \
-                 lets reach that; the node's operator adds the key to the file of --allow, or the net's owner a rule"
+                 lets reach that; the node's operator adds the key to the file of --allow, or the net's owner a rule; \
+                 or the person at a node of --ask said no, or gave no answer"
             ),
         ),
         e2e::Error::Refused(NodeRefusal::NoTarget(why)) => {
@@ -305,7 +306,9 @@ const OPEN_DOOR: &str = "warning: with no --allow, whoever reaches this node's d
 pub fn node_end(label: &str, identity: Identity, admit: Arc<ends::Admit>) -> ends::Node {
     let shown = label.to_string();
     let say = Arc::new(move |line: String| podssh_ssh::err_line!("podssh node: {shown}: {line}"));
-    ends::Node { identity: Arc::new(identity), admit, say, redeem: None, leases: Default::default() }
+    // The person of --ask (T-638), on each road whose channel this makes.
+    let gate = crate::node_ask::gate();
+    ends::Node { identity: Arc::new(identity), admit, say, redeem: None, leases: Default::default(), gate }
 }
 
 /// Who may come in through the channel: the keys of the allowlist at

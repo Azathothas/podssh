@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/e2e/ends.rs
++++ b/crates/podssh-relay/src/e2e/ends.rs
+@@ -197,8 +197,7 @@
+         Ok(passed) => passed,
+         Err(line) => {
+             (node.say)(line);
+-            asked.refuse(Refusal::NotAllowed).await;
+-            return;
++            (None, "a no".to_string())
+         }
+     };
+     let target = match tokio::time::timeout(TARGET_WAIT, GRANTED.scope(by_grant, open(peer, ask))).await {

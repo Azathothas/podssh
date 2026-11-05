@@ -1,0 +1,7 @@
+# T-638: the node's person gates the door's arm alone, so a key that brings
+# a grant passes with no question (the Prove's plant: the gate around the
+# door alone); the test of a grant at the person must fail.
+ENTRY=T-638
+GROUP=resume
+EXPECT='test a_grant_meets_the_node_s_person_as_a_key_of_the_door_does \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair,grant --test grant -- a_grant_meets_the_node_s_person_as_a_key_of_the_door_does'

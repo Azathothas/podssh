@@ -1,0 +1,6 @@
+# T-638: --ask takes a terminal on stdin or on stderr, where the question or
+# its answer has none; the test of a node with no terminal must fail.
+ENTRY=T-638
+GROUP=cli-tests
+EXPECT='test node_ask::tests::a_node_with_no_terminal_to_ask_at_is_refused_with_78 \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- node_ask::tests::a_node_with_no_terminal_to_ask_at_is_refused_with_78'

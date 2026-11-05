@@ -1,0 +1,6 @@
+# T-638: a no of the node's person stands no time, so the key is asked again
+# at once; the test of a no that stands 15 s must fail.
+ENTRY=T-638
+GROUP=resume
+EXPECT='test e2e::person::tests::a_no_stands_fifteen_seconds_with_no_question \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- e2e::person::tests::a_no_stands_fifteen_seconds_with_no_question'

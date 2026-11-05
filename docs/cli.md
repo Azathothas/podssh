@@ -3924,6 +3924,20 @@ commands. The rules behind them:
   refused, and the operator exits 77, the reasons in the node's log. A node
   with no `--allow` and no net says, as it starts, that the pair's token
   alone is its door.
+- **`podssh node NAME --ask`** (T-638, GitHub #136; [reverse.md](reverse.md),
+  "A person at the node") asks a person at the node's terminal of each
+  operator key that the door (`--allow`, the net) or a grant lets through, on
+  each road: the question on stderr names the key's fingerprint, its name in
+  the net, what it asks and whether a grant brought it, and `y` or `n` comes
+  on stdin, 100 s at most, no answer a no. A key that the door refuses raises
+  no question. One question for each key at a time, which each session of the
+  key waits for; a yes lets the key in while one of its sessions is open and
+  120 s after its last; a no stands 15 s, before the door, so that it spends
+  no grant. The operator hears only that its key is not let in (77); the
+  node's line of each session says by what it came in. stdin and stderr must
+  each be a terminal (else 78); `--detach`, `--install`, `--uninstall`,
+  `--temporary`, `--no-e2e` and `--carrier stdio` are refused with it (64).
+  An operator waits 130 s for a node's verdict, one of before 30 s.
 - **`--pair-file FILE`** uses a pair of the store's form, which must be a
   regular file of the user that nobody else can read, as ssh reads a key.
   The store is not used. For `operator` and `ssh node://NAME`, the operator's

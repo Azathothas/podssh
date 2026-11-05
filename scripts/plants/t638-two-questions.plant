@@ -1,0 +1,6 @@
+# T-638: a question that is out counts for nothing, so each session of one
+# key asks its own; the test of two sessions and one question must fail.
+ENTRY=T-638
+GROUP=resume
+EXPECT='test e2e::person::tests::two_sessions_of_one_key_raise_one_question \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- e2e::person::tests::two_sessions_of_one_key_raise_one_question'

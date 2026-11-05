@@ -1,0 +1,7 @@
+# T-638: the node asks its person of a key that the door refused, so whoever
+# reaches the node with a key of its own puts questions to the person; the
+# test of a key that the door refuses must fail.
+ENTRY=T-638
+GROUP=resume
+EXPECT='test a_key_that_the_door_refuses_raises_no_question \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test person -- a_key_that_the_door_refuses_raises_no_question'
