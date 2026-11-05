@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**632 entries: 102 open, 10 partial, 3 blocked, 517 done.**
+**632 entries: 101 open, 10 partial, 3 blocked, 518 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 248 | 277 |
-| P3 | 77 | 4 | 3 | 203 | 287 |
-| **All** | 102 | 10 | 3 | 517 | 632 |
+| P3 | 76 | 4 | 3 | 204 | 287 |
+| **All** | 101 | 10 | 3 | 518 | 632 |
 
 ## Entries
 
@@ -676,7 +676,7 @@ repository and CI).
 | [T-634](cli.md) | P3 | S | none | feature | done | A `PODSSH_*` variable that a release stopped reading is ignored in silence; there is no table of retired names |
 | [T-635](relay.md) | P2 | S | M10 | feature | done | `podssh relay serve` has no list of private targets between public ones alone and `--allow-private` |
 | [T-636](relay.md) | P3 | M | M10 | feature | done | The relay role counts no bytes for each key across its sessions, and keeps no count across a restart |
-| [T-637](relay.md) | P3 | M | M10 | feature | open | Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline |
+| [T-637](relay.md) | P3 | M | M10 | feature | done | Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline |
 | [T-638](mesh.md) | P3 | M | M10 | feature | open | A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door |
 | [T-639](pipe.md) | P3 | S | none | feature | done | `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory |
 | [T-640](robustness.md) | P3 | M | none | feature | done | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |

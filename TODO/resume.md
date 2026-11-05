@@ -29,7 +29,7 @@ in a `session` module of `podssh-relay` (`docs/design.md:574-583`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
 (`crates/podssh-ssh/src/relay_stream.rs:182-295`). Frame boundaries mean nothing
-on the relay (`docs/relay.md:337-340`), and the relay reads each record and can
+on the relay (`docs/relay.md:358-361`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
@@ -315,7 +315,7 @@ GitHub #19 reports. Some closes mean "do not come back".
 ## Premise
 
 Read: the failover across relay hosts serves the first connection only
-(`crates/podssh-relay/src/open.rs:203-285`). `classify` maps each reverse close
+(`crates/podssh-relay/src/open.rs:212-298`). `classify` maps each reverse close
 to a retry class (crates/podssh-transport/src/closes.rs lines 154-229 at `e8bbd4d`), with
 `relay backpressure` as `Retry::Never`
 (crates/podssh-transport/src/closes.rs line 202 at `e8bbd4d`); a received Close lost its code
@@ -330,8 +330,8 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
 1. The client drives the resume. On a loss with no `CLOSE` record, it tries
    the roads of T-164 and each host of the `RelayList`
    (`crates/podssh-relay/src/relay.rs:88-102`), each within `HOST_DEADLINE`
-   (`crates/podssh-relay/src/open.rs:33-35`), with `open::backoff` between
-   rounds (`crates/podssh-relay/src/open.rs:404-418`). Do not fork it (T-077).
+   (`crates/podssh-relay/src/open.rs:35-37`), with `open::backoff` between
+   rounds (`crates/podssh-relay/src/open.rs:421-435`). Do not fork it (T-077).
 2. A `CLOSE` record never reconnects; each other loss reconnects first
    (ssh-obi's rule, read in GitHub #19, not verified here). Print one stderr
    line for each loss and each resume, and never a secret or a token.
@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:319-488`).
+   (`crates/podssh-cli/src/man/facts.rs:319-473`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -806,14 +806,14 @@ always runs the layer. The flag's row, the manual's note of `node`,
 ## Problem
 
 The relay cuts a connection after 180 s with no payload, and its empty
-keepalive frames do not count (`docs/relay.md:344-345`, `docs/relay.md:452`). A
+keepalive frames do not count (`docs/relay.md:365-366`, `docs/relay.md:473`). A
 reverse socket gets no keepalive at all (`docs/reverse.md:37-47`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
 
 Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
-`crates/podssh-relay/src/open.rs:365`), a limit that counts on the relay's
+`crates/podssh-relay/src/open.rs:382`), a limit that counts on the relay's
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:293-331`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
@@ -836,8 +836,8 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:390-404` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:414-429`,
-   `crates/podssh-cli/src/man/facts.rs:449-458`), the note at
+   (`crates/podssh-cli/src/man/facts.rs:399-414`,
+   `crates/podssh-cli/src/man/facts.rs:434-443`), the note at
    `crates/podssh-cli/src/man/notes_ssh_more.rs:83`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -925,7 +925,7 @@ close at the volume cap).
 ## Problem
 
 The relay ends a WebSocket session after 64 MiB, both directions together, or
-after 12 h (`docs/relay.md:453-454`). A long or large session on the layer
+after 12 h (`docs/relay.md:474-475`). A long or large session on the layer
 meets these limits, and an end at a limit costs a resume and its delay.
 
 ## Premise
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:319-488`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:319-473`).
 
 ## Decision
 
@@ -1189,7 +1189,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
 (`docs/design.md:1372-1392`). A session carries 64 MiB at most, both directions
-together (`docs/relay.md:454`).
+together (`docs/relay.md:475`).
 
 ## Approach
 
@@ -1204,7 +1204,7 @@ together (`docs/relay.md:454`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:509-510`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
+   needs a token (`docs/relay.md:530-531`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.
@@ -3828,7 +3828,7 @@ Read at `2042200`:
   `--no-e2e` (`crates/podssh-cli/src/flags/node.rs:136`).
 - The plain forward road keeps a half-close: `crates/podssh-relay/src/serve/forward.rs:280-283` shuts
   the target's writing side at the client's Close and goes on, as the default relay does
-  (`docs/relay.md:346-349`). So `podssh proxy` to a target that reads until its end loses the answer on
+  (`docs/relay.md:367-370`). So `podssh proxy` to a target that reads until its end loses the answer on
   the layer road where it gets it on `/connect/` (Inferred from the code; not measured).
 - The layer names its features in its handshake (`crates/podssh-relay/src/session/record.rs:9-10`), and
   `crates/podssh-relay/src/session/mod.rs:73` says "pub const FEATURES: &[&str]": a new record goes only
@@ -3938,7 +3938,7 @@ fails; no `END` again after a resume, and the test of a lost `END` fails; `podss
   `End::Client` (`crates/podssh-relay/src/serve/forward.rs:283` says "return End::Client;"), which
   ends the `select!` of the session (`crates/podssh-relay/src/serve/forward.rs:343-344`): the target's
   later bytes are not carried, where the contract says that they come until the target closes or is
-  idle for 15 s (`docs/relay.md:346-349`). That is a difference of the role from the contract, outside
+  idle for 15 s (`docs/relay.md:367-370`). That is a difference of the role from the contract, outside
   this entry; the main session files it at the merge. And `podssh proxy` sends no Close at the end of
   stdin on `/connect/` (`crates/podssh-cli/src/proxy.rs:9` says "End of stdin stops sending but keeps
   receiving"), so there the target never gets the end of its input either: `echo QUERY | podssh proxy`

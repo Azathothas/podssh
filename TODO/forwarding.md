@@ -60,7 +60,7 @@ server listens, and the client connects out for each connection.
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
    `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:375-381`), with the
-   limit of 20 s (`crates/podssh-relay/src/open.rs:29-31`).
+   limit of 20 s (`crates/podssh-relay/src/open.rs:31-33`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
 5. A failed dial closes that channel only, and says why on stderr: the
@@ -679,7 +679,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).
 - Read: the relay's limits apply to the shared connection: all the sessions
-  of a master share one 64 MiB and one 12 h (`docs/relay.md:448-454`).
+  of a master share one 64 MiB and one 12 h (`docs/relay.md:469-475`).
 
 ## Approach
 
@@ -1057,8 +1057,8 @@ sessions (GitHub #17).
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-78`,
 `crates/podssh-ssh/src/run.rs:213-255`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
-(`crates/podssh-relay/src/open.rs:203-285`,
-`crates/podssh-relay/src/open.rs:404-418`). With `-N`, no command runs, so a
+(`crates/podssh-relay/src/open.rs:212-298`,
+`crates/podssh-relay/src/open.rs:421-435`). With `-N`, no command runs, so a
 new connection has no side effect on the server. `docs/design.md:692-699`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:421`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:422`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise

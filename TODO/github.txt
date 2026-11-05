@@ -140,7 +140,7 @@
 132 issue closed
 133 issue closed
 134 issue closed
-135 issue open
+135 issue closed
 136 issue open
 137 issue closed
 138 issue closed

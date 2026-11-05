@@ -44,7 +44,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
    is the one rule that already decides where a token may go.
 2. Use the key of the host in use at each place: the load and the store through `MintContext`
    (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
-   (`crates/podssh-relay/src/open.rs:372-381`), and the token check of `doctor`
+   (`crates/podssh-relay/src/open.rs:389-398`), and the token check of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 142-165 at `2da855f`).
 3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:47-56`), with a
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
@@ -58,7 +58,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
 Recommendation: key by deployment. One token serves the hosts of the default deployment (a
 pool host accepted the token of the default host: `docs/STATUS.md`, "`podssh proxy`, measured
 live"), and no token goes to another deployment. The exact minting host lost: each pool host
-would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:455`).
+would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:476`).
 The decision said "one machine has one cached token"; on 2026-10-08 the operator ruled
 "one for each relay deployment" (`docs/decisions.md:98`).
 
@@ -131,7 +131,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 ("'relay' is not implemented yet; nothing was done."). Its help shows `--relay-host URL`
 (`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
-(`docs/relay.md:509-510`). The `health` function of `doctor`
+(`docs/relay.md:530-531`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:100-117`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:182-208` fetches `/relays.json`. `https_get` sends no
 token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes headers (lines
@@ -147,7 +147,7 @@ token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes h
    `verdict_from` (`crates/podssh-probe/src/relay_facts.rs:345-359`), or `--document FILE`.
    This is T-060.
 4. `relay trace HOST PORT`: `/trace` with `banner=1`, the token in the header and never in the
-   URL (`docs/relay.md:440-442`). Check HOST with `relay::check_host`
+   URL (`docs/relay.md:461-463`). Check HOST with `relay::check_host`
    (`crates/podssh-ws/src/names.rs:10-32`), so no text can add a query parameter.
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
@@ -265,7 +265,7 @@ as a `ProxyCommand` for each connection, pays this wait in each run.
 ## Premise
 
 Read: `open` tries the hosts in the order of the list in each round
-(`crates/podssh-relay/src/open.rs:232-278`), and keeps nothing between runs: a failure is a
+(`crates/podssh-relay/src/open.rs:241-291`), and keeps nothing between runs: a failure is a
 note, and an entry of `Failure`. The limits are 20 s for each step and 45 s for each host (lines
 25-29). Measured in the gate (`docs/STATUS.md`): a host that completes TLS and then says
 nothing, and a host that does not start TLS, each cost the 20 s limit before the failover.
@@ -273,10 +273,10 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 ## Approach
 
 1. After a host fails with an error that another host can repair (`another_host_may_help`,
-   `crates/podssh-relay/src/open.rs:63-85`), write a record (host, time, class) into a private
+   `crates/podssh-relay/src/open.rs:71-93`), write a record (host, time, class) into a private
    file `relay-failures-KEY.json` with `cache::store_file`
    (`crates/podssh-relay/src/cache.rs:151-185`). Remove the record when the host succeeds.
-2. At the start of `open` (`crates/podssh-relay/src/open.rs:203-285`), move each host whose
+2. At the start of `open` (`crates/podssh-relay/src/open.rs:212-298`), move each host whose
    record is younger than a fixed window (10 min) to the end of the list, in its old order.
    Never remove a host: each host is still tried.
 3. Record no error that each host would give (a policy refusal, a bad token in the
@@ -336,17 +336,17 @@ record; the second run takes 20 s, and the check fails.
 
 ## Done
 
-2026-10-12. The record in `crates/podssh-relay/src/failures.rs:1-315`: its
+2026-10-12. The record in `crates/podssh-relay/src/failures.rs:1-316`: its
 file and window at `crates/podssh-relay/src/failures.rs:26-30`, its entries
 at `crates/podssh-relay/src/failures.rs:114-220`, the order of a run and its
 notes at `crates/podssh-relay/src/failures.rs:235-255`, and the reason of a
-failure at `crates/podssh-relay/src/failures.rs:289-308`. `open` orders
-the hosts at `crates/podssh-relay/src/open.rs:212-218` and keeps the record
-after each round at `crates/podssh-relay/src/open.rs:253-260`; the race
+failure at `crates/podssh-relay/src/failures.rs:289-309`. `open` orders
+the hosts at `crates/podssh-relay/src/open.rs:221-227` and keeps the record
+after each round at `crates/podssh-relay/src/open.rs:266-273`; the race
 gives the silent hosts at `crates/podssh-relay/src/failover.rs:245-248`.
 `podssh status` at `crates/podssh-cli/src/status.rs:125-129`, `podssh
 doctor` at `crates/podssh-cli/src/doctor/mod.rs:99-109`, THE RELAY in the
-manual at `crates/podssh-cli/src/man/facts.rs:380-397`, and
+manual at `crates/podssh-cli/src/man/facts/failed.rs:11-28`, and
 `docs/relay.md` and `docs/cli.md`.
 
 The unit tests of `crates/podssh-relay/src/failures_tests.rs`, 5: a host
@@ -592,7 +592,7 @@ pairs need, and the file of Decision 1.
 
 # T-062: Measure whether the relay's backpressure close (1013) operates
 
-**Source:** `docs/relay.md:533-545`; the reverse close table of the pinned contract
+**Source:** `docs/relay.md:554-566`; the reverse close table of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the comment on the SSH
 window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Category:** measurement
@@ -610,8 +610,8 @@ rule is true.
 
 ## Premise
 
-Not measured. Read: `docs/relay.md:522` gives the forward codes `1013` `client receive backlog`
-and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:533-545`
+Not measured. Read: `docs/relay.md:543` gives the forward codes `1013` `client receive backlog`
+and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:554-566`
 says that no frame is dropped, and that the check reads `bufferedAmount`, which Workers may not
 supply. The comment on the SSH window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`)
 said that the relay drops a frame when more than 1 MiB waits (`1011 relay backpressure`). That is
@@ -634,7 +634,7 @@ so the comment applied a rule of the reverse path to the forward path.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
 5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:26-30`) and
-   into `docs/relay.md:533-545`. Change the window (512 KiB) only if the result asks for it.
+   into `docs/relay.md:554-566`. Change the window (512 KiB) only if the result asks for it.
 
 ## Decision
 
@@ -667,10 +667,10 @@ size, which shows that the target and the path work. The slow run then gives the
 ## Correction
 
 2026-10-08, T-024: the comment on the SSH window now gives the forward path's rule that
-`docs/relay.md:522` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
+`docs/relay.md:543` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
 (`crates/podssh-ssh/src/run.rs:26-29`). The two texts agree now. The question of this entry
 stays: whether the relay's check operates at all (it reads `bufferedAmount`,
-`docs/relay.md:533-545`).
+`docs/relay.md:554-566`).
 
 2026-10-31. The blocker cleared: the operator made the relay's own loop the
 target (Q42, `docs/decisions.md`). The target of item 1 is the relay
@@ -775,16 +775,16 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    that opens waits at most D for each earlier host that still runs, then the earliest opened
    host wins. `serial`: one at a time, as now, with a 5 s step limit for a host that has a
    successor, and the full limit for the last host.
-2. D starts at 2 s. An open includes the relay's dial of the target (`docs/relay.md:341-343`), so
+2. D starts at 2 s. An open includes the relay's dial of the target (`docs/relay.md:362-364`), so
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:659-661`, `docs/relay.md:518`); the target still sees one
+   socket within 15 s (`docs/design.md:659-661`, `docs/relay.md:539`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
-   against the brake of `docs/relay.md:455`. When the minting attempt is the silent one, the next
+   against the brake of `docs/relay.md:476`. When the minting attempt is the silent one, the next
    attempt mints at its own host after D.
-5. An error that each host would give (`crates/podssh-relay/src/open.rs:63-85`) still stops the
+5. An error that each host would give (`crates/podssh-relay/src/open.rs:71-93`) still stops the
    run, and stops the other attempts.
 6. Each attempt keeps its own notes, given to `notes` in the order of the list; the round notice
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
@@ -1064,7 +1064,7 @@ road refuses it.
 3. The `502` says `relay: cannot reach [ADDR]:PORT: this relay's host has no IPv6 route out`,
    words that the client shares (`podssh_relay::relay::NO_IPV6_ROUTE`) and that name no fault
    of the target's name, so that the client's opener tries the next relay host at once, with
-   no change (`crates/podssh-relay/src/open.rs:81` says "!target_name_fails(body)"). This
+   no change (`crates/podssh-relay/src/open.rs:89` says "!target_name_fails(body)"). This
    takes the place of Approach item 2's "a
    relay whose `/relays.json` says that it has IPv6 goes first": podssh keeps one
    `/relays.json` for each deployment, the first host's, so it cannot order the hosts of a
@@ -1786,7 +1786,7 @@ Measured on 2026-10-31 by T-062, twice from a cloud container and once from GitH
 through the relay's own loop, a pair's node gave the relay each of 48 MiB within 15 s, while the
 outer forward client read 16 KiB/s. After 90 s the client had read 1.46 MB, and no Close had
 come; 48.9 MB that it had not read had left the node, and the relay or its edge held them
-(`docs/STATUS.md`, "The relay"). Read: the forward codes in `docs/relay.md:522` (2 MiB queued),
+(`docs/STATUS.md`, "The relay"). Read: the forward codes in `docs/relay.md:543` (2 MiB queued),
 and the reverse row of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`, 1 MiB). The forward check
 reads `bufferedAmount`, which Workers may not supply (`docs/relay.md`, "Backpressure").
@@ -2119,7 +2119,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:114-127`), and a test asserts a
   stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:261`).
 - Read: to a node, the resumable layer resumes after the relay's `1009` at the cap
-  (`docs/relay.md:475-481`); a forward session has no layer.
+  (`docs/relay.md:496-502`); a forward session has no layer.
 
 ## Approach
 
@@ -2232,8 +2232,8 @@ relay's operator has no way to move the binaries in the field to another deploym
   in regions of AWS, GCP and Azure, each a name of the same domain (`:30-68`). Inferred: each is a
   placement of the same Worker.
 - Read: the pairs of the reverse road live on the control host alone
-  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:627-632`). The audit cited
-  `docs/relay.md:619-624`; the fact is at `:627-632`.
+  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:648-653`). The audit cited
+  `docs/relay.md:640-645`; the fact is at `:648-653`.
 - Read: a release binary is uploaded or copied into its host, which cannot build it or download
   it (Q48, `docs/decisions.md:59`); a machine keeps one token for each deployment, and podssh
   "never sends a token to a deployment that did not mint it" (`docs/decisions.md:98`).
@@ -2805,7 +2805,7 @@ the host again, and the test of the order fails.
 
 2026-11-02 (the drafting agent). The record is keyed by the host alone, as the Premise says, but
 at `1769d79` one road alone writes and reads it: `open`, the relay's forward road over WebSocket
-(`crates/podssh-relay/src/open.rs:213-260`), which `ssh`, `proxy`, `pipe`, `chat`, `doctor` and
+(`crates/podssh-relay/src/open.rs:222-273`), which `ssh`, `proxy`, `pipe`, `chat`, `doctor` and
 the blocking facade share; `status` and `doctor` read it. No other road (iroh, DERP, a node's
 pair, the forwarders) orders its hosts by it, so a failure on one road moves no host on another
 road yet: the key by road keeps it so once a second road records (T-563 makes the place for it),
@@ -2827,7 +2827,7 @@ session on 2026-11-03.
   a host that opened lately first and one that failed or rests last, with its note
   (`crates/podssh-relay/src/failures.rs:231-255`); `recent` gives each road's hosts with what
   failed and what opened (`crates/podssh-relay/src/failures.rs:268-284`). `open` names the
-  WebSocket road (`crates/podssh-relay/src/open.rs:214`, `crates/podssh-relay/src/open.rs:255`).
+  WebSocket road (`crates/podssh-relay/src/open.rs:223`, `crates/podssh-relay/src/open.rs:268`).
 - `crates/podssh-cli/src/relay_ends.rs`: what a cut is (`cut_by`, `cut`), and `Told`, the relay
   stream that tells the record how its session ended once SSH lets it go, which
   `crates/podssh-cli/src/ssh/transport.rs:225` spawns. `podssh proxy`
@@ -2837,7 +2837,7 @@ session on 2026-11-03.
   lately (`crates/podssh-cli/src/status.rs:225-232`); `podssh doctor`'s line `failed relays` says
   each host tried last, and a line `opened relays` those tried first
   (`crates/podssh-cli/src/doctor/mod.rs:275-303`). THE RELAY in the manual
-  (`crates/podssh-cli/src/man/facts.rs:376-393`), `docs/relay.md` (step 5 of the selection) and
+  (`crates/podssh-cli/src/man/facts/failed.rs:11-28`), `docs/relay.md` (step 5 of the selection) and
   `docs/cli.md` (`podssh status`).
 - Tests: in `crates/podssh-relay/src/failures_tests.rs`, the five of T-059 on the road, the round
   that keeps the host that opened, and `a_host_that_opened_lately_is_tried_first`,
@@ -3003,7 +3003,7 @@ root's own cache. Planted: `t593-owner-unchecked` (the owner not read): the firs
 ## Correction
 
 Approach item 5 names `docs/architecture.md` for the cache: its place is written in
-`docs/relay.md` (the paragraph of T-243, `docs/relay.md:222-230`), and `docs/architecture.md` says
+`docs/relay.md` (the paragraph of T-243, `docs/relay.md:243-251`), and `docs/architecture.md` says
 nothing of it. The draft writes `docs/relay.md`, and `SECURITY.md` (the cache in its user's own
 tree).
 
@@ -3305,7 +3305,7 @@ working hosts, which a measurement can make.
   default list is the default host, then the pool in its order
   (`crates/podssh-relay/src/relay.rs:104-125`).
 - Read: the alternates are the cached pool, in the order of `/relays.json`
-  (`crates/podssh-relay/src/pool.rs:111-126`); `docs/relay.md:553-555` says that `/relays.json`
+  (`crates/podssh-relay/src/pool.rs:111-126`); `docs/relay.md:574-576` says that `/relays.json`
   ranks relays by the edge that answered, and that its `score_ms` did not agree with the measured
   latency.
 - Read: `podssh ping`'s leg times the token, the dial, TLS and the upgrade of one host, and its
@@ -3464,8 +3464,8 @@ times the hosts that it tries, and throws the times away.
   takes its alternates, which `select_relays` puts after the default host
   (`crates/podssh-relay/src/relay.rs:104-125`).
 - Read: `open` loads the record and orders the list by it, then races the hosts
-  (`crates/podssh-relay/src/open.rs:212-218`, `crates/podssh-relay/src/open.rs:245`); each host's
-  attempt is `attempt` (`crates/podssh-relay/src/open.rs:315-331`); the file has 473 lines.
+  (`crates/podssh-relay/src/open.rs:221-227`, `crates/podssh-relay/src/open.rs:258`); each host's
+  attempt is `attempt` (`crates/podssh-relay/src/open.rs:330-348`); the file has 473 lines.
 - Read: the race gives the attempt kept, those that opened and were dismissed, and those that
   stayed silent (`crates/podssh-relay/src/failover.rs:88-101`).
 - Read: the record's `order` puts a host that opened lately first and one that failed or rests
@@ -3605,9 +3605,9 @@ to hosts that the session does not use.
   tunnel's second connection of Q62); `docs/decisions.md:37` adds XHTTP's second connection (Q67).
   None covers a probe of a host that the session does not use.
 - Read: the pool's refresh after a mint is a request of its own in the background
-  (`crates/podssh-relay/src/open.rs:391-402`): one request to the host that minted, at most once in
+  (`crates/podssh-relay/src/open.rs:408-419`): one request to the host that minted, at most once in
   7 days.
-- Read: the contract's `?dial=lazy` (`docs/relay.md:492-495`): the relay dials the target on the
+- Read: the contract's `?dial=lazy` (`docs/relay.md:513-516`): the relay dials the target on the
   client's first byte, so a probe with it and no byte reaches no target.
 - Read: Q83, the experience of a user first (`docs/decisions.md:21`), and Q73, `doctor`'s sections
   at once (`docs/decisions.md:31`).
@@ -3972,14 +3972,14 @@ samples hold.
 - Read: `docs/relay-operator.md` has no item on `/relays.json`'s rank or `score_ms`: its sections
   "Defects on the relay's side" (`docs/relay-operator.md:34`) and "Questions about the contract"
   (`docs/relay-operator.md:430`) name other changes.
-- Read: `docs/relay.md:586-587` says "ranks relays by the Cloudflare edge that answered, which
+- Read: `docs/relay.md:607-608` says "ranks relays by the Cloudflare edge that answered, which
   changes between identical calls" (measured 2026-10-01); #125 measured it again on 2026-11-03,
   through one proxy: three calls answered by NRT, SIN and ARN, each of the 37 hosts with another
   rank and score between the first and the third.
 - Read: the relay's document says that `/relays.json` "ranks the pool for your edge colo and the
   target" and documents its own `?prefer=`, `?region=`, `?relay=` and `?spread=`
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:70-71`); the record reads only
-  `?relay=` (`docs/relay.md:558-559`), so whether one of the others pins the rank is not known.
+  `?relay=` (`docs/relay.md:579-580`), so whether one of the others pins the rank is not known.
 - Read: the relay's `policy.note`, as #125 quotes it: "score_ms is a static estimate of client to
   relay to target round trip; probe /health on each host and keep the fastest for your path".
 - Read: podssh's own relay role serves its one host, with `you.edge_colo` null and a score of 0
@@ -4045,15 +4045,15 @@ this host and none of the document's `you`; both checks pass with the new citati
   path"); and no field names the vantage of `score_ms`. So no parameter that the document names
   says that it pins the rank and the score to one vantage, and no client entry follows (the
   Decision). The reading is in the item and in `docs/relay.md`
-  (`docs/relay-operator.md:486-495`, `docs/relay.md:569-574`).
+  (`docs/relay-operator.md:486-495`, `docs/relay.md:590-595`).
 - Step 2: item 20 of the note, "A rank and a score that two calls can compare", under "Questions
   about the contract" (`docs/relay-operator.md:465-506`), with this entry and #125: the
   measurements of 2026-10-01 and of #125's three calls; the two forms that would make two answers
   comparable; the parameters of step 1; and "In podssh": T-606, T-607 and T-608, T-610 and T-618,
   and the role's one host, which `relay info` reads as no estimate.
 - Step 3: `docs/relay.md`, "Relay facts for a client that selects a relay"
-  (`docs/relay.md:551-578`): #125's measurement after the one of 2026-10-01, which keeps its words
-  (`docs/relay.md:555-557`), the parameters of step 1, podssh's own order, and the item's place.
+  (`docs/relay.md:572-599`): #125's measurement after the one of 2026-10-01, which keeps its words
+  (`docs/relay.md:576-578`), the parameters of step 1, podssh's own order, and the item's place.
 - `python scripts/check-repo.py`: passed. `cargo todo check`: the record agrees.
 
 # T-629: `podssh relay serve` keeps each capability of its start after the bind, while it serves each client
@@ -4473,7 +4473,7 @@ place of the session's end, and the test that counts one session once fails.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4486,16 +4486,16 @@ answers slowly is asked again by each.
 
 Read at `2042200`:
 
-- `crates/podssh-relay/src/open.rs:203` is the road of each session, and its gate of mints is its own:
-  `crates/podssh-relay/src/open.rs:230` says "let gate = MintGate::default();", so two calls of `open`
+- `crates/podssh-relay/src/open.rs:212` is the road of each session, and its gate of mints is its own:
+  `crates/podssh-relay/src/open.rs:239` says "let gate = MintGate::default();", so two calls of `open`
   share no state (`crates/podssh-relay/src/failover.rs:294`).
-- Each host attempt runs under `HOST_DEADLINE` (`crates/podssh-relay/src/open.rs:322`), 45 s
-  (`crates/podssh-relay/src/open.rs:35`).
+- Each host attempt runs under `HOST_DEADLINE` (`crates/podssh-relay/src/open.rs` at `96a4eb2`, line 322), 45 s
+  (`crates/podssh-relay/src/open.rs:37`).
 - What one run learns, the next run reads: the record of failures keeps a host 600 s
   (`crates/podssh-relay/src/failures.rs:30`) and rests one that two short sessions cut
   (`crates/podssh-relay/src/failures.rs:32-36`, T-563); it orders the hosts and admits each.
-- Whether a failure is the host's: `crates/podssh-relay/src/open.rs:63-85`, where a `502` that names
-  the target is final (`:81`).
+- Whether a failure is the host's: `crates/podssh-relay/src/open.rs:71-93`, where a `502` that names
+  the target is final (`:89`).
 - A server's wait: `crates/podssh-relay/src/token.rs:210` keeps a mint's `Retry-After`; a refused
   upgrade carries no header to the caller.
 
@@ -4522,12 +4522,51 @@ hours after its host came back would serve nothing. A held session goes to the n
 a gate shared between processes, a file and a lock on each attempt for a case that the record of
 failures covers between runs.
 
+2026-11-05 (the drafting agent), within that call:
+
+- **The ladder is the backoff's own: 1 s, doubling to 30 s** (`BACKOFF_FIRST` and `BACKOFF_MAX` of
+  `crates/podssh-relay/src/open.rs`), not the 5 s and 300 s of the Approach. The resumable layer's new
+  link goes through `open` to its one host, a list of one that the user named
+  (`crates/podssh-relay/src/forward_layer/client.rs:154` says "hosts: vec![relay], explicit: true"), and
+  waits the same backoff between links
+  (`crates/podssh-relay/src/session/resume.rs:377` says "let pause = crate::open::backoff(attempt);"):
+  under a gate of 300 s, a session alone would wait up to 300 s after its host came back, where its own
+  backoff waits 30 s at most, and a first wait of 5 s would cost a brief outage 5 s to resume where it
+  cost about 1 s. So the gate shares one backoff for each host among the sessions of a process: a lone
+  session waits as before, and a wave of them costs one probe a step. A mint's `Retry-After` holds the
+  gate up to 300 s, the triage's bound kept for a server's own word (`failures::REST`). Lost: 5 s and
+  300 s; the issue's 4 h.
+- **A host of no verdict admits up to 8 at once**, as the Approach says: a cold wave of 64 at a failing
+  host costs at most 8 dials, and once it failed, 64 at once cost one probe, the case that the tests
+  hold. Lost: one scout for a host of no verdict, the others waiting for its answer as the mint's gate
+  waits (`failover::MintGate`), which would cost each command of several sessions (`cp` with several,
+  `each`) up to an open's time at its start on a healthy relay.
+- **A full gate (8 running) holds the next attempt for a slot**, with a next host too: the host is
+  healthy, and the race's own stagger starts the next host after 2 s. Lost: a refusal at once, which
+  would spread a healthy batch over the pool.
+- **The verdict reuses the record's reason** (`failures::reason`): a failure is one where the record of
+  failures would keep one, so the gate and the record agree on what is the host's; any other answer of
+  the relay's (a refusal, its 502, a mint that issues none) shows it alive, and an error of this side
+  (offline, a token of the environment, the proxy's 407) says nothing. An answer of an older epoch
+  leaves a closed gate closed, and a failure of an older epoch on a gate open again since is ignored:
+  the newer answer holds.
+- **The lines**: a held attempt with a next host ends at once with `OpenError::Held`, whose line goes
+  with the race's notes (`HOST: waits N s after a failure of this process; trying the next host`); a
+  run whose every host is held says the last host's wait before its round, as the race gives an
+  attempt's notes only when it ends. `Held` records nothing, and exits 69 as an unavailable relay.
+- `open.rs` was at 498 lines: its tests moved to `crates/podssh-relay/src/open_tests.rs`, as
+  `failures.rs`'s did; the manual's item "A host that failed" moved to
+  `crates/podssh-cli/src/man/facts/failed.rs`, beside the gate's, as `facts.rs` was at 499.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib gate
 cargo test -p podssh-relay --lib open
+cargo test -p podssh-relay --lib failures
 cargo test -p podssh-relay --test failover
+cargo test -p podssh-cli --lib man::
 ```
 
 With a paused clock: 64 attempts at once against one failing origin dial it once, and the rest go to
@@ -4535,6 +4574,38 @@ the next host or wait; a stale epoch's verdict lengthens a wait and never shorte
 the gate; a lease dropped with no verdict frees its slot; the wait never counts against
 `HOST_DEADLINE`. Planted: the wait inside the deadline, and the test of a held session that is not a
 timeout fails.
+
+## Done
+
+2026-11-05, merged from its draft (`18b641c`).
+
+- `crates/podssh-relay/src/gate.rs`: the gates of a process (`gate::process`), one for each host and
+  port; `admit` (8 at once while open; closed for the ladder's wait, then one probe; with a next host a
+  held attempt is refused at once with `OpenError::Held`, else it waits), the lease freed by its
+  verdict or its drop, the epochs, `verdict` of each end, `guarded` (the wait, then the attempt within
+  its deadline), and `all_held`, the line of a run whose every host is held. `open`'s attempt passes
+  `guarded` with `HOST_DEADLINE`, and its round says `all_held`'s line; `OpenError::Held` goes to the
+  next host and records nothing (`failures::reason`).
+- Tests: `gate_tests.rs` (paused clock: a cold wave of 64 dials at most 8 and moves the ladder once;
+  after a failure, 64 at once dial once, 32 with a next host held at once and 32 with none waiting, one
+  of them the probe, the rest until their caller's limit; an older epoch lengthens and never shortens;
+  each end's verdict; a 403 and a 502 at the probe open the gate; a dropped lease frees its slot, and a
+  dropped probe the probe's place; a wait of 60 s past a deadline of 2 s is no timeout; the ladder 1 to
+  30 s and a Retry-After up to 300 s; the line of a run all held, one origin in any case);
+  `open_tests.rs` (a held host goes on, records nothing, and its lines); `tests/failover.rs` (64
+  sessions through `race`, after the first host failed, go to the next at once and dial it not, 8 at a
+  time at the next).
+- The manual (THE RELAY, "A process's sessions"), `docs/relay.md` (after the list of how podssh
+  selects relay hosts).
+- `cargo test -p podssh-relay --features serve,plain-ws,quick,pair,grant,piping,code,quic --lib -- gate
+  open failures`: 33 passed; `--test failover`: 13 passed. The relay crate whole, with each serve
+  feature and `quic`: 881 passed, 0 failed; podssh-ws 481; the CLI 1,921 (`--lib man::` among them).
+  The plants `t637-wait-in-deadline`, `t637-old-answer-opens`, `t637-drop-keeps-slot` and
+  `t637-each-failure-moves`: 4 caught. Clippy clean; rustfmt rewrapped `OpenError::Held`.
+- At the merge onto T-667, four tests that run the opener (`relay_serve_cleartext`,
+  `relay_serve_h2` and others) overflowed a worker's stack of 2 MiB in a debug build: `guarded` held
+  the attempt's whole future, the opener's largest. The attempt is boxed before the gate takes it,
+  and each passed.
 
 # T-644: `podssh relay serve` cannot share its port with a local sshd: an SSH client on its listener meets the cleartext road
 
@@ -4625,7 +4696,7 @@ Read at `2042200`:
   (`crates/podssh-cli/src/node_quick_relay.rs:70`).
 - The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs:80`, and
   `crates/podssh-relay/src/serve/keys.rs:84` says "this relay cannot read its list of keys";
-  `docs/relay.md:828` says "read again for each request".
+  `docs/relay.md:849` says "read again for each request".
 - `crates/podssh-relay/src/serve/mod.rs:104` holds the list as a path; the net's members are a source
   that the binary gives (`crates/podssh-relay/src/serve/keys.rs:31`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.
@@ -4741,7 +4812,7 @@ role's forward road.
 
 ## Premise
 
-- `docs/relay.md:376` says "is no TCP half-close. But the target's bytes still come after the client's",
+- `docs/relay.md:397` says "is no TCP half-close. But the target's bytes still come after the client's",
   measured on the default relay on 2026-10-09.
 - `crates/podssh-relay/src/serve/forward.rs:283` says "return End::Client;": the client's Close
   ends the pump of both ways, after `to_target.shutdown()`.

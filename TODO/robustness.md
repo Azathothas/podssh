@@ -535,7 +535,7 @@ Read, the bounds today:
   (`crates/podssh-ssh/src/relay_stream.rs:36-39`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:24`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
-  `crates/podssh-relay/src/open.rs:31-35`, `crates/podssh-ssh/src/session.rs:22`.
+  `crates/podssh-relay/src/open.rs:33-37`, `crates/podssh-ssh/src/session.rs:22`.
 - No limit: a `known_hosts` file was read whole (`crates/podssh-ssh/src/known_hosts.rs`,
   lines 186-192 at `72ca309`); the IRC buffer (T-096).
 - Two texts disagreed until T-024. The comment on the SSH window
@@ -544,7 +544,7 @@ Read, the bounds today:
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
   now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:26-29`):
-  `docs/relay.md:533-545` says that backpressure closes with `1013` at
+  `docs/relay.md:554-566` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
 ## Approach
@@ -598,7 +598,7 @@ fail.
 - The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
   `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
   (`crates/podssh-ws/src/handshake.rs:124`) bounds `handshake::handshake`, which no command calls.
-- The steps of the connection wait `CONNECT_TIMEOUT` each (`crates/podssh-relay/src/open.rs:31`).
+- The steps of the connection wait `CONNECT_TIMEOUT` each (`crates/podssh-relay/src/open.rs:33`).
   `DEFAULT_TIMEOUT` (`crates/podssh-ws/src/client.rs:21`) is a default for an embedder, which no
   command of podssh takes.
 - The IRC buffer has a bound since T-096: 8192 bytes for a line
@@ -606,7 +606,7 @@ fail.
 - `known_hosts` was read whole a second time, under the lock of a record (`append`); the bound
   covers both reads.
 - A pool body past its bound, and a file of the cache past its bound, are dropped with no word:
-  the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:400`), and the cache reads a
+  the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:417`), and the cache reads a
   file that it cannot use as none (`crates/podssh-relay/src/cache.rs:323-325`). Each is made again,
   so the table says so, and nothing is added.
 - `PODSSH_REPLAY_BUFFER` above 16 MiB gives 4 MiB, the default, not 16 MiB
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-32`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:715-735`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:716-736`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s

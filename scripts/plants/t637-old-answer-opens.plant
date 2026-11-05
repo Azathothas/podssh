@@ -1,0 +1,7 @@
+# T-637: an answer of an attempt admitted before the gate closed opens it,
+# so a verdict of an older epoch shortens the wait; the test of the epochs
+# must fail.
+ENTRY=T-637
+GROUP=resume
+EXPECT='test gate::tests::a_verdict_of_an_older_epoch_lengthens_the_wait_and_never_shortens_it \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- gate::tests::a_verdict_of_an_older_epoch_lengthens_the_wait_and_never_shortens_it'

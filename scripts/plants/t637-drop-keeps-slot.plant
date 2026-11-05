@@ -1,0 +1,7 @@
+# T-637: a lease dropped with no verdict, as by a race that kept another
+# host, keeps its slot, so the gate fills and admits nobody; the test of a
+# dropped lease must fail.
+ENTRY=T-637
+GROUP=resume
+EXPECT='test gate::tests::a_lease_dropped_with_no_verdict_frees_its_slot \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- gate::tests::a_lease_dropped_with_no_verdict_frees_its_slot'

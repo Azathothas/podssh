@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:421`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:422`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2743-2746`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:421`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:422`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -3155,7 +3155,7 @@ not a run of `ssh -f`.
 
 - Read: T-380's parent returns once the child said ready, and nothing watches the child after that
   (`crates/podssh-cli/src/detach/mod.rs:184`).
-- Read: the node retries its relay for ever within its process (`crates/podssh-relay/src/open.rs:412`,
+- Read: the node retries its relay for ever within its process (`crates/podssh-relay/src/open.rs:429`,
   its backoff); what ends the process ends the tunnel.
 - Read in d-mon's code: a supervisor of one `poll` loop that restarts its program, with a cap that
   counts the program's whole life (its supervisor, of d-mon at d64d6ec, read in the

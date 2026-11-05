@@ -1,0 +1,14 @@
+--- a/crates/podssh-relay/src/gate.rs
++++ b/crates/podssh-relay/src/gate.rs
+@@ -226,7 +226,10 @@ impl Gates {
+                     state.closed = None;
+                     state.epoch += 1;
+                 }
+-                Some(Verdict::Failed(asked)) => failed(state, current, asked, now),
++                Some(Verdict::Failed(asked)) => {
++                    let each = current || state.closed.is_some();
++                    failed(state, each, asked, now)
++                }
+                 _ => {}
+             }
+         }

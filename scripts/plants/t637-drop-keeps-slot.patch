@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/gate.rs
++++ b/crates/podssh-relay/src/gate.rs
+@@ -307,9 +307,7 @@ impl Lease {
+ 
+ impl Drop for Lease {
+     fn drop(&mut self) {
+-        if !self.settled {
+-            self.gates.settle(&self.key, self.epoch, self.probe, None);
+-        }
++        let _ = self.settled;
+     }
+ }
+ 

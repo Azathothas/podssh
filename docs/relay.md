@@ -190,6 +190,27 @@ The code is in `crates/podssh-relay/`.
    and `PODSSH_DIRECT=no` or the settings file's `Direct no` turns the
    fallback off ([cli.md](cli.md), "Options of `podssh ssh`").
 
+The sessions of one process share a gate for each relay host, by its name
+in any case and its port (T-637, GitHub #135;
+`crates/podssh-relay/src/gate.rs`). While the host gave no failure in this
+process, up to 8 attempts run at once. A failure that the record of step 5
+would keep closes the gate: no attempt for 1 s, then one probe at a time; a
+probe that fails doubles the wait up to 30 s, the backoff of step 6, so a
+session alone, as the resumable layer's new link is, waits no longer than
+its own backoff made it; and any answer of the host opens the gate again: a
+session, a refusal by its policy, its 502 for a target. Each attempt takes
+the gate's epoch as it is admitted, so the failures of one wave move the wait
+once, and a verdict of an older epoch lengthens the wait from its own time
+and never shortens it. A mint's `Retry-After` holds the gate longer, up to
+300 s. A session held at a host that has a next host in its list goes on to
+it at once, with the line `HOST: waits N s after a failure of this process;
+trying the next host`; at its last host it waits, which a line says before
+its round, as long as its caller's limit (`ConnectTimeout`) lets it. The wait
+sits outside the attempt's 45 s, so it is never read as a host that did not
+answer, and it records nothing. The gates live in the process: a new command
+starts with them open, and the record of step 5 carries what a run learned to
+the next.
+
 `podssh relay rank` (T-606) measures each host of the default list's pool
 from this host, on demand, one at a time: rounds of a session to
 `github.com:22` each, timed from the dial to the upgrade, and kept in the
