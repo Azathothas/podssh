@@ -3824,7 +3824,7 @@ Read at `2042200`:
   own: the peer's later bytes are not asked for.
 - Sessions of the layer with no channel above it: the relay role's road for a standard sshd
   (`crates/podssh-relay/src/serve/layer.rs:1-8`), which `proxy` and `ssh` take unasked for a relay
-  host that the user named and that offers it (Q96, `docs/decisions.md:18`); and a node's sessions with
+  host that the user named and that offers it (Q96, `docs/decisions.md:19`); and a node's sessions with
   `--no-e2e` (`crates/podssh-cli/src/flags/node.rs:139`).
 - The plain forward road keeps a half-close: `crates/podssh-relay/src/serve/forward.rs:280-283` shuts
   the target's writing side at the client's Close and goes on, as the default relay does

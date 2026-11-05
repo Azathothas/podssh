@@ -35,8 +35,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   6. **Two lessons of the night** (each in the paragraph of the drafts below): never commit while
      `scripts/plant-each.sh` runs; when the disk fills, remove `target/` whole.
   7. **The move (2026-11-05, morning):** the repository goes to PodUtils/podssh and the shared
-     crates to PodUtils/podcrates (`docs/decisions.md`). T-683 (P1) comes before the transfer: a
-     bridge release that each released binary accepts; T-684 waits for Q101, the list of crates
+     crates to PodUtils/podcrates (`docs/decisions.md`). No compatibility with the released binaries
+     for now (the operator): T-683 renames the repository's name after the transfer, with no bridge
+     release; T-684 waits for Q101, the list of crates
      agreed with podnet's session. podbox is podvm.
 
 - **The record.** The work is in `TODO/` since 2026-10-08 (T-204). Each open
@@ -437,8 +438,8 @@ accept it as written.
   `CryptoProvider` and a dialer; podssh's pure-Rust provider and the RSA verifier (rsa 0.9) behind
   a feature of `pod-tls`; crates.io only, no git source; `pod-relay` keeps the `blocking` facade for
   podvm, and the library crates Rust 1.89 (`pod-netstack` and `pod-warp` 1.91, smoltcp 0.14's);
-  each name of the wire a parameter that podssh passes as released, and a test of a released
-  podssh binary against the crates, both ways.
+  a name of the wire may change, with no test against a released binary (the operator,
+  2026-11-05: no compatibility with the released binaries for now).
 - Who builds: a new session in PodUtils/podcrates, fed by both repositories; neither podssh's
   session nor podnet's edits podcrates.
 - podssh keeps: `podssh-cli`, `podssh-ssh` (it takes the patched russh and ssh-key), the IRC of

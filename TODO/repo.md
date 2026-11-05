@@ -4460,7 +4460,7 @@ Each can stop a release, or the gate, for a reason outside podssh.
   download must be checked; the pinned SHA-256 checks the exact bytes.
 - Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:187-195`),
   in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
-  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:61`).
+  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:62`).
   Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
 - Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml` lines 175 and
   177 at `1a46970`).
@@ -5292,81 +5292,65 @@ known-answer test fails it on sha2 0.11.1, as in T-386.
 - #123 stays out, as the Decision says: iroh-dns 1.4.1 is still the newest, and takes simple-dns
   0.12; its pull request is answered with that reason.
 
-# T-683: The move to PodUtils/podssh: each released binary refuses a release that PodUtils/podssh's workflow signs
+# T-683: The move to PodUtils/podssh: the repository's name in the code, the manual, the workflows and the documents
 
-**Source:** the operator, 2026-11-05: "repo will migrate to: https://github.com/PodUtils/podssh"
-(`docs/decisions.md`, 2026-11-05).
-**Category:** defect
+**Source:** the operator, 2026-11-05: "repo will migrate to: https://github.com/PodUtils/podssh",
+and the same morning: "we do not care about legacy clients or published binaries ... so we are free
+to break and migrate" (`docs/decisions.md`, 2026-11-05).
+**Category:** chore
 **Milestone:** M10
-**Priority:** P1
-**Effort:** M
+**Priority:** P2
+**Effort:** S
 **Status:** open
 
 ## Problem
 
-`podssh update` checks a release's Sigstore bundle against the leaf's URI of the release
-workflow of the repository that the binary was built from. Each binary from `v1.0.0` to
-`v1.1.0-beta.3` was built from `Azathothas/podssh`. Once the repository is PodUtils/podssh, its
-release workflow signs as PodUtils/podssh, and each of those binaries refuses each new release:
-the testers can no longer update, with no word of why but a mismatch of names. GitHub's redirect
-of the old URLs takes an old binary to the new files (podssh follows a redirect), so the files are
-found, and the signature is refused.
+The repository moves to PodUtils/podssh. Its name is in the binary (`podssh update`'s feed and the
+signer it accepts), in the pairing's AppID, in the README's install and attestation, in the
+workflows and in the documents. After the transfer, GitHub's redirect hides each old name for a
+time; a name left behind breaks once a repository takes the old place, and the update of a binary
+built after the transfer refuses each release, whose signer names PodUtils/podssh.
 
 ## Premise
 
 - Read: `Cargo.toml:62` sets `repository = "https://github.com/Azathothas/podssh"`;
-  `crates/podssh-cli/src/update/mod.rs:163` takes the repository from `CARGO_PKG_REPOSITORY`, so it is
-  fixed in each binary at its build.
-- Read: `crates/podssh-cli/src/update/sigstore.rs:30` makes the URI
-  `https://github.com/{repo}/.github/workflows/release.yml@refs/tags/{tag}`, and
-  `crates/podssh-cli/src/update/sigstore.rs:134` refuses a leaf whose URIs do not hold it.
-- Read: `crates/podssh-cli/src/update/fetch.rs:136` follows a redirect (301, 302, 303, 307, 308).
+  `crates/podssh-cli/src/update/mod.rs:163` takes the repository from `CARGO_PKG_REPOSITORY`.
+- Read: `crates/podssh-cli/src/update/sigstore.rs:30` makes the signer's URI from that repository,
+  and `crates/podssh-cli/src/update/sigstore.rs:134` refuses a leaf that does not name it.
 - Read: `crates/podssh-relay/src/code/mod.rs:37` and `crates/podssh-relay/src/serve/mailbox/mod.rs:32`
-  name the pairing's AppID `github.com/Azathothas/podssh/pair`, a constant of the wire that two
-  binaries must share to pair by a code.
-- Read: 39 files of the repository name `Azathothas/podssh` (`git grep -l`), the README's
-  install and `gh attestation verify --repo` among them.
+  name the pairing's AppID `github.com/Azathothas/podssh/pair`.
+- Read: 39 files of the repository name `Azathothas/podssh` (`git grep -l`).
 
 ## Approach
 
-1. A bridge release, tagged from Azathothas/podssh before the transfer, so that each released
-   binary accepts it (its workflow still signs as Azathothas/podssh):
-   - `repository` becomes `https://github.com/PodUtils/podssh`.
-   - `sigstore::Identity` takes a list of repositories, the build's own first and
-     `Azathothas/podssh` after it; a leaf that names the release workflow of one of them at the tag
-     is accepted, and no other.
-   - The feed and the API are read at the build's repository first, then at `Azathothas/podssh`,
-     the one that answers gives the files; before the transfer PodUtils/podssh does not answer, after
-     it Azathothas/podssh redirects.
-   - The AppID stays `github.com/Azathothas/podssh/pair`, with a comment that it is a constant of
-     the wire, not a link.
-2. The operator transfers the repository (Settings, Transfer); it is not created again, so each old
-   URL keeps its redirect. Nobody creates a repository named `Azathothas/podssh` again: that ends
-   the redirect.
-3. After the transfer: the README, the manual, the documents and the workflows name
-   PodUtils/podssh; `release-proofs.yml` and `update-live.yml` check the next release from a binary
-   of before the bridge (refused, with the words that tell the user to install the bridge by hand)
-   and from the bridge (accepted).
+1. After the operator's transfer: `repository` names PodUtils/podssh, so the feed, the files and
+   the signer that `podssh update` accepts are PodUtils/podssh's; the AppID becomes
+   `github.com/PodUtils/podssh/pair`; the README, the manual, the workflows and the documents name
+   PodUtils/podssh. Dated records keep the old name.
+2. A test of `podssh update` names the repository of the build, and a check of the repository
+   refuses `Azathothas/podssh` outside the dated records.
 
 ## Decision
 
-Lost: (a) a new repository and the old one archived: each released binary's feed would stay at
-the archived repository and see no new release; (b) one key of podssh's own beside Sigstore:
-a binary of before the bridge does not know it either; (c) a second signature by the old name
-from the new repository: GitHub's token names the repository that runs the workflow, so
-PodUtils/podssh cannot sign as Azathothas/podssh.
+No bridge release and no second signer: a released binary need not update across the move (the
+operator, 2026-11-05). Lost: a bridge release before the transfer, whose verifier accepts both
+names, which each tester's binary would have needed to keep updating; a binary of a beta is
+installed again by hand.
 
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli update::
+python scripts/check-repo.py
 ```
 
-A bundle whose leaf names PodUtils/podssh's workflow at the tag is accepted, one of
-Azathothas/podssh's too, and one of a third repository, or of another workflow or tag, is refused;
-a feed that answers 404 at PodUtils/podssh is read at Azathothas/podssh. Planted: the list of
-repositories with the build's own alone fails the test of Azathothas/podssh's leaf.
+A leaf of PodUtils/podssh's release workflow at the tag is accepted, one of `Azathothas/podssh` is
+refused. Planted: the old name back in `Cargo.toml` fails the check of the repository.
+
+## Start condition
+
+The operator has transferred the repository to PodUtils/podssh.
 
 # T-684: podcrates: the crates that podssh, podnet and podvm share, in PodUtils/podcrates
 
@@ -5403,8 +5387,8 @@ each free of `podssh-ws`'s types, serves the three.
 
 The list of Q101, in its waves, each crate built in PodUtils/podcrates by a session of its own,
 from the sources of both repositories: the crates take a dialer and a rustls `CryptoProvider` from
-the binary, and each name of the wire or of a variable is a parameter that podssh passes as
-released. podssh then takes each crate from crates.io as it is published, in the place of its own
+the binary; a name of the wire or of a variable may change (the operator, 2026-11-05: no
+compatibility with the released binaries for now). podssh then takes each crate from crates.io as it is published, in the place of its own
 module, with the same tests.
 
 ## Prove
@@ -5416,8 +5400,7 @@ sh scripts/plant-each.sh
 ```
 
 For each crate that podssh takes: podssh's tests of the module it replaced pass on the crate, and
-its plants are caught; a podssh binary of the last release pairs, resumes and copies with a binary
-on the crate, both ways.
+its plants are caught. No test against a released binary (the operator, 2026-11-05).
 
 ## Blocker
 

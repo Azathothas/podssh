@@ -352,7 +352,7 @@ never answers, and the test fails at its limit of 10 s.
 ## Correction
 
 2026-10-10: the Prove's "On Windows, the address exits 64" was written
-before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:75`),
+before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:76`),
 which step 4 of the Approach follows: on Windows, `unix-connect:` reaches
 an AF_UNIX socket or a named pipe (`\\.\pipe\NAME`), each tried when the
 pipe starts. So the Prove on Windows is the one of Unix, through an AF_UNIX
@@ -1357,7 +1357,7 @@ the request's target, would be the proxy that such a program points at.
   takes one client by default, and with `--keep-listening` each client in turn, 8 at once at most,
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
-  loopback or AF_UNIX by default (`docs/decisions.md:73`; `docs/architecture.md:272-281`); the
+  loopback or AF_UNIX by default (`docs/decisions.md:74`; `docs/architecture.md:272-281`); the
   gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:93-117`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
@@ -1465,7 +1465,7 @@ live relay behind it.
 
 2026-10-31: three citations of the Premise name other lines, as they did when the entry was
 written (read at `8207d29`). The ruling on a listener that the user asks for is
-`docs/decisions.md:78`; `docs/decisions.md:73` is the ruling on `exec:`. The relay's `403` of its
+`docs/decisions.md:79`; `docs/decisions.md:74` is the ruling on `exec:`. The relay's `403` of its
 policy is `docs/relay.md:464-466`; `docs/relay.md:456-461` is the form of a token and its header.
 The rest reads as cited. Nothing in the Approach changes.
 
@@ -1583,7 +1583,7 @@ user who needs `websocat` must bring it, and a cage may not run it.
   for `websocat`.
 - `ws-listen:` takes no target from the request: each client goes to the other side as given.
   Lost: a target from the URL, which would make podssh a public forwarder of the kind of T-369's,
-  that is a relay, and the relay stays a separate project (`docs/decisions.md:78`).
+  that is a relay, and the relay stays a separate project (`docs/decisions.md:79`).
 - No `wss-listen:`: a server of TLS needs a certificate and a key of the user's, and #76 does not
   ask for it.
 - The reader of requests is T-367's; whichever is done first writes it. The dial with no token
@@ -1640,7 +1640,7 @@ Planted: the server's frames encoded as `Role::Client`; the test of the masks fa
 `8207d29`). The role of the codec is `crates/podssh-ws/src/frame.rs:74-83`, and `encode` ignores a
 key of a server's at `:85-88`; `crates/podssh-ws/src/frame.rs:61-70` holds the markers of a length
 and `Frame`. The relay was a separate project then, a ruling that Q63 replaced on 2026-11-02
-(`docs/decisions.md:42`); `docs/decisions.md:78` is the ruling on a listener that the user asks for. Nothing in the Approach changes.
+(`docs/decisions.md:43`); `docs/decisions.md:79` is the ruling on a listener that the user asks for. Nothing in the Approach changes.
 
 ## Done
 
