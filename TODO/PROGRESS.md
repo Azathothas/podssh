@@ -206,6 +206,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   merged (GitHub #141, #142, #136 and #140 closed), their worktrees gone. A lesson of the night: never amend a commit
   that was pushed, not even of a draft branch, as the push after it is a force-push (`draft/merge-668`
   was so pushed once, its one change the drop of an import); a new commit each time.
+  At 06:15 UTC a twelfth round is drafted: T-649 and T-650 (GitHub #147 and #148), T-679 (a
+  node's upgrade on its other roads) and T-433 (`podssh share`), each in a worktree of its own,
+  unbuilt.
   A merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
   `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
   applied in the tree then); and when the disk fills, remove `target/` whole, never files under
