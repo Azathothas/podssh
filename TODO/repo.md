@@ -4460,7 +4460,7 @@ Each can stop a release, or the gate, for a reason outside podssh.
   download must be checked; the pinned SHA-256 checks the exact bytes.
 - Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:187-195`),
   in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
-  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:62`).
+  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:63`).
   Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
 - Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml` lines 175 and
   177 at `1a46970`).
@@ -5405,3 +5405,56 @@ its plants are caught. No test against a released binary (the operator, 2026-11-
 ## Blocker
 
 The operator: Q101 (the list, the waves, and who builds podcrates), and PodUtils/podcrates made.
+
+# T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
+
+**Source:** the operator, 2026-11-05: "we use whatever is necessary, including c, zig, modern rust,
+no backwards compat ... the only rule is: everything must be statically compiled", and for podssh:
+"change it and avoid self sabotage" (`docs/decisions.md`, 2026-11-05).
+**Category:** chore
+**Milestone:** M10
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The rules of no C in the library crates and of Rust 1.89 are retired, but the gate still enforces
+them: a crate of podcrates that links C, or that declares edition 2024 and the newest stable Rust,
+fails podssh's gate the day podssh takes it (T-684). The one rule that remains, a statically
+compiled binary, has no check of its own beside the release's.
+
+## Premise
+
+- Read: `scripts/gate.sh:21` lists the steps `msrv`, `msrv_ssh`, `msrv_ts`, `msrv_iroh`,
+  `msrv_warp` and `msrv_tor`, each a check of crates at a declared minimum Rust
+  (`scripts/gate.sh:263` and after); CI's matrix is `sh scripts/gate.sh --list`
+  (`.github/workflows/build.yml:49`), so a step removed from the list leaves CI.
+- Read: `scripts/gate.sh` runs 17 commands under `env CC=/nonexistent CXX=/nonexistent`, which
+  refuse a crate that builds C (`scripts/gate.sh:128` tells why).
+- Read: `Cargo.toml:59` declares `rust-version = "1.89"` and `Cargo.toml:53` edition 2021; each crate
+  declares its own minimum (1.89, 1.91 or 1.92).
+
+## Approach
+
+1. `scripts/gate.sh`: the steps `msrv*` leave the list; each `env CC=/nonexistent CXX=/nonexistent`
+   prefix goes; the comments that state the old rules say the new one.
+2. A check of the one rule: the release's binaries are static (Linux: `file` and `readelf -d` show
+   no interpreter and no `NEEDED`; Windows: no MSVC runtime DLL in the imports; macOS links only
+   the system's libraries, the static form the platform allows), in the gate's step `release` and in
+   `release.yml`, with a plant that links a binary dynamically.
+3. Edition 2024 and the build image's stable Rust as `rust-version`, crate by crate, with `cargo fix
+   --edition` and the tests of each crate; the Cargo.toml comments and `docs/development.md`,
+   `docs/architecture.md`, `docs/design.md` (section 3) that state the old rules.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+sh scripts/gate.sh --list
+sh scripts/dev.sh check
+python scripts/check-repo.py
+```
+
+The list holds no `msrv` step; the gate passes on edition 2024; the check of a static binary passes
+on the release's binaries and fails on its plant.

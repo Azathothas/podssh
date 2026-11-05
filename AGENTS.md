@@ -304,9 +304,10 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    system calls from its own process (decision of 2026-10-08, T-248). This
    binary started again at the user's request (`--detach`, `ssh -f`,
    `session start`) is no helper (decision of 2026-11-01, Q61).
-4. Do not put C code in the library crates: `podssh-ws`, `podssh-relay`,
-   `podssh-core`, `podssh-terminal` and `podssh-probe`.
-   The binary links aws-lc for SSH (`russh`).
+4. Use whatever is necessary: C, zig and the newest stable Rust are
+   allowed in each crate (the operator, 2026-11-05). The one rule of the
+   build: each released binary is statically compiled. Do not keep a check
+   or a minimum version that only holds podssh back (T-685).
 5. Keep each source file at 500 lines or fewer. Split a longer file. Do not
    remove comments to make a file shorter.
 6. Write comments that tell why, in few words. Do not write `⛔`, session

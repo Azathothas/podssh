@@ -60,7 +60,7 @@ pool host accepted the token of the default host: `docs/STATUS.md`, "`podssh pro
 live"), and no token goes to another deployment. The exact minting host lost: each pool host
 would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:476`).
 The decision said "one machine has one cached token"; on 2026-10-08 the operator ruled
-"one for each relay deployment" (`docs/decisions.md:101`).
+"one for each relay deployment" (`docs/decisions.md:102`).
 
 The session that did it (2026-10-08) made one call stricter than step 3: an old entry, with
 no minting host, is not used at all, also under the default key. An old list that put the
@@ -1959,7 +1959,7 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
   live relay (`scripts/release-short.sh:109-115`, run at `.github/workflows/release.yml:144`, `:207`,
   `:279`, `:318` and `:412`; three of these run in a matrix of two). The audit counted seven
   jobs; the matrices give eight.
-- Read: a beta needs the job `all` of the gate (`docs/decisions.md:66`). Citations of an older
+- Read: a beta needs the job `all` of the gate (`docs/decisions.md:67`). Citations of an older
   document of the relay were once off by 35 (`TODO/repo.md:2315-2318`).
 - Read: no workflow checks the relay on a schedule: `relay-live.yml` runs by hand
   (`.github/workflows/relay-live.yml:14-23`), and `build.yml` on a push, a pull request or by hand
@@ -2235,8 +2235,8 @@ relay's operator has no way to move the binaries in the field to another deploym
   (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:648-653`). The audit cited
   `docs/relay.md:640-645`; the fact is at `:648-653`.
 - Read: a release binary is uploaded or copied into its host, which cannot build it or download
-  it (Q48, `docs/decisions.md:62`); a machine keeps one token for each deployment, and podssh
-  "never sends a token to a deployment that did not mint it" (`docs/decisions.md:101`).
+  it (Q48, `docs/decisions.md:63`); a machine keeps one token for each deployment, and podssh
+  "never sends a token to a deployment that did not mint it" (`docs/decisions.md:102`).
 - Read, by the audit through web.pkgforge.dev on 2026-10-31
   (https://pubapi.registry.google/rdap/domain/ajam.dev): Cloudflare's name servers, no DNSSEC, an
   expiry on 2028-01-19.
@@ -2260,7 +2260,7 @@ podssh's side:
    still meets TLS on its own name.
 4. The default becomes a list of deployments: today's first, then those that the signed document
    names. A token is minted at each deployment and sent to no other (T-057), and the hosts are
-   tried in the ways of Q10 (`docs/decisions.md:80`).
+   tried in the ways of Q10 (`docs/decisions.md:81`).
 5. The cache keeps the signed document and its signature, so that a binary keeps the other
    deployments when the old domain is gone.
 6. `podssh relay status` and doctor name each deployment, and whether its pool was signed.
@@ -2896,7 +2896,7 @@ podssh's cache (the keys, the pins, the tokens, the logs of detached runs) goes 
 the first one's files in the second one's tree, which that user's tools take for their own; and
 where that `.cache` is missing, podssh makes it, mode 0700 and owned by the running user, so the
 home's owner can no longer use a cache of their own. A defect: the decision names "the user's
-cache directory" (`docs/decisions.md:101`), and this one is another user's.
+cache directory" (`docs/decisions.md:102`), and this one is another user's.
 
 ## Premise
 
@@ -2911,9 +2911,9 @@ cache directory" (`docs/decisions.md:101`), and this one is another user's.
   (`crates/podssh-relay/src/identity/file.rs` lines 97-110 at `3bb42ea`): a list without that home
   would make a new key, a new identity, for a node whose operators pinned the old one.
 - Read: the tokens' row of the decisions names "the user's cache directory, the user's runtime
-  directory, the temporary directory, the working directory" (`docs/decisions.md:101`); Q68 reads
+  directory, the temporary directory, the working directory" (`docs/decisions.md:102`); Q68 reads
   the effective uid's entry of `/etc/passwd` as a file, for the login name
-  (`docs/decisions.md:41`, T-500).
+  (`docs/decisions.md:42`, T-500).
 
 ## Approach
 
@@ -3602,15 +3602,15 @@ to hosts that the session does not use.
 
 - Read: `AGENTS.md:275-285`, rule 2: one outbound connection, and its four exceptions (a listener
   that the user asks for, the race between relay hosts, the split HTTP road of Q44, the quick
-  tunnel's second connection of Q62); `docs/decisions.md:40` adds XHTTP's second connection (Q67).
+  tunnel's second connection of Q62); `docs/decisions.md:41` adds XHTTP's second connection (Q67).
   None covers a probe of a host that the session does not use.
 - Read: the pool's refresh after a mint is a request of its own in the background
   (`crates/podssh-relay/src/open.rs:408-419`): one request to the host that minted, at most once in
   7 days.
 - Read: the contract's `?dial=lazy` (`docs/relay.md:513-516`): the relay dials the target on the
   client's first byte, so a probe with it and no byte reaches no target.
-- Read: Q83, the experience of a user first (`docs/decisions.md:24`), and Q73, `doctor`'s sections
-  at once (`docs/decisions.md:34`).
+- Read: Q83, the experience of a user first (`docs/decisions.md:25`), and Q73, `doctor`'s sections
+  at once (`docs/decisions.md:35`).
 - Read: T-606 ranks on demand and T-607 samples the race; neither probes a host unasked.
 
 ## Approach
@@ -3718,7 +3718,7 @@ once; the test of the overlap fails.
   10 s at most, each with `?dial=lazy`. Item 1 no longer waits on a default.
 - 2026-11-03, the draft: the Premise's lines moved before it was read. Rule 2 begins at
   `AGENTS.md:279`, and the rows of Q89 and Q90 came above the others: Q67 is at
-  `docs/decisions.md:42`, Q83 at `docs/decisions.md:26` and Q73 at `docs/decisions.md:36`. Rule 2
+  `docs/decisions.md:43`, Q83 at `docs/decisions.md:27` and Q73 at `docs/decisions.md:37`. Rule 2
   had four exceptions, and Q67's XHTTP is not among them; the draft adds Q89's as the fifth.
 - The settings file's `RelayRank` took yes or no alone (`crates/podssh-cli/src/settings.rs`, its
   `relayrank`), and the file's `no` won over the variable (`crates/podssh-relay/src/rank_list.rs`,
@@ -3967,7 +3967,7 @@ samples hold.
 
 ## Premise
 
-- Read: Q63, `docs/decisions.md:43` says "stays the default relay; a change of that deployment
+- Read: Q63, `docs/decisions.md:44` says "stays the default relay; a change of that deployment
   stays an item of"; no entry waits for one.
 - Read: `docs/relay-operator.md` has no item on `/relays.json`'s rank or `score_ms`: its sections
   "Defects on the relay's side" (`docs/relay-operator.md:34`) and "Questions about the contract"

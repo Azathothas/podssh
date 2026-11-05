@@ -39,6 +39,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      for now (the operator): T-683 renames the repository's name after the transfer, with no bridge
      release; T-684 waits for Q101, the list of crates
      agreed with podnet's session. podbox is podvm.
+  8. **Whatever is necessary, statically compiled (2026-11-05, the operator):** C, zig and the
+     newest stable Rust in each crate; T-685 (P1) retires the gate's checks of the old rules, first
+     after the red gate of `b8816ca` (m6, likely T-682).
 
 - **The record.** The work is in `TODO/` since 2026-10-08 (T-204). Each open
   item of `docs/ROADMAP.md`, each row of the former defects page, each
@@ -262,7 +265,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 639 entries: 96 open, 10 partial, 4 blocked, 529 done.
+`TODO/INDEX.md` holds 640 entries: 97 open, 10 partial, 4 blocked, 529 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

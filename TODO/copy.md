@@ -3430,7 +3430,7 @@ waits minutes: 100 files of 2 bytes took 210 s with the default.
 - Read: T-141 and T-417 kept the default of 1 as their own call ("several channels are the user's
   choice"), after the operator's ruling Q23. Its row reads: several relay sessions for one copy
   when the user asks, a flag sets the number, the default is 1, and
-  `docs/decisions.md:75` says "Several channels in one connection come first". The files K at
+  `docs/decisions.md:76` says "Several channels in one connection come first". The files K at
   once are channels of one connection (T-297), not relay sessions. T-141's Approach kept K at 1
   "until a measurement shows a gain".
 - Read: a server that opens fewer sessions gets fewer files at once, with no failure, and through
