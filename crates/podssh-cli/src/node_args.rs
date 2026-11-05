@@ -89,6 +89,9 @@ pub struct NodeArgs {
     pub grant_for: Option<String>,
     /// `--revoked FILE`: the serials of grants that the node refuses.
     pub revoked: Option<String>,
+    /// `--ask`: a person at the node's terminal lets each key in, after the
+    /// door (T-638).
+    pub ask: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -137,6 +140,7 @@ impl NodeArgs {
             grant_route: get("grant-route"),
             grant_for: get("grant-for"),
             revoked: get("revoked"),
+            ask: matches.get_flag("ask"),
             refused,
         }
     }

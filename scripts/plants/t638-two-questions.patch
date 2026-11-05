@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/person.rs
++++ b/crates/podssh-relay/src/e2e/person.rs
+@@ -102,7 +102,7 @@
+     /// Whether the slot still says something at `now`.
+     fn live(&self, now: Instant) -> bool {
+         match self {
+-            Slot::Asking(_) => true,
++            Slot::Asking(_) => false,
+             Slot::Covered { open, until } => *open > 0 || *until > now,
+             Slot::Refused { until, .. } => *until > now,
+         }

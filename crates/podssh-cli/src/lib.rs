@@ -98,6 +98,8 @@ pub mod mcp;
 pub mod net;
 pub mod node;
 pub mod node_args;
+// `podssh node --ask`: a person at the node's terminal, after its door (T-638).
+pub mod node_ask;
 // `podssh node --carrier ADDR`: the node's socket on a stream (T-595).
 pub mod node_carrier;
 // A pair's expiry said before it comes, and the next pair taken at it (T-395).

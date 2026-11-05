@@ -1,0 +1,7 @@
+# T-638: a yes covers its key 120 s from the answer, whatever session is
+# open, so a device that stays is asked again; the test of the cover while a
+# session is open must fail.
+ENTRY=T-638
+GROUP=resume
+EXPECT='test e2e::person::tests::a_yes_covers_the_key_while_a_session_is_open_and_120_s_after \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- e2e::person::tests::a_yes_covers_the_key_while_a_session_is_open_and_120_s_after'

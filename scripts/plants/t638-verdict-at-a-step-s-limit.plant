@@ -1,0 +1,7 @@
+# T-638: the operator waits for the node's verdict a step's 30 s alone, so
+# a person who answers later finds it gone; the test of a late answer must
+# fail.
+ENTRY=T-638
+GROUP=resume
+EXPECT='test the_operator_waits_for_an_answer_past_a_step_s_limit \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test person -- the_operator_waits_for_an_answer_past_a_step_s_limit'

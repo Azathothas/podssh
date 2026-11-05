@@ -35,8 +35,10 @@ use crate::relay_settings::Refusal;
 /// Each direction of the pipe between a client and the channel.
 const PIPE: usize = 256 * 1024;
 /// How long the node's verdict may take: the leg, the layer's and the
-/// channel's handshakes, and the exit's resolution and dial.
-pub const VERDICT_WAIT: Duration = Duration::from_secs(60);
+/// channel's handshakes, the question of a node's person (T-638), and the
+/// exit's resolution and dial.
+pub const VERDICT_WAIT: Duration =
+    Duration::from_secs(60 + podssh_relay::e2e::person::Times::DEFAULT.question.as_secs());
 
 /// The exit, and the flags of its channel and its pair.
 #[derive(Debug, Clone, Default)]

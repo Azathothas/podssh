@@ -1,0 +1,10 @@
+--- a/crates/podssh-relay/src/e2e/ends.rs
++++ b/crates/podssh-relay/src/e2e/ends.rs
+@@ -185,6 +185,7 @@
+             by_grant
+         }
+         Err((line, refusal)) => {
++            let _ = Box::pin(person_of(node, peer, &ask, false)).await;
+             (node.say)(line);
+             asked.refuse(refusal).await;
+             return;

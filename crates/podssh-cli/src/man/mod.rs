@@ -19,6 +19,8 @@ pub mod facts;
 pub mod json;
 pub mod model;
 pub mod notes;
+// A node's person, asked after its door (T-638).
+mod notes_ask;
 mod notes_chat;
 mod notes_config;
 mod notes_containers;

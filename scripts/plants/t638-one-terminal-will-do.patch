@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_ask.rs
++++ b/crates/podssh-cli/src/node_ask.rs
+@@ -86,7 +86,7 @@
+ 
+ /// The probe's verdict: stdin and stderr each a terminal, else 78.
+ pub fn probe(stdin: bool, stderr: bool) -> Result<(), Refusal> {
+-    match stdin && stderr {
++    match stdin || stderr {
+         true => Ok(()),
+         false => Err(Refusal::config(NO_TERMINAL)),
+     }

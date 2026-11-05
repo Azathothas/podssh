@@ -216,6 +216,8 @@ pub(super) const NODE: &[&str] = &[
     super::notes_pair::NODE_OPENTUNNEL,
     // Grants used once (T-226).
     super::notes_grant::NODE,
+    // A person at the node's terminal, after its door (T-638).
+    super::notes_ask::NODE,
     // The tokens of one leg, and the stop token's rotation (T-615).
     super::notes_legs::NODE,
     // A node's upgrade in place, its sessions with it (T-668).

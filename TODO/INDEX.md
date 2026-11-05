@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**637 entries: 101 open, 10 partial, 3 blocked, 523 done.**
+**637 entries: 100 open, 10 partial, 3 blocked, 524 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 26 | 4 | 0 | 248 | 278 |
-| P3 | 75 | 4 | 3 | 209 | 291 |
-| **All** | 101 | 10 | 3 | 523 | 637 |
+| P3 | 74 | 4 | 3 | 210 | 291 |
+| **All** | 100 | 10 | 3 | 524 | 637 |
 
 ## Entries
 
@@ -677,7 +677,7 @@ repository and CI).
 | [T-635](relay.md) | P2 | S | M10 | feature | done | `podssh relay serve` has no list of private targets between public ones alone and `--allow-private` |
 | [T-636](relay.md) | P3 | M | M10 | feature | done | The relay role counts no bytes for each key across its sessions, and keeps no count across a restart |
 | [T-637](relay.md) | P3 | M | M10 | feature | done | Sessions of one process that open at once against a failing relay host each dial it, and each waits out its own deadline |
-| [T-638](mesh.md) | P3 | M | M10 | feature | open | A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door |
+| [T-638](mesh.md) | P3 | M | M10 | feature | done | A node's admission has no question to a person, no cover while a device is present, and no line of who came in by which door |
 | [T-639](pipe.md) | P3 | S | none | feature | done | `ws-listen:` answers a request that is no upgrade with a `426` alone; no page from a directory |
 | [T-640](robustness.md) | P3 | M | none | feature | done | A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them |
 | [T-641](roads.md) | P3 | M | M10 | feature | done | `doctor` does not say whether this host's NAT keeps one mapping across destinations |

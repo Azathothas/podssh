@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/ends.rs
++++ b/crates/podssh-relay/src/e2e/ends.rs
+@@ -239,7 +239,7 @@
+ /// or the grant let it in alone.
+ async fn person_of(node: &Node, peer: PublicKey, ask: &Ask, by_grant: bool) -> Result<(Option<Pass>, String), String> {
+     let door = if by_grant { "a grant" } else { "the door" };
+-    let Some(gate) = &node.gate else { return Ok((None, door.to_string())) };
++    let Some(gate) = node.gate.as_ref().filter(|_| !by_grant) else { return Ok((None, door.to_string())) };
+     match gate.cross(peer, ask, by_grant).await {
+         Ok((pass, by)) => Ok((Some(pass), format!("{door} and {by}"))),
+         Err(why) => Err(format!("refused the operator key {peer}{ask}, which {door} let through: {why}")),

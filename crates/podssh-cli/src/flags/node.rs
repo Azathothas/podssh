@@ -182,6 +182,9 @@ pub const NODE_FLAGS: &[FlagRow] = &[
     // serials refused.
     super::grant::NODE_GRANT_TO, super::grant::NODE_GRANT_ROUTE, super::grant::NODE_GRANT_FOR,
     super::grant::NODE_REVOKED,
+    // A person at the node's terminal, after its door (T-638).
+    row(None, "ask", None, FlagKind::Supported,
+        "ask at this terminal of each operator key that the door or a grant lets in: y or n within 100 s, no answer a no; a yes lets the key in while one of its sessions is open and 120 s after its last, a no stands 15 s; stdin and stderr must be a terminal (else 78)", None),
 ];
 
 /// **`net`** (T-429): the net of a user's own nodes, a list of their names

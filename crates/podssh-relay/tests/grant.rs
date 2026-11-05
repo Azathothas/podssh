@@ -12,7 +12,8 @@
 //! `route` (43, `/web`), `unknown` (44, also `critical:color@example.com=blue`),
 //! `reusable` (45, no `once@podssh`), `forever` (46, no `-V`), `host` (47,
 //! `-h`), `elsewhere` (48, the node of seed 0x44), and `own` (49, signed by
-//! the node's own key, written as an OpenSSH key).
+//! the node's own key, written as an OpenSSH key). A grant meets the node's
+//! person after its check, as a key of the door does (T-638).
 #![cfg(all(feature = "pair", feature = "grant"))]
 
 mod e2e_harness;
@@ -23,6 +24,7 @@ use std::sync::{Arc, Mutex};
 
 use e2e_harness::{echo, echo_back, holds, identity, stand_in, Fault, LIMIT, PIPE};
 use podssh_relay::e2e::ends::{self, Node, Redeem, GRANT_REFUSED};
+use podssh_relay::e2e::person::{Answer, Asker, Gate, Question};
 use podssh_relay::e2e::{Ask, Error, Refusal};
 use podssh_relay::grant::{self, Cert, Door, Mint, Spent};
 use podssh_relay::identity::PublicKey;
@@ -223,6 +225,50 @@ async fn an_operator_with_no_grant_and_a_node_that_reads_none_go_as_before() {
     let ran = session(0x11, Some(fixture("once-cert.pub").blob()), None, reads_none).await;
     assert!(ran.result.is_ok() && ran.echoed && !ran.granted, "{:?}", ran.result);
     assert!(ran.lines.iter().any(|l| l.contains("set aside the grant")), "{:?}", ran.lines);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A node's person that gives `answer` to each question, and the count of
+/// the questions (T-638).
+fn person(answer: Result<(), String>) -> (Arc<Gate>, Arc<AtomicUsize>) {
+    let asked = Arc::new(AtomicUsize::new(0));
+    let count = asked.clone();
+    let asker: Arc<Asker> = Arc::new(move |_: Question| -> Answer {
+        count.fetch_add(1, Ordering::SeqCst);
+        Box::pin(std::future::ready(answer.clone()))
+    });
+    (Gate::new(asker), asked)
+}
+
+/// A grant meets the node's person after its check, as a key of the door
+/// does (T-638): a no reaches no target although the grant holds, and spends
+/// it; a yes lets the next grant in, and the line says by a grant and a yes.
+#[tokio::test]
+async fn a_grant_meets_the_node_s_person_as_a_key_of_the_door_does() {
+    let dir = scratch(line!());
+    let blob = fixture("once-cert.pub").blob();
+    let (gate, asked) = person(Err("the node's person said no".into()));
+    let (mut gated, lines) = node(door(&dir, true), NOW);
+    gated.gate = Some(gate);
+    let ran = session(0x11, Some(blob.clone()), None, (gated, lines)).await;
+    assert!(matches!(&ran.result, Err(Error::Refused(Refusal::NotAllowed))), "{:?} {:?}", ran.result, ran.lines);
+    assert_eq!(ran.opened, 0, "a no reached the target");
+    assert_eq!(asked.load(Ordering::SeqCst), 1, "the grant passed the node's person");
+    let said = "which a grant let through: the node's person said no";
+    assert!(ran.lines.iter().any(|l| l.contains(said)), "{:?}", ran.lines);
+    // The check spent the grant before the question.
+    let again = session(0x11, Some(blob), None, node(door(&dir, true), NOW)).await;
+    assert!(refused_as_a_grant(&again), "{:?}", again.lines);
+
+    let (gate, asked) = person(Ok(()));
+    let (mut gated, lines) = node(door(&dir, true), NOW);
+    gated.gate = Some(gate);
+    let ran = session(0x11, Some(fixture("own-cert.pub").blob()), None, (gated, lines)).await;
+    assert!(ran.result.is_ok() && ran.echoed && ran.opened == 1 && ran.granted, "{:?} {:?}", ran.result, ran.lines);
+    assert_eq!(asked.load(Ordering::SeqCst), 1);
+    let key = identity(0x11).public();
+    let line = format!("the operator key {key} came in, by a grant and a yes of the node's person");
+    assert!(ran.lines.contains(&line), "{:?}", ran.lines);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
