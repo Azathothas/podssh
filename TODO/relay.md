@@ -346,7 +346,7 @@ after each round at `crates/podssh-relay/src/open.rs:253-260`; the race
 gives the silent hosts at `crates/podssh-relay/src/failover.rs:245-248`.
 `podssh status` at `crates/podssh-cli/src/status.rs:125-129`, `podssh
 doctor` at `crates/podssh-cli/src/doctor/mod.rs:99-109`, THE RELAY in the
-manual at `crates/podssh-cli/src/man/facts.rs:380-397`, and
+manual at `crates/podssh-cli/src/man/facts/failed.rs:11-28`, and
 `docs/relay.md` and `docs/cli.md`.
 
 The unit tests of `crates/podssh-relay/src/failures_tests.rs`, 5: a host
@@ -2837,7 +2837,7 @@ session on 2026-11-03.
   lately (`crates/podssh-cli/src/status.rs:225-232`); `podssh doctor`'s line `failed relays` says
   each host tried last, and a line `opened relays` those tried first
   (`crates/podssh-cli/src/doctor/mod.rs:275-303`). THE RELAY in the manual
-  (`crates/podssh-cli/src/man/facts.rs:376-393`), `docs/relay.md` (step 5 of the selection) and
+  (`crates/podssh-cli/src/man/facts/failed.rs:11-28`), `docs/relay.md` (step 5 of the selection) and
   `docs/cli.md` (`podssh status`).
 - Tests: in `crates/podssh-relay/src/failures_tests.rs`, the five of T-059 on the road, the round
   that keeps the host that opened, and `a_host_that_opened_lately_is_tried_first`,

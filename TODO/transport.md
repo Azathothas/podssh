@@ -526,7 +526,7 @@ The new test gives the relay's own bodies (`missing or wrong token`,
 `forward: github.com:25 not in the ALLOW list`, `reverse: forbidden`,
 `forward relay authentication is not configured`) with `403` and `503` for each leg, and asserts
 the action. The bodies come from the contract and from the tests of
-`crates/podssh-relay/src/open.rs:424-442`. Plant: map `503` back to `Reconnect`; the test must
+`crates/podssh-relay/src/open_tests.rs:7-25`. Plant: map `503` back to `Reconnect`; the test must
 fail.
 
 
