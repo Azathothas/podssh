@@ -1,0 +1,220 @@
+name: feel netem
+
+# What a user feels on the four links of osewa's lab, shaped by the kernel
+# (T-660, item 4): `tc netem` on this runner's loopback, as root, is the
+# reference for the links that scripts/fake_shape.py makes in user space.
+# scripts/feel-matrix.py --links netem runs, on this one host, OpenSSH's
+# sshd with a throwaway key, podssh --direct and OpenSSH's own client to it,
+# and osewa's own release binary (its server and its client, pinned below
+# by version and SHA-256) over QUIC and over its WebSocket, each through
+# each link: a key's echo idle and beside a download on the same
+# connection, and cold connects. osewa is a reference, never a road (Q99:
+# it runs no public server). Nothing leaves the runner but the downloads of
+# the two binaries; the raw files are the artifact, and the summary goes
+# into the step summary. By hand only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The podssh release to measure, checked against its SHA256SUMS"
+        default: "v1.1.0-beta.3"
+      run:
+        description: "Or the id of a run of build.yml or release.yml: its artifact podssh-x86_64-unknown-linux-musl, in place of the tag"
+        default: ""
+      shapes:
+        description: "Links, separated by commas: none, far, cellular, wifi, slow"
+        default: "none,far,cellular,wifi,slow"
+      roads:
+        description: "Roads, separated by commas: openssh, direct, osewa-quic, osewa-ws"
+        default: "openssh,direct,osewa-quic,osewa-ws"
+      runs:
+        description: "Cold connects of each cell, 1 to 20"
+        default: "5"
+
+permissions:
+  contents: read
+  # The artifact of another run, when `run` names one.
+  actions: read
+
+concurrency:
+  group: feel-netem
+  cancel-in-progress: false
+
+env:
+  # osewa's one release, read on 2026-11-05 at github.com/rjyo/osewa
+  # (tag v0.1.0, commit 0bab3a0; Apache-2.0, its NOTICE names libghostty-vt
+  # under MIT). It is downloaded and run here, never redistributed. The
+  # SHA-256 of the .gz is the one of the release's own SHA256SUMS and of
+  # GitHub's digest of the asset, which agree; the binary's is of the file
+  # in that checked .gz. A version that moves is a change of this file.
+  OSEWA_VERSION: v0.1.0
+  OSEWA_GZ: osewa-linux-amd64.gz
+  OSEWA_GZ_SHA256: 8c7e90ffaa8ced0958216c21e708c878bbd6de6ea73b09382f86d73a2a93a2f3
+  OSEWA_SHA256: db832d9d76fedf21e2e57225474da6232f91e3ae22f8186c408b399a382fd5b2
+
+jobs:
+  feel:
+    # Named, not ubuntu-latest: the reference's kernel and its netem move
+    # only by a change here.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: the inputs
+        timeout-minutes: 1
+        env:
+          TAG: ${{ inputs.tag }}
+          RUN: ${{ inputs.run }}
+          RUNS: ${{ inputs.runs }}
+        run: |
+          set -eu
+          case "$RUNS" in ''|*[!0-9]*) echo "runs: a whole number"; exit 2 ;; esac
+          case "$RUN" in *[!0-9]*) echo "run: the id of a run, digits"; exit 2 ;; esac
+          if [ -z "$RUN" ]; then
+            case "$TAG" in v[0-9]*) ;; *) echo "tag: the tag of a release, as v1.1.0-beta.3"; exit 2 ;; esac
+          fi
+
+      - name: podssh, from the release
+        if: inputs.run == ''
+        timeout-minutes: 5
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          B=podssh-x86_64-unknown-linux-musl
+          dir="$RUNNER_TEMP/podssh"
+          mkdir -p "$dir"
+          cd "$dir"
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          curl -fsSL --max-time 240 --retry 3 -o "$B" "$url/$B"
+          curl -fsSL --max-time 60 --retry 3 -o SHA256SUMS "$url/SHA256SUMS"
+          # As the release's notes check a download; each exit read alone.
+          grep -q " $B\$" SHA256SUMS || { echo "SHA256SUMS of $TAG names no $B"; exit 1; }
+          sha256sum -c --strict --ignore-missing SHA256SUMS
+          chmod 755 "$B"
+          got=$("./$B" --version)
+          case "$got" in
+            "podssh ${TAG#v} ("*) ;;
+            *) echo "the binary of $TAG says: $got"; exit 1 ;;
+          esac
+          echo "PODSSH=$dir/$B" >> "$GITHUB_ENV"
+          echo "$got"
+
+      - name: podssh, from a run's artifact
+        if: inputs.run != ''
+        timeout-minutes: 5
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: podssh-x86_64-unknown-linux-musl
+          path: ${{ runner.temp }}/podssh
+          run-id: ${{ inputs.run }}
+          github-token: ${{ github.token }}
+
+      # build.yml's artifact holds `podssh`, release.yml's the file by its
+      # target's name.
+      - name: the artifact's binary
+        if: inputs.run != ''
+        timeout-minutes: 1
+        run: |
+          set -eu
+          dir="$RUNNER_TEMP/podssh"
+          B="$dir/podssh-x86_64-unknown-linux-musl"
+          [ -f "$B" ] || B="$dir/podssh"
+          [ -f "$B" ] || { echo "the artifact holds no podssh:"; ls -la "$dir"; exit 1; }
+          chmod 755 "$B"
+          "$B" --version
+          echo "PODSSH=$B" >> "$GITHUB_ENV"
+
+      - name: osewa, its release binary
+        timeout-minutes: 5
+        run: |
+          set -eu
+          dir="$RUNNER_TEMP/osewa"
+          mkdir -p "$dir"
+          cd "$dir"
+          curl -fsSL --max-time 120 --retry 3 -o "$OSEWA_GZ" \
+            "https://github.com/rjyo/osewa/releases/download/$OSEWA_VERSION/$OSEWA_GZ"
+          printf '%s  %s\n' "$OSEWA_GZ_SHA256" "$OSEWA_GZ" > gz.sha256
+          sha256sum -c --strict gz.sha256
+          gzip -dc "$OSEWA_GZ" > osewa
+          printf '%s  %s\n' "$OSEWA_SHA256" osewa > osewa.sha256
+          sha256sum -c --strict osewa.sha256
+          chmod 755 osewa
+          # `version` returns before any check of a newer release.
+          got=$(OSEWA_AUTO_UPDATE=off ./osewa version)
+          case "$got" in
+            "osewa ${OSEWA_VERSION#v} "*|"osewa $OSEWA_VERSION "*) ;;
+            *) echo "osewa says: $got"; exit 1 ;;
+          esac
+          echo "OSEWA=$dir/osewa" >> "$GITHUB_ENV"
+          echo "$got"
+
+      # sshd for the runner's user, on the loopback, as the matrix starts it;
+      # netem, which the runner's kernel may keep in its extra modules; and
+      # ethtool, for the loopback's offloads.
+      - name: sshd, netem and ethtool
+        timeout-minutes: 10
+        run: |
+          set -eu
+          command -v /usr/sbin/sshd > /dev/null || { sudo apt-get update -q && sudo apt-get install -y -q openssh-server; }
+          command -v ethtool > /dev/null || { sudo apt-get update -q && sudo apt-get install -y -q ethtool; }
+          if ! sudo modprobe sch_netem; then
+            sudo apt-get update -q
+            sudo apt-get install -y -q "linux-modules-extra-$(uname -r)"
+            sudo modprobe sch_netem
+          fi
+          uname -r
+          ssh -V
+          tc -V
+
+      - name: the matrix
+        timeout-minutes: 80
+        env:
+          SHAPES: ${{ inputs.shapes }}
+          ROADS: ${{ inputs.roads }}
+          RUNS: ${{ inputs.runs }}
+        run: |
+          set -u
+          out="$RUNNER_TEMP/feel"
+          mkdir -p "$out"
+          {
+            echo "podssh: $("$PODSSH" --version)"
+            echo "osewa: $(OSEWA_AUTO_UPDATE=off "$OSEWA" version)"
+            echo "ssh: $(ssh -V 2>&1)"
+            echo "kernel: $(uname -r)"
+          } > "$out/versions.txt"
+          rc=0
+          # Its TERM at the limit still puts the loopback back.
+          timeout 4500 python3 -I scripts/feel-matrix.py "$PODSSH" --links netem --osewa "$OSEWA" \
+            --roads "$ROADS" --shapes "$SHAPES" --runs "$RUNS" --out "$out" || rc=$?
+          {
+            echo "### What a user feels, on netem's links (T-660)"
+            echo
+            echo '```'
+            cat "$out/versions.txt"
+            echo
+            cat "$out/summary.tsv"
+            echo '```'
+            echo
+            echo "feel-matrix exit $rc"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "feel-matrix exit $rc"
+          exit "$rc"
+
+      # Again, in case the run ended before its own `finally`.
+      - name: the loopback as it was
+        if: always()
+        timeout-minutes: 2
+        run: |
+          sudo tc qdisc del dev lo root 2> /dev/null || true
+          sudo ip link set dev lo mtu 65536 || true
+          ip link show dev lo
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: feel-netem
+          path: ${{ runner.temp }}/feel
+          if-no-files-found: warn

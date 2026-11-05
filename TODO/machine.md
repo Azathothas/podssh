@@ -1538,6 +1538,61 @@ made either way, and no change of the flow control below can show its gain.
   runs its whole session in `podssh ssh`'s own code, and a local iroh relay or DERP server is a
   Rust test's alone. They wait in this entry (item 3).
 
+2026-11-05, with the draft of item 4 (`.github/workflows/feel-netem.yml`):
+
+- **The links in the kernel** are `tc netem` on the loopback, each profile read from
+  `scripts/fake_shape.py` (`scripts/feel_netem.py`), so the delay each way, the rate, the loss and
+  the queue (in packets of 1500 bytes) are the fake links' own. Only the packets of the far ends'
+  ports are shaped, by a u32 filter on each port, TCP and UDP, each way on a netem of its own under
+  one prio qdisc, as the stand-in proxy shapes each way of the client's first hop alone; the
+  loopback's MTU is 1500 and its offloads are off where ethtool can, as netem queues, delays and
+  loses a packet whole. Lost: one netem on the whole loopback (both ways would share one rate and
+  one queue, and each other packet of the runner would be shaped too); a pair of veth between two
+  network namespaces (a device for each way, but each far end in a namespace of its own and each
+  client started as root in its own; the filters give each way its own netem on one host);
+  `ubuntu-latest` (the repository names its runners, so the reference's kernel moves only by a
+  change of the workflow). The roads of the relay role and of a node do not run with netem: each
+  of their legs is on the loopback, and a filter by port would shape the role's leg to the sshd as
+  well as the client's; they run through the stand-in proxy, and osewa, which has no proxy client,
+  runs with netem alone.
+- **osewa's row** is one `osewa exec` for each run (`scripts/feel_osewa.py`): the keys go to its
+  stdin, one byte each, and the far end (that file with `--far`) echoes each on its stdout and, on
+  the byte L, writes the 60 MiB of the download on its stderr, in random bytes. osewa's server
+  holds a download to a round trip and 40 ms of queue only while someone types on the same
+  connection (a session's INPUT, or an exec's DATA of at most 256 bytes, read in
+  `rjyo/osewa:crates/server/src/client.rs` at `0bab3a0`), and its command line opens one connection
+  for each process, so this is the one way of its release binary to put the keys and the download
+  on one connection, as each other row does. Two rows, as osewa's lab has two: `osewa-quic` and
+  `osewa-ws`, each forced by `OSEWA_CARRIER`. Lost: `osewa-bench vs` (not in the release, its build
+  needs Zig and libghostty-vt, and it types one key after the last one's echo where the matrix types
+  on a beat); `osewa attach` in a pty (its keys are a session's, of a higher class than an exec's,
+  as in `vs`, but `attach` takes no forward, and a terminal's output that lags is dropped for its
+  latest screen, so no download shares its connection); two `osewa exec` (two connections: the
+  download's is never typed on, so its server allows it 200 ms of queue, which measures osewa's
+  idle bound and not its design); one `osewa forward` of two forwards (a forward's data never counts
+  as typing); zeros as the download (osewa's server deflates what it sends by default, so zeros
+  would put almost nothing on the link; `--no-compress` would measure a configuration that nobody
+  runs). The cost: the echo shares the exec's stream with the download (its channels 1 and 2), so
+  it can wait behind one frame of up to 32 KiB that `vs`'s terminal would pass, about 260 ms at
+  1 Mbit/s; a bias against osewa, said beside its figures.
+- **osewa's setup**: its server in the foreground on a port of the loopback, each of its files and
+  its client's under the run's scratch directory (`OSEWA_HOME`, `OSEWA_CONFIG_DIR`,
+  `OSEWA_RUN_DIR`, `XDG_STATE_HOME`), with `OSEWA_AUTO_UPDATE=off` (and a server with `OSEWA_HOME`
+  never checks for a release); `osewa login --no-install --addr` enrolls the device through an ssh
+  of the harness that runs the far end's command on this host, where login's own `server --daemon`
+  finds the server running and leaves it. Lost: login through the run's sshd (sshd sets the
+  account's HOME and PATH, so the device would go into the runner's own home, and no `osewa` is on
+  sshd's PATH); `hosts.json` and the device's key written by hand (their formats are osewa's, and
+  login writes them as osewa does); login's own daemon (detached, on 7322 of each address, and
+  stopped only by its pid file).
+- **The binaries**: podssh is a release by its tag (`v1.1.0-beta.3` by default), checked against
+  that release's `SHA256SUMS` as its notes check a download, or a run's artifact
+  `podssh-x86_64-unknown-linux-musl` (of `build.yml` or `release.yml`), for a candidate before its
+  tag. osewa is `v0.1.0`, its one release (Apache-2.0; its NOTICE names libghostty-vt, MIT),
+  downloaded and run on the runner and never redistributed, pinned by the SHA-256 of
+  `osewa-linux-amd64.gz` (`8c7e90ff...a2f3`: the release's own `SHA256SUMS` and GitHub's digest of
+  the asset agree) and of the static binary inside it (`db832d9d...d5b2`, of the checked file).
+
 ## Prove
 
 ```sh
@@ -1545,11 +1600,15 @@ cargo test -p podssh-cli --test ping
 cargo test -p podssh-cli --lib ping::
 sh scripts/plant-each.sh --here t660-samples-dropped t660-warmup-counted
 python3 scripts/feel-matrix.py target/release/podssh
+gh workflow run feel-netem.yml --ref main -f tag=v1.1.0-beta.3
 ```
 
 A new test: `--under-load` through a shaped stand-in reads an echo above the idle one, and the
 plants (the samples dropped, the warm-up counted) are caught. The matrix writes each cell's raw
-file under `.work/feel/`, and `docs/STATUS.md` gets its figures with the command.
+file under `.work/feel/`, and `docs/STATUS.md` gets its figures with the command. Item 4: the
+workflow's run passes, each row of OpenSSH, `--direct` and osewa has its figures on each link of
+netem, and its artifact keeps the raw files and `netem.SHAPE.txt`, whose counts show packets sent
+through each netem (and dropped on the lossy links).
 
 ## Done
 
@@ -1576,3 +1635,37 @@ reader)").
 - Waits, so the entry stays partial: the rows of iroh and DERP (the matrix says why each did not
   run), and item 4, osewa's release binary beside podssh and OpenSSH on a GitHub Actions runner
   with `tc netem`.
+
+Item 4, drafted on 2026-11-05 (unbuilt, unrun: no workflow was dispatched): the workflow
+`.github/workflows/feel-netem.yml`, by hand, on `ubuntu-24.04`, takes podssh from a release (its
+input `tag`, `v1.1.0-beta.3` by default, checked against the release's `SHA256SUMS`) or from a
+run's artifact (its input `run`); downloads osewa's `v0.1.0` from its GitHub release and checks
+both pinned SHA-256; installs sshd, ethtool and netem's module where the runner lacks them; then
+runs `python3 -I scripts/feel-matrix.py PODSSH --links netem --osewa OSEWA` within 75 minutes:
+OpenSSH's sshd for the runner's user on the loopback with a throwaway key, osewa's server for the
+run, then for each link (none, far, cellular, wifi, slow) netem set on the far ends' ports and the
+rows OpenSSH, `--direct`, `osewa-quic` and `osewa-ws`, each with the echo idle and beside a
+download, and cold connects. The raw files are the artifact `feel-netem` (each cell's JSON,
+`summary.tsv`, `netem.json`, `netem.SHAPE.txt`, `osewa-server.log`, `versions.txt`), the summary
+goes into the step summary, and the loopback is put back by the matrix and again by the last step.
+`scripts/feel-matrix.py` gains `--links netem` and `--osewa`, with `scripts/feel_netem.py` and
+`scripts/feel_osewa.py`; each file stays under 500 lines, and the default run through the proxy is
+the run that it was. `docs/development.md` ("What a user feels") tells both ways.
+
+- The workflow's first run: UNVERIFIED (its run, its exit, and how long it took).
+- netem on the runner's kernel, as `sudo modprobe sch_netem` or after `linux-modules-extra`:
+  UNVERIFIED. The loopback's offloads off (the lines of `ethtool` in `netem.json`): UNVERIFIED; where
+  they stay on, TCP's GSO packets pass netem whole. Whether osewa's QUIC sends GSO batches, which
+  netem queues and loses whole: UNVERIFIED.
+- sshd as the runner's user rather than root (the runs through the proxy were as root):
+  UNVERIFIED.
+- osewa's server in the scratch directory, its login through the harness's ssh, and its
+  `version` saying `osewa 0.1.0 (...)`: UNVERIFIED.
+- The figures, p50 of the echo beside the download (idle in brackets) and of a cold connect, for
+  each road on each link of netem: UNVERIFIED for OpenSSH, `--direct`, `osewa-quic` and `osewa-ws`
+  on far, cellular, wifi and slow, and with no shape. Against the fake links' figures of the same
+  build (the matrix with `--links proxy`), the gap of each cell: UNVERIFIED; the lossy links'
+  download while typing is expected faster through the fake links, which do not halve a sender's
+  window. Against osewa's own lab (138 ms cellular and 44 ms Wi-Fi over QUIC, 73 ms cellular over
+  its WebSocket): UNVERIFIED. `docs/STATUS.md`'s row of T-660 gets them with the command at the
+  merge.
