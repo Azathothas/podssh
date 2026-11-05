@@ -283,7 +283,12 @@ which `--pairs FILE` keeps across a restart:
 - with QUIC on its port of UDP when asked (`--quic yes`), each stream a
   connection to the same routes, which a client races before its TCP roads
   where a probe found that UDP passes ([relay.md](relay.md), "The relay
-  role's QUIC", T-667).
+  role's QUIC", T-667);
+- with an sshd of the owner's on its port when named (`--sshd ADDR:PORT`):
+  an SSH client of its listener goes to that sshd by its first four bytes,
+  so that a host that lets one port in serves the relay and a shell, behind
+  the sshd's own authentication ([relay.md](relay.md), "SSH on the relay
+  role's port", T-644).
 
 The role does what the default deployment does not do, which were the items
 of [relay-operator.md](relay-operator.md): bounded queues for a slow client

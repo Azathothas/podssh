@@ -1,0 +1,12 @@
+# T-644: relay serve reads --sshd and names the sshd in its first line, but
+# gives its listener none, so OpenSSH's client on the role's port meets the
+# cleartext road; the test of OpenSSH's login through the role's port must
+# fail.
+ENTRY=T-644
+GROUP=cli-tests
+EXPECT='test serve_sshd::openssh_on_the_role_s_port_logs_in_to_the_named_sshd_and_tls_still_upgrades \.\.\. FAILED'
+# The role's harness asks for Python and openssl, and the test for OpenSSH's
+# client and sshd, which the build image lacks: with no SETUP the test did
+# not run.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl openssh >/dev/null; fi'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- serve_sshd::openssh_on_the_role_s_port_logs_in_to_the_named_sshd_and_tls_still_upgrades'

@@ -9,7 +9,8 @@
 //! forward road in the resumable layer, which `podssh proxy` and `podssh
 //! ssh` take when asked, across cuts of their link, and its budget (T-173,
 //! `serve_layer`), what each of its threads holds after its bind (T-629,
-//! `serve_caps`), and its list of keys at a URL (T-646, `serve_list`). The
+//! `serve_caps`), and its list of keys at a URL (T-646, `serve_list`), and
+//! an SSH client on its port to the owner's sshd (T-644, `serve_sshd`). The
 //! suite of the stand-in also runs against the role with
 //! `PODSSH_RELAY_UNDER_TEST=podssh`.
 
@@ -20,6 +21,7 @@ mod serve_layer;
 mod serve_list;
 mod serve_net;
 mod serve_proxy;
+mod serve_sshd;
 mod ssh_harness;
 mod throughput_harness;
 
@@ -191,7 +193,7 @@ fn status_info_and_trace_read_the_role_as_they_read_the_default_relay() {
 #[test]
 fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
     let s = Session::start("serve-usage");
-    let cases: [(&[&str], &str); 12] = [
+    let cases: [(&[&str], &str); 14] = [
         (&["relay", "serve", "--cert", "c.pem", "--key", "k.pem"], "needs --listen"),
         (&["relay", "serve", "--listen", "127.0.0.1:0"], "needs --cert FILE and --key FILE"),
         (
@@ -220,6 +222,12 @@ fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
             "--quota counts the keys that mint",
         ),
         (&["relay", "info", "--usage", "counts.json"], "go with `podssh relay serve` only"),
+        // The owner's sshd (T-644): an address and a port, and serve alone.
+        (
+            &["relay", "serve", "--listen", "127.0.0.1:0", "--cert", "c", "--key", "k", "--sshd", "localhost:22"],
+            "the address and the port of an sshd",
+        ),
+        (&["relay", "status", "--sshd", "127.0.0.1:22"], "go with `podssh relay serve` only"),
     ];
     for (args, says) in cases {
         let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();

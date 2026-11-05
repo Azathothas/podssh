@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/serve/sshd.rs
++++ b/crates/podssh-relay/src/serve/sshd.rs
+@@ -72,7 +72,8 @@ pub async fn opens(tcp: &TcpStream, deadline: Instant) -> bool {
+                 return false;
+             }
+             match judge(&buf[..n]) {
+-                Some(verdict) => return verdict,
++                // Planted: each start is taken for SSH's.
++                Some(_) => return true,
+                 None => tokio::time::sleep(PEEK_AGAIN).await,
+             }
+         }

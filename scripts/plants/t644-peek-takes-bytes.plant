@@ -1,0 +1,8 @@
+# T-644: the relay role reads the first four bytes of a connection, where it
+# must peek at them, so the owner's sshd gets an SSH client's version line cut
+# short by its start, SSH-; the test of a version line and each byte after it,
+# which the sshd must read whole, must fail.
+ENTRY=T-644
+GROUP=resume
+EXPECT='test a_version_line_and_each_byte_after_it_reach_the_named_sshd_whole \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_sshd -- a_version_line_and_each_byte_after_it_reach_the_named_sshd_whole'

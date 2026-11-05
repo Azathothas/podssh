@@ -85,6 +85,9 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     // The cleartext road beside TLS on the listener (T-326).
     row(None, "cleartext", Some("WORD"), FlagKind::Supported,
         "serve: yes (the default) or no: on the listener, a request whose first byte begins no TLS handshake gets the cleartext road, for a client whose proxy cuts TLS: /health, a token of one session (POST /v1/mint?once=1, as --mint says) and /connect/ with it, which its upgrade spends; each other request there is refused (403)", None),
+    // An SSH client of the listener, to the owner's sshd (T-644).
+    row(None, "sshd", Some("ADDR:PORT"), FlagKind::Supported,
+        "serve: send each connection of the listener whose first four bytes are SSH-, an SSH client's version line, to the sshd at ADDR:PORT (an address, not a name), its bytes untouched, so that one port serves the relay and a shell: a shell for each client that reaches the port, behind that sshd's own authentication; each other start goes to TLS or the cleartext road, as before", None),
     // The signed list of deployments of /relays.json (T-346).
     row(None, "deployment", Some("NAME=HOSTS"), FlagKind::Supported,
         "serve: a deployment that /relays.json names in its signed list, NAME=HOST[:PORT][,HOST[:PORT]...], repeatable, in order; a client that trusts the list's key (PODSSH_RELAY_KEYS, RelayKeys, a member of its net with the role relay) tries those hosts after its default list, each with a token of its own", None),

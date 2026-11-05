@@ -317,6 +317,22 @@ pub const RELAY: &[&str] = &[
      spends, whatever its end, so that a second use is refused. A token of 72 h, the mint of one, the reverse \
      road, the documents and the probes are refused there (403), and go over TLS. --cleartext no serves TLS \
      alone. Over TLS, POST /v1/mint?once=1 mints the same token of one session.",
+    "--sshd ADDR:PORT shares the relay's port with an sshd of yours (T-644), for a host that lets one port in: a \
+     connection of the listener whose first four bytes are SSH-, the start of an SSH client's version line, goes \
+     to the sshd at ADDR:PORT, which reads each of its bytes as they came, and each byte of the sshd goes back; a \
+     record of TLS goes to TLS, and another start to the cleartext road, as before. So the port publishes a shell \
+     to each client that reaches it, behind that sshd's own authentication alone: no token, no brake and no limit \
+     of the relay stand before it. The sshd sees each client as the address that the relay dials it from, so \
+     OpenSSH 9.8 and later, which shut out a source of failed logins (PerSourcePenalties), would shut out each \
+     client of the port for one client's failures: give that sshd PerSourcePenaltyExemptList with that address. \
+     Each connection is a line on stdout that names the client's address and the relay's own end of its \
+     connection to the sshd, which the sshd's log names in the client's place, and another at its end. A client \
+     that waits for the server's line before it sends its own reaches no sshd, as the relay never speaks for one; \
+     OpenSSH's client sends its line first. The sshd is no target of the relay's policy: it is dialed as you \
+     named it, the loopback and what NO_PROXY names directly, another address through HTTPS_PROXY where it is \
+     set. Where the sshd does not answer, the client gets one line that says so, before any version line, and \
+     the relay's line on stdout names the sshd and why. ADDR is an address, not a name (64). The first line says \
+     that SSH goes to that sshd.",
     "The relay's TLS offers h2 before http/1.1 (T-321, RFC 8441): a client that chooses it gets SETTINGS that \
      offer extended CONNECT and 16 streams at once, each with a window of 1 MiB in one of 16 MiB for the \
      connection, so that the sessions of a client's process are streams of one connection. A CONNECT whose \
