@@ -1,8 +1,0 @@
-# T-642: a name's list kept for its record's TTL with no floor of 30 s, so a
-# TTL of 5 s sends a read of the HTTPS record before each connection after
-# 5 s; the test of a TTL of 5 s served 30 s must fail.
-ENTRY=T-642
-GROUP=cli-tests
-EXPECT='test ech::cache::tests::a_ttl_of_5_s_is_served_for_30_s \.\.\. FAILED'
-RUN='cargo test --locked -p podssh-ws --lib -- ech::cache::tests'
-LIMIT=1800

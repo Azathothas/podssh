@@ -205,8 +205,9 @@ fn host(key: Key) -> Arc<Host> {
 pub(super) enum Got {
     /// A place on a connection that offers extended CONNECT.
     Place { conn: Conn, place: Place, shared: bool },
-    /// A connection whose TLS chose HTTP/1.1, for the upgrade.
-    Http1(Box<RelayStream>),
+    /// A connection whose TLS chose HTTP/1.1, for the upgrade, and the
+    /// address of its TCP.
+    Http1(Box<RelayStream>, Option<SocketAddr>),
     /// The upgrade on a new connection, and why.
     Fallback(Fallback),
 }
@@ -232,7 +233,7 @@ pub(super) async fn place(config: &WsClientConfig) -> Result<Got, ConnectError> 
             state.conns.push(conn.clone());
             Ok(Got::Place { conn, place, shared })
         }
-        Dialed::Http1(tls) => Ok(Got::Http1(tls)),
+        Dialed::Http1(tls, peer) => Ok(Got::Http1(tls, peer)),
         Dialed::Lacks(why) => {
             state.lacks = Some((why.clone(), Instant::now()));
             Ok(Got::Fallback(why))

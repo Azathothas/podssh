@@ -1,38 +1,14 @@
 //! The random source (T-064): a source that gives no bytes is an error and
 //! never a panic, at each place that draws, and no other path draws. A panic
-//! ends the whole process where an error ends one session.
+//! ends the whole process where an error ends one session. The source itself
+//! and the key exchanges are `pod-tls`'s, whose tests are there.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
-use p256::elliptic_curve::sec1::ToSec1Point;
-use p256::elliptic_curve::Generate;
-use podssh_ws::crypto::kx::start_with;
-use podssh_ws::crypto::random::{fill_from, OsRandom};
+use podssh_ws::crypto::random::OsRandom;
 use podssh_ws::handshake::{generate_key_from, masking_key_from};
 use podssh_ws::WsError;
 use rustls::crypto::{GetRandomFailed, SecureRandom};
-use rustls::NamedGroup;
-
-/// A source of `rand` that gives no bytes, as the OS's can fail. Each draw of
-/// a number panics, so a caller that draws other than by `try_fill_bytes`
-/// fails the test.
-struct NoBytes;
-
-impl rand::TryRng for NoBytes {
-    type Error = std::io::Error;
-    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-        panic!("try_next_u32 was called")
-    }
-    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-        panic!("try_next_u64 was called")
-    }
-    fn try_fill_bytes(&mut self, _: &mut [u8]) -> Result<(), Self::Error> {
-        Err(std::io::Error::other("no entropy"))
-    }
-}
-
-impl rand::TryCryptoRng for NoBytes {}
 
 /// A source of rustls that gives no bytes.
 #[derive(Debug)]
@@ -44,88 +20,11 @@ impl SecureRandom for Failing {
     }
 }
 
-/// A source that gives the same byte each time.
-#[derive(Debug)]
-struct Constant(u8);
-
-impl SecureRandom for Constant {
-    fn fill(&self, buf: &mut [u8]) -> Result<(), GetRandomFailed> {
-        buf.fill(self.0);
-        Ok(())
-    }
-}
-
-/// A source whose first draws are 0xff (not below the order of P-256), and
-/// then the OS's bytes.
-#[derive(Debug)]
-struct BadFirst(AtomicUsize);
-
-impl SecureRandom for BadFirst {
-    fn fill(&self, buf: &mut [u8]) -> Result<(), GetRandomFailed> {
-        let left = self.0.load(Ordering::SeqCst);
-        if left > 0 {
-            self.0.store(left - 1, Ordering::SeqCst);
-            buf.fill(0xff);
-            return Ok(());
-        }
-        OsRandom.fill(buf)
-    }
-}
-
-#[test]
-fn a_source_that_gives_no_bytes_is_an_error() {
-    assert!(fill_from(&mut NoBytes, &mut [0u8; 8]).is_err());
-    let mut buf = [0u8; 32];
-    fill_from(&mut rand::rngs::SysRng, &mut buf).expect("the OS gives bytes here");
-    assert_ne!(buf, [0u8; 32]);
-}
-
 #[test]
 fn the_websocket_keys_report_a_source_that_gives_no_bytes() {
     assert!(matches!(generate_key_from(&Failing), Err(WsError::Handshake(_))));
     assert!(matches!(masking_key_from(&Failing), Err(WsError::Frame(_))));
     assert_eq!(generate_key_from(&OsRandom).unwrap().len(), 24, "16 bytes in base64");
-}
-
-#[test]
-fn each_key_exchange_reports_a_source_that_gives_no_bytes() {
-    for group in [NamedGroup::X25519, NamedGroup::secp256r1] {
-        let error = start_with(group, &Failing).err().expect("no bytes, no key exchange");
-        assert_eq!(error, rustls::Error::FailedToGetRandomBytes, "{group:?}");
-    }
-}
-
-/// A draw of P-256 that is zero or not below the order is drawn again; a
-/// source that gives only such draws fails as one that gives none.
-#[test]
-fn p256_draws_again_when_a_draw_is_out_of_range() {
-    for byte in [0x00, 0xff] {
-        let error = start_with(NamedGroup::secp256r1, &Constant(byte)).err().expect("no usable draw");
-        assert_eq!(error, rustls::Error::FailedToGetRandomBytes, "{byte:#x}");
-    }
-    let source = BadFirst(AtomicUsize::new(3));
-    assert!(start_with(NamedGroup::secp256r1, &source).is_ok());
-    assert_eq!(source.0.load(Ordering::SeqCst), 0, "three draws were refused first");
-}
-
-/// podssh's P-256 exchange agrees with `p256`'s own `EphemeralSecret`, which
-/// podssh did not write, on the shared secret.
-#[test]
-fn p256_agrees_with_an_exchange_that_podssh_did_not_write() {
-    let theirs = p256::ecdh::EphemeralSecret::generate();
-    let their_public = theirs.public_key().to_sec1_point(false);
-    let ours = start_with(NamedGroup::secp256r1, &OsRandom).unwrap();
-    let our_public = p256::PublicKey::from_sec1_bytes(ours.pub_key()).expect("an uncompressed point");
-    let shared = ours.complete(their_public.as_bytes()).expect("a valid share");
-    assert_eq!(shared.secret_bytes(), theirs.diffie_hellman(&our_public).raw_secret_bytes().as_slice());
-}
-
-#[test]
-fn x25519_agrees_with_itself() {
-    let a = start_with(NamedGroup::X25519, &OsRandom).unwrap();
-    let b = start_with(NamedGroup::X25519, &OsRandom).unwrap();
-    let (pa, pb) = (a.pub_key().to_vec(), b.pub_key().to_vec());
-    assert_eq!(a.complete(&pb).unwrap().secret_bytes(), b.complete(&pa).unwrap().secret_bytes());
 }
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -141,15 +40,16 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 
 /// No path of the library draws in a way that can panic: no `fill_bytes(`
 /// (only `try_fill_bytes(`), no generator that takes an RNG
-/// (`::random(&mut`), and the OS's source only in `crypto/random.rs`, by
-/// each name that rand has given it: `OsRng` up to 0.9, `SysRng` since 0.10,
-/// and the thread's generator, which reseeds from it and panics if it fails.
+/// (`::random(&mut`), and the OS's source in no file: each draw goes through
+/// `crypto::random` of `pod-tls`. The OS's source has each name that rand
+/// has given it: `OsRng` up to 0.9, `SysRng` since 0.10, and the thread's
+/// generator, which reseeds from it and panics if it fails.
 #[test]
 fn only_the_random_module_reads_the_os_and_nothing_can_panic() {
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = Vec::new();
     rust_files(&src, &mut files);
-    // 23 files on 2026-10-09; a scan that reads nothing passes on any tree.
+    // A scan that reads nothing passes on any tree.
     assert!(files.len() > 15, "the scan read {} files", files.len());
     let mut found = Vec::new();
     for file in &files {
@@ -162,7 +62,7 @@ fn only_the_random_module_reads_the_os_and_nothing_can_panic() {
             found.push(format!("{name}: a generator that takes an RNG"));
         }
         for source in ["OsRng", "SysRng", "rand::rng(", "thread_rng", "ThreadRng"] {
-            if text.contains(source) && name != "crypto/random.rs" {
+            if text.contains(source) {
                 found.push(format!("{name}: {source}"));
             }
         }

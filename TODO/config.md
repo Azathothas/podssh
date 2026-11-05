@@ -694,7 +694,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
    variable, apart from the `PODSSH_SSH_CONFIG` of T-043), `$XDG_CONFIG_HOME/podssh/settings`
    (else `~/.config/podssh/settings`, and `%APPDATA%\podssh\settings` on Windows), then
    `podssh.settings` next to the binary, found as `podssh-ca.pem` is
-   (`crates/podssh-ws/src/bundle.rs:32-38`). Never the working directory or `/tmp`: a file that
+   (`crates/podssh-ws/src/bundle.rs:33-39`). Never the working directory or `/tmp`: a file that
    names relay hosts decides where tokens go.
 4. Refuse a file that is a symbolic link, or that another user owns or can write, with an error
    that names it. Check the opened file, as `read_own` does with `Others::Read`

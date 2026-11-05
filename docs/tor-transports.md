@@ -372,7 +372,7 @@ T-353's Done).
 3. **podssh-ws `meek.rs`** (about 350 lines):
    - one TLS connection to `FRONT:443` (or the URL's host) through `dial`
      and `tls_over` with SNI = FRONT, verified as on every podssh road
-     (`crates/podssh-ws/src/tls.rs:3-14`), and kept alive;
+     (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:3-14`), and kept alive;
    - POSTs one at a time through `http::exchange` (`src/http.rs`), with
      `Host`, `X-Session-Id` (32 hex digits), `Content-Length` and no
      `User-Agent`, each body at most 64 KiB, and each response capped at

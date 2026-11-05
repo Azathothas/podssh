@@ -92,16 +92,16 @@ pub async fn fetch(
 ) -> Result<Health, HealthError> {
     let host = &relay.host;
     let started = Instant::now();
-    let mut tls = podssh_ws::client::open_tls(host, relay.port, host, trust, proxy, timeout)
+    let (mut tls, peer_addr) = podssh_ws::client::open_tls_offering(host, relay.port, host, trust, proxy, timeout, &[])
         .await
         .map_err(HealthError::Connect)?;
-    let (tcp, connection) = tls.get_ref();
-    let peer_addr = tcp.peer_addr();
-    let peer = peer_addr.as_ref().map(|a| a.to_string()).unwrap_or_else(|e| format!("an address it cannot name ({e})"));
+    let peer = peer_addr.map(|a| a.to_string()).unwrap_or_else(|| "an address it cannot name".into());
     // Where the address came from: a pin, the system, the cache or DNS over
     // HTTPS (T-344).
-    let source = peer_addr.ok().and_then(|a| podssh_ws::resolve::dialed(host, a));
-    let tls_version = connection
+    let source = peer_addr.and_then(|a| podssh_ws::resolve::dialed(host, a));
+    let tls_version = tls
+        .get_ref()
+        .1
         .protocol_version()
         .map(|v| format!("{v:?}").replace("TLSv1_", "TLS 1."))
         .unwrap_or_else(|| "TLS".into());

@@ -33,7 +33,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/dial.rs`, lines 178 and 334 at `22c3b88`); since T-070 (2026-10-11), a
 SOCKS5 proxy's answers (`crates/podssh-ws/src/socks5.rs:156`); close
 reasons (`crates/podssh-ws/src/close.rs:20`); PEM bundles
-(`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
+(`PodUtils/podssh:crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:146`, `crates/podssh-relay/src/pool.rs:157`);
 `known_hosts` lines, in a private function
 (`crates/podssh-ssh/src/known_hosts.rs:250`); the escape filter
@@ -524,7 +524,7 @@ Read, the bounds today:
 
 - A frame: 262144 bytes (`crates/podssh-ws/src/frame.rs:30`, refused at lines
   180-194). A message in fragments: 16 MiB
-  (`crates/podssh-ws/src/session.rs:33`, checked at lines 240-242 at `23b5d82`).
+  (`crates/podssh-ws/src/session.rs:36`, checked at lines 240-242 at `23b5d82`).
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:13`), for the
   proxy (`crates/podssh-ws/src/dial.rs:25`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:144`).
@@ -586,7 +586,7 @@ Each command exits 0. Planted defect: set `WINDOW`
 channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:68-81`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
-check at `crates/podssh-ws/src/session.rs:468-470`; the fragment test must
+check at `crates/podssh-ws/src/session.rs:476-478`; the fragment test must
 fail.
 
 ## Correction
@@ -643,7 +643,7 @@ whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
 - `cargo test -p podssh-ssh --test known_hosts`: 17 passed. A file of 16 MiB is read; one byte
   more is unreadable, with its reason, and a record into it is refused, the file unchanged.
 - Planted, natively: without the check of fragments
-  (`crates/podssh-ws/src/session.rs:468-470`), a message of 16777217 bytes came through, and the
+  (`crates/podssh-ws/src/session.rs:476-478`), a message of 16777217 bytes came through, and the
   test failed; without the bound of `known_hosts`, the larger file was read, and the test failed.
 - In the build image, `scripts/interop-limits.sh` alone with the Prove's plants: as the code is, a
   reader that took each byte peaked at 6884 KiB, and one that took nothing for 30 s at 7460 KiB,
@@ -677,8 +677,8 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 
 - WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:98`,
   `crates/podssh-ws/src/frame.rs:144`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:462-486`). It is
-  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:111`) takes
+- The joining of fragments (`crates/podssh-ws/src/session.rs:470-494`). It is
+  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:114`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:146-239`, `crates/podssh-ws/src/names.rs:8-85`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).

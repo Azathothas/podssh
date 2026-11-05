@@ -1,131 +1,87 @@
-//! The `ClientConfig`, and the rule that hostname verification has no bypass.
+//! podssh's TLS: `pod-tls` of PodUtils/podcrates, with one context for the
+//! process ([`context`]): podssh's pure-Rust provider, its words, the
+//! `podssh-ca.pem` next to the binary, the mode of `PODSSH_ECH`, and the
+//! configuration of each trust, kept so that TLS resumes (T-444).
 //!
 //! **There is no `--insecure`, and there is no parameter that would become
-//! one.** A sibling project made verification a decision rather than an
-//! option. The way that decision is held here is structural: the only
-//! constructor takes a bundle and builds a `WebPkiServerVerifier`, and that
-//! type's `verify_server_cert` calls `verify_server_name` unconditionally
-//! (read in `rustls-0.23.45/src/webpki/server_verifier.rs:276`). A flag
-//! would be a bypass someone sets in a hurry.
-//!
-//! A library that embeds podssh can bring its own `rustls::ClientConfig`
-//! instead ([`Trust::caller`]): podvm keeps `ring` and TLS 1.2 for proxies
-//! that intercept TLS. Its verifier is then the caller's, which podssh cannot
-//! check; podssh's binary never takes that form, and a test keeps it out.
+//! one.** The only verifier that `pod-tls` builds is rustls's
+//! `WebPkiServerVerifier`, whose `verify_server_cert` calls
+//! `verify_server_name` each time. A library that embeds podssh can bring its
+//! own `rustls::ClientConfig` instead ([`Trust::caller`]): podvm keeps `ring`
+//! and TLS 1.2 for proxies that intercept TLS. Its verifier is then the
+//! caller's, which podssh cannot check; podssh's binary never takes that
+//! form, and a test keeps it out.
 
-use std::fmt;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
-use rustls::crypto::CryptoProvider;
-use rustls::{ClientConfig, RootCertStore};
+use pod_core::{Class, Failure};
+use pod_tls::{Context, Settings, Words};
+use rustls::ClientConfig;
 
-use crate::bundle;
+use crate::client::ConnectError;
+use crate::cut::{Cut, TlsFailure};
+use crate::dial::DialError;
 use crate::error::WsError;
 
-/// The version of the compiled-in Mozilla roots (`webpki-roots`), and the day
-/// that crates.io published it: the crate holds no date of its own. A test
-/// reads Cargo.lock, so an update of the crate must update both. A binary
-/// keeps the roots that it was built with; `podssh doctor` gives their age.
-pub const ROOTS_VERSION: &str = "1.0.11";
-pub const ROOTS_PUBLISHED: &str = "2026-10-23";
+pub use pod_tls::{
+    clock_refused, roots_from_compiled_set, CallerConfig, TlsRoots, Trust, ROOTS_PUBLISHED, ROOTS_VERSION,
+    SYSTEM_BUNDLES,
+};
 
-/// Where the trust anchors for the relay's certificate come from.
-///
-/// An explicit file (`--ca-file`, `SSL_CERT_FILE`) is used alone and never
-/// widened. Otherwise podssh trusts everything it can find, so a host with no
-/// setup still connects: a `podssh-ca.pem` next to the binary, the stores of
-/// Windows and macOS ([`crate::stores`]), the first readable system bundle,
-/// and the Mozilla root store compiled into the binary (`webpki-roots`).
-/// Hostname and chain verification are the same either way.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Trust {
-    /// Only the certificates in this PEM file.
-    File(PathBuf),
-    /// The bundle next to the binary, the system's stores, a system bundle,
-    /// and the compiled-in roots.
-    Default,
-    /// The caller's own configuration, with its provider, roots, verifier and
-    /// protocol versions, used as it is. Built only by [`Trust::caller`].
-    Caller(CallerConfig),
+/// The process's TLS: made at its first use, with podssh's settings.
+pub fn context() -> &'static Arc<Context> {
+    static CONTEXT: OnceLock<Arc<Context>> = OnceLock::new();
+    CONTEXT.get_or_init(|| {
+        let mut settings = Settings::new(words());
+        settings.extra_bundle = crate::bundle::default_bundle_path().ok();
+        let context = Context::new(Arc::new(crate::crypto::provider()), settings);
+        // The variable's mode until a command sets its own (`ech::set_mode`);
+        // a word that is none of its own is off here, as a command refuses
+        // it before (78), and a library's caller gets what it set.
+        context.ech().set_mode(pod_tls::ech::chosen(None, crate::ech::mode_from_env()));
+        Arc::new(context)
+    })
 }
 
-/// A caller's `rustls::ClientConfig` that [`Trust::caller`] accepted.
-#[derive(Clone)]
-pub struct CallerConfig(Arc<ClientConfig>);
-
-impl CallerConfig {
-    pub fn config(&self) -> &Arc<ClientConfig> {
-        &self.0
+/// podssh's names in the words of a failed handshake.
+fn words() -> Words {
+    Words {
+        app: "podssh".into(),
+        replace_roots: "--ca-file FILE or SSL_CERT_FILE".into(),
+        add_roots: Some(format!("{} next to the binary", crate::bundle::BUNDLE_FILE_NAME)),
+        ech_strict: crate::ech::STRICT.into(),
     }
 }
-
-impl fmt::Debug for CallerConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("CallerConfig(the caller's rustls::ClientConfig)")
-    }
-}
-
-/// The same configuration, not an equal one: a `ClientConfig` has no
-/// equality, and two of them can differ in a verifier that no field shows.
-impl PartialEq for CallerConfig {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl Eq for CallerConfig {}
-
-impl Trust {
-    /// The caller's own TLS configuration, for each connection and each HTTPS
-    /// request. Refused when it offers ALPN: the relay's WebSocket upgrade is
-    /// HTTP/1.1 only, and a server that chose `h2` would not answer it. The
-    /// configuration is never changed to fit; its verifier is the caller's,
-    /// and podssh cannot check it.
-    pub fn caller(config: Arc<ClientConfig>) -> Result<Trust, WsError> {
-        if !config.alpn_protocols.is_empty() {
-            let offered: Vec<String> =
-                config.alpn_protocols.iter().map(|p| String::from_utf8_lossy(p).into_owned()).collect();
-            return Err(WsError::Config(format!(
-                "the caller's TLS configuration offers ALPN ({}); the relay's WebSocket upgrade is \
-                 HTTP/1.1 only. Give a configuration with no ALPN: podssh does not change it",
-                offered.join(", ")
-            )));
-        }
-        Ok(Trust::Caller(CallerConfig(config)))
-    }
-}
-
-/// System CA bundle locations, most common first. They are often the same
-/// file under different names, so only the first readable one is used.
-pub const SYSTEM_BUNDLES: &[&str] = &[
-    "/etc/ssl/certs/ca-certificates.crt",
-    "/etc/pki/tls/certs/ca-bundle.crt",
-    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
-    "/etc/ssl/ca-bundle.pem",
-    "/etc/ssl/cert.pem",
-    "/usr/local/share/certs/ca-root-nss.crt",
-];
 
 /// The trust anchors for `trust`. A caller's configuration holds its own,
 /// which podssh cannot list.
 pub fn roots_for(trust: &Trust) -> Result<TlsRoots, WsError> {
-    match trust {
-        Trust::File(path) => roots_from_bundle(path),
-        Trust::Default => Ok(default_roots()),
-        Trust::Caller(_) => {
-            Err(WsError::Config("the caller's TLS configuration holds its own roots; podssh cannot list them".into()))
-        }
-    }
+    Ok(context().roots_for(trust)?)
 }
 
 /// The rustls configuration for `trust`: the caller's as it is, or podssh's
 /// own over the roots of `trust`, made once in the process, so TLS resumes.
 pub fn config_for(trust: &Trust) -> Result<Arc<ClientConfig>, WsError> {
-    match trust {
-        Trust::Caller(caller) => Ok(caller.config().clone()),
-        own => kept::config(own, || client_config(&roots_for(own)?)),
-    }
+    Ok(context().config_for(trust)?)
+}
+
+/// The default trust store: the compiled-in Mozilla roots, plus a
+/// `podssh-ca.pem` next to the binary, plus the roots of the system's stores,
+/// plus the first readable system bundle.
+pub fn default_roots() -> TlsRoots {
+    context().default_roots()
+}
+
+/// The roots of the PEM file at `path`, alone.
+pub fn roots_from_bundle(path: &std::path::Path) -> Result<TlsRoots, WsError> {
+    Ok(pod_tls::roots_from_bundle(path)?)
+}
+
+/// podssh's configuration over `roots`, with the process's provider and the
+/// groups that servers took.
+pub fn client_config(roots: &TlsRoots) -> Result<Arc<ClientConfig>, WsError> {
+    Ok(context().client_config(roots)?)
 }
 
 /// A TLS client over `stream`, a connection that is already open (a relay
@@ -136,258 +92,118 @@ pub async fn connect_over<S>(
     stream: S,
     server_name: &str,
     trust: &Trust,
-    limit: std::time::Duration,
+    limit: Duration,
 ) -> Result<tokio_rustls::client::TlsStream<S>, String>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
-    let config = config_for(trust).map_err(|e| e.to_string())?;
-    let name = rustls_pki_types::ServerName::try_from(server_name.to_string())
-        .map_err(|e| format!("{server_name:?} is not a valid server name: {e}"))?;
-    let connector = tokio_rustls::TlsConnector::from(config);
-    match tokio::time::timeout(limit, connector.connect(name, stream)).await {
-        Ok(Ok(tls)) => Ok(tls),
-        // rustls's text tells an unknown issuer from a name mismatch.
-        Ok(Err(e)) => Err(format!("the TLS handshake with {server_name} failed: {}", handshake_failure(&e))),
-        Err(_) => Err(format!("the TLS handshake with {server_name} did not end within {} s", limit.as_secs())),
-    }
+    context().connect_over(stream, server_name, trust, limit).await.map_err(|e| e.text().to_string())
 }
-
-/// What to do about an issuer that no root here signs, as a proxy that
-/// re-signs TLS gives (T-340).
-pub const UNKNOWN_ISSUER_HINT: &str = "no root that podssh trusts here signs the certificate: a proxy that \
-    re-signs TLS needs its CA, in --ca-file FILE or SSL_CERT_FILE, which replace podssh's roots, or in \
-    podssh-ca.pem next to the binary, which adds to them";
 
 /// What to do when a TLS handshake failed with `error`: for an issuer that no
-/// root here signs, [`UNKNOWN_ISSUER_HINT`]; for a certificate that is expired
-/// or not valid yet, this host's clock and its reading (T-345); none for
-/// another failure. The error's type first, its text when a wrapper hides the
-/// type.
+/// root here signs, where its CA goes (T-340); for a certificate that is
+/// expired or not valid yet, this host's clock and its reading (T-345); none
+/// for another failure.
 pub fn handshake_hint(error: &std::io::Error) -> Option<String> {
-    use rustls::{CertificateError, Error};
-    let inner = error.get_ref().and_then(|inner| inner.downcast_ref::<Error>());
-    let text = error.to_string();
-    if matches!(inner, Some(Error::InvalidCertificate(CertificateError::UnknownIssuer)))
-        || text.contains("UnknownIssuer")
-    {
-        return Some(UNKNOWN_ISSUER_HINT.to_string());
-    }
-    let clock = matches!(
-        inner,
-        Some(Error::InvalidCertificate(
-            CertificateError::Expired
-                | CertificateError::ExpiredContext { .. }
-                | CertificateError::NotValidYet
-                | CertificateError::NotValidYetContext { .. }
-        ))
-    ) || clock_refused(&text);
-    clock.then(|| crate::clock::hint(std::time::SystemTime::now()))
-}
-
-/// Whether the text of a TLS failure says that a certificate's time refused
-/// it: rustls writes "certificate expired" and "certificate not valid yet",
-/// and their names in a `Debug`.
-pub fn clock_refused(text: &str) -> bool {
-    let lower = text.to_ascii_lowercase();
-    lower.contains("expired") || lower.contains("notvalidyet") || lower.contains("not valid yet")
+    pod_tls::handshake_hint(error, context().words())
 }
 
 /// The text of a failed handshake, with its hint when it has one.
 pub fn handshake_failure(error: &std::io::Error) -> String {
-    match handshake_hint(error) {
-        Some(hint) => format!("{error}; {hint}"),
-        None => error.to_string(),
+    pod_tls::handshake_failure(error, context().words())
+}
+
+/// The failure of a TLS road of `pod-tls` as podssh's roads say it: the
+/// dial's error as it was, a configuration or a name that cannot be used, the
+/// bound of the handshake, or the handshake's words with the cut of its
+/// error of I/O (T-487).
+pub(crate) fn connect_error(failure: Failure, limit: Duration) -> ConnectError {
+    let cause = std::error::Error::source(&failure);
+    if let Some(dial) = cause.and_then(|e| e.downcast_ref::<DialError>()) {
+        return ConnectError::Dial(dial.clone());
+    }
+    let kind = cause.and_then(|e| e.downcast_ref::<std::io::Error>()).map(|e| e.kind());
+    match (failure.class, kind) {
+        (Class::Config | Class::Usage, _) => ConnectError::Config(failure.text().to_string()),
+        (Class::Timeout, None) => ConnectError::Timeout { step: "the TLS handshake", after: limit },
+        // rustls's own refusal (a certificate, a name, a protocol) says
+        // nothing of the path.
+        (_, kind) => ConnectError::Tls(TlsFailure {
+            why: failure.text().to_string(),
+            cut: kind.filter(|k| *k != std::io::ErrorKind::InvalidData).map(Cut::of),
+        }),
     }
 }
 
-/// The default trust store: the compiled-in Mozilla roots, plus a
-/// `podssh-ca.pem` next to the binary, plus the roots of the system's stores,
-/// plus the first readable system bundle. Unreadable or unparsable extras are
-/// skipped; the compiled-in set is always there, so this cannot come back
-/// empty.
-pub fn default_roots() -> TlsRoots {
-    let mut roots = RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() };
-    let mut sources = vec![format!(
-        "{} compiled-in roots (webpki-roots {ROOTS_VERSION} of {ROOTS_PUBLISHED})",
-        webpki_roots::TLS_SERVER_ROOTS.len()
-    )];
-    if let Ok(path) = bundle::default_bundle_path() {
-        add_extra(&mut roots, &mut sources, &path);
+/// The group that each server took, kept across runs, and the store of
+/// sessions that offers it (T-664): `pod_tls::groups`, with the process's.
+pub mod groups {
+    pub use pod_tls::groups::*;
+
+    /// Give the process's configurations the file of the groups, once a run,
+    /// before any dial; `false` when they have one already.
+    pub fn keep_in(file: Box<dyn GroupFile>) -> bool {
+        super::context().groups().keep_in(file)
     }
-    // Where an administrator puts the root of a proxy that re-signs TLS, on
-    // systems that keep it outside files (T-340).
-    for store in crate::stores::read() {
-        let (added, _ignored) = roots.add_parsable_certificates(store.roots);
-        if added > 0 {
-            sources.push(format!("{added} from {}", store.name));
+
+    /// What the process has to say of its file of groups, once.
+    pub fn take_note() -> Option<String> {
+        super::context().groups().take_note()
+    }
+}
+
+impl From<pod_tls::Error> for WsError {
+    fn from(e: pod_tls::Error) -> WsError {
+        match e {
+            pod_tls::Error::Bundle { path, why } => WsError::Bundle { path, why },
+            pod_tls::Error::Config(why) => WsError::Config(why),
+            other => WsError::Config(other.to_string()),
         }
     }
-    for candidate in SYSTEM_BUNDLES {
-        if add_extra(&mut roots, &mut sources, Path::new(candidate)) {
-            break;
-        }
-    }
-    let count = roots.len();
-    TlsRoots { roots, source: sources.join(" + "), count }
 }
-
-/// Add the parsable certificates of one optional bundle. Returns whether any
-/// were added.
-fn add_extra(roots: &mut RootCertStore, sources: &mut Vec<String>, path: &Path) -> bool {
-    let Ok(certs) = bundle::load_bundle(path) else { return false };
-    let (added, _ignored) = roots.add_parsable_certificates(certs);
-    if added > 0 {
-        sources.push(format!("{added} from {}", path.display()));
-    }
-    added > 0
-}
-
-#[derive(Debug)]
-pub struct TlsRoots {
-    pub roots: RootCertStore,
-    /// Where they came from, printed by the doctor. "Verified" is only
-    /// meaningful next to the path that was read.
-    pub source: String,
-    pub count: usize,
-}
-
-pub fn roots_from_bundle(path: &Path) -> Result<TlsRoots, WsError> {
-    let certs = bundle::load_bundle(path).map_err(|why| WsError::Bundle { path: path.display().to_string(), why })?;
-    let offered = certs.len();
-    let mut roots = RootCertStore::empty();
-    // `add_parsable_certificates` returns `(valid, invalid)` counts. A
-    // silently dropped root produces a chain failure that reads as an
-    // untrusted issuer rather than as a damaged file, so a non-zero invalid
-    // count is an error naming both numbers.
-    let (added, invalid) = roots.add_parsable_certificates(certs);
-    if invalid > 0 {
-        return Err(WsError::Bundle {
-            path: path.display().to_string(),
-            why: format!("{invalid} of {offered} certificate(s) could not be parsed as trust anchors"),
-        });
-    }
-    if added == 0 {
-        return Err(WsError::Bundle {
-            path: path.display().to_string(),
-            why: "the bundle produced no usable trust anchors".into(),
-        });
-    }
-    Ok(TlsRoots { roots, source: path.display().to_string(), count: added })
-}
-
-/// Only the compiled-in Mozilla roots (`webpki-roots`), with no extras.
-pub fn roots_from_compiled_set() -> TlsRoots {
-    TlsRoots {
-        count: webpki_roots::TLS_SERVER_ROOTS.len(),
-        roots: RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() },
-        source: format!(
-            "the compiled-in webpki-roots set ({} anchors) — NOT a file",
-            webpki_roots::TLS_SERVER_ROOTS.len()
-        ),
-    }
-}
-
-/// **The provider is passed explicitly, never installed as a process
-/// default.** `install_default` is global and can only succeed once per
-/// process, so a library that did it would take the choice away from whatever
-/// embeds podssh, and a second call would return an error that reads like a
-/// bug in the caller.
-pub fn client_config(roots: &TlsRoots) -> Result<Arc<ClientConfig>, WsError> {
-    client_config_with(roots, crate::crypto::provider())
-}
-
-/// [`client_config`] with a provider that the caller gives: the same
-/// verifier and the same protocol versions, so that a test can offer one key
-/// exchange group alone and still prove the configuration that ships.
-pub fn client_config_with(roots: &TlsRoots, provider: CryptoProvider) -> Result<Arc<ClientConfig>, WsError> {
-    client_config_keeping(roots, provider, groups::process())
-}
-
-/// [`client_config_with`], whose store of sessions takes the groups that
-/// servers took from `kept`: the process's, or a test's run of its own.
-pub fn client_config_keeping(
-    roots: &TlsRoots,
-    provider: CryptoProvider,
-    kept: Arc<groups::Kept>,
-) -> Result<Arc<ClientConfig>, WsError> {
-    let provider: Arc<CryptoProvider> = Arc::new(provider);
-    let verifier =
-        rustls::client::WebPkiServerVerifier::builder_with_provider(Arc::new(roots.roots.clone()), provider.clone())
-            .build()
-            .map_err(|e| WsError::Config(format!("server certificate verifier: {e}")))?;
-
-    let mut config = ClientConfig::builder_with_provider(provider)
-        .with_safe_default_protocol_versions()
-        .map_err(|e| WsError::Config(e.to_string()))?
-        .dangerous()
-        .with_custom_certificate_verifier(verifier)
-        // **No SNI suppression, no ALPN, no client certificate.** The relay
-        // is a single hostname; a client that presents a client certificate
-        // has nothing to present one for.
-        .with_no_client_auth();
-    // The tickets stay in this configuration's memory, as rustls's default
-    // keeps them; the group that each server took outlives the run (T-664).
-    // No early data: `enable_early_data` stays off.
-    config.resumption = rustls::client::Resumption::store(Arc::new(store::Store::new(kept)));
-
-    Ok(Arc::new(config))
-}
-
-// The configuration of each trust, kept for the process (T-444).
-mod kept;
-// The group that each server took, kept across runs, and the store of
-// sessions that offers it (T-664).
-pub mod groups;
-mod store;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use rustls::{CertificateError, Error};
 
-    /// The hint comes with rustls's own error, found by its type, and by its
-    /// text when a wrapper hides the type; another failure has none.
+    /// podssh's words give podssh's hint, word for word (T-340).
     #[test]
-    fn an_unknown_issuer_gets_the_hint_and_another_failure_none() {
+    fn an_unknown_issuer_gets_podssh_s_hint() {
         let typed = std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             Error::InvalidCertificate(CertificateError::UnknownIssuer),
         );
-        assert_eq!(handshake_hint(&typed).as_deref(), Some(UNKNOWN_ISSUER_HINT));
-        let said = handshake_failure(&typed);
-        assert!(said.contains("UnknownIssuer") && said.contains("--ca-file FILE or SSL_CERT_FILE"), "{said}");
-        let text = std::io::Error::other("TLS with the relay failed: invalid peer certificate: UnknownIssuer");
-        assert_eq!(handshake_hint(&text).as_deref(), Some(UNKNOWN_ISSUER_HINT));
-        let name = std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            Error::InvalidCertificate(CertificateError::NotValidForName),
+        assert_eq!(
+            handshake_hint(&typed).as_deref(),
+            Some(
+                "no root that podssh trusts here signs the certificate: a proxy that re-signs TLS needs its CA, in \
+                 --ca-file FILE or SSL_CERT_FILE, which replace podssh's roots, or in podssh-ca.pem next to the \
+                 binary, which adds to them"
+            )
         );
-        assert_eq!(handshake_hint(&name), None);
-        assert_eq!(handshake_failure(&name), name.to_string());
-        let reset = std::io::Error::from(std::io::ErrorKind::ConnectionReset);
-        assert_eq!(handshake_hint(&reset), None);
     }
 
-    /// Each of rustls's four errors of a certificate's time gets the clock's
-    /// words with its reading, by type and by text; a name mismatch does not.
+    /// A failure of a road keeps the kind of its cut, its bound and its
+    /// words, as podssh's roads said them.
     #[test]
-    fn a_certificate_refused_by_its_time_names_the_clock() {
-        let time = rustls_pki_types::UnixTime::since_unix_epoch(std::time::Duration::from_secs(1_791_440_989));
-        for e in [
-            CertificateError::Expired,
-            CertificateError::NotValidYet,
-            CertificateError::ExpiredContext { time, not_after: time },
-            CertificateError::NotValidYetContext { time, not_before: time },
-        ] {
-            let typed = std::io::Error::new(std::io::ErrorKind::InvalidData, Error::InvalidCertificate(e));
-            let said = handshake_failure(&typed);
-            assert!(said.contains("certificates are checked against this host's clock, which reads"), "{said}");
-            assert!(said.ends_with(" GMT"), "{said}");
-        }
-        let text = std::io::Error::other("TLS with the relay failed: invalid peer certificate: certificate expired");
-        assert!(handshake_hint(&text).is_some_and(|h| h.contains("this host's clock")));
-        let name = std::io::Error::other("invalid peer certificate: NotValidForName");
-        assert_eq!(handshake_hint(&name), None);
+    fn a_failure_of_a_road_is_podssh_s_connect_error() {
+        let limit = Duration::from_secs(3);
+        let reset =
+            pod_tls::handshake_error(std::io::Error::from(std::io::ErrorKind::ConnectionReset), context().words());
+        assert!(matches!(connect_error(reset, limit), ConnectError::Tls(TlsFailure { cut: Some(Cut::Reset), .. })));
+        let refused = std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            Error::InvalidCertificate(CertificateError::UnknownIssuer),
+        );
+        let refused = connect_error(pod_tls::handshake_error(refused, context().words()), limit);
+        assert!(matches!(&refused, ConnectError::Tls(TlsFailure { cut: None, why }) if why.contains("--ca-file")));
+        let slow = Failure::new(pod_core::Stage::Tls, Class::Timeout, "the TLS handshake timed out after 3s");
+        assert_eq!(connect_error(slow, limit), ConnectError::Timeout { step: "the TLS handshake", after: limit });
+        let dial = DialError::InvalidTarget("a name".into());
+        let failed = Failure::caused(pod_core::Stage::Connect, Class::Usage, dial.to_string(), dial.clone());
+        assert_eq!(connect_error(failed, limit), ConnectError::Dial(dial));
+        let config = Failure::from(pod_tls::Error::Config("no roots".into()));
+        assert_eq!(connect_error(config, limit), ConnectError::Config("TLS configuration: no roots".into()));
     }
 }

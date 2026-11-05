@@ -366,9 +366,9 @@ host's resolver).
 
 - podssh has: none of TURN (no code names it); the parts that it takes,
   each pure Rust: `hmac`, `md5` and `sha1` in podssh-ws
-  (`crates/podssh-ws/Cargo.toml:17`, `crates/podssh-ws/Cargo.toml:45-46`),
+  (`crates/podssh-ws/Cargo.toml:20`, `crates/podssh-ws/Cargo.toml:37-38`),
   the dial through `HTTPS_PROXY` (`crates/podssh-ws/src/dial.rs:201`) and TLS
-  over it (`crates/podssh-ws/src/tls.rs:135`), and its own resolver order
+  over it (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:135`), and its own resolver order
   (`crates/podssh-ws/src/resolve.rs:2`).
 - What the reading finds in it: no Refresh, so a session ends with its
   allocation of 600 s (its own "Limits"); credentials in the environment,

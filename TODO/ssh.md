@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:228-235` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5566-5567`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5589-5590`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -1508,10 +1508,10 @@ Read:
   only the write can end the wait.
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
   (`crates/podssh-ws/src/client.rs:34-35`, given to the session at
-  `crates/podssh-ws/src/client.rs:182`), and `write` applies it
-  (`crates/podssh-ws/src/session.rs:417-424`). Then the copy task stops
+  `crates/podssh-ws/src/client.rs:183`), and `write` applies it
+  (`crates/podssh-ws/src/session.rs:420-427`). Then the copy task stops
   (`crates/podssh-ssh/src/relay_stream.rs:216-232`), the next ping meets the
-  same limit and ends the read task (`crates/podssh-ws/src/session.rs:326-329`,
+  same limit and ends the read task (`crates/podssh-ws/src/session.rs:329-332`,
   `crates/podssh-ssh/src/relay_stream.rs:240-251`), and russh's next write
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
@@ -2346,7 +2346,7 @@ ssh-key 0.7.0-rc.11 (`cargo tree -i rsa@0.10.0-rc.18`); `podssh keygen` makes
 an RSA key with `RsaKeypair::random` (`crates/podssh-ssh/src/keygen.rs`, line 67 at `ff75425`),
 and its default is Ed25519 (`crates/podssh-ssh/src/keygen.rs:35`). `rsa`
 0.9.10 comes into `podssh-ws`, which only verifies signatures with public keys
-(`crates/podssh-ws/src/crypto/rsa_sig.rs:10-12`): the attack needs the private
+(`PodUtils/podssh:crates/podssh-ws/src/crypto/rsa_sig.rs:10-12`): the attack needs the private
 key. The binary already links aws-lc-rs, whose RSA is constant-time, for the
 ciphers of russh (`docs/decisions.md`, the SSH client).
 
@@ -3423,7 +3423,7 @@ first word is the cut's. A warning 30 s before would let the user press a key, o
   (`crates/podssh-relay/src/relay.rs:70-73`), counted on payload alone (`docs/relay.md:473`).
 - Read: the relay stream counts the payload both ways
   (`crates/podssh-ssh/src/relay_stream.rs:133-137`), and keeps the time of the relay's last frame
-  of any kind, keepalives among them (`crates/podssh-ws/src/session.rs:288-291`,
+  of any kind, keepalives among them (`crates/podssh-ws/src/session.rs:291-294`,
   `crates/podssh-ssh/src/relay_stream.rs:192`); it kept no time of the last payload before this
   entry's draft (read at `582b1bf`). So #98's
   reading that the client already knows the time of the last byte holds for no clock that the cut
@@ -4811,7 +4811,7 @@ The draft's calls, 2026-11-04, each with what lost:
 2. **The group of the key exchange is kept instead.** rustls asks its store for it
    (`ClientSessionStore::kx_hint`, public in 0.23), and in TLS 1.3 it is what saves a round trip:
    a server that takes none of the first offer (podssh's is X25519) answers with a
-   HelloRetryRequest. The store (`crates/podssh-ws/src/tls/store.rs`) keeps rustls's own cache in
+   HelloRetryRequest. The store (`PodUtils/podssh:crates/podssh-ws/src/tls/store.rs`) keeps rustls's own cache in
    memory for the tickets, one for each configuration, so T-444's rule holds (a ticket resumed
    under the trust that verified it alone); the groups are the process's, shared by each trust, as
    a group is no secret and checks nothing. The file is text of three fields a line, read with no
@@ -4889,6 +4889,8 @@ Planted: the eight plants of T-664 in `scripts/plants/`, each of which must fail
 - Item 3: the session's open cannot go with its requests, which carry the channel number that the
   confirmation gives; the pty's request and the command's can, and go together.
 
+The test targets `tls_group`, `tls_resume` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs them, with their names. Its plants `t664-group-file-open`, `t664-group-not-kept`, `t664-groups-half-read` moved there too: `PodUtils/podcrates:scripts/plants/tls-group-file-open.plant`, `PodUtils/podcrates:scripts/plants/tls-group-not-kept.plant`, `PodUtils/podcrates:scripts/plants/tls-groups-half-read.plant`.
+
 ## Done
 
 2026-11-04, merged from its draft (`a467f09`; its patch of russh made again at the merge against
@@ -4896,7 +4898,7 @@ the tree with T-661's, `vendor/patches/russh/0003-publickey-signed-at-once.patch
 was cut before it; the draft's entry of TLS tickets is T-672).
 
 - The key exchange's group that a relay host took is kept, mode 0600 (`tls-groups.txt`), so a later
-  run meets no HelloRetryRequest (`crates/podssh-ws/src/tls/groups.rs`,
+  run meets no HelloRetryRequest (`PodUtils/podssh:crates/podssh-ws/src/tls/groups.rs`,
   `crates/podssh-relay/src/tls_groups.rs`); TLS tickets across runs wait for rustls (T-672). The key
   that a host took is kept by a hash of the user and the host's key (`accepted-keys.txt`), and its
   signature goes in the first request, with no `none` and no query (`crates/podssh-ssh/src/accepted.rs`,
@@ -5157,7 +5159,7 @@ handshake does (T-664's Correction), so the gain there is bytes and a check, not
 
 1. Once a release of rustls encodes a client's session value: rustls, tokio-rustls and the crates
    that link them moved to it, as Dependabot moves a dependency.
-2. The store of sessions of T-664 (`crates/podssh-ws/src/tls/store.rs`) writes each TLS 1.3 ticket
+2. The store of sessions of T-664 (`PodUtils/podssh:crates/podssh-ws/src/tls/store.rs`) writes each TLS 1.3 ticket
    to a private file of the cache, mode 0600, beside the groups: by the server's name and by the
    trust that verified the session (T-444's rule: a resumed handshake checks no certificate), at
    most a few tickets a server, each used once and removed when it is taken, none past its

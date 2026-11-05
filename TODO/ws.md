@@ -115,14 +115,14 @@ returning an error. Its callers expect an error: the comment of the masking key 
 
 Read on `3ee70dc`, the defect holds; the lines below are those of `510d86f`. `OsRandom::fill`
 calls `rand::rngs::OsRng.fill_bytes` and always returns `Ok`
-(`crates/podssh-ws/src/crypto/random.rs` lines 13-23 at `c56792f`), and its comment (lines 15-19 at `c56792f`) says that
+(`PodUtils/podssh:crates/podssh-ws/src/crypto/random.rs` lines 13-23 at `c56792f`), and its comment (lines 15-19 at `c56792f`) says that
 this cannot fail. It can: `Cargo.lock` gives `podssh-ws` `rand` 0.8, whose `rand_core` 0.6.4
 implements `fill_bytes` for `OsRng` as `try_fill_bytes` and a panic on an error (read in the
 cargo registry copy, `rust-random/rand:rand_core/src/os.rs`, lines 61-64 at `22c3b88` of that release).
 `generate_key` and `masking_key` map an error that never comes
 (`crates/podssh-ws/src/handshake.rs` lines 23-29 and 256-271 at `c56792f`). Two more sites, not in the W13
 row, panic the same way: `rng.fill_bytes` for the X25519 secret
-(`crates/podssh-ws/src/crypto/kx.rs` lines 52-56 at `c56792f`) and `EphemeralSecret::random` for P-256 (line
+(`PodUtils/podssh:crates/podssh-ws/src/crypto/kx.rs` lines 52-56 at `c56792f`) and `EphemeralSecret::random` for P-256 (line
 66).
 
 ## Approach
@@ -130,7 +130,7 @@ row, panic the same way: `rng.fill_bytes` for the X25519 secret
 1. In `random.rs`, call `OsRng.try_fill_bytes`, and map an error to
    `rustls::crypto::GetRandomFailed`; rustls 0.23.45 turns it into
    `Error::FailedToGetRandomBytes` (read in its `src/error.rs`). Correct the comment.
-2. X25519 (`crates/podssh-ws/src/crypto/kx.rs` lines 52-56 at `510d86f`): fill the 32 bytes through
+2. X25519 (`PodUtils/podssh:crates/podssh-ws/src/crypto/kx.rs` lines 52-56 at `510d86f`): fill the 32 bytes through
    `OsRandom::fill`, and return `Error::FailedToGetRandomBytes` on a failure.
 3. P-256 (line 66): draw 32 bytes the same way, make the secret with
    `p256::SecretKey::from_slice` (draw again, a few times at most, when it is zero or out of
@@ -172,6 +172,10 @@ New tests: with a failing source, `fill` returns `GetRandomFailed` and `masking_
 completes with each group: X25519 against the live relay, and P-256 against a server that offers
 only P-256 (`openssl s_server -groups P-256` in the container gate). Planted defect: call
 `fill_bytes` again; the failing-source test panics, and fails.
+
+## Correction
+
+The test target `live_handshake` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs it, with its name.
 
 ## Done
 
@@ -223,7 +227,7 @@ module comment says that the test suite asserts that the shipped configuration d
 (`probe.rs` lines 9-12 at `510d86f`), but no test names `PrintChain`: a search finds it only in `probe.rs`,
 the example and the documents. Also, lines 134 and 178 at `510d86f` of `probe.rs` index the certificate with
 no bound check, so a short certificate panics the probe. The shipped configuration calls
-`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:310-314`), so a scan
+`.dangerous()` to install the WebPKI verifier (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:310-314`), so a scan
 cannot look for that word alone.
 
 ## Approach
@@ -357,7 +361,7 @@ CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws -p podssh-relay
 ```
 
 A new test connects through the caller form to a local TLS test server (as
-`crates/podssh-ws/tests/hostname_verification.rs:55` starts one), with a caller configuration
+`PodUtils/podssh:crates/podssh-ws/tests/hostname_verification.rs:55` starts one), with a caller configuration
 whose only root is the test CA, which the default store does not hold. A configuration with the
 ALPN `h2` is refused. podbox's own test with two clients is the exit check of M4 (T-085).
 Planted defect: ignore the caller's configuration and build podssh's; the test CA is then
@@ -372,7 +376,7 @@ unknown, and the test fails.
   caller's configuration as it is or podssh's own. `open_tls` uses it, so `connect` and the
   `https_*` functions do too. `roots_for` refuses a caller's configuration (podssh cannot list
   its roots).
-- `crates/podssh-ws/tests/caller_tls.rs` (new): through the caller form, `open_tls` reaches a
+- `PodUtils/podssh:crates/podssh-ws/tests/caller_tls.rs` (new): through the caller form, `open_tls` reaches a
   loopback TLS server whose only root is a test CA, and reads what it sends; the control, the
   default store, fails on the unknown issuer; a configuration with `h2` and `http/1.1` is
   refused; the configuration is used as it is. `tests/no_permissive_verifier.rs`: the source of
@@ -403,15 +407,15 @@ the system bundle).
 
 ## Premise
 
-Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs`, line 55
+Read: the provider has two suites, both TLS 1.3 (`PodUtils/podssh:crates/podssh-ws/src/crypto/suites.rs`, line 55
 at `0d3d13a`), and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11 at `0d3d13a`). The configuration
-enables both versions (`crates/podssh-ws/src/tls.rs:310-312`); rustls accepts that, because one
+enables both versions (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:310-312`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
 `tokio-rustls` is on (`Cargo.toml`). The provider has HMAC
-(`crates/podssh-ws/src/crypto/hmac.rs`), AES-GCM and ChaCha20-Poly1305
-(`crates/podssh-ws/src/crypto/aead.rs`), the ECDHE groups (`crates/podssh-ws/src/crypto/kx.rs`),
-and RSA and ECDSA verification (`crates/podssh-ws/src/crypto/sign.rs`). The stand-in relay
+(`PodUtils/podssh:crates/podssh-ws/src/crypto/hmac.rs`), AES-GCM and ChaCha20-Poly1305
+(`PodUtils/podssh:crates/podssh-ws/src/crypto/aead.rs`), the ECDHE groups (`PodUtils/podssh:crates/podssh-ws/src/crypto/kx.rs`),
+and RSA and ECDSA verification (`PodUtils/podssh:crates/podssh-ws/src/crypto/sign.rs`). The stand-in relay
 requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
 
 ## Approach
@@ -421,13 +425,13 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    AEAD: GCM with a 4-byte implicit salt and an 8-byte explicit nonce; ChaCha20-Poly1305 with
    the nonce of RFC 7905.
 2. The TLS 1.3 suites stay first in `ALL_CIPHER_SUITES`, and `self_check`
-   (`crates/podssh-ws/src/crypto/suites.rs:87-129`) checks the new suites too.
+   (`PodUtils/podssh:crates/podssh-ws/src/crypto/suites.rs:87-129`) checks the new suites too.
 3. No CBC suite, no RSA key exchange, no SHA-1 suite.
 4. Test each suite against software that podssh did not write: `openssl s_server -tls1_2` with
    one suite at a time in the container gate, and `scripts/fake-relay.py` with an option for TLS
    1.2 only.
 5. The relay line of `doctor` names the version
-   (`crates/podssh-relay/src/health.rs:104-107`, which `doctor` and `relay status` share); the live relay must still give TLS
+   (`crates/podssh-relay/src/health.rs:102-107`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
    (`crates/podssh-cli/src/man/facts.rs` lines 408-424 at `59b67e6`) and `docs/STATUS.md` in the same commit.
@@ -464,10 +468,14 @@ Each TLS 1.2 suite completes a handshake and moves data with OpenSSL. The stand-
 TLS 1.2 mode carries a session. The live test asserts TLS 1.3. Planted defect: remove one suite
 from the list; its OpenSSL check fails.
 
+## Correction
+
+The test target `live_handshake` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs it, with its name.
+
 ## Done
 
 Done on 2026-10-11. Six TLS 1.2 suites follow the two of TLS 1.3
-(`crates/podssh-ws/src/crypto/tls12.rs`): ECDHE_ECDSA and ECDHE_RSA, each with AES-256-GCM,
+(`PodUtils/podssh:crates/podssh-ws/src/crypto/tls12.rs`): ECDHE_ECDSA and ECDHE_RSA, each with AES-256-GCM,
 AES-128-GCM and ChaCha20-Poly1305, the PRF rustls's own over the provider's HMAC. The verifiers
 gained ECDSA P-256/SHA-384 and P-384/SHA-256, and the handshake gained the three schemes of RSA
 PKCS #1, for TLS 1.2. `self_check` checks that TLS 1.3 comes first, and that each TLS 1.2 suite is
@@ -508,11 +516,11 @@ TCP on the loopback. `podssh-ws` always does TLS, so each such test needs a CA a
 Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs` lines 162-184 at
 `23b5d82`), and the upgrade takes the TLS stream type (the same file, lines 212-256 at
 `23b5d82`). `RelaySession` is
-generic over its stream (`crates/podssh-ws/src/session.rs:37`), so a session over `TcpStream`
+generic over its stream (`crates/podssh-ws/src/session.rs:40`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:171-178`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
-(`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
+(`PodUtils/podssh:crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
 (`crates/podssh-ws/src/dial.rs:133-141`).
 
 ## Approach
@@ -829,7 +837,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:111-119`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:417-425`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:431-439`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -840,7 +848,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:408-415`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:411-418`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,
@@ -1013,7 +1021,7 @@ container, measured") and `docs/target-environment.md`.
 # T-315: The live handshake tests dial the relay directly, past `HTTPS_PROXY`
 
 **Source:** the native tests of 2026-10-30 in a Claude Code cloud container
-(T-311): four tests of `crates/podssh-ws/tests/live_handshake.rs` failed with
+(T-311): four tests of `PodUtils/podssh:crates/podssh-ws/tests/live_handshake.rs` failed with
 `InvalidCertificate(UnknownIssuer)`.
 **Category:** defect
 **Milestone:** none
@@ -1053,9 +1061,13 @@ cargo test -p podssh-ws --test live_handshake
 The tests pass in the container through its proxy, with the relay's own
 chain; in CI they pass with no proxy, as before.
 
+## Correction
+
+The test target `live_handshake` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs it, with its name.
+
 ## Done
 
-2026-10-30. The dial of `crates/podssh-ws/tests/live_handshake.rs` is
+2026-10-30. The dial of `PodUtils/podssh:crates/podssh-ws/tests/live_handshake.rs` is
 `podssh_ws::dial::dial` with `ProxyChoice::FromEnvironment`: through the
 proxy that `HTTPS_PROXY` names, else directly, as before.
 
@@ -1921,11 +1933,11 @@ command says what to do. Four of the eight release binaries are for Windows and 
 
 ## Premise
 
-- Read: the system's bundles are Unix paths (`crates/podssh-ws/src/tls.rs:99-108`), and the
+- Read: the system's bundles are Unix paths (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:99-108`), and the
   default roots were the compiled-in Mozilla roots, `podssh-ca.pem` next to the binary and the
   first bundle that reads (`crates/podssh-ws/src/tls.rs` lines 180-200 at `59b67e6`). An explicit
   file (`--ca-file`, `SSL_CERT_FILE`) is used alone and never widened
-  (`crates/podssh-ws/src/tls.rs:35-36`).
+  (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:35-36`).
 - Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:134` says "TLS
   with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
   kept rustls's words. doctor adds a hint for the
@@ -1949,8 +1961,8 @@ command says what to do. Four of the eight release binaries are for Windows and 
    `CertificateError::UnknownIssuer`, and its text as the fallback): the issuer is not trusted
    here; a proxy that re-signs TLS needs its CA, in `--ca-file FILE` or `SSL_CERT_FILE` (which
    replace the store) or in `podssh-ca.pem` next to the binary (which adds to it). Each command
-   gets it with the error's text (`crates/podssh-ws/src/client.rs:223`,
-   `crates/podssh-ws/src/tls.rs:151`), and doctor too. T-345 adds the clock's errors to the same
+   gets it with the error's text (`crates/podssh-ws/src/client.rs:237`,
+   `PodUtils/podssh:crates/podssh-ws/src/tls.rs:151`), and doctor too. T-345 adds the clock's errors to the same
    function.
 2. Windows: the stores `ROOT` and `CA` of the current user and of the machine, read through
    `windows-sys` (its feature `Win32_Security_Cryptography`: `CertOpenSystemStoreW`,
@@ -2044,7 +2056,7 @@ a store's certificates is the unit test's below, the same on each system:
   1 passed), and the gate's `scripts/interop-faults.sh` has the same check,
   `faults.issuer`. Planted, the match of `UnknownIssuer` removed: each of the
   three failed.
-- `podssh_ws::stores` (`crates/podssh-ws/src/stores/`): on Windows, `ROOT` of the current user
+- `podssh_ws::stores` (`PodUtils/podssh:crates/podssh-ws/src/stores/`): on Windows, `ROOT` of the current user
   and of the machine through crypt32 (`CertOpenStore` read-only, `CertEnumCertificatesInStore`,
   `CertGetEnhancedKeyUsage`, `CertVerifyTimeValidity`), less what a `Disallowed` store holds; on
   macOS, the trust settings of the user and of the administrator through `security-framework`
@@ -2055,7 +2067,7 @@ a store's certificates is the unit test's below, the same on each system:
   summary (`cargo test -p podssh-ws --lib stores`, 3 passed; planted, the `Disallowed` check and
   the dedupe each removed: each failed); `cargo clippy -p podssh-ws --all-targets` for
   `x86_64-pc-windows-gnu` and `aarch64-apple-darwin`, `-D warnings`, clean.
-- `crates/podssh-ws/tests/system_store.rs`, which the jobs `windows` and `macos` of
+- `PodUtils/podssh:crates/podssh-ws/tests/system_store.rs`, which the jobs `windows` and `macos` of
   `.github/workflows/build.yml` run: the test's root written, a server that it signs refused
   with `UnknownIssuer` while no store holds it, then trusted with the default trust once the root
   is in the machine's `ROOT` (`Import-Certificate`) or in the System keychain with the
@@ -2278,7 +2290,7 @@ and each other command print rustls's words alone. An error should tell what to 
   (`:366-369`).
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:134` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
-  `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
+  `PodUtils/podssh:crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
 - Read: rustls 0.23.46 (`Cargo.lock:4807-4808`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
@@ -2294,7 +2306,7 @@ and each other command print rustls's words alone. An error should tell what to 
    failed with one of the four time errors (their text as the fallback) gets the clock's hint,
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
-   (`crates/podssh-ws/src/client.rs:223`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
+   (`crates/podssh-ws/src/client.rs:237`), `tls::connect_over` (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:151`)
    and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:180-183`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
@@ -2502,8 +2514,8 @@ wiped theirs.
   `#[cfg(feature = "zeroize")]`, a feature that also turns on `chacha20/zeroize`. aes-gcm 0.10.3 and 0.11.1 implement `ZeroizeOnDrop` only with their
   optional `zeroize`, and aes 0.9.3 wipes its key schedule only with its optional `zeroize`.
 - Read: podssh-ws makes the ciphers of TLS from a session's key
-  (`crates/podssh-ws/src/crypto/aead.rs:79-85`) and those of QUIC
-  (`crates/podssh-ws/src/crypto/quic.rs:67`).
+  (`PodUtils/podssh:crates/podssh-ws/src/crypto/aead.rs:79-85`) and those of QUIC
+  (`PodUtils/podssh:crates/podssh-ws/src/crypto/quic.rs:67`).
 
 ## Approach
 
@@ -3063,7 +3075,7 @@ Read at `2042200`:
   (`crates/podssh-ws/src/resolve.rs:10`). So the issue's "ride the query that the name already causes"
   holds for few runs: in the target host, behind its proxy, no query is made at all.
 - TLS has podssh's own provider and no other: `Cargo.toml:82` says "default-features = false and NO
-  crypto provider feature."; its parts (`crates/podssh-ws/src/crypto/`) hold no HPKE, which rustls's ECH
+  crypto provider feature."; its parts (`PodUtils/podssh:crates/podssh-ws/src/crypto/`) hold no HPKE, which rustls's ECH
   needs, and aws-lc's is C, which `podssh-ws` may not hold (rule 4 of `AGENTS.md`).
 - The resolvers are compiled in (`crates/podssh-ws/src/resolve.rs:66`), and are asked through the proxy
   (T-405).
@@ -3169,11 +3181,13 @@ added.
   hello's contents (opened by the test with the list's key), and the acceptance is measured live only
   (the Done).
 
+The test target `ech_handshake` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs it, with its name. Its plants `t642-hello-unsealed`, `t642-nonce-unsequenced`, `t642-ttl-floor` moved there too: `PodUtils/podcrates:scripts/plants/tls-hello-unsealed.plant`, `PodUtils/podcrates:scripts/plants/tls-nonce-unsequenced.plant`, `PodUtils/podcrates:scripts/plants/tls-ttl-floor.plant`.
+
 ## Done
 
 2026-11-05, merged from its draft (`313a7e6`).
 
-- `crates/podssh-ws/src/crypto/hpke.rs`: HPKE's base mode of RFC 9180 as rustls's `Hpke`,
+- `PodUtils/podssh:crates/podssh-ws/src/crypto/hpke.rs`: HPKE's base mode of RFC 9180 as rustls's `Hpke`,
   DHKEM(X25519, HKDF-SHA256) with HKDF-SHA256, and AES-128-GCM or ChaCha20-Poly1305 (`SUITES`, in
   that order), an all-zero Diffie-Hellman refused, each secret in `Zeroizing`, the ephemeral key from
   the provider's `OsRandom`; `hpke_tests.rs` holds it to the RFC's A.1.1 and A.2.1 (each key pair from
@@ -3191,7 +3205,7 @@ added.
   none with no suite), a parameter with no bytes, each cut of the answer and of the parameter, a list in
   base64 cut short, an alias, no record, NXDOMAIN, the generic form, keys out of order or twice, a
   compressed target, and two priorities. The fuzz target `dns_wire` reaches the reader.
-- `crates/podssh-ws/src/ech/`: the mode (`PODSSH_ECH`, `set_mode`), the cache on an injected clock
+- `PodUtils/podssh:crates/podssh-ws/src/ech/`: the mode (`PODSSH_ECH`, `set_mode`), the cache on an injected clock
   (`cache.rs`, `cache_tests.rs`: the TTL's floor, its ceiling, a miss and a failed read kept 30 s, a
   refused name left 5 minutes, the retry configs served at once, two lookups at once one read, the
   maps bounded), the configuration of a sealed hello kept for each trust, name, list and ALPN
@@ -3199,7 +3213,7 @@ added.
   captured list back byte for byte, with none or another failure a refusal in words), and each name's
   last outcome for `doctor` (`tests.rs`). `client::open_tls` and the HTTP/2 road's dial go through it;
   with the mode off, the connection is made as before.
-- `crates/podssh-ws/tests/ech_handshake.rs`: a server of rustls's on the loopback that takes no ECH and
+- `PodUtils/podssh:crates/podssh-ws/tests/ech_handshake.rs`: a server of rustls's on the loopback that takes no ECH and
   keeps each ClientHello: the sealed hello names the public name and not the host, its sealed part
   opens with the list's key (podssh's HPKE, with the AAD and the info that rustls's ECH made) to a hello
   that names the host, the refusal goes on with one plain hello and then the name goes plain at once;

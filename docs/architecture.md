@@ -151,7 +151,7 @@ the user gives. For each host, `podssh-ws` connects:
 The trust store is `--ca-file` or `SSL_CERT_FILE` alone, else the Mozilla
 roots compiled into the binary (`webpki-roots`), a `podssh-ca.pem` next to
 the binary, the roots of the system's stores, and the first readable system
-bundle (T-340, `crates/podssh-ws/src/stores/`). On Windows the stores are
+bundle (T-340, `PodUtils/podcrates:crates/pod-tls/src/stores/`). On Windows the stores are
 `ROOT` of the current user and of the machine, read through crypt32, less a
 certificate that a `Disallowed` store holds, that is not valid today, or
 whose usage leaves out server authentication; the `CA` stores hold
@@ -170,10 +170,10 @@ the roots that it was built with: an update of the roots makes a release
 (Dependabot, T-205; after `v1.0.0`, a patch release), and `podssh doctor`
 says when the compiled-in roots are older than 12 months. A system bundle
 adds roots and removes none, so to stop trusting a root that Mozilla removed
-after the build, give `--ca-file` or `SSL_CERT_FILE` with a current bundle. A process makes one rustls configuration for each trust and keeps it (T-444, `crates/podssh-ws/src/tls/kept.rs`): rustls keeps its cache of sessions there, so a second connection of a run to the same host resumes TLS, and a CA file is read again only when its time or its length changed. A session is resumed under the trust that verified it alone, as a resumed handshake checks no certificate. The tickets stay in the process's memory: rustls 0.23 gives a client no way to write one, and a ticket across runs waits for a release that does (T-672). The key exchange group that each server took outlives the run (T-664, `crates/podssh-ws/src/tls/groups.rs`): a private file of the cache (`tls-groups.txt`) gives it to the next run, which offers it first, so a server that takes P-256 alone, as a proxy that re-signs TLS under FIPS rules may, costs one HelloRetryRequest and not one in each run. No early data is ever sent.
+after the build, give `--ca-file` or `SSL_CERT_FILE` with a current bundle. A process makes one rustls configuration for each trust and keeps it (T-444, `PodUtils/podcrates:crates/pod-tls/src/kept.rs`): rustls keeps its cache of sessions there, so a second connection of a run to the same host resumes TLS, and a CA file is read again only when its time or its length changed. A session is resumed under the trust that verified it alone, as a resumed handshake checks no certificate. The tickets stay in the process's memory: rustls 0.23 gives a client no way to write one, and a ticket across runs waits for a release that does (T-672). The key exchange group that each server took outlives the run (T-664, `PodUtils/podcrates:crates/pod-tls/src/groups.rs`): a private file of the cache (`tls-groups.txt`) gives it to the next run, which offers it first, so a server that takes P-256 alone, as a proxy that re-signs TLS under FIPS rules may, costs one HelloRetryRequest and not one in each run. No early data is ever sent.
 
 Each hello names its host in the clear (SNI), unless the user asks for
-Encrypted Client Hello (T-642, `crates/podssh-ws/src/ech/`; `PODSSH_ECH`, or
+Encrypted Client Hello (T-642, `PodUtils/podcrates:crates/pod-tls/src/ech/`; `PODSSH_ECH`, or
 `ECH` in the settings file). Then each connection that `podssh-ws` opens by
 a name (`client::open_tls`, and the HTTP/2 road's) first takes the name's
 list from the `ech` parameter of its `HTTPS` record (RFC 9460;
@@ -181,7 +181,7 @@ list from the `ech` parameter of its `HTTPS` record (RFC 9460;
 over HTTPS through the host's proxy, as the SRV records are, and kept for
 its TTL; then seals the name inside a hello of TLS 1.3 alone, whose name in
 the clear is the list's public name. HPKE (RFC 9180) is the provider's own
-(`crates/podssh-ws/src/crypto/hpke.rs`, checked against the RFC's vectors),
+(`PodUtils/podcrates:crates/pod-tls/src/crypto/hpke.rs`, checked against the RFC's vectors),
 as rustls offers HPKE only from aws-lc. A server's retry configs get one more
 hello; any other failure of a sealed hello goes on with a plain hello, on a
 new connection, and leaves the name alone for 5 minutes (`strict` sends
@@ -248,7 +248,7 @@ bytes. See [reverse.md](reverse.md).
 | `podssh-cli` | The `podssh` binary: arguments, `--help`, the generated man page, dispatch, the `proxy` pump, the options of `ssh`, `doctor`, `keygen` | each crate below (`podssh-ts` only with the feature `ts`, `podssh-iroh` only with the feature `iroh`) |
 | `podssh-ssh` | The SSH client: russh (aws-lc-rs) over a byte stream, the relay stream, `known_hosts`, the authentication chain, prompts, the terminal (raw mode, size, escapes), exit codes, a host-key probe, key generation | `podssh-ws` |
 | `podssh-relay` | Relay hosts, the pool and failover, tokens (mint, cache, mint again), the forward opener; the pairs, the codecs (the framing of the node and operator legs, the control messages, the close table) and the runners of the reverse road (feature `pair`); the resumable layer between two podssh ends (`session/`: its records, offsets and handshake, sans-IO, and its two ends over tokio streams); UDP in a stream (`udp/`, T-168: each datagram after its length, and the flow at the far end, a UDP socket connected to the target); the blocking facade for podvm (feature `blocking`). No C. | `podssh-ws` |
-| `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with podssh's own pure-Rust provider), the WebSocket client | none |
+| `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with the pure-Rust provider of `pod-tls`, PodUtils/podcrates), the WebSocket client | `pod-tls` |
 | `podssh-core` | Protocol state machines with no I/O: `irc/` | none |
 | `pod-term` (PodUtils/podcrates, T-684; until then `podssh-terminal`) | A line discipline in the process, for `podssh serve` with no pty (not used yet, T-111); the grammar of a terminal's output and its ring, which `podssh session` reads | none |
 | `podssh-probe` | Facts about the structure of the relay's document (tests only) | none |
@@ -304,7 +304,7 @@ These rules apply to each change. The reasons are in
    each released binary is statically compiled, which the gate's step
    `release` and the release workflow check (`scripts/check-static.sh`,
    T-685). `podssh-ws`, `podssh-relay`, `podssh-core` and `podssh-probe` use
-   rustls with podssh's own provider and RustCrypto crates. The binary links aws-lc through `russh` for SSH, and the
+   rustls with the pure-Rust provider of `pod-tls` and RustCrypto crates. The binary links aws-lc through `russh` for SSH, and the
    Tailscale fork with the feature `ts`.
 5. **No `LD_PRELOAD`, no helper processes.** podssh does in its own process
    what the host cannot supply (a pty, a line discipline). A tty in user
@@ -350,7 +350,7 @@ session whose output nobody reads.
 | A file of the cache: a token, the pool, the addresses | 64 KiB | `MAX_FILE`, `crates/podssh-relay/src/cache.rs` | Not read, as a file that the cache makes again: the token is minted again, the pool is fetched at the next mint, and the next session's address is kept |
 | The addresses kept for each relay host; the hosts | 4; 32 | `PER_HOST`, `HOSTS`, `crates/podssh-relay/src/addresses.rs` | The host's oldest address goes; the host that carried no session for the longest goes |
 | An answer of DNS over HTTPS | 64 KiB | `MAX_ANSWER`, `crates/podssh-ws/src/resolve.rs` | "the response body is larger than allowed", and the next resolver |
-| An `ech` list of a name's `HTTPS` record; the names that ECH keeps a list, a miss or a refusal for (T-642) | 4096 bytes; 256 of each | `MAX_LIST`, `crates/podssh-ws/src/resolve/https.rs`; `MOST`, `crates/podssh-ws/src/ech/cache.rs` | "an ech parameter is larger than 4096 bytes": no list, so a plain hello; the name whose time ends soonest goes |
+| An `ech` list of a name's `HTTPS` record; the names that ECH keeps a list, a miss or a refusal for (T-642) | 4096 bytes; 256 of each | `MAX_LIST`, `crates/podssh-ws/src/resolve/https.rs`; `MOST`, `PodUtils/podcrates:crates/pod-tls/src/ech/cache.rs` | "an ech parameter is larger than 4096 bytes": no list, so a plain hello; the name whose time ends soonest goes |
 | A `known_hosts` file | 16 MiB | `MAX_FILE`, `crates/podssh-ssh/src/known_hosts.rs` | "FILE cannot be read (it is larger than 16 MiB, which no known_hosts file is)": no key of it is trusted, and a user file past it records no new key, so `accept-new` refuses an unknown one (exit 255) |
 | An `ssh_config` file | 4 MiB | `MAX_FILE`, `crates/podssh-cli/src/ssh/config.rs` | "FILE is larger than 4 MiB, which no ssh_config is", exit 78 |
 | The SSH window of a channel | 512 KiB to start; then as the path asks: its rate times its least round trip plus 40 ms for 2 s after a key, plus 200 ms idle, and a third more, topped up once a quarter is used, in the server's messages of 8 KiB at most (T-670), 16 KiB at least (T-661), at most the road's cap, which the channels that carry bulk share, each 512 KiB at least: 16 MiB on `--direct`, the iroh road and podssh's relay role; 1.5 MiB through the default relay; 768 KiB on the pair road; 512 KiB on each other road (T-662) | `WINDOW`, `crates/podssh-ssh/src/run.rs`; `crates/podssh-ssh/src/pace/` | The server waits until podssh reads: a session whose output nobody read for 30 s, while the server wrote 50 MB, peaked at 7460 KiB, and one whose reader took each byte at 6884 KiB (`scripts/interop-limits.sh`) |
@@ -376,7 +376,7 @@ session whose output nobody reads.
 | Each step of reaching a relay host: the proxy and TCP, TLS, the upgrade, a mint | 20 s | `CONNECT_TIMEOUT`, `crates/podssh-relay/src/open.rs` | The next relay host |
 | One relay host, its mint included | 45 s | `HOST_DEADLINE`, `crates/podssh-relay/src/open.rs` | "the relay host did not answer within 45 s", and the next relay host |
 | The connection to one resolver of DNS over HTTPS; its answers | 3 s; 5 s | `DOH_CONNECT`, `DOH_EACH`, `crates/podssh-ws/src/resolve.rs` | "no connection within 3 s" or "timed out", and the next resolver |
-| With `PODSSH_ECH`: the read of a name's `HTTPS` record; the answer to a sealed hello (T-642) | 4 s; 10 s, or the step's bound when it is less | `READ_WITHIN`, `SEALED_WAIT`, `crates/podssh-ws/src/ech/road.rs` | The hello goes plain, and the name is asked again 30 s later; the hello goes plain on a new connection, and the name is left alone for 5 minutes (`strict`: the connection fails) |
+| With `PODSSH_ECH`: the read of a name's `HTTPS` record; the answer to a sealed hello (T-642) | 4 s; 10 s, or the step's bound when it is less | `READ_WITHIN`, `SEALED_WAIT`, `PodUtils/podcrates:crates/pod-tls/src/ech/road.rs` | The hello goes plain, and the name is asked again 30 s later; the hello goes plain on a new connection, and the name is left alone for 5 minutes (`strict`: the connection fails) |
 | The addresses of a source with another after it: the cache's, or those of DNS over HTTPS before an old address | 4 s | `SOURCE_WAIT`, `crates/podssh-ws/src/resolve/order.rs` | "no address of this source answered within 4 s", and the next source; DNS over HTTPS ends 4 s before the step's limit, for the old address |
 | The SSH handshake, the time of the host key's question left out (T-588) | `ConnectTimeout`, 60 s when none is set; a line 10 s in | `crates/podssh-ssh/src/handshake.rs` | "HOST: the SSH handshake did not finish within N s: " and what came (no byte, another service's line, or the version line and the last message each way; through a node, the bytes of its layer and its channel), exit 255 |
 | Nothing from the relay | 90 s | `DEFAULT_IDLE_TIMEOUT`, `crates/podssh-ws/src/client.rs` | "no data from the relay for 90s": the session ends |

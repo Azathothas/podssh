@@ -8,7 +8,6 @@
 //! `podssh doctor`, which sends nothing more.
 
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -24,8 +23,9 @@ use crate::tls::Trust;
 pub(super) enum Dialed {
     /// HTTP/2 whose SETTINGS offered extended CONNECT.
     H2(Conn),
-    /// TLS chose `http/1.1`, or no protocol: the connection, for the upgrade.
-    Http1(Box<RelayStream>),
+    /// TLS chose `http/1.1`, or no protocol: the connection, for the upgrade,
+    /// and the address of its TCP.
+    Http1(Box<RelayStream>, Option<SocketAddr>),
     /// HTTP/2 that the road cannot take, closed already, and why.
     Lacks(Fallback),
 }
@@ -36,7 +36,7 @@ pub(super) async fn dial(config: &WsClientConfig) -> Result<Dialed, ConnectError
     let (tls, peer) =
         open(&at.host, at.port, &config.server_name, &config.trust, &config.proxy, config.timeout).await?;
     if tls.get_ref().1.alpn_protocol() != Some(H2) {
-        return Ok(Dialed::Http1(Box::new(tls)));
+        return Ok(Dialed::Http1(Box::new(tls), peer));
     }
     let (sender, driven) = match settled(tls, config.timeout).await {
         Ok(settled) => settled,
@@ -64,28 +64,11 @@ async fn open(
     proxy: &ProxyChoice,
     limit: Duration,
 ) -> Result<(RelayStream, Option<SocketAddr>), ConnectError> {
-    // The configuration and the name are checked before anything connects.
-    let kept = crate::tls::config_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
-    let name = rustls_pki_types::ServerName::try_from(server_name.to_string())
-        .map_err(|e| ConnectError::Config(format!("{server_name:?} is not a valid server name: {e}")))?;
     // Sealed where the user asked for ECH and the name publishes a list, with
-    // this road's protocols (T-642).
-    if crate::ech::wanted(server_name, trust) {
-        return crate::ech::open(host, port, server_name, trust, proxy, limit, &[H2, HTTP1]).await;
-    }
-    let tcp = crate::dial::dial(host, port, proxy, limit).await.map_err(ConnectError::Dial)?;
-    let peer = tcp.peer_addr().ok();
-    // A copy of the trust's own: the same verifier and the same cache of
-    // sessions, with ALPN.
-    let mut config = (*kept).clone();
-    config.alpn_protocols = vec![H2.to_vec(), HTTP1.to_vec()];
-    let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
-    let tls = tokio::time::timeout(limit, connector.connect(name, tcp))
-        .await
-        .map_err(|_| ConnectError::Timeout { step: "the TLS handshake", after: limit })?
-        // The words and the kind of a cut, as each other road keeps them.
-        .map_err(|e| ConnectError::Tls(crate::cut::TlsFailure::of(&e)))?;
-    Ok((tls, peer))
+    // this road's protocols (T-642); else a copy of the trust's own
+    // configuration with them: the same verifier and the same cache of
+    // sessions.
+    crate::client::open_tls_offering(host, port, server_name, trust, proxy, limit, &[H2, HTTP1]).await
 }
 
 /// HTTP/2's handshake on `tls`, its connection driven in a task, and its

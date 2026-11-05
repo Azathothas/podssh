@@ -30,8 +30,10 @@ pub(super) fn verdict(host: &str, mode: Mode, outcome: Option<Outcome>) -> Verdi
     }
     match outcome {
         None => Verdict::Unknown { why: format!("not measured: no connection to {host} was made") },
-        Some(outcome @ Outcome::Strict(_)) => Verdict::Failed { detail: format!("{host}: {}", outcome.words()) },
-        Some(outcome) => Verdict::Ok { detail: format!("{host}: {}", outcome.words()) },
+        Some(outcome @ Outcome::Strict(_)) => {
+            Verdict::Failed { detail: format!("{host}: {}", outcome.words(ech::STRICT)) }
+        }
+        Some(outcome) => Verdict::Ok { detail: format!("{host}: {}", outcome.words(ech::STRICT)) },
     }
 }
 

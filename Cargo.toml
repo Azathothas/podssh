@@ -49,9 +49,9 @@ exclude = ["vendor/tailscale-rs", "vendor/russh", "vendor/iroh-relay", "vendor/s
 version = "1.1.0-beta.3"
 edition = "2024"
 # The newest stable Rust of the day, for each crate (the operator, 2026-11-05;
-# T-685): 1.97, as the crates of PodUtils/podcrates declare. A session raises it
+# T-685): 1.99, as the crates of PodUtils/podcrates declare. A session raises it
 # with podcrates'; no crate keeps an older minimum for another's sake.
-rust-version = "1.97"
+rust-version = "1.99"
 license = "0BSD"
 publish = false
 repository = "https://github.com/PodUtils/podssh"
@@ -62,10 +62,10 @@ repository = "https://github.com/PodUtils/podssh"
 # `scripts/plant.sh` proves that the check refuses a dynamic one (T-685).
 #
 # The library crates were built with no C compiler until 2026-11-05, so
-# `rustls` below carries no default crypto provider: podssh supplies its own
-# pure-Rust one in crates/podssh-ws/src/crypto/. podssh-ssh uses russh with
-# aws-lc-rs (operator decision 2026-10-08), and the opt-in `ts` feature links
-# the vendored tailscale-rs fork, which needs cc and cmake.
+# `rustls` below carries no default crypto provider: podssh takes the
+# pure-Rust one of pod-tls (PodUtils/podcrates, its feature `pure`). podssh-ssh
+# uses russh with aws-lc-rs (operator decision 2026-10-08), and the opt-in `ts`
+# feature links the vendored tailscale-rs fork, which needs cc and cmake.
 # The switch of .github/workflows/publish.yml (T-686): the crates go to
 # crates.io from a tag only when it is true at that tag. It stays false until
 # the owner rules that podssh publishes (T-687).

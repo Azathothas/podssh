@@ -178,12 +178,12 @@ step_libs() {
         cargo build --locked $LIBS -p podssh-warp \
             --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp
 
-    # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
-    # terminal oracle's model against tmux (T-200); named, so that one missing fails.
-    run "openssl and tmux, for the TLS 1.2 checks and the terminal oracle" retry3 apk add --no-cache openssl tmux
+    # The terminal oracle's model against tmux (T-200); named, so that a missing
+    # one fails. The TLS 1.2 checks against OpenSSL's s_server are pod-tls's.
+    run "tmux, for the terminal oracle" retry3 apk add --no-cache tmux
     # shellcheck disable=SC2086
     tests "library crates: tests" \
-        env PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
+        env PODSSH_TEST_TMUX=/usr/bin/tmux \
         cargo test --locked --no-fail-fast $LIBS -p podssh-warp \
             --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp-stand-in
 

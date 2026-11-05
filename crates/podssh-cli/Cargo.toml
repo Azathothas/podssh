@@ -111,7 +111,7 @@ zeroize = { workspace = true }
 futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
 # `podssh session` (T-186): where a kept stream of output may start, and its
 # ring (the grammar of T-221), and when the output has stopped.
-pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0" }
+pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
 # `podssh session capture`: the screen that a terminal shows after the
 # session's output. The model of the terminal oracle (T-200), pure Rust over
 # vte, with no build script that compiles C; the lock has it already.
@@ -163,7 +163,7 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0", features = ["screen"] }
+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", features = ["screen"] }
 # `test-util` gives the tests a paused clock: the limit of a stuck write is
 # 60 s (tests/direct_write_limit.rs).
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }

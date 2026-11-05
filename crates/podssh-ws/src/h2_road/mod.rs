@@ -197,8 +197,8 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySessi
     for _ in 0..2 {
         let (conn, place, shared) = match pool::place(config).await? {
             pool::Got::Place { conn, place, shared } => (conn, place, shared),
-            pool::Got::Http1(tls) => {
-                return Ok((upgrade_on(*tls, config, token).await?, Road::Http1(Fallback::NotChosen)));
+            pool::Got::Http1(tls, peer) => {
+                return Ok((upgrade_on(*tls, peer, config, token).await?, Road::Http1(Fallback::NotChosen)));
             }
             pool::Got::Fallback(why) => return Ok((crate::connect(config, token).await?, Road::Http1(why))),
         };
@@ -291,14 +291,20 @@ async fn refusal_text(mut body: RecvStream) -> String {
     crate::http::Response { status: 0, reason: String::new(), headers: Vec::new(), body: got }.body_text(200)
 }
 
-/// The upgrade of HTTP/1.1 on `tls`, a connection whose TLS chose it.
-async fn upgrade_on(tls: RelayStream, config: &WsClientConfig, token: &str) -> Result<RelaySession, ConnectError> {
+/// The upgrade of HTTP/1.1 on `tls`, a connection to `peer` whose TLS chose
+/// it.
+async fn upgrade_on(
+    tls: RelayStream,
+    peer: Option<std::net::SocketAddr>,
+    config: &WsClientConfig,
+    token: &str,
+) -> Result<RelaySession, ConnectError> {
     let host_header = crate::dial::authority(&config.endpoint.host, config.endpoint.port);
     let upgraded = crate::client::upgrade(tls, &host_header, &config.endpoint.path, token);
     let (tls, pending) = tokio::time::timeout(config.timeout, upgraded)
         .await
         .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: config.timeout })??;
-    Ok(RelaySession::over_tls(tls, pending, config.idle_timeout))
+    Ok(RelaySession::over_tls(tls, peer, pending, config.idle_timeout))
 }
 
 #[cfg(test)]

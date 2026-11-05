@@ -176,8 +176,9 @@ async fn open(
         .await
         .map_err(|e| ConnectError::Upgrade(format!("{how}: {e}")))?;
     leg.connect = Some((how, started.elapsed()));
+    let peer = tcp.peer_addr().ok();
     let started = Instant::now();
-    let tls = podssh_ws::tls::connect_over(tcp, &relay.host, trust, STEP)
+    let tls = podssh_ws::tls::connect_over(Box::new(tcp) as podssh_ws::session::BoxedIo, &relay.host, trust, STEP)
         .await
         .map_err(|why| ConnectError::Tls(why.into()))?;
     leg.tls = Some(started.elapsed());
@@ -187,7 +188,7 @@ async fn open(
         .await
         .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: STEP })??;
     leg.upgrade = Some(started.elapsed());
-    Ok(RelaySession::over_tls(tls, pending, Some(podssh_ws::DEFAULT_IDLE_TIMEOUT)))
+    Ok(RelaySession::over_tls(tls, peer, pending, Some(podssh_ws::DEFAULT_IDLE_TIMEOUT)))
 }
 
 /// `count` pings, each with its sequence and its send time (nanoseconds

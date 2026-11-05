@@ -134,7 +134,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`docs/relay.md:530-531`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:102-119`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:182-208` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes headers (lines
+token header (`crates/podssh-ws/src/client.rs:294-305`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -207,7 +207,7 @@ status' with no NAME, the relay's own state, is not implemented yet"), `relay in
 `relay trace github.com 22` 64 ("one word too many"), as a subcommand took one NAME; `--timeout`
 is an unknown flag (64). `spec` is T-060's and done (step 3), and the tests of `spec` read
 `--document`, so the stand-in needs no `/llms-full.txt`. `https_with_token` already sends a token
-in a header (`crates/podssh-ws/src/client.rs:309-331`), for the pairing calls. On the live relay,
+in a header (`crates/podssh-ws/src/client.rs:323-345`), for the pairing calls. On the live relay,
 2026-10-11: `/trace` alone answers without a token with the caller's address, city, coordinates
 and network; a target trace answers `target` with `ok`, `road`, `dialed`, `address_family`,
 `connect_ms`, `first_byte_ms`, `bytes_seen`, `verdict` and `banner`, or `error` alone for a
@@ -515,7 +515,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 1. A live test, ignored by default, in a new file crates/podssh-relay/tests/live_reverse.rs:
    `POST /v1/pair`; a node socket to `/v1/node/NAME`; an operator socket to `/v1/connect/NAME`;
    the node answers `open` with `ready`. Send `ready` with `RelaySession::send_text`
-   (`crates/podssh-ws/src/session.rs:235-239`), which sends a real text frame; since T-071,
+   (`crates/podssh-ws/src/session.rs:238-242`), which sends a real text frame; since T-071,
    `Leg::send_control` over `WsSocket` sends one too.
 2. Three runs of 240 s: (a) no payload and no pings; (b) WebSocket pings every 20 s from both
    ends; (c) one byte of payload every 60 s. For each socket, record the time, the code and the
@@ -2106,7 +2106,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   `PODSSH_SESSION_BUDGET` lowers the byte budget and never raises it (`:39-73`).
 - Read: the frame decoder refuses a received frame over 262144 bytes
   (`crates/podssh-ws/src/frame.rs:30`, `:221-231`), and the session then ends with a Close 1002
-  (`crates/podssh-ws/src/session.rs:344`); a message is at most 16 MiB (`:33`).
+  (`crates/podssh-ws/src/session.rs:347`); a message is at most 16 MiB (`:36`).
 - Read: `crates/podssh-probe/facts/relay-facts.toml` line 14 at `deacafd` said "Read from /relays.json at startup,
   never compiled in" of that cap. `crates/podssh-ws/src/frame.rs:30` compiles it in, and
   `podssh-core` takes it from the facts file at compile time
@@ -4805,7 +4805,7 @@ Read at `2042200`:
 - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB
   (`crates/podssh-cli/src/shadowsocks/subscription.rs:19`), a day kept (`:21`), 20 s (`:23`), three
   redirects (`:25`), `https://` alone (`:48`), through `podssh_ws::client::https_get`
-  (`crates/podssh-ws/src/client.rs:280`), kept by `crates/podssh-relay/src/cache.rs:155`.
+  (`crates/podssh-ws/src/client.rs:294`), kept by `crates/podssh-relay/src/cache.rs:155`.
 
 ## Approach
 

@@ -4896,8 +4896,8 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.1.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.1.0#57a731ef96be85c6f4bdd26b74ab6ab052b1f321"
+version = "0.2.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.2.0#8dc1fb51d71362de6f0e4b128befe013f022acf5"
 dependencies = [
  "libc",
  "rand 0.10.3",
@@ -4907,8 +4907,8 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.1.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.1.0#57a731ef96be85c6f4bdd26b74ab6ab052b1f321"
+version = "0.2.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.2.0#8dc1fb51d71362de6f0e4b128befe013f022acf5"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek 2.2.0",
@@ -4922,24 +4922,55 @@ dependencies = [
 
 [[package]]
 name = "pod-term"
-version = "0.1.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.1.0#57a731ef96be85c6f4bdd26b74ab6ab052b1f321"
+version = "0.2.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.2.0#8dc1fb51d71362de6f0e4b128befe013f022acf5"
 dependencies = [
  "unicode-width",
 ]
 
 [[package]]
 name = "pod-testkit"
-version = "0.1.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.1.0#57a731ef96be85c6f4bdd26b74ab6ab052b1f321"
+version = "0.2.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.2.0#8dc1fb51d71362de6f0e4b128befe013f022acf5"
 dependencies = [
  "vt100",
 ]
 
 [[package]]
+name = "pod-tls"
+version = "0.2.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.2.0#8dc1fb51d71362de6f0e4b128befe013f022acf5"
+dependencies = [
+ "aes 0.9.3",
+ "aes-gcm 0.11.1",
+ "base64 0.23.1",
+ "chacha20poly1305 0.11.0",
+ "ed25519-dalek 2.2.0",
+ "hkdf 0.13.0",
+ "hmac 0.13.0",
+ "p256 0.14.0",
+ "p384 0.14.0",
+ "pod-core",
+ "rand 0.10.3",
+ "rsa 0.9.10",
+ "rustls",
+ "rustls-pki-types",
+ "security-framework",
+ "sha2 0.10.9",
+ "sha2 0.11.1",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "webpki-roots",
+ "windows-sys 0.61.2",
+ "x25519-dalek 3.0.0",
+ "zeroize",
+]
+
+[[package]]
 name = "pod-todo"
-version = "0.1.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.1.0#57a731ef96be85c6f4bdd26b74ab6ab052b1f321"
+version = "0.2.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.2.0#8dc1fb51d71362de6f0e4b128befe013f022acf5"
 
 [[package]]
 name = "podssh-cli"
@@ -5162,12 +5193,10 @@ dependencies = [
 name = "podssh-ws"
 version = "1.1.0-beta.3"
 dependencies = [
- "aes 0.9.3",
  "aes-gcm 0.11.1",
  "base64 0.23.1",
  "bytes",
  "chacha20poly1305 0.11.0",
- "ed25519-dalek 2.2.0",
  "h2",
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -5175,25 +5204,19 @@ dependencies = [
  "libc",
  "md5 0.8.1",
  "p256 0.14.0",
- "p384 0.14.0",
+ "pod-core",
  "pod-testkit",
+ "pod-tls",
  "proptest",
- "rand 0.10.3",
- "rsa 0.9.10",
  "rustls",
  "rustls-pki-types",
- "security-framework",
  "serde_json",
  "sha1 0.11.0",
- "sha2 0.10.9",
  "sha2 0.11.1",
  "tokio",
  "tokio-rustls",
  "unicode-width",
  "vt100",
- "webpki-roots",
- "windows-sys 0.61.2",
- "x25519-dalek 3.0.0",
  "zeroize",
 ]
 

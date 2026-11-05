@@ -25,8 +25,11 @@ use crate::error::SessionError;
 use crate::frame::{self, Frame};
 use crate::wire::{next_event_from, write_frame_as};
 
+/// The stream of a dial, boxed, as the roads of `pod-tls` take it.
+pub use pod_core::BoxedIo;
+
 /// The TLS stream to the relay, as [`crate::client::open_tls`] gives it.
-pub type RelayStream = tokio_rustls::client::TlsStream<TcpStream>;
+pub type RelayStream = tokio_rustls::client::TlsStream<BoxedIo>;
 
 /// The largest message reassembled from fragments. The relay's own frames
 /// are at most 262144 bytes; this leaves room and still bounds memory.
@@ -426,9 +429,14 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
 
 impl RelaySession<crate::url::Stream> {
     /// A session over the relay's TLS stream, as [`crate::connect`] opens it,
-    /// which keeps the address of its TCP connection ([`RelaySession::peer`]).
-    pub fn over_tls(stream: RelayStream, pending: Vec<u8>, idle: Option<Duration>) -> Self {
-        let peer = stream.get_ref().0.peer_addr().ok();
+    /// which keeps `peer`, the address of its TCP connection
+    /// ([`RelaySession::peer`]).
+    pub fn over_tls(
+        stream: RelayStream,
+        peer: Option<std::net::SocketAddr>,
+        pending: Vec<u8>,
+        idle: Option<Duration>,
+    ) -> Self {
         let stream = crate::url::Stream::Tls(Box::new(stream));
         let mut session = Self::new(stream, pending, idle, crate::client::WRITE_TIMEOUT);
         session.peer = peer;

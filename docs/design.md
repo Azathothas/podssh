@@ -355,14 +355,14 @@ since a quick tunnel has none.
   code would be committed, or the few messages written by hand. That this RPC
   and cloudflared's (`zombiezen.com/go/capnproto2`) agree on the wire: not
   verified.
-- TLS: podssh's own provider (`crates/podssh-ws/src/tls.rs`), with a trust
+- TLS: podssh's provider, `pod-tls`'s (`crates/podssh-ws/src/tls.rs`), with a trust
   store that holds the root of the edge's certificate: "CloudFlare Origin SSL
   ECC Certificate Authority", one of cloudflared's three, signs it, and no
   root of the system does (measured, below). cloudflared offers
   X25519MLKEM768, P256Kyber768Draft00 and P-256, and no X25519
   (`cloudflare/cloudflared:crypto/curves.go`, and its log); podssh's TLS
   offers X25519 and secp256r1 with no ML-KEM
-  (`crates/podssh-ws/src/crypto/kx.rs`), and the edge took a classical
+  (`PodUtils/podcrates:crates/pod-tls/src/crypto/kx.rs`), and the edge took a classical
   handshake with each (measured, below).
 - The prechecks of cloudflared at startup
   (`cloudflare/cloudflared:prechecks/probes.go`: for each region DNS, QUIC,
@@ -564,7 +564,7 @@ threads carry each session, so a blocking read stalls no other session. A
 call from a thread that runs a tokio runtime is refused, and nothing panics.
 Its offline tests run against a stand-in relay over plain `ws://` (feature
 `plain-ws`), as podvm's can. Each crate declares the newest stable Rust of
-the day, 1.97 with edition 2024, as the crates of PodUtils/podcrates do
+the day, 1.99 with edition 2024, as the crates of PodUtils/podcrates do
 (the operator, 2026-11-05; T-685): podvm builds them with that Rust or a
 later one.
 

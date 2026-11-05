@@ -166,20 +166,21 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<RelaySessio
     if token.contains(['\r', '\n']) {
         return Err(ConnectError::Config("the relay token contains a line break".into()));
     }
-    let tls = open_tls(
+    let (tls, peer) = open_tls_offering(
         &config.endpoint.host,
         config.endpoint.port,
         &config.server_name,
         &config.trust,
         &config.proxy,
         config.timeout,
+        &[],
     )
     .await?;
     let host_header = dial::authority(&config.endpoint.host, config.endpoint.port);
     let (tls, pending) = tokio::time::timeout(config.timeout, upgrade(tls, &host_header, &config.endpoint.path, token))
         .await
         .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: config.timeout })??;
-    Ok(RelaySession::over_tls(tls, pending, config.idle_timeout))
+    Ok(RelaySession::over_tls(tls, peer, pending, config.idle_timeout))
 }
 
 /// TCP (direct or through the proxy) and a verified TLS handshake.
@@ -191,12 +192,25 @@ pub async fn open_tls(
     proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<RelayStream, ConnectError> {
+    open_tls_offering(host, port, server_name, trust, proxy, timeout, &[]).await.map(|(tls, _)| tls)
+}
+
+/// [`open_tls`], offering `alpn`, with the address that the TCP reached.
+pub async fn open_tls_offering(
+    host: &str,
+    port: u16,
+    server_name: &str,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+    alpn: &[&[u8]],
+) -> Result<(RelayStream, Option<std::net::SocketAddr>), ConnectError> {
     // The configuration and the name are checked before anything connects.
     tls::config_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
     rustls_pki_types::ServerName::try_from(server_name.to_string())
         .map_err(|e| ConnectError::Config(format!("{server_name:?} is not a valid server name: {e}")))?;
     // Sealed where the user asked for ECH and the name publishes a list (T-642).
-    crate::ech::open(host, port, server_name, trust, proxy, timeout, &[]).await.map(|(tls, _)| tls)
+    crate::ech::open(host, port, server_name, trust, proxy, timeout, alpn).await
 }
 
 /// Send the upgrade request and read the answer. On `101`, returns the stream

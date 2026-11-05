@@ -1,6 +1,6 @@
 [package]
 name = "podssh-ws"
-description = "WebSocket framing over a TLS stream, and the pure-Rust crypto provider."
+description = "WebSocket framing over a TLS stream, with the TLS and the pure-Rust crypto provider of pod-tls."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,25 +8,17 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# TLS: the trust, the configurations, the pure-Rust crypto provider, the
+# server's side and Encrypted Client Hello, with podssh's settings (tls.rs).
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", features = ["pure", "rsa", "ech"] }
 tokio = { workspace = true }
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
-webpki-roots = { workspace = true }
 sha2 = { workspace = true }
 hmac = { workspace = true }
 hkdf = { workspace = true }
-aes-gcm = { workspace = true }
-aes = { workspace = true }
-chacha20poly1305 = { workspace = true }
-x25519-dalek = { workspace = true }
-ed25519-dalek = { workspace = true }
-p256 = { workspace = true }
-p384 = { workspace = true }
-rsa = { workspace = true }
-# SHA-2 of rsa 0.9's digest line, for the RSA verifier alone (the root `Cargo.toml`).
-sha2-rsa = { workspace = true }
-rand = { workspace = true }
 base64 = { workspace = true }
 zeroize = { workspace = true }
 # DNS over HTTPS to a resolver that serves HTTP/2 alone, as Quad9 does
@@ -50,14 +42,7 @@ sha1 = { version = "0.11", default-features = false }
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }
 
-# The stores of trust that are not files (T-340, stores/): crypt32 on Windows
-# and the Security framework on macOS. Bindings that link the system's own
-# libraries; neither compiles C.
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Security_Cryptography"] }
-
 [target.'cfg(target_os = "macos")'.dependencies]
-security-framework = { version = "3.7", default-features = false }
 # TCP_NOTSENT_LOWAT on each dialed socket (T-661, lowat.rs), which macOS has
 # too. libc compiles no C.
 libc = { workspace = true }
@@ -69,7 +54,7 @@ libc = { workspace = true }
 plain-ws = []
 
 [dev-dependencies]
-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0", features = ["screen"] }
+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", features = ["screen"] }
 # The doctor is async because it may be asked to perform a handshake, and
 # the plants that assert `????` rather than `ok` have to drive it as a caller
 # would. `macros` is what makes `#[tokio::test]` exist.
@@ -78,15 +63,16 @@ tokio = { workspace = true, features = ["macros", "rt"] }
 # library uses, rather than re-deriving one, so what is proven is what ships.
 tokio-rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
-# The signature tests mint real signatures on real curves, so they need the
-# same crates the provider uses. `p256` and `p384` are `default-features =
-# false` here for the same reason they are in `[dependencies]`: nothing may
-# pull in a C toolchain. `getrandom` (the OS's source, no C) gives the tests a
-# secret of p256's own `Generate`, which the curves' 0.14 take in place of a
-# rand generator; the library draws from rustls's source alone.
+# The certificates of the tests are minted on P-256, in pure Rust.
+# `default-features = false`, as in the workspace: nothing may pull in a C
+# toolchain. `getrandom` (the OS's source, no C) gives the tests a secret of
+# p256's own `Generate`, which the curves' 0.14 take in place of a rand
+# generator; the library draws from rustls's source alone.
 p256 = { workspace = true, features = ["getrandom"] }
-p384 = { workspace = true }
-ed25519-dalek = { workspace = true }
+# The far end of a Shadowsocks server, sealed with the AEADs of the
+# specification itself (tests/shadowsocks.rs).
+aes-gcm = { workspace = true }
+chacha20poly1305 = { workspace = true }
 # The terminal oracle (T-200): a model terminal shows the text that the
 # sanitizer leaves, and the cells it takes (tests/terminal_oracle.rs).
 vt100 = { workspace = true }

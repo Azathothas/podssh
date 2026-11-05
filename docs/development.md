@@ -5,7 +5,7 @@ target sandbox, and release it.
 
 ## Requirements
 
-- Rust 1.97 or later, edition 2024: each crate declares the newest stable Rust
+- Rust 1.99 or later, edition 2024: each crate declares the newest stable Rust
   of the day, as the crates of PodUtils/podcrates do (the operator,
   2026-11-05; T-685). The gate runs the build image's stable Rust.
 - A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,

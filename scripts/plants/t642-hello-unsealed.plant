@@ -1,8 +1,0 @@
-# T-642: the road's hello made with the trust's plain configuration, not the
-# one that holds the name's list, so the "sealed" hello names the host in the
-# clear; the test that reads the hello at a server on the loopback must fail.
-ENTRY=T-642
-GROUP=cli-tests
-EXPECT='test a_sealed_hello_names_the_public_name_alone_and_a_refusal_goes_on_plain \.\.\. FAILED'
-RUN='cargo test --locked -p podssh-ws --test ech_handshake'
-LIMIT=1800

@@ -1545,14 +1545,14 @@ user who needs `websocat` must bring it, and a cage may not run it.
 - Read: the endpoint of the client is a host, a port and a path
   (`crates/podssh-ws/src/client.rs:40-47`); `validate` refuses a query other than the relay's
   knobs, as a query goes into the logs of proxies (`:66-105`); `connect` takes a token and sends it
-  in `X-Relay-Token` (`:160-183`); the name of the certificate has no bypass (`:55-57`); the upgrade
-  is generic over its stream (`:202-208`).
+  in `X-Relay-Token` (`:160-184`); the name of the certificate has no bypass (`:55-57`); the upgrade
+  is generic over its stream (`:216-222`).
 - Read: the token never goes in a URL, and the request has no query
   (`crates/podssh-ws/src/handshake.rs:1-8`); `accept_key` gives the server's value (`:82`), tested
   on the vector of RFC 6455 (`crates/podssh-ws/tests/rfc6455.rs:259`).
 - Read: the codec of frames takes its role, and never writes a masked frame of a server
   (`crates/podssh-ws/src/frame.rs:61-70`); a session is generic over its stream
-  (`crates/podssh-ws/src/session.rs:37`).
+  (`crates/podssh-ws/src/session.rs:40`).
 - Read: plain `ws://` goes to the loopback only, for tests, behind the feature `plain-ws`, which
   the binary never enables, as the relay's token over plain TCP must not leave the host
   (`crates/podssh-ws/src/plain.rs:1-6`).

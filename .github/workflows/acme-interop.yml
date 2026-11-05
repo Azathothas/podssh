@@ -19,7 +19,8 @@ on:
       - "crates/podssh-cli/src/relay_serve.rs"
       - "crates/podssh-cli/src/relay_serve/**"
       - "crates/podssh-ws/src/tls_server.rs"
-      - "crates/podssh-ws/src/tls_server/**"
+      # The version of pod-tls, whose server's side serves the certificate.
+      - "crates/podssh-ws/Cargo.toml"
       - "scripts/interop-acme.sh"
       - ".github/workflows/acme-interop.yml"
 

@@ -191,7 +191,7 @@ current.
 | Change the SSH client | [docs/cli.md](docs/cli.md), `crates/podssh-ssh/` |
 | Change the terminal behaviour | [docs/terminal.md](docs/terminal.md) |
 | Change the relay selection, tokens or failover | [docs/relay.md](docs/relay.md), `crates/podssh-relay/` |
-| Change TLS, proxies or DNS | [docs/architecture.md](docs/architecture.md), `crates/podssh-ws/` |
+| Change TLS, proxies or DNS | [docs/architecture.md](docs/architecture.md), `crates/podssh-ws/`; TLS itself is `pod-tls` of PodUtils/podcrates |
 | Work on reverse mode (milestone M4) | [docs/reverse.md](docs/reverse.md), [docs/design.md](docs/design.md) |
 | Work on the resumable layer (milestone M6) | [docs/design.md](docs/design.md) (section 5), `crates/podssh-relay/src/session/`, [TODO/resume.md](TODO/resume.md) |
 | Work on IRC | [docs/irc.md](docs/irc.md) |
@@ -360,7 +360,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-cli` | The `podssh` binary: arguments, help, the manual and its tables (`src/man/`), the pager, dispatch, `proxy`, `ssh` options, `doctor`, `keygen` |
 | `crates/podssh-ssh` | The SSH client on `russh`: the relay stream, `known_hosts`, authentication, prompts, terminal, exit codes, key generation, the SFTP client (`sftp/`), security keys (`sk/`) |
 | `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener; the pairs, the codecs and the runners of the reverse road; the resumable layer (`session/`); UDP in a stream and its flow at a node (`udp/`); the blocking facade for podvm |
-| `crates/podssh-ws` | TLS (podssh's own pure-Rust rustls provider), proxies, DNS fallbacks, the WebSocket client |
+| `crates/podssh-ws` | TLS (`pod-tls` of PodUtils/podcrates with its pure-Rust rustls provider, in podssh's settings: `tls.rs`), proxies, DNS fallbacks, the WebSocket client |
 | `crates/podssh-core` | Sans-IO protocol code: `irc/` |
 | `crates/podssh-probe` | Facts about the relay document (tests only) |
 | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |

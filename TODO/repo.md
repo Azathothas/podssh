@@ -1369,7 +1369,7 @@ Read:
 
 - `scripts/gate.sh` lines 55-166 at `528bb64` have no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:333`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:347`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   crates/podssh-transport/src/socket.rs at `e8bbd4d` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -2188,7 +2188,7 @@ listener or a bind. `crates/podssh-cli/src/doctor/unix.rs` line 151 at `48a8744`
 are the bind probes of `doctor`, which close at once and never listen
 (`crates/podssh-cli/src/doctor/mod.rs` lines 15-16 at `48a8744`). The test servers are in
 `crates/podssh-ws/tests/dial.rs:129` and
-`crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
+`PodUtils/podssh:crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
 that skips comments and test modules is
 `crates/podssh-relay/tests/default_relay.rs:21-59`.
@@ -2996,7 +2996,7 @@ text after a citation, and reads each bare :N".
 
 ## Problem
 
-The live tests of `crates/podssh-ws/tests/live_handshake.rs` run in the gate
+The live tests of `PodUtils/podssh:crates/podssh-ws/tests/live_handshake.rs` run in the gate
 and in CI, each with one TCP connection and one handshake to the relay. The
 relay's side drops connections at random (T-255), so one drop fails the
 test, the step `libs`, and the whole gate, for no defect of podssh.
@@ -3005,10 +3005,10 @@ test, the step `libs`, and the whole gate, for no defect of podssh.
 
 Measured on 2026-10-09: in `sh scripts/dev.sh check`, the test
 `the_negotiated_parameters_are_ones_this_provider_implements` failed with
-"tls handshake eof" (`crates/podssh-ws/tests/live_handshake.rs` line 172 at `e3ea638`); the
+"tls handshake eof" (`PodUtils/podssh:crates/podssh-ws/tests/live_handshake.rs` line 172 at `e3ea638`); the
 step `libs` alone, run again at once, passed. Each live test of the file
 opens its own connection, with no second attempt
-(`crates/podssh-ws/tests/live_handshake.rs:31`, `live_enabled`).
+(`PodUtils/podssh:crates/podssh-ws/tests/live_handshake.rs:31`, `live_enabled`).
 
 ## Approach
 
@@ -3032,12 +3032,16 @@ Each passes. Planted defect: a helper that retries a refused certificate
 must make the wrong-hostname plant pass on its third attempt; the test that
 counts the attempts on a verdict must fail.
 
+## Correction
+
+The test targets `live_handshake`, `hostname_verification` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs them, with their names.
+
 ## Done
 
 2026-10-09, in the commit "A live TLS test tries a dropped connection again,
 and never a verdict".
 
-- `crates/podssh-ws/tests/live_handshake.rs`: `dial`, the one way that each
+- `PodUtils/podssh:crates/podssh-ws/tests/live_handshake.rs`: `dial`, the one way that each
   live test connects: TCP and the handshake, each bounded, in up to three
   attempts (`with_attempts`), with a pause of 1 s; an attempt that ended in
   EOF, a reset, an abort, a refusal of the connection, a broken pipe or a
@@ -3869,7 +3873,7 @@ ship with these.
 Read in the advisories and in podssh's code (the research of 2026-10-30):
 
 - rustls: podssh's client sets no ECH, has no session store, no brotli, and
-  offers only X25519 and secp256r1 (`crates/podssh-ws/src/crypto/suites.rs`):
+  offers only X25519 and secp256r1 (`PodUtils/podssh:crates/podssh-ws/src/crypto/suites.rs`):
   not affected; 0.23.46 adds no crate.
 - rustls-webpki builds the chains, and webpki-roots is the compiled-in
   trust: affected. 1.0.11 drops the emSign roots; the test of the roots
@@ -3969,10 +3973,10 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
   `known_hosts`): Inferred.
 - Read: the root `Cargo.toml:148` asks for `aes-gcm` 0.10 and
   `Cargo.toml:157` for `x25519-dalek` 2;
-  `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
+  `PodUtils/podssh:crates/podssh-ws/src/crypto/aead.rs` and `PodUtils/podssh:crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `PodUtils/podssh:crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
-  `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
+  `PodUtils/podssh:crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
 - Read: `vt100` 0.15 (`Cargo.toml:114`) is the model of the terminal
   oracle (T-200) and of `podssh session` (T-186).
 
@@ -4016,9 +4020,11 @@ of each new crate, not of the crates that they bring. aes 0.9.2 and ctutils
 0.4.2 hold 1.85, but ctutils before 0.4.7 has RUSTSEC-2026-0385 (T-312),
 and the lock that russh's aes-gcm 0.11 shares would take the repair out of
 each binary. So podssh-ws keeps aes-gcm 0.10 and chacha20poly1305 0.10,
-`crates/podssh-ws/src/crypto/aead.rs` as before the first step, and
+`PodUtils/podssh:crates/podssh-ws/src/crypto/aead.rs` as before the first step, and
 x25519-dalek 3 stays; #47 goes to T-333, which waits for the operator
 (Q48). T-312's fact holds again: no library crate has ctutils.
+
+The test target `crypto_vectors` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs it, with its name.
 
 ## Done
 
@@ -4108,7 +4114,7 @@ T-330's second Correction (2026-10-30): the gate's step `msrv` refuses it.
 ## Problem
 
 Dependabot's #47 waits: aes-gcm 0.11.1, and chacha20poly1305 0.11 with it,
-as `crates/podssh-ws/src/crypto/aead.rs` calls both through one set of
+as `PodUtils/podssh:crates/podssh-ws/src/crypto/aead.rs` calls both through one set of
 `aead` traits. Until then the binary holds two lines of AES and of GHASH:
 0.10 for podssh's TLS provider and the layer's AEAD, 0.11 for russh's.
 
@@ -4150,13 +4156,15 @@ client first, and that no legacy constraint, such as podbox's older minimum
 Rust, holds a dependency back (`docs/decisions.md`). The library crates
 declare Rust 1.89.
 
+The test target `crypto_vectors` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs it, with its name.
+
 ## Done
 
 2026-10-31.
 
 - The root `Cargo.toml`: `rust-version` 1.89 for the library crates and
   podssh-todo, its comment the ruling's reason; aes-gcm 0.11 and
-  chacha20poly1305 0.11 (`aead` 0.6). `crates/podssh-ws/src/crypto/aead.rs`
+  chacha20poly1305 0.11 (`aead` 0.6). `PodUtils/podssh:crates/podssh-ws/src/crypto/aead.rs`
   as T-330's first step had it: the nonce an `Array` from its 12 bytes.
   `Cargo.lock` and `fuzz/Cargo.lock` take chacha20poly1305 0.11.0 again,
   and podssh-ws the line of 0.11 that russh already brought.
@@ -4558,7 +4566,7 @@ the curves' 0.14 once needed a newer Rust than the library crates allowed.
 
 - Read: the root `Cargo.toml` asks for `p256` 0.13 and `p384` 0.13 for
   podssh-ws's provider; `deny.toml` ignores RUSTSEC-2026-0387 for the
-  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3885-3888` says why:
+  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3889-3892` says why:
   the curves' 0.14 needed Rust 1.87, above the library crates' 1.85 then).
   T-333 raised the library crates to 1.89 (the operator's ruling of Q48).
 - Read: #68 moves `p384` alone; `p256` stays at 0.13 in the PR, so the copy
@@ -4998,7 +5006,7 @@ headscale names.
   `rand` 0.10 on their own, with a comment that the workspace's line stays for ed25519-dalek 2
   and snow. Each new version is in `Cargo.lock` already, for russh or the curves.
 - Read: podssh-ws's RSA verifier takes `rsa` 0.9, whose `Pkcs1v15Sign::new` and `Pss::new` take a
-  hash of digest 0.10 (`crates/podssh-ws/src/crypto/rsa_sig.rs`).
+  hash of digest 0.10 (`PodUtils/podssh:crates/podssh-ws/src/crypto/rsa_sig.rs`).
 - Read: `images/tailscale/Dockerfile` pins v1.98.10, "the newest release whose capability version
   headscale 0.29.7 names in its table of client versions".
 - Inferred: each pull request is closed by Dependabot once `main` holds its version, as T-355's
@@ -5010,7 +5018,7 @@ headscale names.
    keys, toml for the facts and Arti's configuration).
 2. #81 with #82 and `hkdf` 0.13 together, in one step: each crate that hashes, MACs or derives;
    the RSA verifier keeps a hash of rsa 0.9's digest line under a name of its own until `rsa`
-   0.10 is stable. The known answers of `crates/podssh-ws/tests/crypto_vectors.rs`, the TLS of
+   0.10 is stable. The known answers of `PodUtils/podssh:crates/podssh-ws/tests/crypto_vectors.rs`, the TLS of
    the live relay, the DERP keys and the resumable layer's secrets.
 3. #80: the workspace's `rand` 0.10 with the features that give the generator of the operating
    system and the thread's generator, one version for each crate.
@@ -5409,7 +5417,7 @@ each free of `podssh-ws`'s types, serves the three.
 
 - Read: `crates/podssh-relay/Cargo.toml:15` depends on `podssh-ws` with no feature; each road of
   the relay crate takes `podssh-ws`'s dial, TLS and WebSocket.
-- Read: `crates/podssh-ws/src/crypto/rsa_sig.rs` is the one user of `rsa` 0.9, to verify RSA
+- Read: `PodUtils/podssh:crates/podssh-ws/src/crypto/rsa_sig.rs` is the one user of `rsa` 0.9, to verify RSA
   signatures; RUSTSEC-2023-0071 is a timing attack on the private key's operations.
 - Read: `Cargo.toml` sets `publish = false` for the workspace, and `vendor/russh` and
   `vendor/ssh-key` are patched in by `[patch.crates-io]`, which a published crate cannot carry.
@@ -5474,7 +5482,20 @@ checks, and sends the podcrates session the new commit of `main`.
   passed; `cargo check -p podssh-cli -p podssh-iroh --tests --features iroh,warp`: passed; clippy
   with `serve,plain-ws,quick,quic`: no warning.
 
-Each crate of `v0.1.0` is taken. Next: then each crate of the next releases (`pod-tls` in `v0.2.0`,
+Each crate of `v0.1.0` is taken.
+
+- `pod-tls` (`v0.2.0`, which also moves each podcrates dependency to the one tag `v0.2.0` and the
+  workspace's `rust-version` to 1.99, the stable of the day): podssh-ws's TLS (`crypto/`, `tls/`,
+  `stores/`, `tls_server*`, `tls_wrap.rs`, `bundle.rs`, `ech/`) is pod-tls, behind thin wrappers that
+  keep podssh's paths over one context (`podssh_ws::tls::context()`); podssh-relay's `tls_groups.rs`
+  uses pod-tls's file of groups. Each command of the patch's trial passed here: the record,
+  `check-repo.py`, the builds (default, `iroh,warp`), clippy (also with `ts` and with `tor`, which the
+  trial left out), `cargo test -p podssh-ws --features plain-ws`: 405 passed; podssh-relay's 19
+  targets with each feature: 623 passed; `-p podssh-ssh --test no_rsa_private_op`: 2 passed;
+  podssh-cli's library and 14 targets: 1,113 passed; rustfmt. The static check of the binary is the
+  gate's step `release`, in CI.
+
+Next: then each crate of the next releases (`pod-tls` in `v0.2.0`,
 then `pod-proxy`, `pod-dns`, `pod-ws`).
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
 

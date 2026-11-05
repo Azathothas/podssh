@@ -1,5 +1,5 @@
 //! podssh-ws — reaching the relay: TCP (directly or through an HTTP CONNECT
-//! proxy), TLS with podssh's own pure-Rust crypto provider, and RFC 6455.
+//! proxy), TLS with the pure-Rust crypto provider of `pod-tls`, and RFC 6455.
 //! With `--direct` on Linux, TCP can be Multipath TCP on request (`mptcp`).
 //! A WebSocket that the user names is dialed with no token (`url`), and a
 //! server's side of the handshake answers a client of `podssh pipe
@@ -22,9 +22,10 @@
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
-//! must not (measured 2026-10-01 with `CC=/nonexistent`). The provider has
-//! completed handshakes against the live relay with a verified chain and
-//! hostname (`tests/live_handshake.rs`).
+//! must not (measured 2026-10-01 with `CC=/nonexistent`). The provider is
+//! `pod-tls`'s, with its feature `pure` (PodUtils/podcrates), as are the
+//! trust, the TLS server's side and Encrypted Client Hello; [`tls`] holds
+//! podssh's settings of them.
 //!
 //! Verdicts from [`doctor`] are three-valued: `ok`, `FAIL`, and `????` for a
 //! check that could not run, which is never reported as passing.
@@ -36,7 +37,8 @@ pub mod client;
 pub mod clock;
 mod close;
 pub mod cloudflare;
-pub mod crypto;
+// The pure-Rust crypto provider of pod-tls (feature `pure`).
+pub use pod_tls::crypto;
 // How a dial or a handshake ended, by the kind of its error (T-487).
 pub mod cut;
 pub mod dial;
@@ -75,7 +77,8 @@ pub mod session;
 // A Shadowsocks server of the user's, in its AEAD form (T-373).
 pub mod shadowsocks;
 mod socks5;
-pub mod stores;
+// The stores of trust that are not files, as pod-tls reads them.
+pub use pod_tls::stores;
 // STUN's messages, for doctor's line nat and the TURN road (T-641, T-621).
 pub mod stun;
 pub mod text;

@@ -2531,7 +2531,7 @@ file is read again each time.
 
 ## Premise
 
-- `config_for` builds a configuration for each call (`crates/podssh-ws/src/tls.rs:124`).
+- `config_for` builds a configuration for each call (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:124`).
 
 ## Approach
 
@@ -2542,7 +2542,7 @@ A configuration kept for each trust in the process, made once; a CA file read on
 The draft's calls, 2026-11-02:
 
 1. Where: behind `config_for` in `crates/podssh-ws/src/tls.rs`, a cache of the process
-   (`crates/podssh-ws/src/tls/kept.rs`) keyed by the trust: the default one, and each CA file
+   (`PodUtils/podssh:crates/podssh-ws/src/tls/kept.rs`) keyed by the trust: the default one, and each CA file
    by its path. Each road that reaches TLS through `config_for` (the relay's connection, the
    HTTPS requests, DNS over HTTPS, `chat --irc`, the hops of `ssh+tls://`, Tor's transports)
    resumes with no change of its own. A caller's own configuration (`Trust::caller`) is already
@@ -2578,12 +2578,16 @@ cargo test -p podssh-ws --test tls_resume
 Two connections of one process to a rustls server on the loopback: the second resumes (the
 server says so). Planted: a new configuration each time, and the test fails.
 
+## Correction
+
+The test target `tls_resume` of `podssh-ws` moved to `pod-tls` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-tls --all-features` there runs it, with its name.
+
 ## Done
 
 2026-11-02: drafted by an agent in a worktree of its own, and merged, built and measured here.
 
 - `config_for` (`crates/podssh-ws/src/tls.rs`) takes each trust's configuration from
-  `crates/podssh-ws/src/tls/kept.rs`: made once, kept by the trust, and made again when a CA
+  `PodUtils/podssh:crates/podssh-ws/src/tls/kept.rs`: made once, kept by the trust, and made again when a CA
   file's time or length changed, so that a long-running node takes a new CA; a failure is not
   kept.
 - `cargo test -p podssh-ws --test tls_resume`: 3 passed against rustls's own server on the
@@ -2877,7 +2881,7 @@ The draft's calls, 2026-11-02:
    that each command of podssh trusts. Lost: one connection kept alive for an order (`exchange`
    closes; an order is about 15 requests a renewal).
 4. TLS-ALPN-01, on the role's own listener: its resolver (`Served`,
-   `crates/podssh-ws/src/tls_server/served.rs`) gives the challenge's certificate only to a hello
+   `PodUtils/podssh:crates/podssh-ws/src/tls_server/served.rs`) gives the challenge's certificate only to a hello
    whose one protocol is `acme-tls/1`, and only for the name of the validation; the listener
    offers `acme-tls/1` after `http/1.1`, and only with `--acme`; a connection that chose it is
    closed after its handshake, as RFC 8737 asks. Lost: HTTP-01, which needs a listener on port 80
@@ -2956,7 +2960,7 @@ files each minute (Decision 7).
 2026-11-02: drafted by an agent in a worktree, which built and ran nothing; merged and measured by
 the main session the same day.
 
-- The resolver that changes: `crates/podssh-ws/src/tls_server/served.rs` (`Served`: the pair
+- The resolver that changes: `PodUtils/podssh:crates/podssh-ws/src/tls_server/served.rs` (`Served`: the pair
   served now, and the challenges of TLS-ALPN-01, each for its name and for a hello whose one
   protocol is `acme-tls/1`); `tls_server::certified`, which refuses a key that is not the
   leaf's, and `acceptor_for`, in `crates/podssh-ws/src/tls_server.rs`. No C in the library crate.
@@ -7351,7 +7355,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 
 - Read: the node's side of the reverse road runs over any `RelaySession<S>`
   (`crates/podssh-relay/src/reverse/serve.rs:162`), and a `RelaySession` is made over any stream,
-  with no HTTP in it (`crates/podssh-ws/src/session.rs:107-111`).
+  with no HTTP in it (`crates/podssh-ws/src/session.rs:110-114`).
 - Read: podssh's relay role serves the relay's side of a node's socket and of an operator's
   (`crates/podssh-relay/src/serve/reverse/mod.rs:1-3`, T-427).
 - Read: `pipe`'s local addresses are `stdio` (or `-`), `fd:N` and `exec:CMD`, a program with no
@@ -8498,7 +8502,7 @@ through an HTTP CONNECT proxy.
   its file crates/podssh-ws/src/turn/mod.rs, and its docs/poc.md: "proxy logs 2 CONNECTs").
   `AGENTS.md:279` says "Make one outbound connection", with five exceptions, none for this road.
 - podssh-ws holds the parts of TURN's long-term credential in pure Rust: `hmac`
-  (`crates/podssh-ws/Cargo.toml:17`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:45-46`);
+  (`crates/podssh-ws/Cargo.toml:20`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:37-38`);
   and a resolver order of its own (`crates/podssh-ws/src/resolve.rs:2` says "resolver works. In
   order"), as a Connect names an address, not a name.
 - No code of podssh names TURN: `crates/podssh-ws/src/forwarder/template.rs:65` says "a

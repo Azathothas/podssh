@@ -41,7 +41,7 @@ pub fn apply(flag: Option<&str>) -> Result<(), Refusal> {
 /// file's `ECH`, else off. A word of either that is none of its own is a
 /// configuration error, before anything connects.
 fn ech_mode(file: &crate::settings::Defaults) -> Result<podssh_ws::ech::Mode, Refusal> {
-    if let Some(mode) = podssh_ws::ech::Mode::from_env().map_err(Refusal::config)? {
+    if let Some(mode) = podssh_ws::ech::mode_from_env().map_err(Refusal::config)? {
         return Ok(mode);
     }
     let Some(value) = &file.ech else { return Ok(podssh_ws::ech::Mode::Off) };

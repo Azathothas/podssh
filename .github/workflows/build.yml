@@ -275,38 +275,21 @@ jobs:
         env:
           PODSSH_TEST_SFTP_SERVER: C:\Program Files\Git\usr\lib\ssh\sftp-server.exe
         run: cargo test --locked --no-fail-fast
-      # T-340: the test's root in the machine's ROOT store lets a server that
-      # it signs through with the default trust, which the same server did not
-      # get with the root out of the store; doctor names each store. The root
-      # leaves the store in each case. The user's ROOT store would ask its
-      # user in a dialog, which a runner cannot answer.
-      - name: a root in the system's store
+      # T-340: doctor names each store of the system, with its count. The
+      # test of a root in the machine's ROOT store, which a server that it
+      # signs then reaches through the default trust, is pod-tls's
+      # (PodUtils/podcrates, its tests/system_store.rs).
+      - name: the system's stores, named by doctor
         shell: pwsh
-        env:
-          PODSSH_TEST_STORE_ROOT: ${{ runner.temp }}\store-root.cer
         run: |
-          $test = "a_server_that_the_root_signs_is_trusted_through_the_store_alone"
-          cargo test --locked -p podssh-ws --test system_store -- --ignored --exact the_root_is_written
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-          $env:PODSSH_TEST_STORE_HOLDS = "0"
-          cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture $test
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-          $added = Import-Certificate -FilePath $env:PODSSH_TEST_STORE_ROOT -CertStoreLocation Cert:\LocalMachine\Root
-          try {
-            $env:PODSSH_TEST_STORE_HOLDS = "1"
-            cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture $test
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-            # Offline, doctor runs the checks that open nothing; its exit code
-            # also counts the network's ????, so only its lines are read.
-            $env:PODSSH_OFFLINE = "1"
-            $doctor = & target\debug\podssh.exe doctor 2>&1 | Out-String
-            Write-Output $doctor
-            if ($doctor -notmatch "system stores +the current user's ROOT store: \d+ root.*; the machine's ROOT store: \d+ root") {
-              Write-Output "FAIL doctor named no store"
-              exit 1
-            }
-          } finally {
-            Remove-Item -Path ("Cert:\LocalMachine\Root\" + $added.Thumbprint)
+          # Offline, doctor runs the checks that open nothing; its exit code
+          # also counts the network's ????, so only its lines are read.
+          $env:PODSSH_OFFLINE = "1"
+          $doctor = & target\debug\podssh.exe doctor 2>&1 | Out-String
+          Write-Output $doctor
+          if ($doctor -notmatch "system stores +the current user's ROOT store: \d+ root.*; the machine's ROOT store: \d+ root") {
+            Write-Output "FAIL doctor named no store"
+            exit 1
           }
       - name: repository checks
         run: python scripts/check-repo.py
@@ -338,22 +321,13 @@ jobs:
       - name: the default tests
         run: cargo test --locked --no-fail-fast
       # T-340: podssh reads the trust settings of the user and of the
-      # administrator. A runner cannot give either a root: add-trusted-cert
-      # asks for the right com.apple.trust-settings.admin in a dialog that no
-      # one answers (the first run waited until the job's limit), and granting
-      # the right fails as root too, "NO (-60005)", errAuthorizationDenied
-      # (runs 41176904479 and 41177809365). So the step reads both domains
-      # with no root of the test in them: a server that the root signs is
-      # refused, and doctor names each domain with its count.
+      # administrator, and doctor names each domain with its count. The test
+      # of a server that a root of the settings signs is pod-tls's
+      # (PodUtils/podcrates, its tests/system_store.rs).
       - name: the system's trust settings, read
         timeout-minutes: 15
-        env:
-          PODSSH_TEST_STORE_ROOT: ${{ runner.temp }}/store-root.cer
         run: |
           set -eu
-          test=a_server_that_the_root_signs_is_trusted_through_the_store_alone
-          cargo test --locked -p podssh-ws --test system_store -- --ignored --exact the_root_is_written
-          PODSSH_TEST_STORE_HOLDS=0 cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture "$test"
           cargo build --locked -p podssh-cli
           # Offline, doctor runs the checks that open nothing; its exit code
           # also counts the network's ????, so only its lines are read.

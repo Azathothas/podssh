@@ -3,9 +3,9 @@
 //! RUSTSEC-2023-0071). An RSA user key signs through aws-lc-rs
 //! (`crates/podssh-ssh/src/rsa_key.rs`), `podssh keygen -t rsa` makes its
 //! key there, and `podssh agent` keeps no RSA key, as russh's agent server
-//! would sign it through `rsa`. The `rsa` crate stays for verification
-//! (`crates/podssh-ws/src/crypto/rsa_sig.rs`). Test modules may use it, to
-//! make a key that aws-lc-rs refuses.
+//! would sign it through `rsa`. The `rsa` crate stays for verification, in
+//! the RSA verifier of `pod-tls` (PodUtils/podcrates), and in no file here.
+//! Test modules may use it, to make a key that aws-lc-rs refuses.
 
 use std::path::{Path, PathBuf};
 
@@ -26,7 +26,8 @@ const ONLY_IN: [(&str, &str); 6] = [
     // russh's agent server signs the keys that it holds; podssh agent's
     // front refuses an RSA key before russh's server sees it.
     ("podssh-cli/src/agent/serve.rs", "agent::server"),
-    // A path of the `rsa` crate itself: verification only.
+    // A path of the `rsa` crate itself: verification only, in the file of
+    // the verifier, which is pod-tls's now, so no file here holds one.
     ("podssh-ws/src/crypto/rsa_sig.rs", "rsa::"),
 ];
 

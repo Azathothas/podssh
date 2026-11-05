@@ -162,7 +162,7 @@ no `hello` comes (crates/podssh-transport/src/control.rs lines 111-137 at `e8bbd
 T-075 and T-076 (each repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
-(`crates/podssh-ws/src/session.rs:220-331`); `podssh_relay::open::backoff` has a jitter
+(`crates/podssh-ws/src/session.rs:223-334`); `podssh_relay::open::backoff` has a jitter
 (`crates/podssh-relay/src/open.rs:421-435`). Not measured: whether the relay answers a Ping on a reverse socket
 (`docs/relay.md:386-388` is the forward path), and its idle cut there (`docs/relay.md` lines 191-192 at `cd75137`, T-061). A node
 that connects again ends each operator session on it (`docs/design.md:659-662`).
@@ -230,7 +230,7 @@ cargo test -p podssh-relay --features pair --test reverse_live -- --ignored node
 ```
 
 Offline: the runner runs over an in-memory stream, against a scripted relay that writes real WebSocket frames
-(`RelaySession::new` takes any stream: `crates/podssh-ws/src/session.rs:107-111`). The cases: two mixed sessions
+(`RelaySession::new` takes any stream: `crates/podssh-ws/src/session.rs:110-114`). The cases: two mixed sessions
 with exact bytes; late bytes after `close` dropped, the socket kept; no data before `ready`; one exit on `409`;
 the hook on `1001 pair expired`; exit and a deleted pair on `1001 operator stopped reverse relay`. Plant: send
 `ready` before the handler returns; that test must fail. Live: pair (T-078), run an echo node, open two
@@ -1867,8 +1867,8 @@ ends each token at once (`docs/relay.md:615-617`). A text frame from the operato
 `1003`, and the operator leg carries no framing (`docs/relay.md:644-647`, `docs/reverse.md:123`).
 
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
-tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
-`crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
+tests of primitives (`PodUtils/podssh:crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
+`PodUtils/podssh:crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
 issue's "rule 8" is rule 6 (`docs/architecture.md:314-319`), and its "section 2" sentence about an allowlist of
 keys is in section 7 (`docs/design.md:1387-1388`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and

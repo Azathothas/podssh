@@ -29,14 +29,10 @@ pub const MAX_LIST: usize = 4096;
 const CUT: &str = "an HTTPS record ends before a length that it gives";
 const LIST_CUT: &str = "an ech parameter's ECHConfigList is not as long as its lengths say";
 
-/// What a name's record gives Encrypted Client Hello.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Published {
-    /// The ECHConfigList, its own length first, as rustls takes it.
-    pub list: Vec<u8>,
-    /// The record's TTL in seconds, where the answer gave one.
-    pub ttl: Option<u32>,
-}
+/// What a name's record gives Encrypted Client Hello: the ECHConfigList,
+/// its own length first, as rustls takes it, and the record's TTL in seconds,
+/// where the answer gave one.
+pub use pod_tls::ech::Published;
 
 /// The list of a JSON answer: the record of the lowest priority that holds
 /// one; `None` where no record of type 65 holds one (none at all, an alias,

@@ -1357,7 +1357,7 @@ on TCP, and registers with Cap'n Proto RPC. Read: the measured proxy allows
 and the sandbox refuses UDP (`docs/target-environment.md:23`). If the edge
 needs port 7844, a cage cannot publish a tunnel. A client in a cage can still
 reach the tunnel's name on port 443 with `podssh-ws`
-(`crates/podssh-ws/src/client.rs:160-183`).
+(`crates/podssh-ws/src/client.rs:160-184`).
 
 ## Approach
 
@@ -1420,7 +1420,7 @@ that the section names.
 quick tunnel uses QUIC alone unless the user names `--protocol http2`: cloudflared sets `quic`
 for it, and a protocol that the user names has no fallback (`docs/design.md:287-291`). And the
 client in a cage is the road of T-264, `crates/podssh-ws/src/cloudflare.rs`, whose upgrade is
-cloudflared's; the cited `crates/podssh-ws/src/client.rs:160-183` is the relay's upgrade, with
+cloudflared's; the cited `crates/podssh-ws/src/client.rs:160-184` is the relay's upgrade, with
 its token header.
 
 ## Done
@@ -1464,7 +1464,7 @@ Cloudflare Access. From a cage, podssh cannot reach it: the client is
 ## Premise
 
 Read: podssh's WebSocket client sends its credential in one fixed header,
-`X-Relay-Token` (`crates/podssh-ws/src/client.rs:160-183`,
+`X-Relay-Token` (`crates/podssh-ws/src/client.rs:160-184`,
 `crates/podssh-ws/src/handshake.rs:3`), through `HTTPS_PROXY`, with podssh's
 own TLS provider; the measured proxy allows `CONNECT` to port 443
 (`docs/target-environment.md:21`). Not verified here (to read in the source
@@ -1682,7 +1682,7 @@ points go in with it.
    names another client.
 7. Add to the section: cloudflared offers X25519MLKEM768, P256Kyber768Draft00 and P-256 only (no
    X25519; `cloudflare/cloudflared:crypto/curves.go`), and podssh's TLS offers X25519 and
-   secp256r1 with no ML-KEM (`crates/podssh-ws/src/crypto/kx.rs`); a classical handshake is
+   secp256r1 with no ML-KEM (`PodUtils/podssh:crates/podssh-ws/src/crypto/kx.rs`); a classical handshake is
    therefore a question for step 3 of the plan below. The startup prechecks
    (`cloudflare/cloudflared:prechecks/probes.go`: per region DNS, QUIC, TCP and TLS, 5 s each, and
    TCP to api.cloudflare.com:443, logged as "CONNECTIVITY PRE-CHECKS"; off with
@@ -1940,7 +1940,7 @@ connector, and registration advertises a feature only for datagram v3
    "Read" about the C++ tool for the code generator still holds.
 3. Item 3, TLS: cloudflared offers X25519MLKEM768, P256Kyber768Draft00 and P-256, and not X25519
    (`cloudflare/cloudflared:crypto/curves.go`); podssh's TLS offers X25519 and secp256r1, with no
-   ML-KEM (`crates/podssh-ws/src/crypto/kx.rs`). Test a classical handshake first: T-299 asks
+   ML-KEM (`PodUtils/podssh:crates/podssh-ws/src/crypto/kx.rs`). Test a classical handshake first: T-299 asks
    the edge. Add the three Origin roots that cloudflared adds (a third party reports that the
    edge's certificate chains to one of them), if T-299 confirms the issuers. Through an HTTP
    CONNECT proxy, a client hello with ML-KEM can be refused by a proxy (a third party reports it);
@@ -2241,7 +2241,7 @@ that cloudflared opens, the edge opens one stream for each request, and
 the metadata `HttpMethod`, `HttpHost`, `HttpHeader:NAME` and
 `HttpStatus`).
 
-The keys of QUIC, done: `crates/podssh-ws/src/crypto/quic.rs` gives both
+The keys of QUIC, done: `PodUtils/podssh:crates/podssh-ws/src/crypto/quic.rs` gives both
 TLS 1.3 suites of the provider their `quic` keys: AES-GCM packets with the
 nonce of RFC 9001, section 5.3, and AES header protection, section 5.4,
 with the limits of section 6.6. `cargo test -p podssh-ws --test quic_keys`,
@@ -3428,14 +3428,14 @@ connection, answered with 200, and many sessions on one TLS connection.
 
 Read and verified at the cited lines (2026-10-30):
 
-- podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:325` says "no ALPN",
+- podssh offers no ALPN: `PodUtils/podssh:crates/podssh-ws/src/tls.rs:325` says "no ALPN",
   and a caller's configuration that offers ALPN is refused
-  (`crates/podssh-ws/src/tls.rs:86` says "alpn_protocols.is_empty()").
+  (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:86` says "alpn_protocols.is_empty()").
 - The upgrade is HTTP/1.1: `crates/podssh-ws/src/handshake.rs:52` builds
   it, and `crates/podssh-ws/src/handshake.rs:205` says "status != 101".
 - A relay session is generic over its stream
-  (`crates/podssh-ws/src/session.rs:39`, whose default since T-326 is TLS
-  or TCP alone, and `:107`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
+  (`crates/podssh-ws/src/session.rs:42`, whose default since T-326 is TLS
+  or TCP alone, and `:110`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
   stream "as if it were the TCP connection", and drops `Sec-WebSocket-Key`
   and `Sec-WebSocket-Accept`.
 - `docs/design.md:337` says "0.4.19 is in": `h2` comes through hyper. Its
@@ -3598,7 +3598,7 @@ itself, so this entry is podssh's work: the self-hosted relay of Approach item 5
 relay role (T-169), whose front podssh controls. Its HTTP/2 server, the `h2` crate, offers the
 setting (`enable_connect_protocol`, read in its source in the research of 2026-11-02). The
 motive, a TLS handshake for each session, is partly podssh's own: each dial builds a new rustls
-configuration (`crates/podssh-ws/src/tls.rs:124-128`), so no session of a process resumes TLS
+configuration (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:124-128`), so no session of a process resumes TLS
 from another; that repair is T-444.
 
 The new Approach, in place of the one above:
@@ -3631,9 +3631,9 @@ with the setting absent; the fallback test fails. Live, on a GitHub runner where
 `podssh relay serve` runs: `podssh doctor` names `h2` and the setting, and `podssh ssh` runs on
 the road.
 
-2026-11-04 (the drafting agent). The Premise holds at its lines; `crates/podssh-ws/src/session.rs:107`
+2026-11-04 (the drafting agent). The Premise holds at its lines; `crates/podssh-ws/src/session.rs:110`
 holds the session's methods once the draft adds its field. Since T-444 (done) each trust's
-configuration is kept (`crates/podssh-ws/src/tls.rs:124` says "pub fn config_for(trust: &Trust)"),
+configuration is kept (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:124` says "pub fn config_for(trust: &Trust)"),
 so a second connection of a run resumes TLS: the motive's "each dial builds a new rustls
 configuration" is past, and HTTP/2 saves each later session TCP, a resumed TLS and the proxy's
 CONNECT. `h2` is a dependency of podssh-ws already (`crates/podssh-ws/Cargo.toml`, 0.4.20 in the
@@ -3955,7 +3955,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`crates/podssh-ws/src/resolve.rs`, line 125 at `927eb24`).
 - Read: the edge's trust is podssh's default roots, `podssh-ca.pem` next to the binary among them,
   and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:35-46`;
-  `crates/podssh-ws/src/tls.rs:204-233`).
+  `PodUtils/podssh:crates/podssh-ws/src/tls.rs:204-233`).
 - Inferred: Cloudflare cannot map `podssh 1.0.0-beta.2` to a release of cloudflared; some filters
   block `trycloudflare.com`.
 
@@ -4886,7 +4886,7 @@ T-353.
   reverse engineer" it, and let Cloudflare "block certain kinds of usage"
   (https://www.cloudflare.com/application/terms/, last updated 2024-10-18).
 - Read: podssh-ws refuses a caller's ALPN and offers no client certificate
-  (`crates/podssh-ws/src/tls.rs:85-96`, `:325-328`); the WebSocket over HTTP/2 is T-321, which
+  (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:85-96`, `:325-328`); the WebSocket over HTTP/2 is T-321, which
   waits for the relay.
 - Read in the study: with no IP stack, usque's L4 mode runs over QUIC only
   (https://github.com/Diniboy1123/usque/wiki/L4-proxy-mode); over HTTP/2 a client needs one.
@@ -4978,7 +4978,7 @@ ones.
 
 Read at `a3f948d` on 2026-10-31.
 
-- The Premise's lines of `crates/podssh-ws/src/tls.rs` hold: `Trust::caller` refuses ALPN at
+- The Premise's lines of `PodUtils/podssh:crates/podssh-ws/src/tls.rs` hold: `Trust::caller` refuses ALPN at
   `:85-96`, and the configuration takes no client certificate at `:325-328`.
 - Step 1 of the Approach, and the WARP item of `docs/carriers.md`, name HTTP/2's extended CONNECT.
   Read in usque's fork of connect-ip-go (`client_h2.go`, `DialH2`): over HTTP/2 the request is a
@@ -5889,7 +5889,7 @@ relay's path and token.
   path is `/connect/<host>/<port>` (`:154-167`); a run has one road, of five kinds
   (`crates/podssh-cli/src/ssh/resolve.rs:23-76`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
-  (`crates/podssh-ws/src/client.rs:66-105`, `:160-183`); a token goes only to the deployment that
+  (`crates/podssh-ws/src/client.rs:66-105`, `:160-184`); a token goes only to the deployment that
   minted it (`docs/decisions.md:97`).
 - Read: a SOCKS5 proxy that the user names in `ALL_PROXY` carries each road already (T-070;
   `crates/podssh-ws/src/socks5.rs:1-7`): podssh takes a third party's proxy that the user chooses.
@@ -6210,7 +6210,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
-  and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
+  and then a reset: `TODO/ws.md:1172` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
   port 443 answers (`docs/STATUS.md:189`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
@@ -6337,11 +6337,11 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
   `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-76`).
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:231-236`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
-  (`crates/podssh-ws/src/client.rs:185-200`), with no ALPN and no client certificate
-  (`crates/podssh-ws/src/tls.rs:325-328`).
+  (`crates/podssh-ws/src/client.rs:186-214`), with no ALPN and no client certificate
+  (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:325-328`).
 - Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
   `SSL_CERT_FILE` (`docs/target-environment.md:61-70`), and reset SSH on port 443
-  (`TODO/ws.md:1158-1161`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
+  (`TODO/ws.md:1170-1173`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
   proxy's CA.
 - Read in GitHub #61 (a tester's report, which the tester's own run did not reproduce):
   `mx1.vpnjantit.com:443` and `ee2.vpnjantit.com:443` answer TLS, then SSH.
@@ -6433,7 +6433,7 @@ cannot make it a road.
   on port 443 took the salt and the header and gave no byte back, so it is not confirmed that such
   a server dials an arbitrary target.
 - Read: podssh-ws has AES-GCM, ChaCha20-Poly1305 and HKDF of RustCrypto
-  (`crates/podssh-ws/Cargo.toml:16-21`), and a SOCKS5 tunnel that names its target to a proxy
+  (`PodUtils/podssh:crates/podssh-ws/Cargo.toml:16-21`), and a SOCKS5 tunnel that names its target to a proxy
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
