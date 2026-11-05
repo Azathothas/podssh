@@ -21,7 +21,7 @@ use podssh_relay::e2e::ends::{self, Node};
 use podssh_relay::e2e::hold;
 use podssh_relay::identity::Identity;
 use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::handover::{Handed, LayerState, Moved};
+use podssh_relay::session::handover::{Handed, LayerState};
 use podssh_relay::session::keep::Keeper;
 use podssh_relay::session::resume::{self, Next};
 use podssh_relay::session::{far, Ask, End, OsEntropy, Role, Settings};
@@ -149,7 +149,6 @@ fn through_bytes(handed: Vec<Handed>) -> Vec<Handed> {
         .into_iter()
         .map(|Handed { state, target }| {
             let state = LayerState::decode(&state.encode()).unwrap();
-            let target = target.map(|Moved { socket, channel }| Moved { socket, channel });
             Handed { state, target }
         })
         .collect()

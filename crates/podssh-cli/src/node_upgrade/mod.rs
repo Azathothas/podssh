@@ -60,7 +60,8 @@ static ASKED: Mutex<Option<(PathBuf, String)>> = Mutex::new(None);
 /// The keeper of the node's sessions, for the handover.
 static KEEPER: Mutex<Option<Arc<dyn HandOver>>> = Mutex::new(None);
 /// Where the node's lines go.
-static LINES: Mutex<Option<Arc<dyn Fn(String) + Send + Sync>>> = Mutex::new(None);
+type Say = Arc<dyn Fn(String) + Send + Sync>;
+static LINES: Mutex<Option<Say>> = Mutex::new(None);
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|e| e.into_inner())
