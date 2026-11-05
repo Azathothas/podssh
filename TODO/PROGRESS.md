@@ -202,6 +202,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   as `draft/worktree-agent-*`: T-631 and T-674 (`68687d5`, merged: T-631 parked until T-124, T-674
   done), T-667 (`249f01f`, merged), T-636 (`034dc65`, merged), T-637 (`18b641c`, merged), T-641 (`dfa734e`, merged), T-646 (`d69b76f`, merged), T-668 (`8a39501`, merged; its follow-ups T-678 and T-679); T-660's run of `tc netem` with osewa
   (`cf91fcd`) is merged, its figures waiting for the workflow's first run.
+  On 2026-11-05 at 04:20 UTC an eleventh round is drafted: T-643, T-644, T-638 and T-642, each in
+  a worktree of its own (`worktree-agent-*`), unbuilt. A lesson of the night: never amend a commit
+  that was pushed, not even of a draft branch, as the push after it is a force-push (`draft/merge-668`
+  was so pushed once, its one change the drop of an import); a new commit each time.
   A merge in progress waits on a local branch `merge-NNN` that tracks `draft/merge-NNN`, never on
   `main`. Two lessons of the night: never commit while `scripts/plant-each.sh` runs (a plant is
   applied in the tree then); and when the disk fills, remove `target/` whole, never files under
