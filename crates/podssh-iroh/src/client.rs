@@ -2,13 +2,15 @@
 //! address of its ticket, a session of the resumable layer on a stream of
 //! it, and a new stream, or a new connection, for each lost link. When the
 //! ticket's relay does not reach the node, the node's record of pkarr names
-//! where it is now (T-350, [`crate::pkarr`]).
+//! where it is now (T-350, [`crate::pkarr`]). Each session of a process to
+//! the node may take a stream of the one connection ([`crate::share`],
+//! T-666), in its own lane.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use iroh::endpoint::{ConnectError, ConnectingError, Connection, ConnectionError, VarInt};
+use iroh::endpoint::{ConnectError, ConnectOptions, ConnectingError, Connection, ConnectionError, VarInt};
 use iroh::{Endpoint, EndpointAddr, RelayUrl};
 use n0_future::StreamExt;
 use podssh_relay::session::client::{self, Outcome};
@@ -19,7 +21,7 @@ use tokio::sync::Mutex;
 
 use crate::allow::{REFUSED, REFUSED_REASON};
 use crate::pkarr::Finder;
-use crate::stream::{open_session, Stream};
+use crate::stream::{open_lane, Lane, Stream};
 
 /// How long a connection to a node may take, its handshake included.
 pub const CONNECT_LIMIT: Duration = Duration::from_secs(30);
@@ -112,16 +114,34 @@ impl Dialer {
         }
     }
 
-    /// A new link: a stream on the connection while it lives, else on a new
-    /// connection.
+    /// The endpoint that dials.
+    pub fn endpoint(&self) -> &Endpoint {
+        &self.endpoint
+    }
+
+    /// The connection's own id while there is one: the same for each
+    /// session that shares it (T-666).
+    pub async fn connection_id(&self) -> Option<usize> {
+        let slot = self.connection.lock().await;
+        slot.as_ref().filter(|c| c.close_reason().is_none()).map(|c| c.stable_id())
+    }
+
+    /// A new link in the lane of the task that asks ([`Lane::current`]).
     pub async fn link(&self) -> Result<Stream, Failure> {
+        self.link_as(Lane::current()).await
+    }
+
+    /// A new link of `lane`: a stream on the connection while it lives,
+    /// else on a new connection, which each session of the dialer then
+    /// shares.
+    pub async fn link_as(&self, lane: Lane) -> Result<Stream, Failure> {
         let mut slot = self.connection.lock().await;
         if let Some(connection) = slot.as_ref() {
             match connection.close_reason() {
                 Some(reason) if refused(&reason) => return Err(Failure::Refused),
                 Some(_) => {}
                 None => {
-                    if let Ok(stream) = open_session(connection).await {
+                    if let Ok(stream) = open_lane(connection, lane).await {
                         return Ok(stream);
                     }
                 }
@@ -130,7 +150,7 @@ impl Dialer {
         let connection = self.connect().await?;
         self.linked.store(true, Ordering::SeqCst);
         watch_paths(&connection, self.direct.clone());
-        let stream = open_session(&connection).await;
+        let stream = open_lane(&connection, lane).await;
         *slot = Some(connection);
         stream.map_err(|e| Failure::Failed(format!("no stream to the node: {e}")))
     }
@@ -200,7 +220,7 @@ impl Dialer {
     /// One dial of the address that the dialer has, within `limit`.
     async fn dial(&self, limit: Duration) -> Result<Connection, Failure> {
         let addr = lock(&self.addr).clone();
-        let connecting = self.endpoint.connect(addr, crate::ALPN);
+        let connecting = connect_lanes(&self.endpoint, addr);
         match tokio::time::timeout(limit, connecting).await {
             Ok(Ok(connection)) => Ok(connection),
             Ok(Err(e)) if connect_refused(&e) => Err(Failure::Refused),
@@ -310,6 +330,14 @@ where
     };
     let mut entropy = OsEntropy;
     Ok(resume::run(client, app, connect, note, &mut entropy).await)
+}
+
+/// A connection to `addr` that offers the ALPN of lanes first (T-666), and
+/// [`crate::ALPN`] beside it for a node of before.
+async fn connect_lanes(endpoint: &Endpoint, addr: EndpointAddr) -> Result<Connection, ConnectError> {
+    let options = ConnectOptions::new().with_additional_alpns(vec![crate::ALPN.to_vec()]);
+    let connecting = endpoint.connect_with_opts(addr, crate::ALPN_LANES, options).await?;
+    Ok(connecting.await?)
 }
 
 /// Note in `direct` when a direct path is the one that carries the data of

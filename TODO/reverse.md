@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:155`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:156`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1461,7 +1461,7 @@ podbox has the same, on by default (`NodeChannel`, `OperatorChannel`). The manua
 # T-088: End-to-end encryption between two podssh ends
 
 **Source:** GitHub #18 (report on warren; read in the report, not verified here);
-`docs/design.md:1360-1366`, `:1489-1493`.
+`docs/design.md:1404-1410`, `:1533-1537`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -1480,8 +1480,8 @@ Read: the relay sees the target, the time and volume of the traffic, and the sta
 connection; after the key exchange it sees only ciphertext (`SECURITY.md:21-31`). It can drop, delay
 or add frames (`SECURITY.md:33-36`).
 
-Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:1360-1366`);
-for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1492-1494`).
+Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:1404-1410`);
+for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1536-1538`).
 The resumable layer of M6 runs under SSH (`docs/design.md:674-686`).
 
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
@@ -1870,7 +1870,7 @@ Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
 issue's "rule 8" is rule 6 (`docs/architecture.md:289-294`), and its "section 2" sentence about an allowlist of
-keys is in section 7 (`docs/design.md:1323-1324`). Read in the report (not verified here): syq signs a grant in a
+keys is in section 7 (`docs/design.md:1367-1368`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
 (lines 11-12 at `22c3b88`); signing buys scope, single use and non-repudiation, not safety after a leak.

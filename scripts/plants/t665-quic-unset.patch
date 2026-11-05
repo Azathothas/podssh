@@ -1,0 +1,11 @@
+--- a/crates/podssh-iroh/src/endpoint.rs
++++ b/crates/podssh-iroh/src/endpoint.rs
+@@ -292,7 +292,7 @@ pub(crate) async fn open_with(
+         Some(tuning) => tuning,
+         None => Tuning::from_environment().map_err(BindError::Quic)?,
+     };
+-    let (quic, kept) = tuning.config();
++    let (quic, kept) = Tuning::IROH.config();
+     let tls = match &options.relay_tls {
+         Some(tls) => tls.clone(),
+         None => relay_tls(&options.trust)?,

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**629 entries: 110 open, 8 partial, 3 blocked, 508 done.**
+**629 entries: 108 open, 10 partial, 3 blocked, 508 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 64 | 66 |
 | P2 | 25 | 4 | 0 | 246 | 275 |
-| P3 | 85 | 2 | 3 | 197 | 287 |
-| **All** | 110 | 8 | 3 | 508 | 629 |
+| P3 | 83 | 4 | 3 | 197 | 287 |
+| **All** | 108 | 10 | 3 | 508 | 629 |
 
 ## Entries
 
@@ -695,8 +695,8 @@ repository and CI).
 | [T-662](ssh.md) | P2 | S | M10 | feature | partial | SSH windows that grow to the path where nobody types, to a cap of each road |
 | [T-663](resume.md) | P2 | S | M10 | feature | done | Liveness in round trips: a spare link after the larger of three round trips and 1 s, and a check when the host wakes |
 | [T-664](ssh.md) | P3 | M | M10 | feature | done | A faster cold connect: TLS tickets kept across runs, a key's signature sent with no query first, and fewer waits before the first command |
-| [T-665](roads.md) | P3 | S | M10 | measurement | open | QUIC on the iroh road, tuned and measured on a wide-area path |
-| [T-666](roads.md) | P3 | M | M10 | feature | open | Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection |
+| [T-665](roads.md) | P3 | S | M10 | measurement | partial | QUIC on the iroh road, tuned and measured on a wide-area path |
+| [T-666](roads.md) | P3 | M | M10 | feature | partial | Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection |
 | [T-667](mesh.md) | P3 | L | M10 | feature | open | QUIC on UDP 443 to podssh's relay role, raced with its TCP roads where a probe found that UDP passes |
 | [T-668](reverse.md) | P3 | L | M10 | feature | open | A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state |
 | [T-669](ssh.md) | P3 | S | M10 | measurement | open | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |

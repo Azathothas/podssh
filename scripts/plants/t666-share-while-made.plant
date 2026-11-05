@@ -1,0 +1,9 @@
+# T-666: a second session of the process shares the node's dialer only
+# while the first is still making it, so a copy beside a terminal that is
+# already connected makes an endpoint and a connection of its own; the test
+# of two sessions on one connection must fail.
+ENTRY=T-666
+GROUP=resume
+EXPECT='test two_sessions_of_one_process_share_one_connection_on_two_streams \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-iroh --test share -- two_sessions_of_one_process_share_one_connection_on_two_streams'
+LIMIT=1800

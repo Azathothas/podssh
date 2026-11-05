@@ -16,7 +16,10 @@
 //! ([`relays`]). A node keeps a record of its home relay at a server of
 //! pkarr, and a client whose ticket's relay does not reach the node asks it
 //! ([`pkarr`], T-350); the record names the node's DERP home and quick
-//! tunnel too, for a client with the node's key alone (T-445).
+//! tunnel too, for a client with the node's key alone (T-445). QUIC's
+//! settings are iroh's own, or an arm of an A/B run ([`tuning`], T-665).
+//! The sessions of one process to one node share one connection, each on
+//! a stream of its own, a copy's below a terminal's ([`share`], T-666).
 
 pub mod allow;
 pub mod client;
@@ -27,6 +30,8 @@ pub mod pkarr;
 pub mod probe;
 pub mod relays;
 pub mod resolve;
+// One connection to a node for the sessions of a process (T-666).
+pub mod share;
 pub mod stream;
 // A server of pkarr on the loopback, beside the test relay (T-350).
 #[cfg(feature = "test-relay")]
@@ -34,6 +39,8 @@ pub mod test_pkarr;
 #[cfg(feature = "test-relay")]
 pub mod test_relay;
 pub mod ticket;
+// QUIC's settings, and the arms of the A/B run (T-665).
+pub mod tuning;
 // Whether a relay takes this build's iroh (T-348).
 pub mod version;
 
@@ -41,11 +48,17 @@ pub use allow::Allowlist;
 pub use client::{carry, Dialer, Failure};
 pub use endpoint::{bind, BindError, Options, Udp};
 pub use pkarr::Finder;
-pub use stream::{accept_session, open_session, Stream};
+pub use share::Lease;
+pub use stream::{accept_session, open_lane, open_session, Lane, Stream};
 
 /// The ALPN of podssh's sessions over iroh: a connection with another one
 /// is refused in its handshake.
 pub const ALPN: &[u8] = b"podssh/1";
+
+/// The ALPN of the same sessions where the far end also reads a copy's
+/// first byte (T-666, [`stream::SESSION_BULK`]): each end offers it before
+/// [`ALPN`], and a podssh of before takes [`ALPN`].
+pub const ALPN_LANES: &[u8] = b"podssh/2";
 
 /// The features of the resumable layer that each end offers over iroh:
 /// those of the relay road but `move.v1`, whose move to a new link keeps a

@@ -708,6 +708,25 @@ both set, and is left out with a line otherwise; its input `roads` takes the
 flags of each road of the stage `roads`, separated by `;`, for the forwarders
 of Q56, short.
 
+`scripts/iroh-ab.py` measures the arms of `PODSSH_IROH_QUIC`, QUIC's settings
+on the iroh road, one against another (T-665), by T-157's method: a new
+connection for each run, down and up in separate sessions, the arms in turn
+in each round, and the minimum, p50, p95 and maximum by nearest rank. With
+OpenSSH, it copies a static podssh to the far server into a private directory,
+runs a `podssh node --iroh` of each arm there in front of the server's own
+sshd, logs in to each with `podssh ssh -v`, which says the path and the arm of
+each run, and removes the nodes and the directory at the end. The result keeps
+figures, paths, arms and each end's `rmem_max` and `wmem_max`; no user, host,
+address, key or ticket. The workflow, by hand, builds the static binary in the
+gate's image and needs both secrets of the stage `dest` above:
+
+```sh
+python3 -I scripts/iroh-ab.py --self-test
+python3 -I scripts/iroh-ab.py --podssh target/x86_64-unknown-linux-musl/release/podssh \
+    --destination USER@HOST --identity KEY --arms 'iroh;tuned' --runs 5 --mib 4 --out .work/iroh-ab.json
+gh workflow run iroh-ab.yml --ref main -f arms='iroh;tuned' -f runs=5 -f mib=4
+```
+
 `scripts/capture-close.py` captures the payload of a Close that the live
 relay sends, with a client of the Python standard library: bytes that podssh
 did not make, for a fixture of the Close parser

@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:411`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:412`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2727-2730`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:411`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:412`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -3081,7 +3081,7 @@ node at its next line, often "online again" after a reconnect. A server then has
 
 - Read: `panic = "abort"` in the release profile (`Cargo.toml:222`).
 - Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:334`,
-  `crates/podssh-cli/src/node_derp.rs:321`, `crates/podssh-cli/src/node_iroh.rs:322`), as are 40
+  `crates/podssh-cli/src/node_derp.rs:321`, `crates/podssh-cli/src/node_iroh.rs:324`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
 - Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).

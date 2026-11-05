@@ -1,0 +1,9 @@
+# T-665: the endpoint takes iroh's own QUIC settings whatever the arm of
+# PODSSH_IROH_QUIC is, so an A/B run would measure one arm twice; the test
+# that reads the tuned arm's first round trip in the endpoint's own settings
+# must fail.
+ENTRY=T-665
+GROUP=resume
+EXPECT='test tuning::tests::an_endpoint_takes_the_arm_s_settings \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-iroh --lib -- tuning::'
+LIMIT=1800

@@ -192,7 +192,8 @@ pub(crate) async fn reach(transport: &Transport, log: &Arc<Log>) -> Result<Reach
     let (ended, done) = oneshot::channel();
     let (label, pair_file, trust) = (label.to_string(), pair_file.map(str::to_string), trust.clone());
     let (race, ask, log) = (race.cloned(), channel.clone(), log.clone());
-    tokio::spawn(async move {
+    // A copy's streams go below a terminal's on a shared iroh connection (T-666).
+    tokio::spawn(super::iroh::as_bulk(async move {
         let Chosen { record, derp, opentunnel, transit, piping } = chosen;
         let raced = Raced { iroh: race.as_ref(), derp, opentunnel, transit, piping, record: record.as_ref() };
         // The copy's SSH runs at the other end of the stream: no code here.
@@ -203,7 +204,7 @@ pub(crate) async fn reach(transport: &Transport, log: &Arc<Log>) -> Result<Reach
         let rider = Rider { shell: None, take: None };
         Box::pin(super::roads::ride(&label, pair_file.as_deref(), &trust, raced, &ask, rider, log, hand)).await;
         let _ = ended.send(());
-    });
+    }));
     match given.await {
         Ok(Ok(stream)) => Ok(Reached { stream: Box::new(stream), relay: None, direct_proxy: None, layer: Some(done) }),
         Ok(Err(not)) => Err(not),
