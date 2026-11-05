@@ -89,6 +89,19 @@ alone, and its door is the end-to-end channel's allowlist, `--allow` or the
 net's members; it refuses to start with neither. A client checks the
 node's certificate by its name, then the node's key in the channel.
 
+Each TLS hello names its host in the clear, so what reads hellos on the way
+(an inspecting middlebox, an allowlist of names) learns which relay host or
+server podssh reaches. With `PODSSH_ECH=yes`, or `ECH yes` in the settings
+file (T-642), a name whose `HTTPS` record publishes a list goes sealed inside
+the hello, under the list's key (HPKE of RFC 9180, podssh's own), and the
+hello in the clear names the list's public name. The record is read by DNS
+over HTTPS, inside TLS to the resolver, so the question does not show the
+name either. It hides the name alone: a proxy is given the name in its
+CONNECT; the address, the times and the sizes stay; a resolver that answers
+falsely, or a network that stops the read or the sealed hello, leaves the
+hello plain, which `PODSSH_ECH=strict` refuses instead. It is off by
+default, as the read is one more connection before the session's.
+
 The host-key check makes a relay in the middle safe:
 
 - podssh refuses an unknown host key unless you accept it;
@@ -256,7 +269,10 @@ Each rule is implemented.
   public STUN servers in turn (Cloudflare's and Google's by default, or those
   of `PODSSH_STUN`), takes only their answers, and closes it within seconds;
   the request carries nothing of the host but its address, and
-  `PODSSH_STUN=no` sends none. The iroh road, in a
+  `PODSSH_STUN=no` sends none. With `PODSSH_ECH` (T-642), a connection to a
+  name is preceded by one read of its `HTTPS` record from a resolver of DNS
+  over HTTPS, through the proxy when one is set, once for each name and
+  TTL, and never beside the connection. The iroh road, in a
   build with the feature `iroh`, keeps UDP for its direct paths only after
   a datagram came back from its home relay (T-359); with no UDP, its relay carries each byte, and a peer
   is accepted only with the ALPN of podssh's sessions. A node whose TARGET

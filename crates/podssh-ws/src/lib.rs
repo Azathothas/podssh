@@ -40,6 +40,9 @@ pub mod crypto;
 // How a dial or a handshake ended, by the kind of its error (T-487).
 pub mod cut;
 pub mod dial;
+// Encrypted Client Hello, with the list of a name's HTTPS record, when the
+// user asks for it (T-642).
+pub mod ech;
 // The road of AWS's EC2 Instance Connect Endpoint (T-351).
 pub mod eice;
 pub mod error;

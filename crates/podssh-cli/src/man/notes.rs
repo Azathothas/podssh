@@ -272,6 +272,7 @@ const DOCTOR: &[&str] = &[
     super::notes_doctor::DOCTOR_EXIT,
     super::notes_doctor::DOCTOR_CLEARTEXT,
     super::notes_doctor::DOCTOR_HTTP2,
+    super::notes_doctor::DOCTOR_ECH,
     super::notes_doctor::DOCTOR_STREAM,
     super::notes_net::DOCTOR_NET,
     "Each CONNECT, and the direct TCP check, is tried nine times over a second or more: its line gives \
