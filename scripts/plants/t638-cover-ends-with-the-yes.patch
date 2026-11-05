@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/person.rs
++++ b/crates/podssh-relay/src/e2e/person.rs
+@@ -103,7 +103,7 @@
+     fn live(&self, now: Instant) -> bool {
+         match self {
+             Slot::Asking(_) => true,
+-            Slot::Covered { open, until } => *open > 0 || *until > now,
++            Slot::Covered { until, .. } => *until > now,
+             Slot::Refused { until, .. } => *until > now,
+         }
+     }

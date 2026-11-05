@@ -8,6 +8,9 @@
 //! its admission. A session let in gets the seed of its tokens of one leg in
 //! the verdict, where the node's socket is to a role that registers them, and
 //! an operator's end gives it to the legs of its session (T-615, [`legs`]).
+//! A node's person, where the node has one, is asked after its door and
+//! after a grant alike (T-638, [`person`]), and the node's line says by what
+//! each operator came in.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -16,6 +19,7 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 
 use super::legs::{self, Leases};
+use super::person::{self, Pass};
 use super::{initiate, respond, Ask, Error, Refusal};
 use crate::identity::{Identity, PublicKey};
 
@@ -57,7 +61,7 @@ pub const GRANT_REFUSED: &str = "this grant does not let this key in: it was use
                                  it is not for this key, this node or this route; the node's log says which";
 
 /// A node's end: its key, who may come in, where its lines go, its door
-/// for grants, and its tokens of one leg.
+/// for grants, its tokens of one leg, and its person.
 #[derive(Clone)]
 pub struct Node {
     pub identity: Arc<Identity>,
@@ -69,13 +73,17 @@ pub struct Node {
     /// The tokens of one leg of each session let in (T-615), which the
     /// node's socket to its role registers; each clone shares them.
     pub leases: Arc<Leases>,
+    /// The node's person (T-638, `podssh node --ask`), asked of each key
+    /// that the door or a grant let through; with none, they decide alone.
+    pub gate: Option<Arc<person::Gate>>,
 }
 
 impl Node {
     /// A node that lets in each operator whose key proves itself: the relay's
     /// connect token decided who reaches it.
     pub fn open_to_all(identity: Arc<Identity>, say: Arc<dyn Fn(String) + Send + Sync>) -> Node {
-        Node { identity, admit: Arc::new(|_: &PublicKey, _: &Ask| Ok(())), say, redeem: None, leases: Arc::default() }
+        let admit: Arc<Admit> = Arc::new(|_: &PublicKey, _: &Ask| Ok(()));
+        Node { identity, admit, say, redeem: None, leases: Arc::default(), gate: None }
     }
 }
 
@@ -144,6 +152,13 @@ where
     let peer = asked.peer();
     let ask = asked.ask().clone();
     let to = ask.to_string();
+    // A no of the node's person stands before the door, so that it spends
+    // no grant (T-638).
+    if let Some(why) = node.gate.as_ref().and_then(|gate| gate.standing(&peer)) {
+        (node.say)(format!("refused the operator key {peer}{to}: {why}"));
+        asked.refuse(Refusal::NotAllowed).await;
+        return;
+    }
     // A grant decides alone (T-226): a key that the admission lets in, but
     // that brings a grant that fails, is refused, as it asked by the grant.
     let verdict = match (asked.grant(), &node.redeem) {
@@ -175,6 +190,17 @@ where
             return;
         }
     };
+    // The node's person, after the door or the grant, whichever let the key
+    // through: neither passes it, and it lets in nothing that they refused
+    // (T-638). Its pass holds the key's cover while the session lives.
+    let (_pass, by) = match Box::pin(person_of(node, peer, &ask, by_grant)).await {
+        Ok(passed) => passed,
+        Err(line) => {
+            (node.say)(line);
+            asked.refuse(Refusal::NotAllowed).await;
+            return;
+        }
+    };
     let target = match tokio::time::timeout(TARGET_WAIT, GRANTED.scope(by_grant, open(peer, ask))).await {
         Ok(Ok(target)) => target,
         Ok(Err(refusal)) => {
@@ -189,7 +215,7 @@ where
             return;
         }
     };
-    (node.say)(format!("the operator key {peer} came in{to}"));
+    (node.say)(format!("the operator key {peer} came in{to}, by {by}"));
     // The seed of the session's tokens of one leg (T-615), registered at the
     // role first; they go with the session, as the lease does.
     let lease = node.leases.issue();
@@ -205,6 +231,19 @@ where
     let hold = super::hold::current();
     let carried = channel.carry_held(target, hold.as_deref(), super::Start::default()).await;
     super::hold::after(carried, hold.as_deref(), peer, lease, &*node.say).await;
+}
+
+/// The gate of the node's person (T-638): by what the session came in, for
+/// the node's line, and the pass that holds the key's cover while the
+/// session lives; `Err` is the line of the refusal. With no gate, the door
+/// or the grant let it in alone.
+async fn person_of(node: &Node, peer: PublicKey, ask: &Ask, by_grant: bool) -> Result<(Option<Pass>, String), String> {
+    let door = if by_grant { "a grant" } else { "the door" };
+    let Some(gate) = &node.gate else { return Ok((None, door.to_string())) };
+    match gate.cross(peer, ask, by_grant).await {
+        Ok((pass, by)) => Ok((Some(pass), format!("{door} and {by}"))),
+        Err(why) => Err(format!("refused the operator key {peer}{ask}, which {door} let through: {why}")),
+    }
 }
 
 /// The operator's end of one session: `app` carries the session's bytes in

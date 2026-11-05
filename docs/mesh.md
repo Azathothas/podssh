@@ -91,6 +91,10 @@ there is no server to trust and nothing to hold up (T-429).
   the same way.
 - **Policy.** Who may reach which node, which share and which exit, as
   Tailscale's ACLs; checked by the node that is reached, never by a relay.
+- **A person at the node.** `podssh node --ask` asks a person at the node's
+  terminal of each key that the policy, `--allow` or a grant lets through,
+  and a yes covers the device while one of its sessions is open and 120 s
+  after (T-638; [reverse.md](reverse.md), "A person at the node").
 
 What T-429 built ([cli.md](cli.md), "`podssh net`"):
 

@@ -1,0 +1,6 @@
+# T-638: the person's no is said in the node's line, and the session goes
+# on to the target; the test of a no, which must reach no target, must fail.
+ENTRY=T-638
+GROUP=resume
+EXPECT='test a_no_reaches_no_target_and_the_operator_hears_only_not_let_in \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test person -- a_no_reaches_no_target_and_the_operator_hears_only_not_let_in'

@@ -413,6 +413,8 @@ inputs alone.
 
 - T-638 (#136): a forward token of the relay role stays good for each target that its policy
   dials, and a grant stays bound by its issuer's door (Q4, T-226); the issue calls both defects.
+  Its draft (2026-11-05) asks the person of `--ask` after the door, never in its place: a yes lets
+  in no key that the door refuses, where the issue asked that an approval alone let a device in.
 - T-640 (#138): a node writes each line to the journal's own socket only when its stderr is that
   journal's stream already: not an outbound connection under rule 2.
 - T-641 (#139): `doctor`'s line `nat` runs unasked against `stun.cloudflare.com:3478` and

@@ -294,6 +294,43 @@ that is not SSH has no other gate. Measured on 2026-11-03 (T-226): `cargo
 test -p podssh-relay --features pair,grant --test grant`, 9 passed, against
 certificates that OpenSSH 9.6's `ssh-keygen -s` minted.
 
+## A person at the node
+
+A node's door is a file: a key of `--allow`, or a member of the net, comes
+in from the moment that it is written until someone removes it. `podssh node
+NAME --ask` (T-638, GitHub #136) puts a person at the node's terminal after
+the door, on each road of the node (`crates/podssh-relay/src/e2e/person.rs`,
+`crates/podssh-cli/src/node_ask.rs`):
+
+1. The door decides first, then the person: each key that the door, or a
+   grant, lets through waits for a `y` or an `n` on the node's terminal. A key
+   that they refuse raises no question, so whoever reaches the node with a
+   key of its own puts no question to its person, and a yes widens no door.
+   The question names the key's fingerprint, its name in the net held there,
+   what it asks (the target, a route or an exit's target), and whether a
+   grant brought it.
+2. One question for each key at a time: each session of the key that comes
+   meanwhile waits for its answer. One question shows at a time, and a line
+   typed before a question showed is no answer to it. No answer within 100 s
+   is a no.
+3. A yes covers the key while one of its sessions is open, and 120 s after
+   its last, with no question. A no stands 15 s, in which the key is refused
+   with no question; it is read before the door, so that it spends no grant.
+   A grant meets the question after its check, which spends it, as a target
+   out of reach does (T-226).
+4. A no is the door's refusal: the operator hears only that its key is not
+   let in (77), and the node's line says why. Each session that came in is a
+   line of the node: the key, what it asked, and by what (the door or a
+   grant, and a yes or its cover).
+5. The operator waits 130 s for the verdict, a step's 30 s and the
+   question's 100 s; an operator of before waits 30 s, and a yes that came
+   later lets its next session in by the cover. A client of an exit waits
+   160 s.
+6. stdin and stderr must each be a terminal, which the node probes as it
+   starts; with none, `--ask` is refused (78), and beside `--detach`,
+   `--install`, `--uninstall`, `--temporary`, `--no-e2e` or `--carrier stdio`
+   (64). The covers live in the process: a node that starts again asks again.
+
 ## Tokens of one leg, and a stop token that rotates
 
 A pair's connect token opens each leg of each session until the pair ends,

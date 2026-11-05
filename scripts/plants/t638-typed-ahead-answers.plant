@@ -1,0 +1,7 @@
+# T-638: a line typed before the question showed answers it, so a y typed
+# for nothing lets the next key in; the test in a pty, which types a y
+# before the question and answers n, must fail.
+ENTRY=T-638
+GROUP=cli-tests
+EXPECT='test pty::a_no_at_the_node_s_terminal_refuses_the_operator_with_77 \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test node_ask -- pty::a_no_at_the_node_s_terminal_refuses_the_operator_with_77'

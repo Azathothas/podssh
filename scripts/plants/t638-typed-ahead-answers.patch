@@ -1,0 +1,14 @@
+--- a/crates/podssh-cli/src/node_ask.rs
++++ b/crates/podssh-cli/src/node_ask.rs
+@@ -141,10 +141,7 @@
+         let Some((at, line)) = lines.recv().await else {
+             return Err("stdin ended, so nobody can answer, which is a no".into());
+         };
+-        // A line typed before the question showed is no answer to it.
+-        if at < shown {
+-            continue;
+-        }
++        let _ = (at, shown);
+         match answer_of(&line) {
+             Some(true) => return Ok(()),
+             Some(false) => return Err("the node's person said no".into()),

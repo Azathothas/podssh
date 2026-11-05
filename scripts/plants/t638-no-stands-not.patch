@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/person.rs
++++ b/crates/podssh-relay/src/e2e/person.rs
+@@ -279,7 +279,7 @@
+         let now = Instant::now();
+         let slot = match &said {
+             Ok(()) => Slot::Covered { open: 1, until: now + self.times.cover },
+-            Err(why) => Slot::Refused { until: now + self.times.stands, why: why.clone() },
++            Err(why) => Slot::Refused { until: now, why: why.clone() },
+         };
+         self.slots().insert(out.key, slot);
+         out.answered = true;
