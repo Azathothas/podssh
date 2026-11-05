@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**629 entries: 108 open, 10 partial, 3 blocked, 508 done.**
+**631 entries: 108 open, 10 partial, 3 blocked, 510 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 2 | 0 | 64 | 66 |
-| P2 | 25 | 4 | 0 | 246 | 275 |
+| P1 | 0 | 2 | 0 | 65 | 67 |
+| P2 | 25 | 4 | 0 | 247 | 276 |
 | P3 | 83 | 4 | 3 | 197 | 287 |
-| **All** | 108 | 10 | 3 | 508 | 629 |
+| **All** | 108 | 10 | 3 | 510 | 631 |
 
 ## Entries
 
@@ -705,3 +705,5 @@ repository and CI).
 | [T-672](ssh.md) | P3 | M | backlog | feature | blocked | TLS tickets kept across runs, once a release of rustls lets a client write one |
 | [T-673](ssh.md) | P3 | S | M10 | defect | open | The rate's best on a lossy link: a burst after a loss's stall read as the path's rate |
 | [T-674](robustness.md) | P3 | S | none | feature | open | The SSH client's own lines keep one priority in the journal |
+| [T-675](ssh.md) | P1 | S | M10 | defect | done | The gate red since T-664: the record of the keys that hosts took loses a change, and the stall's check names the old first request |
+| [T-676](roads.md) | P2 | S | M10 | defect | done | A WARP test inherits an earlier test's memory of a re-terminated TLS at a reused port |

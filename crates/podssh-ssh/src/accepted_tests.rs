@@ -88,3 +88,37 @@ fn a_file_that_does_not_read_is_refused_whole() {
         assert!(refused.contains(why), "{text:?}: {refused}");
     }
 }
+
+/// A file that takes its time to read, as a slow disk does: each change that
+/// starts while another reads would read the old text.
+struct Slow(std::sync::Mutex<Option<String>>);
+
+impl KeptFile for Slow {
+    fn load(&self) -> Option<String> {
+        let text = self.0.lock().unwrap().clone();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        text
+    }
+
+    fn store(&self, text: &[u8]) {
+        *self.0.lock().unwrap() = Some(String::from_utf8_lossy(text).into_owned());
+    }
+}
+
+/// Logins at once in one process (the hosts of `podssh each`) each keep
+/// their host's key: no change is lost to another's write. The only test
+/// of this binary that gives the run its file.
+#[test]
+fn changes_at_once_in_one_process_each_stay() {
+    assert!(keep_in(Box::new(Slow(std::sync::Mutex::new(None)))), "no other test gives the run a file");
+    let threads: Vec<_> =
+        (1..=6).map(|n| std::thread::spawn(move || took(&host(n), if n % 2 == 0 { KEY } else { OTHER }))).collect();
+    for thread in threads {
+        thread.join().unwrap();
+    }
+    refused(&host(6));
+    for n in 1..=5 {
+        assert_eq!(last(&host(n)), Ok(Some((if n % 2 == 0 { KEY } else { OTHER }).to_string())), "host {n}");
+    }
+    assert_eq!(last(&host(6)), Ok(None), "the refusal is kept too");
+}

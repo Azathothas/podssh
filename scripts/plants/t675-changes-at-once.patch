@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/accepted.rs
++++ b/crates/podssh-ssh/src/accepted.rs
+@@ -176,7 +176,7 @@
+ /// A file set aside is made again.
+ fn change(edit: impl FnOnce(&mut Accepted) -> bool) {
+     let Some(file) = KEPT.get() else { return };
+-    let _one = CHANGE.lock().unwrap_or_else(PoisonError::into_inner);
++    let _one = ();
+     let mut kept = record().unwrap_or_default();
+     if edit(&mut kept) {
+         file.store(kept.text().as_bytes());

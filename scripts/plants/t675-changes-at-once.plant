@@ -1,0 +1,7 @@
+# T-675: each change of the record of the keys that hosts took reads and
+# writes the file with no lock, so two logins at once in one process keep
+# only the change written last; the test of six changes at once must fail.
+ENTRY=T-675
+GROUP=resume
+EXPECT='test accepted::tests::changes_at_once_in_one_process_each_stay \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- accepted::tests::changes_at_once_in_one_process_each_stay'

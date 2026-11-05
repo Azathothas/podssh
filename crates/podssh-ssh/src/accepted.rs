@@ -13,7 +13,7 @@
 //! `-v`, and made again by the next key taken.
 
 use std::collections::BTreeMap;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use sha2::{Digest, Sha256};
@@ -166,24 +166,32 @@ pub fn last(id: &str) -> Result<Option<String>, String> {
     Ok(record()?.key(id).map(str::to_string))
 }
 
-/// The host `id` took the key of `fingerprint`.
-pub fn took(id: &str, fingerprint: &str) {
+/// One change of the file at a time in this process: each change reads the
+/// whole file and writes it whole, so two logins at once (the hosts of
+/// `podssh each`) would keep only the change written last. Two processes can
+/// still race; the loser costs a later login its round trips, nothing else.
+static CHANGE: Mutex<()> = Mutex::new(());
+
+/// Read the record, apply `edit`, and write it when `edit` says it changed.
+/// A file set aside is made again.
+fn change(edit: impl FnOnce(&mut Accepted) -> bool) {
     let Some(file) = KEPT.get() else { return };
-    // A file set aside is made again.
+    let _one = CHANGE.lock().unwrap_or_else(PoisonError::into_inner);
     let mut kept = record().unwrap_or_default();
-    if kept.took(id, fingerprint, now_ms()) {
+    if edit(&mut kept) {
         file.store(kept.text().as_bytes());
     }
+}
+
+/// The host `id` took the key of `fingerprint`.
+pub fn took(id: &str, fingerprint: &str) {
+    change(|kept| kept.took(id, fingerprint, now_ms()));
 }
 
 /// The host `id` refused the key that it took last: forgotten, so that the
 /// next login asks first.
 pub fn refused(id: &str) {
-    let Some(file) = KEPT.get() else { return };
-    let mut kept = record().unwrap_or_default();
-    if kept.forget(id) {
-        file.store(kept.text().as_bytes());
-    }
+    change(|kept| kept.forget(id));
 }
 
 fn now_ms() -> i64 {

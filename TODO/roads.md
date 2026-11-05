@@ -6212,7 +6212,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:172`).
+  port 443 answers (`docs/STATUS.md:173`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -9367,3 +9367,44 @@ differ; silence is unknown with exit 0; an answer with no mapped address is no v
 transaction id and a stranger's datagram are skipped; offline, the count of unknowns grows by one.
 `python scripts/check-repo.py` names the new socket. Planted: the two questions on two sockets, and the
 stand-ins' test of one mapping reads two.
+
+# T-676: A WARP test inherits an earlier test's memory of a re-terminated TLS at a reused port
+
+**Source:** the gate of `8f6fa3a`, job `gate (libs)`, 2026-11-04.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`tests::peers::the_endpoint_that_the_run_names_is_the_only_one_tried` failed once with "a proxy
+re-terminated TLS with 127.0.0.1:41061 earlier in this run": WARP's road keeps, for the run, each
+endpoint where a proxy showed another issuer, and an earlier test had met one at that port. The
+test's refusing port, a listener bound and dropped, took the same port, and inherited the memory.
+The stand-in edge forgets what the run met at its port after its bind (`road::forget`); the
+refusing port did not.
+
+## Premise
+
+- `crates/podssh-warp/src/tests/mod.rs` at `9794df1`, line 29, said "pub(crate) async fn
+  refusing() -> SocketAddr {", with no call of `crate::road::forget`.
+- `crates/podssh-warp/src/stand_in.rs:210` says "crate::road::forget(addr);".
+
+## Approach
+
+`refusing()` forgets what the run met at its port, as the stand-in edge does.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --features stand-in
+```
+
+## Done
+
+2026-11-05. `refusing()` calls `crate::road::forget` on its port. `cargo test -p podssh-warp
+--features stand-in`: 71, 5 and 3 passed. No plant: the failure needs the kernel to give the same
+port twice, which a test cannot ask for.

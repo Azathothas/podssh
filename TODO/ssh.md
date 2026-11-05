@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:722`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:724`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -5196,3 +5196,80 @@ cargo test -p podssh-ssh --lib pace
 
 On the fake path's slow lossy link (`on_a_slow_lossy_link_the_drain_waits_for_its_queue`), the last
 20 keys' p50 at most twice the idle echo.
+
+# T-675: The gate red since T-664: the record of the keys that hosts took loses a change, and the stall's check names the old first request
+
+**Source:** the gate of `b9cfebc` and each push after it, 2026-11-04 and 2026-11-05.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Since T-664 the gate failed on each push, in three jobs, and the release of `v1.1.0-beta.3` waited
+on it:
+
+- `gate (ssh)`, `macos` and `windows` failed by turns in `cold_connect`: a test read no key kept for
+  its host, where its login had just kept one. The two tests of the binary log in at once, and each
+  change of the record reads the whole file and writes it whole, with no lock: the change written
+  last keeps only its own host. `podssh each` logs in to its hosts at once in one process, so a run
+  lost the keys of all its hosts but one, and their next logins asked first.
+- `gate (release)` failed `faults.kex_stall` each time: its harness keeps the cache of the earlier
+  checks, so the first request to log in is now the signature of the key that the host took (T-664),
+  and its wait is named `the signed publickey request`; the check looked for `the first request to
+  log in`, the name of the `none` request.
+
+## Premise
+
+- `crates/podssh-ssh/src/accepted.rs` at `9794df1`, lines 173 and 183, said "let mut kept =
+  record().unwrap_or_default();" in `took` and `refused`, with no lock around the read and the write.
+- `crates/podssh-ssh/src/keys_at_once.rs:50` says "the signed publickey request", and
+  `scripts/interop-faults.sh` at `9794df1`, line 392, grepped "did not answer the first request to
+  log in within 10 s" alone.
+
+## Approach
+
+1. One lock of the process around each change of the record; a test of six changes at once over a
+   file that is slow to read, planted without the lock.
+2. The stall's check twice, in a harness of its own (`scripts/interop-faults.sh` is at 500 lines):
+   with no cache, the first request is `none`; with the key that the host took kept by a login to
+   OpenSSH itself, the first request is that key's signature. Each wait is named.
+
+## Decision
+
+2026-11-05 (the session). No row of `docs/decisions.md` settles these.
+
+1. **A lock of the process, not a lock of the file.** Two processes can still race; the loser costs
+   a later login two round trips, nothing else, and a lock of a file is a capability to probe
+   (rule 1). Lost: `flock` on the cache file.
+2. **The check renamed `kexstall.first`, beside `kexstall.signed`, in `scripts/interop-kexstall.sh`**,
+   as `cargo todo interop` ties each prefix of an id to one harness. Lost: one check that takes either
+   name, which would not show that both waits are named.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib accepted
+cargo test -p podssh-ssh --test cold_connect
+sh scripts/plant-each.sh --here t675-changes-at-once
+cargo todo interop
+```
+
+The test of six changes at once passes, and fails planted. The interop ids meet the baseline.
+
+## Done
+
+2026-11-05.
+
+- `accepted::took` and `accepted::refused` change the record under one lock of the process; the
+  test `changes_at_once_in_one_process_each_stay` keeps six hosts' changes over a file that takes
+  30 ms to read. Planted (`t675-changes-at-once`, the lock gone), it fails: caught.
+- `scripts/interop-kexstall.sh` (harness `kexstall`, floor 2) runs the stall twice. Against OpenSSH
+  9 on this host with the stand-in of `scripts/fake-stall.py`: `kexstall.first` and
+  `kexstall.signed` ok, each exit 255 after 10 s with its wait named. `cargo todo interop`: 741 ids
+  of 56 harnesses meet the baseline.
+- `cargo test -p podssh-ssh --test cold_connect` 8 times: 3 passed each time; `--lib accepted`: 8
+  passed. Clippy and rustfmt clean.

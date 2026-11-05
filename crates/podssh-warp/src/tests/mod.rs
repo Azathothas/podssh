@@ -25,11 +25,14 @@ use tokio::net::TcpListener;
 pub(crate) const LIMIT: Duration = Duration::from_secs(20);
 
 /// A port of the loopback that refuses each connection at once: a listener
-/// that is gone.
+/// that is gone. Its port may be one that an earlier test met behind a
+/// proxy that re-terminates TLS: that memory of the run is not this
+/// port's, as the stand-in edge forgets it too.
 pub(crate) async fn refusing() -> SocketAddr {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
     let addr = listener.local_addr().unwrap();
     drop(listener);
+    crate::road::forget(addr);
     addr
 }
 
