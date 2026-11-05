@@ -1,0 +1,8 @@
+# T-644: the relay role takes a connection whose start stopped short of SSH-,
+# or that sent nothing, for an SSH client once its bound passed, so a port
+# scanner's silence dials the owner's sshd; the test of a start short of SSH-
+# must fail.
+ENTRY=T-644
+GROUP=resume
+EXPECT='test a_start_short_of_ssh_or_none_reaches_no_sshd \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_sshd -- a_start_short_of_ssh_or_none_reaches_no_sshd'

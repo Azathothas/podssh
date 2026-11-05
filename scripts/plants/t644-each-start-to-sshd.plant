@@ -1,0 +1,7 @@
+# T-644: the relay role sends each connection that is no TLS to the owner's
+# sshd, whatever its first bytes, so a request of HTTP never meets the
+# cleartext road beside it; the test of /health beside the sshd must fail.
+ENTRY=T-644
+GROUP=resume
+EXPECT='test beside_the_sshd_http_meets_the_cleartext_road_and_tls_goes_to_tls \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_sshd -- beside_the_sshd_http_meets_the_cleartext_road_and_tls_goes_to_tls'

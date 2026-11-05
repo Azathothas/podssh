@@ -1493,3 +1493,56 @@ each road: a session that QUIC loses resumes on QUIC or on TCP. The test of
 it (`crates/podssh-relay/tests/relay_serve_quic.rs`) carries sessions over
 QUIC to the role on the loopback, and takes TCP where UDP is refused or
 dropped. Measured on 2026-11-05: those 3 tests passed, on the loopback.
+
+## SSH on the relay role's port (T-644)
+
+An owner whose host lets one port in, 443, served the relay or a shell on
+it, not both: an SSH client on the role's listener met the cleartext road,
+which waits 30 s for the head of an HTTP request that never comes (GitHub
+#142). `podssh relay serve --sshd ADDR:PORT` names an sshd of the owner's,
+and the listener sends an SSH client to it
+(`crates/podssh-relay/src/serve/sshd.rs`):
+
+- **The decision.** The listener peeks at the first byte, as before: a
+  record of TLS's handshake goes to TLS. With `--sshd`, another first byte
+  is followed by a peek of up to four bytes, within the same 30 s; `SSH-`,
+  the start of each SSH client's version line (RFC 4253, section 4.2),
+  goes to the sshd, and each other start goes to the cleartext road, or to
+  TLS with `--cleartext no`, as before. The bytes are peeked, never taken,
+  so the sshd reads the client's line whole. With no `--sshd`, nothing
+  changes. QUIC (T-667) and the role behind a quick tunnel (T-428) have no
+  SSH.
+- **A client that waits.** A client that waits for the server's line before
+  it sends its own is never routed, as the role never speaks for an sshd:
+  its connection ends after the 30 s, as before. OpenSSH's client sends its
+  line first. So a port scanner's silence dials nothing.
+- **The dial.** The sshd is the owner's own service, not a target of the
+  role's policy, which refuses the loopback: it is dialed as named, by the
+  role's way out ("The relay role's way out", T-457), so the loopback, and
+  what `NO_PROXY` names, go directly, and another address goes through the
+  host's proxy where one is set, as rule 2 of `AGENTS.md` has each dial of
+  the role go. ADDR is an address, not a name (64). Each byte is then copied
+  both ways, with `TCP_NODELAY` on both sockets so that the role adds no
+  wait to a keystroke, until each side ended; no token, brake or limit of
+  the contract applies.
+- **What it publishes.** A shell for each client that reaches the port,
+  behind the sshd's own authentication alone. The first line says so. The
+  sshd sees each client as the address that the role dials it from: its log
+  names that address and a port, and the role's line on stdout, `sshd from
+  PEER, at the sshd as ADDR:PORT`, maps it to the client; another, `sshd
+  from PEER ended after N s, U bytes up and D down`, ends it. OpenSSH 9.8
+  and later shut out a source of failed logins (`PerSourcePenalties`): the
+  role's address is one source for each client, so one client's failures
+  would shut out each other, and the owner's sshd needs
+  `PerSourcePenaltyExemptList` with that address.
+- **An sshd that does not answer.** The client gets one line before any
+  version line, `podssh relay serve: the sshd of this port does not
+  answer`, which RFC 4253 lets a server send and which names no address of
+  the host; the role's line names the sshd and why. The role then reads
+  what the client sent, 5 s and 64 KiB at most, so that its close is no
+  reset that loses the line.
+
+The tests (`crates/podssh-relay/tests/relay_serve_sshd.rs`, and
+`serve_sshd` of `crates/podssh-cli/tests/relay_serve.rs`) run a stand-in
+sshd that keeps each byte, OpenSSH's sshd, and OpenSSH's client logging in
+through the role's port with a key; measured on 2026-11-05: 8 and 27 passed.

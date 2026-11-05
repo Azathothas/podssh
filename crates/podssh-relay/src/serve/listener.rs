@@ -5,8 +5,10 @@
 //! byte is peeked, so TLS reads its ClientHello whole. One listener, the one
 //! that the user asked for: the cleartext road adds none. A client whose TLS
 //! chose `h2` gets HTTP/2 with extended CONNECT ([`super::http2`], T-321).
+//! Where the owner named an sshd, a connection whose first four bytes are
+//! `SSH-` goes to it, peeked too ([`super::sshd`], T-644).
 
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -19,22 +21,38 @@ use super::Config;
 /// How long a client has to begin, and to finish, TLS.
 pub const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
 
-/// How the listener takes a connection: TLS with `acceptor`, and the
-/// cleartext road beside it when `cleartext`.
+/// How the listener takes a connection: TLS with `acceptor`, the cleartext
+/// road beside it when `cleartext`, and an SSH client to `sshd` when the
+/// owner named one.
 #[derive(Clone)]
 pub struct Door {
     pub acceptor: TlsAcceptor,
     pub cleartext: bool,
+    /// The owner's sshd, for a connection whose first bytes are `SSH-`
+    /// (T-644); none unless named.
+    pub sshd: Option<SocketAddr>,
 }
 
 /// Serve `tcp`, of a client at `peer`, as `door` says.
 pub async fn connection(tcp: TcpStream, peer: IpAddr, door: Door, cfg: Arc<Config>) {
-    if door.cleartext {
+    if door.cleartext || door.sshd.is_some() {
+        // One bound for the first byte and for the start of SSH after it.
+        let deadline = tokio::time::Instant::now() + HANDSHAKE_WAIT;
         match super::cleartext::first_byte(&tcp, HANDSHAKE_WAIT).await {
-            Some(first) if !super::cleartext::is_tls(first) => {
-                return super::cleartext::serve(tcp, cfg, Some(peer)).await;
+            Some(first) if super::cleartext::is_tls(first) => {}
+            Some(_) => {
+                // An SSH client's version line goes to the owner's sshd; a
+                // start that is no SSH goes on as before.
+                if let Some(sshd) = door.sshd {
+                    if super::sshd::opens(&tcp, deadline).await {
+                        // Boxed: a session's future stays off the caller's.
+                        return Box::pin(super::sshd::serve(tcp, sshd, cfg)).await;
+                    }
+                }
+                if door.cleartext {
+                    return super::cleartext::serve(tcp, cfg, Some(peer)).await;
+                }
             }
-            Some(_) => {}
             // Nothing came, or the client went: no TLS to wait for either.
             None => return,
         }

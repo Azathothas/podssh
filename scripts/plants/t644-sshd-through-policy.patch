@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/serve/sshd.rs
++++ b/crates/podssh-relay/src/serve/sshd.rs
+@@ -90,6 +90,10 @@ pub async fn serve(mut client: TcpStream, sshd: SocketAddr, cfg: Arc<Config>) {
+     let host = sshd.ip().to_string();
+     // The owner's own service: its address as named, never the policy of
+     // targets, which refuses the loopback.
++    // Planted: the sshd is a target of the policy, which refuses the loopback.
++    if cfg.policy.plan(&host, sshd.port(), None, &cfg.egress).await.is_err() {
++        return;
++    }
+     let plan = Plan::Addresses(vec![sshd]);
+     let mut far = match super::forward::dial(&host, &plan, &cfg).await {
+         Ok(far) => far,

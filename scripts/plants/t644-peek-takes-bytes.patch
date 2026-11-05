@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/serve/sshd.rs
++++ b/crates/podssh-relay/src/serve/sshd.rs
+@@ -64,7 +64,8 @@ pub async fn opens(tcp: &TcpStream, deadline: Instant) -> bool {
+     let mut buf = [0u8; 4];
+     let look = async {
+         loop {
+-            let n = match tcp.peek(&mut buf).await {
++            // Planted: the start is read, and so taken from the socket.
++            let n = match tcp.try_read(&mut buf) {
+                 Ok(n) => n,
+                 Err(_) => return false,
+             };

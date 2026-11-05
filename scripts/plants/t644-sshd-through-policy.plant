@@ -1,0 +1,8 @@
+# T-644: the relay role checks the owner's sshd as a target of its policy,
+# which refuses the loopback, so an sshd of its own host is never reached;
+# the test of a version line that reaches the named sshd, under the default
+# policy, must fail.
+ENTRY=T-644
+GROUP=resume
+EXPECT='test a_version_line_and_each_byte_after_it_reach_the_named_sshd_whole \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_sshd -- a_version_line_and_each_byte_after_it_reach_the_named_sshd_whole'

@@ -210,7 +210,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #139 | `doctor`: a `nat` line, one mapping or one for each destination | closed 2026-11-05, its entry done | T-641 (two public STUN servers by default, Q86) |
 | #140 | ECH from the name's HTTPS record | open | T-642 (behind a proxy no resolver runs, so the record is a read before the session; podssh's provider needs HPKE first) |
 | #141 | Protocol version negotiation on the reverse road and the channel | open | T-643 (a net offer answered plainly is T-429's design for an end outside the net or of before: said, not refused) |
-| #142 | `relay serve`: an SSH client shares the listener by its first bytes | open | T-644 (the listener decides by the first byte already, T-326: an SSH client meets the cleartext road, not TLS) |
+| #142 | `relay serve`: an SSH client shares the listener by its first bytes | closed 2026-11-05, its entry done | T-644 (the listener decides by the first byte already, T-326: an SSH client meets the cleartext road, not TLS) |
 | #143 | `ws-listen:` answers a keyless upgrade, as WebTunnel's client sends it | closed 2026-11-04 (`240447e`), its entry done | T-645 |
 | #144 | `relay serve --mint keys:` from an `https://` URL | closed 2026-11-05, its entry done | T-646 (`--mint net` is the signed way that exists) |
 | #145 | A pair halted without its end, its node's socket kept | closed 2026-11-04 (`8caa6f0`), its entry done | T-647 (a planned stop already keeps the node, by `1012`, T-255) |
