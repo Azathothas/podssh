@@ -7,17 +7,21 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 - **Checkpoint, 2026-11-05, about 00:30 UTC: the end of the night of 2026-11-04 (Q98 to Q100).**
   1. **`v1.1.0-beta.2` is published** (from `dbd0fac`, 2026-11-04 18:48 UTC; its proofs passed).
-     **`v1.1.0-beta.3`** was made ready at `35e4932`, but the gate had been red since T-664 on
-     three causes that the night read as the place's: the record of the keys that hosts took lost a
-     change of logins at once, the stall's interop check looked for the old first request, and a
-     WARP test inherited a reused port's memory. T-675 and T-676 repair them (`0500af1`), and
-     beta.3 goes from `6d30328`: its gate, the release workflow by hand on `beta/v1.1.0-beta.3`,
-     then `release.yml` with `publish=v1.1.0-beta.3`, `release-proofs.yml` and `update-live.yml`,
-     then the marks of `docs/STATUS.md`, as beta.2's record did. The lesson: read each failed
-     job's log before calling a red gate the place's.
+     **`v1.1.0-beta.3` is published** (Q98), from `6d30328` at 01:30 UTC on 2026-11-05: made
+     ready at `35e4932`, but the gate had been red since T-664 on three causes that the night read
+     as the place's (the record of the keys that hosts took lost a change of logins at once, the
+     stall's interop check looked for the old first request, and a WARP test inherited a reused
+     port's memory); T-675 and T-676 repaired them (`0500af1`). Then its gate passed (run
+     41940971099), the release workflow by hand on `beta/v1.1.0-beta.3` (run 41941007776),
+     `scripts/release-short.sh BINARY --net` on a static build of `6d30328`, the publish (run
+     41944902543) and the tag's run (41945306047); `release-proofs.yml` and `update-live.yml` were
+     dispatched after it. `docs/STATUS.md` marks its 19 rows. The lesson: read each failed job's
+     log before calling a red gate the place's.
   2. **GitHub #126 to #148** (Nemo-010) are T-628 to T-650 (Q100); done and closed: #126, #127,
-     #128, #132, #133, #137, #138, #143, #145, #146. The others are open entries by priority.
-  3. **osewa** (Q99, `docs/research/osewa.md`): T-660 to T-670, T-673. Done: T-661, T-663, T-664;
+     #128, #131, #132, #133, #137, #138, #143, #145, #146; #129's T-631 waits for T-124. The
+     others are open entries by priority, and T-636, T-637, T-641 and T-646 are drafted.
+  3. **osewa** (Q99, `docs/research/osewa.md`): T-660 to T-670, T-673. Done: T-661, T-663, T-664, T-667, T-669,
+     T-673;
      partial: T-660 (iroh's and DERP's rows, osewa on a runner), T-662 (a copy through a shaped
      link), T-665 (the A/B run on a wide-area path), T-666 (the HTTP/2 part), T-670 (a far link's
      download while typing, a node's road on the slow link). Measured on the loopback (T-660's
