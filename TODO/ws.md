@@ -1932,7 +1932,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
   clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`), and its test
   asserts none for `UnknownIssuer` (`:369`).
 - Read: the release builds two binaries for macOS and two for Windows
-  (`.github/workflows/release.yml:283-294`, `:326-342`).
+  (`.github/workflows/release.yml:291-302`, `:334-350`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
   (`crates/podssh-relay/Cargo.toml:133-134`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
@@ -3062,7 +3062,7 @@ Read at `2042200`:
   this runs for the target", and DNS over HTTPS is the fifth step, after the system's resolver
   (`crates/podssh-ws/src/resolve.rs:10`). So the issue's "ride the query that the name already causes"
   holds for few runs: in the target host, behind its proxy, no query is made at all.
-- TLS has podssh's own provider and no other: `Cargo.toml:76` says "default-features = false and NO
+- TLS has podssh's own provider and no other: `Cargo.toml:82` says "default-features = false and NO
   crypto provider feature."; its parts (`crates/podssh-ws/src/crypto/`) hold no HPKE, which rustls's ECH
   needs, and aws-lc's is C, which `podssh-ws` may not hold (rule 4 of `AGENTS.md`).
 - The resolvers are compiled in (`crates/podssh-ws/src/resolve.rs:66`), and are asked through the proxy

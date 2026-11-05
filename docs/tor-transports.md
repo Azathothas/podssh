@@ -33,7 +33,7 @@ chutney at the commit that `scripts/tor-net.sh` pins (c6b2c5fa).
 - **Read.** An embedder reaches the `ChanMgr` only through
   `TorClient::chanmgr()`. That method requires `experimental-api`
   (`client.rs:1859-1866`; the feature is `__is_experimental`, at
-  `Cargo.toml:91`). It also needs a running state. Without one it returns
+  `Cargo.toml:97`). It also needs a running state. Without one it returns
   `BootstrapRequired` (`client.rs:2500-2506`). The running state is built
   only inside `bootstrap` (`client.rs:2358-2399`) or when an onion service
   launches (`:2010`).

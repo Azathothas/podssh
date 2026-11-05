@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**640 entries: 95 open, 11 partial, 3 blocked, 531 done.**
+**642 entries: 95 open, 11 partial, 4 blocked, 532 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 66 | 68 |
-| P2 | 25 | 5 | 0 | 250 | 280 |
+| P2 | 25 | 5 | 1 | 251 | 282 |
 | P3 | 70 | 4 | 3 | 214 | 291 |
-| **All** | 95 | 11 | 3 | 531 | 640 |
+| **All** | 95 | 11 | 4 | 532 | 642 |
 
 ## Entries
 
@@ -716,3 +716,5 @@ repository and CI).
 | [T-683](repo.md) | P2 | S | M10 | chore | done | The move to PodUtils/podssh: the repository's name in the code, the manual, the workflows and the documents |
 | [T-684](repo.md) | P2 | L | M10 | feature | partial | podcrates: the crates that podssh, podnet and podvm share, in PodUtils/podcrates |
 | [T-685](repo.md) | P1 | M | M10 | chore | done | The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021 |
+| [T-686](repo.md) | P2 | S | M10 | chore | done | The publish of the crates to crates.io: `.github/workflows/publish.yml`, apart from the release |
+| [T-687](repo.md) | P2 | M | M10 | feature | blocked | The first crates of podssh on crates.io: which crates, under which names, and with what in the place of the vendored patches and the git sources |

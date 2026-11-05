@@ -80,7 +80,15 @@ jobs:
           for try in 1 2 3 4 5 6; do
             if gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$PUBLISH"; then
               echo "the tag $PUBLISH at $GITHUB_SHA; the release runs on it"
-              exit 0
+              # The crates' publish (T-686) runs on the tag too: its own
+              # switch in Cargo.toml decides whether it publishes.
+              for pt in 1 2 3; do
+                if gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref "$PUBLISH"; then exit 0; fi
+                echo "the dispatch of publish.yml on $PUBLISH failed (try $pt); again in 10 s"
+                sleep 10
+              done
+              echo "no publish run started on $PUBLISH: start one by hand (gh workflow run publish.yml --ref $PUBLISH)"
+              exit 1
             fi
             echo "the dispatch on $PUBLISH failed (try $try); again in 10 s"
             sleep 10

@@ -838,6 +838,18 @@ built with `RUSTFLAGS=-Ctarget-feature=+crt-static` and the `release`
 profile (optimized for size, fat LTO). `scripts/gate.sh` builds it, and CI
 uploads it.
 
+`.github/workflows/publish.yml` (T-686) publishes the crates to crates.io,
+apart from the binaries: on a tag `v*`, or dispatched by `release.yml`'s job
+`tag` on the tag it pushed (a tag pushed with `GITHUB_TOKEN` starts no
+workflow). Its job `dry-run` packs and builds each crate that the workspace
+lets out (`cargo publish --workspace --dry-run`; none while each crate says
+`publish = false`); its job `publish` runs in the environment `crates-io`,
+which crates.io trusts, with a token of `rust-lang/crates-io-auth-action`
+for 30 minutes, and only when `[workspace.metadata.podssh] crates-io` in
+`Cargo.toml` is true at the tag and `build.yml` is green at its commit. The
+switch stays false until the owner rules that podssh publishes (T-687); a
+new crate name is reserved by the owner first.
+
 `.github/workflows/release.yml` makes the release binaries, each with the
 features of its variable `RELEASE_FEATURES`, the same on each target: the
 iroh road (T-348) and WARP's road (T-352, Q59). `scripts/release-short.sh`

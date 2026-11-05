@@ -66,6 +66,12 @@ repository = "https://github.com/PodUtils/podssh"
 # pure-Rust one in crates/podssh-ws/src/crypto/. podssh-ssh uses russh with
 # aws-lc-rs (operator decision 2026-10-08), and the opt-in `ts` feature links
 # the vendored tailscale-rs fork, which needs cc and cmake.
+# The switch of .github/workflows/publish.yml (T-686): the crates go to
+# crates.io from a tag only when it is true at that tag. It stays false until
+# the owner rules that podssh publishes (T-687).
+[workspace.metadata.podssh]
+crates-io = false
+
 [workspace.dependencies]
 # 1.53.3 at least: AsyncFd::new and try_new are unsound before it
 # (RUSTSEC-2026-0386), and podssh registers with AsyncFd::register (T-312).

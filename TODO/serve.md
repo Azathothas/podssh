@@ -699,7 +699,7 @@ syslog and no `/var`. A record must not leak secrets or session data.
 
 - Read: podssh's log goes to stderr or to a file
   (`crates/podssh-ssh/src/log.rs:46-62`), as lines with no structure.
-- Read: `serde_json` is a workspace dependency (`Cargo.toml:116`), but not a
+- Read: `serde_json` is a workspace dependency (`Cargo.toml:122`), but not a
   dependency of `podssh-ssh` yet.
 - Read in the report of GitHub #25, not verified here: USBoverSSH writes an
   audit log of connection events.

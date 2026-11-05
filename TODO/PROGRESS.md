@@ -265,7 +265,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 640 entries: 95 open, 11 partial, 3 blocked, 531 done.
+`TODO/INDEX.md` holds 642 entries: 95 open, 11 partial, 4 blocked, 532 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -418,6 +418,13 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 (Q90: T-574's built-in nodes, T-612, T-613 and T-614); four more live test targets (Q91: T-463,
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
+
+**Q102 (2026-11-05): may podssh publish crates to crates.io, which, and under which names?**
+`publish.yml` is ready with its switch off (T-686). Blocks T-687: no crate can go as it is (the
+vendored patches of russh and ssh-key, the git tags of podcrates, the names in the owner's queue).
+Recommendation: keep the switch off until podssh's library crates are the crates of podcrates; then
+publish the binary alone as `podssh` (`cargo install podssh`), with russh's and ssh-key's patches
+upstream or as crates of their own.
 
 **Q101 (2026-11-05): the crates of PodUtils/podcrates, agreed with podnet's session.** The operator
 moves podssh to PodUtils/podssh (T-683) and puts the shared crates in PodUtils/podcrates (T-684);

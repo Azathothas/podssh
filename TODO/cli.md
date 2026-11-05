@@ -3079,7 +3079,7 @@ node at its next line, often "online again" after a reconnect. A server then has
 
 ## Premise
 
-- Read: `panic = "abort"` in the release profile (`Cargo.toml:211`).
+- Read: `panic = "abort"` in the release profile (`Cargo.toml:217`).
 - Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:342`,
   `crates/podssh-cli/src/node_derp.rs:333`, `crates/podssh-cli/src/node_iroh.rs:342`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for

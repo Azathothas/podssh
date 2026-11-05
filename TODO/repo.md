@@ -211,7 +211,7 @@ Read:
   `.github/workflows/release.yml` line 23 and `scripts/dev.sh` line 60, both at `e1ba5ba`. No check makes
   them equal.
 - The release builds aarch64 on an arm64 runner
-  (`.github/workflows/release.yml:100-101`). So the pin must be the digest of
+  (`.github/workflows/release.yml:108-109`). So the pin must be the digest of
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
   (`scripts/test_in_box.sh` lines 39-40 at `e1ba5ba`).
@@ -430,7 +430,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:576-580`).
+  them (`.github/workflows/release.yml:584-588`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:834-947`): the
+5. docs/development.md, "Release builds" (`docs/development.md:834-959`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -670,9 +670,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:56-619`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:56-627`).
   The workflow has `contents: read` (`:45-46`); `publish` adds
-  `contents: write` (`:473-474`).
+  `contents: write` (`:481-482`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -753,7 +753,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   `actions/attest` v4.2.2 (commit `1e69f48acb82d1966a394da916b4c1698aa569d6`), pinned by that commit,
   as item 1 asks. (The wrapper is at commit `4d101475d8b20a2381f78447822ac1eab6504dd8`.)
 - Permissions for a binary (GitHub documentation): `id-token: write`, `contents: read` and
-  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:474`
+  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:482`
   says "contents: write"), which includes the read. The README of `actions/attest` also lists
   `artifact-metadata: write`, "necessary to create the artifact storage record"; that record needs
   `push-to-registry: true`, which is for images, so a file subject does not need it (Inferred): add
@@ -868,7 +868,7 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:494-499` writes `SHA256SUMS` with
+- `.github/workflows/release.yml:502-507` writes `SHA256SUMS` with
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
@@ -937,7 +937,7 @@ Approach, and disproves no Premise.
   deprecated, hidden flag in v3.1.4: do not pass it with v3 (it is needed only with v2.6.x). `--yes`
   skips the prompts, and CI needs it. The keyless signing takes the job's own OIDC token, so the job
   needs `id-token: write`; give `publish` that and `attestations: write` for T-210, beside
-  `contents: write` (`.github/workflows/release.yml:474` says "contents: write"). The convention for
+  `contents: write` (`.github/workflows/release.yml:482` says "contents: write"). The convention for
   the bundle's name is `*.sigstore.json` (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
 - The identity. The certificate's subject alternative name is `https://github.com/{job_workflow_ref}`
   (https://github.com/sigstore/fulcio/blob/main/docs/oidc.md), so for a tag
@@ -1225,7 +1225,7 @@ the entry joins the work order by its priority.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:326-414`).
+platform (`.github/workflows/release.yml:334-422`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1245,7 +1245,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:326-414`: the Windows job installs NASM
+- `.github/workflows/release.yml:334-422`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1753,12 +1753,12 @@ with a C toolchain for aws-lc.
 
 Read:
 
-- `.github/workflows/release.yml:97-101`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:326-414`:
+- `.github/workflows/release.yml:105-109`: x86_64 and aarch64 musl, each on a
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:334-422`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
-  (`.github/workflows/release.yml:123-129`), `dumpbin /dependents` on Windows
-  (`:381-406`).
+  (`.github/workflows/release.yml:131-137`), `dumpbin /dependents` on Windows
+  (`:389-414`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:11-14`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1792,7 +1792,7 @@ Recommendation: build each new Linux target in the image family of the gate
 under QEMU, where that image exists for the platform, so that there is one
 toolchain. `cross` and `cargo-zigbuild` lost: each brings a second C
 toolchain that the gate never judged. Measure the build time first: QEMU is
-slow, and the job limit is 60 min (`.github/workflows/release.yml:103`).
+slow, and the job limit is 60 min (`.github/workflows/release.yml:111`).
 
 2026-10-30, the calls of this entry's session:
 
@@ -1898,7 +1898,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:208` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:214` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -1907,7 +1907,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   needs `-Wno-string-compare` with GCC 11; Alpine's GCC is newer (not needed: Inferred). Plan B:
   `ghcr.io/cross-rs/riscv64gc-unknown-linux-musl:main` (musl GCC and qemu inside).
 - The job's own limit. `timeout-minutes: 60` is the repository's choice
-  (`.github/workflows/release.yml:103` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
+  (`.github/workflows/release.yml:111` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
   hours. Set the QEMU jobs up to 360 for the first measurement, and lower it to the measured time.
 - Public repositories: the standard hosted runners are free and unlimited; the Linux and Windows arm64
   runners (4 vCPU) are generally available for them (changelog of 2025-08-07).
@@ -3198,7 +3198,7 @@ Read: each image is pinned to a digest in its Dockerfile
 the reference to `docker run`, which pulls from Docker Hub (now
 `.github/workflows/secrets.yml:70`, `.github/workflows/secrets.yml:84`,
 `.github/workflows/build.yml:76-80`, `.github/workflows/build.yml:109-112`
-and `.github/workflows/release.yml:116-119`). Measured on 2026-10-09, each
+and `.github/workflows/release.yml:124-127`). Measured on 2026-10-09, each
 manifest asked for by its digest: Google's mirror of Docker Hub
 (`mirror.gcr.io`) serves both images, the GitHub registry serves the
 scanner, and Amazon's gallery of the official images
@@ -3961,19 +3961,19 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 ## Premise
 
 - Read: `crates/podssh-ssh/Cargo.toml:23` and `crates/podssh-cli/Cargo.toml:96`
-  ask for `sha1` 0.10.7, and the root `Cargo.toml:133` for `hmac` 0.12;
+  ask for `sha1` 0.10.7, and the root `Cargo.toml:139` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
   builds on the newer line, so the binary holds both lines today. podssh's `sha1`
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
-- Read: the root `Cargo.toml:142` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:151` for `x25519-dalek` 2;
+- Read: the root `Cargo.toml:148` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:157` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `PodUtils/podssh:crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
   `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
-- Read: `vt100` 0.15 (`Cargo.toml:108`) is the model of the terminal
+- Read: `vt100` 0.15 (`Cargo.toml:114`) is the model of the terminal
   oracle (T-200) and of `podssh session` (T-186).
 
 ## Approach
@@ -4238,13 +4238,13 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
 ## Approach
 
 1. Each `uses:` of each workflow names a commit of 40 hexadecimal digits, with its tag in a
-   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:507`): the commits of
+   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:515`): the commits of
    T-210's list, read again at each release's API on the day of the change.
 2. A check in `scripts/check-repo.py`: each `uses:` under `.github/workflows/` names a commit. A
    copy with a planted `@v7` fails it, and its floor fails on an empty tree.
 3. binfmt: `images/binfmt/Dockerfile` names `tonistiigi/binfmt` by its tag and its digest, and
    Dependabot's list of directories takes it (`.github/dependabot.yml:37-43`). The two jobs read it
-   as the armv7 job reads its image (`.github/workflows/release.yml:166-173`), pull it through
+   as the armv7 job reads its image (`.github/workflows/release.yml:174-181`), pull it through
    `scripts/pull-image.sh`, and run `docker run --privileged --rm IMAGE --install riscv64` (`arm`
    for armv7) in the place of the action. The step then checks that the kernel lists the handler
    (`/proc/sys/fs/binfmt_misc/qemu-riscv64`, or `qemu-arm`) before the binary runs.
@@ -4459,7 +4459,7 @@ Each can stop a release, or the gate, for a reason outside podssh.
 ## Premise
 
 - Read: the riscv64 job pins Zig's version and SHA-256 and downloads it from ziglang.org
-  (`.github/workflows/release.yml:221-227`; its download, `.github/workflows/release.yml` lines
+  (`.github/workflows/release.yml:229-235`; its download, `.github/workflows/release.yml` lines
   247-249 at `1a46970`).
 - Read, through read.web.pkgforge.dev on 2026-10-31
   (https://ziglang.org/download/community-mirrors/): "The ziglang.org website does not offer any
@@ -4467,13 +4467,13 @@ Each can stop a release, or the gate, for a reason outside podssh.
   it hardcodes it as a download URL." The mirrors that
   https://ziglang.org/download/community-mirrors.txt lists serve the same file names, and each
   download must be checked; the pinned SHA-256 checks the exact bytes.
-- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:186-194`),
+- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:194-202`),
   in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
   (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:63`).
   Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
 - Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml` lines 175 and
   177 at `1a46970`).
-- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:537-562`).
+- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:545-570`).
   Inferred (the audit): an outage delays a release, and a run again repairs it.
 
 ## Approach
@@ -5246,7 +5246,7 @@ builds with, so that its DNS packets and iroh's are of one type.
   box's CONNECT proxy (`scripts/box/proxy.py`), which `scripts/test_in_box.sh` and
   `scripts/chat-in-boxes.sh` build; `images/build/Dockerfile:6` pins `rust:1-alpine` by the digest
   `0cce0a5...`, the gate's image.
-- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:135`), and the lock holds 0.11.0; 0.11.1
+- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:141`), and the lock holds 0.11.0; 0.11.1
   needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:56`, Q48).
 - Read: `crates/podssh-iroh/Cargo.toml:53-56` takes `simple-dns` 0.12, "the simple-dns that
   iroh-dns builds and reads with, so no crate is added"; iroh-dns 1.4.1, which the lock holds,
@@ -5562,3 +5562,115 @@ raised with podcrates'. The gate still builds on the build image's 1.99.1.
 - Waits: the gate in the build image runs in CI on the push (Q88: the session does not wait on it);
   armv7's build takes Alpine's rust, and `scripts/check-rustc.sh` stops it with both versions named
   if that rust is older than 1.97 (a release is not in this work's scope).
+
+# T-686: The publish of the crates to crates.io: `.github/workflows/publish.yml`, apart from the release
+
+**Source:** the owner, 2026-11-05, by the podcrates session's briefing ("publish.yml everywhere";
+`docs/decisions.md`, "The crates of PodUtils/podcrates").
+**Category:** chore
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+crates.io trusts one workflow of PodUtils/podssh, `.github/workflows/publish.yml`, in the
+environment `crates-io`; the file does not exist, so no crate of podssh can be published from CI,
+and no token may be stored to do it another way.
+
+## Premise
+
+- Read: `.github/workflows/` holds `release.yml` and no `publish.yml`.
+- Read: `Cargo.toml` sets `publish = false` for the workspace, and each crate inherits it.
+- Read: `.github/workflows/release.yml`'s job `tag` pushes the tag with `GITHUB_TOKEN` and then
+  dispatches `release.yml` on it, as a tag pushed that way starts no workflow.
+
+## Approach
+
+1. `publish.yml`: on `push: tags: ['v*']` and `workflow_dispatch`; `permissions: {}` at the top.
+   A job `dry-run` reads the switch `[workspace.metadata.podssh] crates-io` and, on a tag, checks
+   that it names the workspace version; it packs each crate that the workspace lets out with
+   `cargo publish --workspace --dry-run` (none while each says `publish = false`). A job `publish`,
+   in the environment `crates-io` with `id-token: write` and `contents: read`, runs only when the
+   switch is true at the tag and `build.yml` is green at its commit: `rust-lang/crates-io-auth-action`
+   pinned to its commit (v1.0.6), then `cargo publish --workspace --no-verify` with its token.
+2. `Cargo.toml`: the switch, false.
+3. `release.yml`'s job `tag` dispatches `publish.yml` on the tag after `release.yml`.
+
+## Decision
+
+The model is PodUtils/podcrates' own `publish.yml`, with the gate's `build.yml` in the place of its
+`ci.yml`. The dry run passes when no crate is let out, with a line that says so: a run on each tag
+that failed for want of a crate to pack would be red on each release until T-687, where the owner's
+names decide. Lost: `cargo publish --workspace --dry-run` alone, which fails with nothing to publish.
+
+## Prove
+
+```sh
+python scripts/check-repo.py
+python -I -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['metadata']['podssh'])"
+```
+
+The workflow's actions are pinned by commit (check 8 of `check-repo.py`); the switch reads false.
+The first run of `publish.yml` is at the next tag.
+
+## Done
+
+2026-11-05. `.github/workflows/publish.yml` as the Approach says; `Cargo.toml`'s switch
+`[workspace.metadata.podssh] crates-io = false`; `release.yml`'s job `tag` dispatches `publish.yml`
+on its tag (three tries) after `release.yml`. `python scripts/check-repo.py`: each check passed, 96
+uses of an action read, each pinned by its commit. The switch reads `{'crates-io': False}`; the
+dry run's list of the crates let out, from `cargo metadata --no-deps`, is empty, so it packs none
+and says so. Waits: the first run, at the next tag (no release is in this work's scope).
+
+# T-687: The first crates of podssh on crates.io: which crates, under which names, and with what in the place of the vendored patches and the git sources
+
+**Source:** the owner, 2026-11-05 (`docs/decisions.md`, "The crates of PodUtils/podcrates"): the
+publish switch stays false until the owner rules that podssh publishes; a new name is reserved by
+the owner before its first publish.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+`publish.yml` (T-686) can publish only what the workspace lets out, and today no crate of podssh
+can go to crates.io as it is.
+
+## Premise
+
+- Read: crates.io holds `podssh` for PodUtils (0.0.0); `podssh-ssh`, `podssh-irc` and
+  `podssh-probe` wait in the owner's queue; the binary's package is `podssh-cli`, and
+  `podssh-ws`, `podssh-relay`, `podssh-core`, `podssh-iroh`, `podssh-warp`, `podssh-tor`,
+  `podssh-ts` and `podssh-todo` have no reserved name.
+- Read: `Cargo.toml`'s `[patch.crates-io]` puts `vendor/russh` and `vendor/ssh-key` in the place of
+  their releases; a published crate cannot carry a patch, so a `podssh-ssh` from crates.io would
+  build without them.
+- Read: `podssh-todo` and `podssh-relay` take crates of PodUtils/podcrates by a git tag (Q1); a crate
+  with a git dependency cannot be published.
+
+## Approach
+
+When the owner rules: the crates to publish, each name reserved; the binary's package named
+`podssh` (or published under that name); russh's and ssh-key's patches upstream or published as
+crates of their own; the crates of podcrates from crates.io where a published crate needs them.
+Each such crate loses `publish = false`, each internal dependency has `path` and `version`, the
+version is above 0.0.0, and the switch turns true.
+
+## Prove
+
+```sh
+cargo publish --workspace --locked --dry-run
+```
+
+It packs and builds each crate that is let out; then the first tag publishes them from
+`publish.yml`.
+
+## Blocker
+
+The owner: the ruling that podssh publishes, the list of crates and their reserved names (in the
+owner's queue on 2026-11-05: `podssh-ssh`, `podssh-irc`, `podssh-probe`).
+
