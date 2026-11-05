@@ -1,0 +1,7 @@
+# T-667: the role's QUIC opens a token of address validation without its
+# tag, so a client can forge one and skip the validation of its address;
+# the test of a token that opens only as it was sealed must fail.
+ENTRY=T-667
+GROUP=resume
+EXPECT='test serve::quic::tests::a_token_opens_only_as_it_was_sealed \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,quic --lib -- serve::quic::'

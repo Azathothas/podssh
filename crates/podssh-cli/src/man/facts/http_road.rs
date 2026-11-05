@@ -1,6 +1,7 @@
-//! THE RELAY's items on the HTTP road (T-319) and on the WebSocket over
-//! HTTP/2 (T-321), apart from `facts.rs` for the length of that file; each
-//! number is read from the constant the road uses.
+//! THE RELAY's items on the HTTP road (T-319), on the WebSocket over HTTP/2
+//! (T-321) and on QUIC to the relay role (T-667), apart from `facts.rs` for
+//! the length of that file; each number is read from the constant the road
+//! uses.
 
 use super::super::model::{Block, Span};
 
@@ -32,7 +33,33 @@ pub(super) fn blocks() -> Vec<Block> {
         retry = client::RETRY_FOR.as_secs(),
         limit = client::LIMIT.as_secs(),
     );
-    vec![Block::Item { term: vec![Span::Lit("The HTTP road".into())], text }, h2_road()]
+    vec![Block::Item { term: vec![Span::Lit("The HTTP road".into())], text }, h2_road(), quic_road()]
+}
+
+/// The item of QUIC to the relay role.
+fn quic_road() -> Block {
+    use podssh_relay::quic_road::{dial, HEAD_START, REMEMBERED};
+    let text = format!(
+        "Where a relay host that you named offers QUIC in its /relays.json (forward.quic, as podssh relay serve \
+         --quic yes does), and no proxy is set for it, a session of podssh ssh, of each command that reaches a \
+         server as it does, and of podssh proxy races QUIC on UDP before TCP: first one packet of a version that no \
+         server speaks to the host's first address of each family at that port, which a server of QUIC answers \
+         with its versions within {probe} ms; then QUIC's handshake with the ALPN podssh-relay/1, checked as TLS \
+         is for the host's name, and the upgrade of the session on one stream of the connection, with its path and \
+         its token, the relay's refusal as on TCP. The TCP road starts {head} ms after QUIC, or at once where QUIC \
+         failed; the first session is kept and the other road is closed at once, and a refusal of the relay on \
+         either road ends the race. A host whose UDP failed is not tried over QUIC again by that run for {kept} \
+         minutes, and one whose QUIC answered is not probed again for as long. A connection keeps itself alive \
+         every {keepalive} s and ends after {silence} s with no packet: a lost connection is a lost link, which \
+         the resumable layer resumes on any road. -v names the road: over QUIC. PODSSH_QUIC says which hosts \
+         race it: by default a host that you named and that offered it; no turns it off.",
+        probe = podssh_relay::quick::probe::WAIT.as_millis(),
+        head = HEAD_START.as_millis(),
+        kept = REMEMBERED.as_secs() / 60,
+        keepalive = dial::KEEPALIVE.as_secs(),
+        silence = dial::SILENCE.as_secs(),
+    );
+    Block::Item { term: vec![Span::Lit("QUIC to podssh's relay role".into())], text }
 }
 
 /// The item of the WebSocket over HTTP/2.

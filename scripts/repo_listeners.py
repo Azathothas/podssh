@@ -26,9 +26,12 @@ LISTENERS = {
     # and of podssh-relay (T-374), on the loopback: podssh-warp's feature
     # `stand-in`, which no binary enables. And the relay as a role of podssh
     # (T-169, Q63), which the user asks for with `podssh relay serve --listen
-    # ADDR:PORT`: the bind is the probe, and PODSSH_LISTEN turns it off.
+    # ADDR:PORT`: the bind is the probe, and PODSSH_LISTEN turns it off;
+    # its QUIC (T-667) takes the bound listener's address, and its test binds
+    # one on the loopback.
     "TcpListener": [
         "crates/podssh-cli/src/relay_serve.rs",
+        "crates/podssh-cli/src/relay_serve/quic.rs",
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-ssh/src/remote_tests.rs",
         "crates/podssh-cli/src/ssh/local_bind.rs",
@@ -64,12 +67,21 @@ LISTENERS = {
     # UDP before QUIC (T-400), with the same flag and only with no proxy set:
     # a socket of port 0 for each address probed, connected to it, which
     # sends one packet and closes within 300 ms; doctor's --full sends it too.
+    # And the relay role's QUIC (T-667), which the user asks for with `podssh
+    # relay serve --listen ADDR:PORT --quic yes`: UDP at the listener's own
+    # address and port, bound with it after PODSSH_LISTEN, the bind its probe,
+    # held by relay_serve.rs and served by the role's endpoint. A client's
+    # race of QUIC binds through quick/quic.rs and probes through
+    # quick/probe.rs, as above, only with no proxy set.
     "UdpSocket": [
         "crates/podssh-iroh/src/probe.rs",
         "crates/podssh-iroh/src/endpoint_udp_tests.rs",
         "crates/podssh-relay/src/udp/flow.rs",
         "crates/podssh-relay/src/quick/quic.rs",
         "crates/podssh-relay/src/quick/probe.rs",
+        "crates/podssh-relay/src/serve/quic.rs",
+        "crates/podssh-cli/src/relay_serve.rs",
+        "crates/podssh-cli/src/relay_serve/quic.rs",
     ],
     # The bind probes of `podssh doctor`, which close at once and never listen;
     # and the iroh road's probe and endpoint, as above, with the commands that
@@ -89,12 +101,13 @@ LISTENERS = {
     # journal (T-640): a datagram socket in a scratch directory that stands
     # for the journal's own and reads what the sink sent; the sink itself
     # binds nothing. And the socket file of `ws-listen --cover`'s tests
-    # (T-639), as above.
+    # (T-639), as above. And the relay role's QUIC (T-667), as above.
     "bind(": [
         "crates/podssh-cli/src/journal/tests.rs",
         "crates/podssh-cli/src/pipe/cover_tests.rs",
         "crates/podssh-cli/src/exit/listen.rs",
         "crates/podssh-cli/src/relay_serve.rs",
+        "crates/podssh-cli/src/relay_serve/quic.rs",
         "crates/podssh-iroh/src/test_pkarr.rs",
         "crates/podssh-iroh/src/endpoint_udp_tests.rs",
         "crates/podssh-relay/src/udp/flow.rs",

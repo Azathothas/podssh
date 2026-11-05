@@ -165,5 +165,6 @@ fn a_new_session_past_the_role_s_budget_goes_on_the_contract_s_road_with_one_lin
     // The flags of the sessions go with serve alone.
     let elsewhere = ran(s.command(&["relay", "info", "--resume-budget", "4"].map(String::from)));
     assert_eq!(elsewhere.status.code(), Some(64), "{}", said(&elsewhere));
-    assert!(said(&elsewhere).contains("--resume-budget, --resume-host and --http2 go with `podssh relay serve` only"));
+    assert!(said(&elsewhere)
+        .contains("--resume-budget, --resume-host, --http2 and --quic go with `podssh relay serve` only"));
 }

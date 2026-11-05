@@ -500,6 +500,22 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   and another word offers the road to none, which `doctor`'s line `http2`
   fails with. A caller's own TLS configuration (`Trust::caller`) is used as
   it is, with no ALPN, so it takes the upgrade alone.
+- **QUIC to a relay role of the user's, raced with TCP** (T-667;
+  [relay.md](relay.md), "The relay role's QUIC"). To a relay host that the
+  user named whose `/relays.json` offered `forward.quic` (`podssh relay
+  serve --quic yes`), kept with the offer of the resumable layer for a day,
+  and with no proxy set for it, a session goes over QUIC first: the quick
+  tunnel's probe of UDP to the host's first address of each family (300 ms
+  at most), QUIC's handshake with the ALPN `podssh-relay/1` and the host's
+  name checked as over TLS, then the upgrade on one stream, with the
+  relay's refusals as over TCP. The TCP road starts 300 ms later, or at once
+  where QUIC failed; the first session is kept and the other road closed,
+  and the relay's refusal on either ends the race. A host whose UDP failed
+  is not tried over QUIC again by the run for 10 minutes. `-v` names the
+  road ("the relay host H opened the session, over QUIC").
+  `PODSSH_QUIC=yes` races it to each relay host, at its offered port or its
+  own; `no` to none; another word to none. A caller's own TLS configuration
+  takes no QUIC.
 - **`--forwarder TEMPLATES` reaches the first hop through other products'
   WebSocket forwarders, in place of the relay** (T-369, GitHub #60). A
   forwarder dials the host and the port that a client names and carries the

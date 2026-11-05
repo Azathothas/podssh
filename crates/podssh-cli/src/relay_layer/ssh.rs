@@ -100,7 +100,13 @@ pub(crate) async fn reach(
     };
     let (tell, told) = oneshot::channel();
     let (ended, done) = oneshot::channel();
-    let started = std::thread::Builder::new().name("podssh-relay-layer".into()).spawn(move || run(road, tell, ended));
+    // The stack of the command's own thread (`main.rs`): this one runs the
+    // same opener, whose futures are deep (a debug build overflowed 2 MiB
+    // once QUIC's race joined the TCP road, T-667).
+    let started = std::thread::Builder::new()
+        .name("podssh-relay-layer".into())
+        .stack_size(16 << 20)
+        .spawn(move || run(road, tell, ended));
     if let Err(e) = started {
         log.info(&format!("the resumable layer's thread did not start ({e}): {}", super::WITHOUT));
         return None;

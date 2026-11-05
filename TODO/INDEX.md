@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**631 entries: 104 open, 10 partial, 3 blocked, 514 done.**
+**631 entries: 103 open, 10 partial, 3 blocked, 515 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 247 | 276 |
-| P3 | 79 | 4 | 3 | 201 | 287 |
-| **All** | 104 | 10 | 3 | 514 | 631 |
+| P3 | 78 | 4 | 3 | 202 | 287 |
+| **All** | 103 | 10 | 3 | 515 | 631 |
 
 ## Entries
 
@@ -697,7 +697,7 @@ repository and CI).
 | [T-664](ssh.md) | P3 | M | M10 | feature | done | A faster cold connect: TLS tickets kept across runs, a key's signature sent with no query first, and fewer waits before the first command |
 | [T-665](roads.md) | P3 | S | M10 | measurement | partial | QUIC on the iroh road, tuned and measured on a wide-area path |
 | [T-666](roads.md) | P3 | M | M10 | feature | partial | Bulk off the interactive stream: a copy beside a terminal on its own QUIC stream of the same iroh connection |
-| [T-667](mesh.md) | P3 | L | M10 | feature | open | QUIC on UDP 443 to podssh's relay role, raced with its TCP roads where a probe found that UDP passes |
+| [T-667](mesh.md) | P3 | L | M10 | feature | done | QUIC on UDP 443 to podssh's relay role, raced with its TCP roads where a probe found that UDP passes |
 | [T-668](reverse.md) | P3 | L | M10 | feature | open | A node that keeps its sessions across its own upgrade: the new binary takes the sockets and the layer's state |
 | [T-669](ssh.md) | P3 | S | M10 | measurement | done | Compression of a terminal's output on the relay roads, measured against the session's 64 MiB |
 | [T-670](ssh.md) | P3 | M | M10 | feature | partial | The download's rate while a key waits on a slow path: win back what T-661 gives up |

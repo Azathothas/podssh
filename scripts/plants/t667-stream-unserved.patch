@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/serve/quic.rs
++++ b/crates/podssh-relay/src/serve/quic.rs
+@@ -132,7 +132,8 @@ async fn connection(incoming: Incoming, cfg: Arc<Config>) {
+     cfg.event("quic");
+     while let Ok((send, recv)) = connection.accept_bi().await {
+         let stream = QuicStream::new(send, recv, connection.clone());
+-        tokio::spawn(super::serve_from(stream, cfg.clone(), sni.clone(), Some(peer)));
++        // Planted: each stream is dropped unserved.
++        let _ = (stream, &sni, peer);
+     }
+ }
+ 

@@ -15,6 +15,8 @@
 //!   token of one session, for a proxy that cuts TLS (T-326);
 //! - [`h2_road`]: which forward sessions are streams of one HTTP/2
 //!   connection, by RFC 8441's extended CONNECT (T-321), `PODSSH_H2`;
+//! - [`quic_road`]: QUIC on UDP to podssh's relay role, raced with the TCP
+//!   roads where a probe found that UDP passes (T-667), `PODSSH_QUIC`;
 //! - [`http_road`]: the HTTP road (T-319), a forward session over plain
 //!   requests of HTTP/1.1 where a proxy refuses the WebSocket upgrade, in its
 //!   split form and its serial form, whose server is the relay role's;
@@ -90,6 +92,8 @@ pub mod pair;
 #[cfg(feature = "piping")]
 pub mod piping;
 pub mod pool;
+// QUIC to the relay role, raced with the TCP roads (T-667).
+pub mod quic_road;
 // The rank of the relay hosts as measured from this host (T-606).
 pub mod quick;
 pub mod rank;

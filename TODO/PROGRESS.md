@@ -25,7 +25,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      (OpenSSH 1.6 s) and 0.4 to 0.8 s on a link of 1 Mbit/s (OpenSSH 16 s); a session resumes 1 s
      after a move; a cold connect is two round trips shorter than before and than OpenSSH's.
   4. **Partial and watched:** T-465, T-627, T-319, T-321, T-253 (as before), and those of item 3.
-  5. **The work order** (below): the rest of osewa's entries (T-667, T-668), then
+  5. **The work order** (below): the rest of osewa's entries (T-668), then
      GitHub #127 to #148's open entries by priority, then M10's items 2 and 3 (T-106, T-433,
      T-180, T-434, T-459).
   6. **Two lessons of the night** (each in the paragraph of the drafts below): never commit while
@@ -246,7 +246,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 631 entries: 104 open, 10 partial, 3 blocked, 514 done.
+`TODO/INDEX.md` holds 631 entries: 103 open, 10 partial, 3 blocked, 515 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -286,7 +286,7 @@ operator and the parked ones.
 P1 defect, is in it); then the entries that the studies of osewa filed (Q99,
 `docs/research/osewa.md`), in this order: T-660 (measure what a user feels, first; its iroh and DERP rows),
 T-662 (a copy through a shaped link; the SSH client's flow control and liveness in round trips are done), T-670, T-665,
-T-666, T-667 and T-668 (compression's figures and the rate on a lossy link are done); then GitHub #127 to #148 (`TODO/issues.md`) by
+T-666 and T-668 (compression's figures, the rate on a lossy link and QUIC to the relay role are done); then GitHub #127 to #148 (`TODO/issues.md`) by
 their priority, beside the order of M10 below (Q85, Q100); `v1.1.0-beta.3` at the end of the night.
 
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
@@ -414,7 +414,8 @@ inputs alone.
 - T-643 (#141): an operator that offers the net's document to a node that answers without it goes
   on, with a line that says so, where the issue asks for a refusal.
 - T-667 (osewa): QUIC and a TCP road race to one host for a short time, as the race between relay
-  hosts does (rule 2), the loser closed at once.
+  hosts does (rule 2), the loser closed at once; QUIC goes first, 300 ms ahead, to a role that
+  offered it, where Q82 puts other projects' roads over UDP after TCP.
 
 The operator settled Q93 to Q100 on 2026-11-04 (`docs/decisions.md`), each as recommended: the TURN
 road's second connection (Q93), short live tests against smee.io, hostc, Tunnelmole and Sandhole

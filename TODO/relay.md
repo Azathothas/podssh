@@ -396,7 +396,7 @@ declares `libc` (`crates/podssh-probe/Cargo.toml` line 11 at `f8a94ca`), which n
 `crates/podssh-probe/src/facts.rs` lines 3-6 at `f8a94ca` name a "startup assertion" that no command runs;
 `crates/podssh-probe/src/relay_facts.rs` lines 261-289 at `f8a94ca` are that unused startup part. CI runs
 `scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:192-222`).
-The gate runs the crate's tests with no C compiler (`scripts/gate.sh:163-179`). The build image
+The gate runs the crate's tests with no C compiler (`scripts/gate.sh:163-180`). The build image
 has no Python (`crates/podssh-probe/src/facts.rs:14-19`), so the crate is the only form of the
 check that the container gate can run.
 
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:344`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:345`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -3158,7 +3158,7 @@ URL written into each result, and a download target that is no test target of `A
   (`crates/podssh-cli/src/ping/mod.rs:167-172`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
   (`crates/podssh-cli/src/doctor/relay_checks.rs:197-228`); `--quick` keeps the relay's sections and
-  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:143-147`).
+  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:146-150`).
 - Read: `podssh relay trace` asks the relay to dial a target and gives its own times
   (`crates/podssh-cli/src/relay_diag.rs:182-185`); `relay info` gives the pool
   (`crates/podssh-cli/src/relay_diag.rs:133-135`).
@@ -3827,7 +3827,7 @@ changes with the edge", which is not true of the role: it has no edge and gives 
   did not change.
 - Read: the manual's note of `relay info` names `relay status` and `ping` alone
   (`crates/podssh-cli/src/man/notes_relay.rs`, lines 72-78 at `366f511`), and so does
-  `docs/cli.md:3250-3256`.
+  `docs/cli.md:3266-3272`.
 - Read: `relay status` and `ping` time the hosts of the run's list, the default host and three
   others at most (`crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize =
   3;"; `crates/podssh-cli/src/relay_diag.rs:88-97`, `crates/podssh-cli/src/ping/mod.rs:167-172`),
@@ -3891,7 +3891,7 @@ info` with `--relay-host` reads the order named, and `--json` has `relay_order` 
 
 - 2026-11-04: the Premise cites the note of `relay info` in `docs/cli.md` at lines 3241-3247 at
   `366f511`, which hold `relay join` and `relay spec`; the note was at lines 3281-3287 at
-  `366f511`, where its words were as the Premise says, and it begins at `docs/cli.md:3292`. Each
+  `366f511`, where its words were as the Premise says, and it begins at `docs/cli.md:3308`. Each
   other citation of the Premise holds. The Premise's citations of the lines that this change
   rewrote read at `366f511` now, as they no longer name those words.
 - The approach's test of the role's document (`serve::docs::relays`) needs a `Config` of the role,
@@ -4076,17 +4076,17 @@ so a fault in any of them runs with more than the role needs. Nothing after the 
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/relay_serve.rs:233` says "let listener = std::net::TcpListener::bind(listen)",
-  and `:175` reads its address; the runtime and its two workers come later, in
-  `crates/podssh-cli/src/relay_serve.rs:275`, which says "worker_threads(2)". Between the two the
+- `crates/podssh-cli/src/relay_serve.rs:250` says "let listener = std::net::TcpListener::bind(listen)",
+  and `:185` reads its address; the runtime and its two workers come later, in
+  `crates/podssh-cli/src/relay_serve.rs:292`, which says "worker_threads(2)". Between the two the
   process has one thread, so a drop there holds for each thread made after it. The issue's line
   numbers are of an older tree; the order is as it says.
-- The listener is the user's (Q1): `crates/podssh-cli/src/relay_serve.rs:161` says
+- The listener is the user's (Q1): `crates/podssh-cli/src/relay_serve.rs:171` says
   "crate::pipe::listen::allowed()?;" before the bind.
 - No source of the workspace calls `prctl` or `capset` (searched for `capset`, `NO_NEW_PRIVS` and
   `CAPBSET`), so no step drops a privilege today.
 - After the bind the role still reads files: the certificate on SIGHUP and when its files change
-  (`crates/podssh-cli/src/relay_serve.rs:316-323`, T-447), the file of pairs at each pair
+  (`crates/podssh-cli/src/relay_serve.rs:333-340`, T-447), the file of pairs at each pair
   (`crates/podssh-relay/src/serve/reverse/pairs.rs:292`), and ACME's cache at each renewal. A root
   that dropped `CAP_DAC_OVERRIDE` reads a file of another owner only as its mode lets uid 0
   (Inferred from capabilities(7); not measured here).
@@ -4224,11 +4224,11 @@ Read at `2042200`:
 - `crates/podssh-relay/src/serve/policy.rs:107-109` hands a name to the host's proxy unresolved only with
   `private`, so a role without `--allow-private` checks each address that it dials.
 - The flag: `crates/podssh-cli/src/flags/relay.rs:66` (the row `allow-private`),
-  `crates/podssh-cli/src/relay_serve.rs:198` says "private: s.allow_private", and the role behind a
+  `crates/podssh-cli/src/relay_serve.rs:214` says "private: s.allow_private", and the role behind a
   quick tunnel the same in `crates/podssh-cli/src/node_quick_relay.rs:104`.
 - Each road of the role goes through `Policy::plan`: `/connect/`
   (`crates/podssh-relay/src/serve/forward.rs:91`), the resumable layer
-  (`crates/podssh-relay/src/serve/layer.rs:166`), the HTTP road
+  (`crates/podssh-relay/src/serve/layer.rs:180`), the HTTP road
   (`crates/podssh-relay/src/serve/http_road/mod.rs:137`) and `/trace`
   (`crates/podssh-relay/src/serve/docs.rs:132`); one change there serves each.
 - podssh has this list already for an exit: `podssh node --exit --routes` takes ranges
@@ -4352,14 +4352,14 @@ Read at `2042200`:
 
 - One counter for both ways: `crates/podssh-relay/src/serve/forward.rs:238` says
   "let moved = Arc::new(AtomicU64::new(0));", and `:312` ends the session at the cap;
-  `crates/podssh-relay/src/serve/mod.rs:69` says "Payload bytes, both ways together." The counter
+  `crates/podssh-relay/src/serve/mod.rs:74` says "Payload bytes, both ways together." The counter
   dies with its session.
 - A token names no key: `crates/podssh-relay/src/serve/tokens.rs:61` MACs the expiry alone under the
   run's secret, which `:52` draws at each start, so a restart ends each token
   (`docs/relay.md:92` says "a token is the contract's form under a secret of the run"). A ledger keyed
   by the token, as the issue first proposes, would count a principal that the next mint or restart
   replaces; the issue's own Risks say so.
-- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:331-335` takes the key that
+- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:336-340` takes the key that
   proved itself, and drops it after its line.
 - The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:446`)
   and a SHA-256 of each token (`:443`).
@@ -4499,7 +4499,7 @@ Read at `2042200`:
   takes nothing.
 - So an SSH client, whose version line begins `SSH-`, meets the cleartext road, which reads an HTTP
   head (`crates/podssh-relay/src/serve/cleartext.rs:60`) under the role's 30 s
-  (`crates/podssh-relay/src/serve/mod.rs:54`): the client waits for a banner that never comes, then is
+  (`crates/podssh-relay/src/serve/mod.rs:59`): the client waits for a banner that never comes, then is
   cut (Inferred from the code; not measured). With `--cleartext no` it meets TLS, which fails at once.
 - The node's check of a standard sshd peeks for the version line in the same way
   (`crates/podssh-relay/src/reverse/sshd.rs:1-5`), each 20 ms (`:19`); the word is the node's
@@ -4558,14 +4558,14 @@ the start with a path that was never one.
 
 Read at `2042200`:
 
-- `crates/podssh-cli/src/relay_serve.rs:217-230` reads `keys:` and makes the rest a path, with no
-  other form; `crates/podssh-cli/src/relay_serve.rs:265-272` reads it at the start, and a file that
+- `crates/podssh-cli/src/relay_serve.rs:234-247` reads `keys:` and makes the rest a path, with no
+  other form; `crates/podssh-cli/src/relay_serve.rs:282-289` reads it at the start, and a file that
   does not read stops it (78). The role behind a quick tunnel reads the same words
   (`crates/podssh-cli/src/node_quick_relay.rs:70`).
 - The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs:80`, and
   `crates/podssh-relay/src/serve/keys.rs:84` says "this relay cannot read its list of keys";
   `docs/relay.md:828` says "read again for each request".
-- `crates/podssh-relay/src/serve/mod.rs:97` holds the list as a path; the net's members are a source
+- `crates/podssh-relay/src/serve/mod.rs:102` holds the list as a path; the net's members are a source
   that the binary gives (`crates/podssh-relay/src/serve/keys.rs:31`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.
 - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB
@@ -4628,7 +4628,7 @@ Read at `2042200`:
   (`crates/podssh-relay/tests/opentunnel_stand_in/parse.rs:110` for the record's length, `:120` for the
   name), and routing by a name's label in OpenTunnel's road (`crates/podssh-relay/src/opentunnel/wire.rs:206`).
 - A node that ends a visitor's TLS with a name of its own exists for OpenTunnel (T-530):
-  `crates/podssh-relay/Cargo.toml:91` says "the key and the CSR of its" name come from the binary.
+  `crates/podssh-relay/Cargo.toml:96` says "the key and the CSR of its" name come from the binary.
 - Publishing a local HTTP service at a public name is T-180 (`podssh funnel`, TLS at the quick tunnel's
   edge); this entry is the role's form, with TLS at the node.
 

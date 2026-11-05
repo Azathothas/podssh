@@ -1335,3 +1335,56 @@ The live run of the road, on a GitHub runner to its own sshd with the
 client's link cut by `scripts/fake-proxy.py`, is
 `.github/workflows/relay-layer-live.yml`, started by hand alone, which runs
 `scripts/relay-serve-live.sh` with `layer`.
+
+## The relay role's QUIC (T-667)
+
+Over TCP a session costs a TCP handshake, TLS and the upgrade before its
+first byte, and one lost packet holds each byte behind it. QUIC on UDP has
+a handshake of one round trip, connection ids that outlive a rebinding of
+the NAT, and a stream that waits for no other. osewa races QUIC against its
+TCP WebSocket ([research/osewa.md](research/osewa.md), Q99). `podssh relay
+serve --quic yes` serves QUIC beside its listener
+(`crates/podssh-relay/src/serve/quic.rs`), and podssh's client races it
+before its TCP roads (`crates/podssh-relay/src/quic_road/`):
+
+- **The socket.** UDP at the address and port of `--listen`, bound with the
+  listener before the role gives up its capabilities (T-629), a second
+  socket that the user asks for (Q1, rule 2 of `AGENTS.md`):
+  `PODSSH_LISTEN=no` refuses it, and a port that another process holds
+  stops the start. QUIC is off unless asked.
+- **TLS and ALPN.** TLS 1.3 with the certificate that the listener presents
+  at that moment (read again on SIGHUP, renewed by ACME), and the ALPN
+  `podssh-relay/1` alone, which no client of HTTP/3 and no CA's TLS-ALPN-01
+  offers. Tokens of address validation are tagged with HMAC-SHA-256 of a
+  key of the process, in pure Rust.
+- **A stream is a connection.** Each bidirectional stream that a client
+  opens is one connection of HTTP/1.1 to the role's routes, read as a TCP
+  connection is: the upgrade of `/connect/`, of `/v1/layer/` or of the
+  reverse road, the mint, the documents, with the same token, checks, brake
+  (by the client's address) and limits. The role opens no stream; a
+  connection holds 64 at most, and ends after 30 s with no packet. Each
+  connection is a line `quic` on stdout, beside `upgrade` for each session.
+- **The offer.** `/relays.json` names the port in `forward.quic`, beside
+  `layer` and `host`. A client keeps it with the offer of the layer, for a
+  day (`crates/podssh-relay/src/forward_layer/kept.rs`), from the read that
+  the layer's offer makes before a session to a host that the user named
+  (Q96): no request more.
+
+The client's race (`PODSSH_QUIC`, the manual's THE RELAY): by default to a relay
+host that the user named and that offered QUIC, `yes` to each relay host,
+`no` to none; never where a proxy is set for the host, as no HTTP proxy
+carries UDP. QUIC goes first: the quick tunnel's probe of UDP (T-400), one
+packet of a reserved version to the first address of each family, which a
+server of QUIC answers with a Version Negotiation within 300 ms (Q82); then
+QUIC's handshake, one stream, and the contract's upgrade on it. The TCP road
+starts 300 ms after QUIC, or at once where QUIC failed; the first session is
+kept and the other road is dropped where it stands, which closes its
+connection: two connections to one host for a short time, as the race
+between relay hosts makes (Q86, T-667's Decision). The relay's refusal of a
+token or a target on either road ends the race. A host whose UDP failed is
+not tried over QUIC again by that process for 10 minutes, and one whose QUIC
+answered is not probed again for as long. The resumable layer stays above
+each road: a session that QUIC loses resumes on QUIC or on TCP. The test of
+it (`crates/podssh-relay/tests/relay_serve_quic.rs`) carries sessions over
+QUIC to the role on the loopback, and takes TCP where UDP is refused or
+dropped. Measured on 2026-11-05: those 3 tests passed, on the loopback.

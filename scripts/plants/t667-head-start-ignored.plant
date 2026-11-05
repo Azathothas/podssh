@@ -1,0 +1,7 @@
+# T-667: the TCP road starts with QUIC, with no head start, so a session to
+# a relay host that offered QUIC opens a second connection to it each time;
+# the test of a QUIC that answers within its head start must fail.
+ENTRY=T-667
+GROUP=resume
+EXPECT='test quic_road::race::tests::a_quic_answer_within_the_head_start_starts_no_tcp \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features quic --lib -- quic_road::race::'

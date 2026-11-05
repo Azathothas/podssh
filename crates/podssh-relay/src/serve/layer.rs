@@ -59,6 +59,8 @@ pub struct Resumes {
     /// The name of this process, for each link of a session, where several
     /// processes share the name that a client was given.
     name: Option<Relay>,
+    /// The UDP port of the role's QUIC, which the offer names (T-667).
+    quic: Option<u16>,
     /// The new sessions let in whose target is not dialed yet: the budget
     /// counts them, so that new sessions at once do not pass it together.
     pending: Mutex<usize>,
@@ -82,13 +84,20 @@ impl Resumes {
     /// `budget` bytes of replay buffers in all; 0 offers no session.
     pub fn new(settings: Settings, budget: usize) -> Resumes {
         let keeper = Arc::new(Keeper::new(settings.resume_deadline));
-        Resumes { keeper, settings, budget, name: None, pending: Mutex::new(0), sweeping: AtomicBool::new(false) }
+        let (name, quic) = (None, None);
+        Resumes { keeper, settings, budget, name, quic, pending: Mutex::new(0), sweeping: AtomicBool::new(false) }
     }
 
     /// These sessions, with `name`, this process's own, in the offer: a
     /// name of its certificate that reaches this process alone.
     pub fn named(self, name: Relay) -> Resumes {
         Resumes { name: Some(name), ..self }
+    }
+
+    /// These sessions, with the UDP port of the role's QUIC in the offer,
+    /// where `podssh relay serve --quic yes` serves it (T-667).
+    pub fn with_quic(self, port: u16) -> Resumes {
+        Resumes { quic: Some(port), ..self }
     }
 
     /// The sessions kept with their target, with a link or waiting for one.
@@ -113,10 +122,15 @@ impl Resumes {
 
     /// `forward` of `/relays.json`: whether a new session can have room at
     /// all, and the name of this process for each link of one, `HOST` or
-    /// `HOST:PORT`, or null where its owner gave none.
+    /// `HOST:PORT`, or null where its owner gave none; and `quic`, the UDP
+    /// port of the role's QUIC, where it serves QUIC (T-667).
     pub fn offer(&self) -> serde_json::Value {
         let host = self.name.as_ref().map(crate::token::relay_name);
-        serde_json::json!({ "layer": self.budget >= self.settings.replay_capacity, "host": host })
+        let mut offer = serde_json::json!({ "layer": self.budget >= self.settings.replay_capacity, "host": host });
+        if let Some(port) = self.quic {
+            offer["quic"] = port.into();
+        }
+        offer
     }
 
     /// One task forgets the sessions whose deadline passed, and shuts their

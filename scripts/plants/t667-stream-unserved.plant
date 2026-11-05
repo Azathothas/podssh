@@ -1,0 +1,7 @@
+# T-667: the relay role takes QUIC's handshake and drops each stream
+# unserved, so a client's upgrade over QUIC gets no answer; the test of a
+# session over QUIC with equal digests must fail.
+ENTRY=T-667
+GROUP=resume
+EXPECT='test a_session_over_quic_carries_each_byte_once \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,quic,plain-ws --test relay_serve_quic -- a_session_over_quic_carries_each_byte_once'

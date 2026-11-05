@@ -27,6 +27,10 @@ struct KeptOffer {
     /// `forward.host` as the host gave it and as the client took it.
     #[serde(default)]
     at: Option<String>,
+    /// `forward.quic`, the port of the host's QUIC (T-667); none in a file
+    /// of before it.
+    #[serde(default)]
+    quic: Option<u16>,
 }
 
 /// The cache file of `relay`'s offer.
@@ -38,7 +42,7 @@ pub fn file_name(relay: &Relay) -> String {
 /// file is no failure of the run, which reads the offer again next time.
 pub fn keep(relay: &Relay, offered: &Offer, now_ms: i64) {
     let at = offered.at.as_ref().map(|at| podssh_ws::dial::authority(&at.host, at.port));
-    let kept = KeptOffer { read_ms: now_ms, layer: offered.layer, at };
+    let kept = KeptOffer { read_ms: now_ms, layer: offered.layer, at, quic: offered.quic };
     if let Ok(body) = serde_json::to_vec(&kept) {
         let _ = cache::store_file(&file_name(relay), &body);
     }
@@ -58,7 +62,7 @@ fn of_text(text: &str, relay: &Relay, now_ms: i64) -> Option<Offer> {
     if !(0..=FRESH_MS).contains(&age) {
         return None;
     }
-    let mut offered = Offer { layer: kept.layer, ..Offer::default() };
+    let mut offered = Offer { layer: kept.layer, quic: kept.quic, ..Offer::default() };
     if let Some(at) = &kept.at {
         match offer::named(relay, at) {
             Ok(holder) => offered.at = Some(holder),
@@ -92,7 +96,7 @@ mod tests {
     }
 
     fn text(read_ms: i64, layer: bool, at: Option<&str>) -> String {
-        serde_json::to_string(&KeptOffer { read_ms, layer, at: at.map(String::from) }).unwrap()
+        serde_json::to_string(&KeptOffer { read_ms, layer, at: at.map(String::from), quic: None }).unwrap()
     }
 
     #[test]
@@ -123,5 +127,18 @@ mod tests {
     fn each_host_and_port_has_a_file_of_its_own() {
         assert_eq!(file_name(&relay("Relay.Example.org", 443)), "relay-offer-relay.example.org-443.json");
         assert_ne!(file_name(&relay("a.test", 443)), file_name(&relay("a.test", 8443)));
+    }
+
+    /// The port of the host's QUIC is kept with the offer, and a file of
+    /// before it reads as none (T-667).
+    #[test]
+    fn the_port_of_quic_is_kept_with_the_offer() {
+        let asked = relay("relay.example.org", 443);
+        let now = 1_793_577_600_000;
+        let kept = KeptOffer { read_ms: now, layer: false, at: None, quic: Some(443) };
+        let text = serde_json::to_string(&kept).unwrap();
+        assert_eq!(of_text(&text, &asked, now).unwrap().quic, Some(443));
+        let before = format!(r#"{{"read_ms":{now},"layer":true}}"#);
+        assert_eq!(of_text(&before, &asked, now).unwrap().quic, None);
     }
 }

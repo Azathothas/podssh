@@ -69,8 +69,8 @@ pub async fn connect(config: &WsClientConfig, token: &str, explicit: bool) -> Re
 
 impl Opened {
     /// How the session is carried, after the relay host's name in a line:
-    /// in cleartext (T-326), over HTTP/2 or HTTP/1.1 after it (T-321), or
-    /// nothing more to say.
+    /// in cleartext (T-326), over HTTP/2 or HTTP/1.1 after it (T-321), over
+    /// QUIC (T-667), or nothing more to say.
     pub fn road(&self) -> String {
         if self.cleartext {
             return " in cleartext".to_string();

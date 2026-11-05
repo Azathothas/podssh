@@ -7,7 +7,7 @@
 //! road (T-531), the cleartext road on the relay's port (T-326), the
 //! resumable layer at podssh's relay role (T-173), and the keys of a signed
 //! list of relay deployments (T-346), and the WebSocket over HTTP/2
-//! (T-321).
+//! (T-321), and QUIC to the relay role (T-667).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -139,6 +139,16 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           extended CONNECT; yes: offered to each relay host, where one whose HTTP/2 offers none costs one more \
           connection in a run; no: the upgrade of HTTP/1.1 alone, as before. Another word offers it to none, and \
           podssh doctor's line http2 fails with it.",
+    ),
+    (
+        &["PODSSH_QUIC"],
+        "QUIC to podssh relay serve (see THE RELAY), for podssh ssh, each command that reaches a server as it does, \
+          and podssh proxy: a session raced over QUIC on UDP first, then over TCP. Unset, empty or auto: to a relay \
+          host that you named (--relay-host, PODSSH_RELAY or RelayHost) whose /relays.json offered QUIC \
+          (forward.quic), as its offer of the resumable layer is kept, for a day; yes: to each relay host, at the \
+          port that it offered, else at its own; no: never. In each case only where no proxy is set for the host, \
+          as no HTTP proxy carries UDP, and never with a TLS configuration that a caller of the library gave. \
+          Another word races QUIC to none.",
     ),
     (
         &["PODSSH_FORWARDER"],

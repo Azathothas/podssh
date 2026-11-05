@@ -73,7 +73,7 @@ rustls = { workspace = true }
 # which each node checks, pure Rust, in each build. `code`: pairing by a
 # short code (T-086), `podssh relay pair --code` and `podssh relay join`,
 # SPAKE2 and NaCl's SecretBox in pure Rust, in each build.
-podssh-relay = { path = "../podssh-relay", features = ["pair", "quick", "derp", "serve", "piping", "opentunnel", "grant", "code"] }
+podssh-relay = { path = "../podssh-relay", features = ["pair", "quick", "quic", "derp", "serve", "piping", "opentunnel", "grant", "code"] }
 # The native SSH client. It needs a C compiler (russh with aws-lc-rs); the
 # operator accepted that for the binary on 2026-10-08.
 podssh-ssh = { path = "../podssh-ssh" }

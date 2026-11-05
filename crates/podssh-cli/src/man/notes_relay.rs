@@ -298,6 +298,16 @@ pub const RELAY: &[&str] = &[
      there too; another request, such as the HTTP road's, a probe's or a pair's, is asked for again over \
      HTTP/1.1 (HTTP_1_1_REQUIRED, which a client of HTTP/2 follows at once). A connection with no stream for 2 \
      minutes ends. --http2 no offers http/1.1 alone, as before; the first line says which.",
+    "--quic yes serves QUIC too (T-667), on UDP at the address and port of --listen, which the role binds with \
+     its listener, before it gives up its capabilities; PODSSH_LISTEN=no refuses it with the listener, and a \
+     port of UDP that another process holds stops the start (69). Its TLS is 1.3, with the certificate that the \
+     listener presents at that moment, and offers the ALPN podssh-relay/1 alone, so that no client of HTTP/3 \
+     and no CA's validation gets a connection there. Each bidirectional stream that a client opens is one \
+     connection of HTTP/1.1 to the same routes, with the same tokens, checks, brake and limits; a connection \
+     holds 64 streams at most, and ends after 30 s with no packet. Each connection is a line quic on stdout. \
+     /relays.json offers it as forward.quic, the port, which podssh's client keeps with the offer of the \
+     resumable layer and races before its TCP roads (see THE RELAY). The first line says QUIC on UDP and its \
+     address.",
     super::notes_grant::RELAY,
     super::notes_legs::RELAY,
     super::notes_doctor::RELAY_PROBES,

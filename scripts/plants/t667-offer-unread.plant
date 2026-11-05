@@ -1,0 +1,7 @@
+# T-667: a relay host that the user named races QUIC whether or not its
+# /relays.json offered it, so each run sends UDP unasked to a role that
+# serves none; the test of the variable and the offer must fail.
+ENTRY=T-667
+GROUP=resume
+EXPECT='test quic_road::tests::the_variable_and_the_offer_say_which_sessions_race_quic \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features quic --lib -- quic_road::tests::'

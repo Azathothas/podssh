@@ -286,7 +286,7 @@ mod tests {
     fn a_dialer_for_an_offer_goes_to_the_host_that_it_names() {
         let asked = Relay { host: "relay.example.org".into(), port: 443 };
         let at = Relay { host: "relay-2.relay.example.org".into(), port: 443 };
-        let offer = Offer { layer: true, at: Some(at.clone()), refused: None };
+        let offer = Offer { layer: true, at: Some(at.clone()), refused: None, quic: None };
         let dialer = Dialer::for_offer(&asked, &offer, "github.com", 22, Trust::Default).unwrap();
         assert_eq!(dialer.relay(), &at);
         let unnamed = Offer { layer: true, ..Offer::default() };
