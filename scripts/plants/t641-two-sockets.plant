@@ -1,0 +1,8 @@
+# T-641: doctor's line nat asks each STUN server from a socket of its own,
+# so two servers on the loopback that give the address that they saw see two
+# ports, and a host with no NAT reads as a mapping for each destination; the
+# test of the two questions on one socket must fail.
+ENTRY=T-641
+GROUP=cli-tests
+EXPECT='test doctor::nat::tests::the_two_questions_go_from_one_socket_and_read_no_nat \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- doctor::nat::tests::the_two_questions_go_from_one_socket_and_read_no_nat'

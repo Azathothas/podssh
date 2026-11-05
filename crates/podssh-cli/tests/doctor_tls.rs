@@ -161,10 +161,12 @@ fn doctor(args: &[&str], port: u16) -> String {
     for name in STEERING {
         cmd.env_remove(name);
     }
+    // No STUN server is asked (T-641): its datagrams would leave the loopback.
     cmd.env("https_proxy", format!("http://127.0.0.1:{port}"))
         .env("PODSSH_DERP_SERVER", DERP)
         .env("PODSSH_CACHE_DIR", home.join("cache"))
-        .env("PODSSH_SETTINGS", "none");
+        .env("PODSSH_SETTINGS", "none")
+        .env("PODSSH_STUN", "no");
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().expect("podssh runs");
     let mut stdout = child.stdout.take().unwrap();
     let out = std::thread::spawn(move || std::io::read_to_string(&mut stdout).unwrap_or_default());

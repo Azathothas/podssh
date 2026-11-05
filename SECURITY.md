@@ -251,7 +251,12 @@ Each rule is implemented.
   it receives over chat. `podssh doctor` binds a socket to test whether the
   host allows a bind and a listen, listens once with a backlog of 1 on
   127.0.0.1 and on a socket file of mode 0600, accepts nothing, and closes it
-  at once; with `PODSSH_LISTEN=no` it does not listen. The iroh road, in a
+  at once; with `PODSSH_LISTEN=no` it does not listen. Its line `nat`
+  (T-641) sends a STUN Binding Request from one UDP socket of port 0 to two
+  public STUN servers in turn (Cloudflare's and Google's by default, or those
+  of `PODSSH_STUN`), takes only their answers, and closes it within seconds;
+  the request carries nothing of the host but its address, and
+  `PODSSH_STUN=no` sends none. The iroh road, in a
   build with the feature `iroh`, keeps UDP for its direct paths only after
   a datagram came back from its home relay (T-359); with no UDP, its relay carries each byte, and a peer
   is accepted only with the ALPN of podssh's sessions. A node whose TARGET

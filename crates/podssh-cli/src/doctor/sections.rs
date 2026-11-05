@@ -39,6 +39,8 @@ pub(super) struct Checks<'a> {
     pub(super) jobs: usize,
     /// What the path does to a stream, with `--full` (T-325).
     pub(super) stream: Option<&'a super::stream::Plan>,
+    /// The STUN servers of the line `nat`, or none (T-641).
+    pub(super) stun: &'a super::nat::Setting,
 }
 
 /// A section that connects, or a part of one.
@@ -48,6 +50,8 @@ pub(super) enum Kind {
     Network,
     /// The quick tunnel's UDP and its road over TCP.
     QuickTunnel,
+    /// The NAT's mapping, by two STUN servers (T-641).
+    Nat,
     Relay,
     Forwarders,
     Shadowsocks,
@@ -75,7 +79,7 @@ impl Kind {
     /// The section of the report that its lines are in.
     fn section(self) -> &'static str {
         match self {
-            Kind::Network | Kind::QuickTunnel => "egress",
+            Kind::Network | Kind::QuickTunnel | Kind::Nat => "egress",
             Kind::Relay => "relay",
             Kind::Forwarders => "forwarders",
             Kind::Shadowsocks => "shadowsocks",
@@ -98,7 +102,7 @@ impl Kind {
     /// Whether it begins its section: the egress's parts go on after its
     /// lines that open nothing, which come first.
     fn opens(self) -> bool {
-        !matches!(self, Kind::Network | Kind::QuickTunnel)
+        !matches!(self, Kind::Network | Kind::QuickTunnel | Kind::Nat)
     }
 }
 
@@ -110,7 +114,7 @@ impl Kind {
 pub(super) fn kinds(quick: bool, servers: bool, road: bool, links: bool, exit: bool, stream: bool) -> Vec<Kind> {
     let mut kinds = vec![Kind::Network];
     if !quick {
-        kinds.push(Kind::QuickTunnel);
+        kinds.extend([Kind::QuickTunnel, Kind::Nat]);
     }
     kinds.extend([Kind::Relay, Kind::Forwarders]);
     let named = [(servers, Kind::Shadowsocks), (road, Kind::Via), (links, Kind::Vless), (exit, Kind::Exit)];
@@ -166,6 +170,8 @@ async fn checks_of(kind: Kind, report: &mut Report<'_>, checks: &Checks<'_>) {
             // And which road over TCP reaches it, inside WARP's tunnel too (T-374).
             super::quick::edge_road(report, full).await;
         }
+        // Unasked, two public STUN servers by default (Q86).
+        Kind::Nat => super::nat::check(report, checks.stun).await,
         Kind::Relay => super::relay_checks::check(report, relays, trust, failover, full).await,
         Kind::Forwarders => match forwarders.is_empty() {
             true => super::forwarder::fallback_line(report, relays),
@@ -234,7 +240,7 @@ pub(crate) fn count(text: &str) -> Option<usize> {
 
 /// What `--quick` leaves out, in the order of the report.
 fn left_out() -> Vec<&'static str> {
-    let mut names = vec!["the quick tunnel's edge (its roots, UDP out, edge road)"];
+    let mut names = vec!["the quick tunnel's edge (its roots, UDP out, edge road)", "the NAT's mapping (nat)"];
     #[cfg(feature = "iroh")]
     names.push("iroh (bind UDP and its relays)");
     #[cfg(feature = "tor")]
@@ -265,7 +271,7 @@ mod tests {
     #[test]
     fn the_parts_are_in_the_order_of_the_report_and_quick_keeps_the_roads_named() {
         let whole = kinds(false, false, false, false, false, false);
-        assert_eq!(whole[..4], [Kind::Network, Kind::QuickTunnel, Kind::Relay, Kind::Forwarders]);
+        assert_eq!(whole[..5], [Kind::Network, Kind::QuickTunnel, Kind::Nat, Kind::Relay, Kind::Forwarders]);
         assert_eq!(whole[whole.len() - 4..], [Kind::Derp, Kind::Carriers, Kind::Pairs, Kind::Net]);
         assert_eq!(kinds(true, false, false, false, false, false), [Kind::Network, Kind::Relay, Kind::Forwarders]);
         let named = kinds(true, true, true, true, true, false);
@@ -273,11 +279,12 @@ mod tests {
         let probed = kinds(false, false, false, false, false, true);
         assert_eq!(probed[probed.len() - 2..], [Kind::Net, Kind::Stream], "the long part last (T-325)");
         assert!(!named.contains(&Kind::Derp) && !named.contains(&Kind::QuickTunnel), "{named:?}");
+        assert!(!named.contains(&Kind::Nat), "--quick leaves the NAT's line out (T-641): {named:?}");
         assert!(!named.contains(&Kind::Carriers) && !named.contains(&Kind::Net), "{named:?}");
         assert!(!named.contains(&Kind::OpenTunnel) && whole.contains(&Kind::OpenTunnel), "{whole:?}");
         let sections: Vec<&str> = kinds(false, true, false, false, false, false).iter().map(|k| k.section()).collect();
-        assert_eq!(sections[..5], ["egress", "egress", "relay", "forwarders", "shadowsocks"]);
-        assert!(!Kind::Network.opens() && !Kind::QuickTunnel.opens() && Kind::Relay.opens());
+        assert_eq!(sections[..6], ["egress", "egress", "egress", "relay", "forwarders", "shadowsocks"]);
+        assert!(!Kind::Network.opens() && !Kind::QuickTunnel.opens() && !Kind::Nat.opens() && Kind::Relay.opens());
     }
 
     /// `--jobs` before `DoctorJobs`, each at once with neither; a bad

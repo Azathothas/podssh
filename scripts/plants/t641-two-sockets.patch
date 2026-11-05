@@ -1,0 +1,13 @@
+--- a/crates/podssh-cli/src/doctor/nat.rs
++++ b/crates/podssh-cli/src/doctor/nat.rs
+@@ -171,7 +171,9 @@ pub(super) async fn ask_each(socket: &UdpSocket, servers: &[Server], tries: u32,
+         let (at, answer) = match address(server).await {
+             Ok(at) => {
+                 let id: stun::TransactionId = rand::random();
+-                (Some(at), ask(socket, at, &id, tries, wait).await)
++                let _ = socket;
++                let fresh = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).await.unwrap();
++                (Some(at), ask(&fresh, at, &id, tries, wait).await)
+             }
+             Err(why) => (None, Answer::Silent(why)),
+         };

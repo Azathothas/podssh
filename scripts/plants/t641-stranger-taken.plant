@@ -1,0 +1,7 @@
+# T-641: doctor's line nat takes an answer from any address, so a datagram
+# that another port of the host sends with the request's id names the
+# mapping; the test of a stranger's datagram must fail.
+ENTRY=T-641
+GROUP=cli-tests
+EXPECT='test doctor::nat::tests::a_wrong_transaction_id_and_a_strangers_datagram_are_skipped \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- doctor::nat::tests::a_wrong_transaction_id_and_a_strangers_datagram_are_skipped'

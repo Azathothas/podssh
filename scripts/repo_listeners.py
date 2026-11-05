@@ -73,6 +73,12 @@ LISTENERS = {
     # held by relay_serve.rs and served by the role's endpoint. A client's
     # race of QUIC binds through quick/quic.rs and probes through
     # quick/probe.rs, as above, only with no proxy set.
+    # And doctor's line nat (T-641, the call of Q86 that the operator is to
+    # confirm): one socket of port 0, not connected while it asks two STUN
+    # servers in turn, 3 tries of 1 s each, taking only their answers, then
+    # connected to the first that answered to read this host's address, and
+    # closed; PODSSH_STUN=no and PODSSH_OFFLINE send nothing; its tests' stand-in
+    # STUN servers on the loopback.
     "UdpSocket": [
         "crates/podssh-iroh/src/probe.rs",
         "crates/podssh-iroh/src/endpoint_udp_tests.rs",
@@ -82,6 +88,8 @@ LISTENERS = {
         "crates/podssh-relay/src/serve/quic.rs",
         "crates/podssh-cli/src/relay_serve.rs",
         "crates/podssh-cli/src/relay_serve/quic.rs",
+        "crates/podssh-cli/src/doctor/nat.rs",
+        "crates/podssh-cli/src/doctor/nat_tests.rs",
     ],
     # The bind probes of `podssh doctor`, which close at once and never listen;
     # and the iroh road's probe and endpoint, as above, with the commands that
@@ -103,8 +111,11 @@ LISTENERS = {
     # binds nothing. And the socket file of `ws-listen --cover`'s tests
     # (T-639), as above. And the relay role's QUIC (T-667), as above. And the
     # tests of `relay serve`'s bind, then its drop of capabilities (T-629),
-    # beside it so that it stays within 500 lines: the loopback's port 0.
+    # beside it so that it stays within 500 lines: the loopback's port 0. And
+    # doctor's line nat and its stand-ins (T-641), as above.
     "bind(": [
+        "crates/podssh-cli/src/doctor/nat.rs",
+        "crates/podssh-cli/src/doctor/nat_tests.rs",
         "crates/podssh-cli/src/journal/tests.rs",
         "crates/podssh-cli/src/pipe/cover_tests.rs",
         "crates/podssh-cli/src/exit/listen.rs",

@@ -257,7 +257,9 @@ These rules apply to each change. The reasons are in
 3. **One outbound connection, and no listener that the user did not ask
    for.** No `bind`, no `listen`, no loopback helpers. `podssh doctor` binds
    a socket to test the host, listens once with a backlog of 1, accepts
-   nothing and closes it at once (Q53; not with `PODSSH_LISTEN=no`). A listener
+   nothing and closes it at once (Q53; not with `PODSSH_LISTEN=no`); its line
+   `nat` asks two STUN servers from one UDP socket of port 0, straight out,
+   and closes it within seconds (T-641; not with `PODSSH_STUN=no`). A listener
    that the user asks for (`-L`, `-D`, connection sharing, `podssh agent`,
    `podssh session`) opens only when a probe at run time allows the bind: on loopback or
    AF_UNIX, unless the user sets the address. A race between relay hosts can
