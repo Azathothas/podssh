@@ -2969,9 +2969,9 @@ text after a citation, and reads each bare :N".
 - Prove: `cargo test -p podssh-todo`: 71 passed (15 unit tests, 37 plant
   tests). `cargo todo check`: the record agrees; before the rewrite, 119
   problems, the same 119 as the script's own scan, less one that a quote
-  over two lines holds. Plants: "line 5" after a citation is found; `:34`
-  after a citation of a file of 5 lines is found; "line 9 at `0123abc`" and
-  `:4` pass. A character of more than one byte before a number made the
+  over two lines holds. Plants: "line 5" after a citation is found; a colon
+  and the number 9 after a citation of a file of 5 lines is found; "line 9 at
+  `0123abc`" and a colon and the number 4 pass. A character of more than one byte before a number made the
   first version panic; a test holds it now. `cargo clippy --all-targets -p
   podssh-todo -- -D warnings`: no warning.
 
