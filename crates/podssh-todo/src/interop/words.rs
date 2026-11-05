@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::model::Problem;
+use pod_todo::model::Problem;
 
 /// The helpers that can print `ok` for their id, and those that can print
 /// `FAIL`; `expect_rc` and `no_part` print one or the other.

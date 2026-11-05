@@ -265,7 +265,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 640 entries: 95 open, 11 partial, 4 blocked, 530 done.
+`TODO/INDEX.md` holds 640 entries: 95 open, 12 partial, 3 blocked, 530 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -423,7 +423,10 @@ inputs alone.
 moves podssh to PodUtils/podssh (T-683) and puts the shared crates in PodUtils/podcrates (T-684);
 podnet's session and this one agreed one list on 2026-11-05 (podnet's operator ruled that podnet's
 WARP and Cloudflare adapters move there, and that podnet copies no podssh code). Recommendation:
-accept it as written.
+accept it as written. **Settled 2026-11-05** by the owner's acts and rulings (`docs/decisions.md`,
+"The crates of PodUtils/podcrates"): PodUtils/podcrates exists, its session builds the crates, and
+`v0.1.0` is out; three rules of the list below changed: each crate may link C (T-685), declares
+Rust 1.97 and edition 2024, and podssh takes it by a git tag of PodUtils/podcrates (Q1).
 
 - Crates of podcrates (each name answered 404 at crates.io's index on 2026-11-05): `pod-todo`,
   `pod-testkit`, `pod-tls`, `pod-dns`, `pod-proxy`, `pod-ws`, `pod-identity`, `pod-term`,

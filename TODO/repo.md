@@ -2540,7 +2540,7 @@ Read:
 - `.gitignore` (lines 16-18) keeps a root `/agents.md` out of git, as "a
   lowercase duplicate of AGENTS.md created by the filesystem".
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
-  with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
+  with no word (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
   container (`scripts/gate.sh:239-246`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
@@ -2715,7 +2715,7 @@ starts the work from a false premise.
 
 ## Premise
 
-- Read: `citations` (`crates/podssh-todo/src/refs.rs:94-137`) tests that the
+- Read: `citations` (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:94-137`) tests that the
   path exists with its exact case, and that the last line is not past the end
   of the file. It does not test what the line says.
 - Measured on 2026-10-08: a script outside the repository moved the
@@ -2762,7 +2762,7 @@ The session that built it (2026-10-08) made these calls:
   file in its paragraph (the record writes `` `FILE:12` and `:40` ``). Only
   `TODO/`, as the Approach says, lost: a stale citation in `docs/` misleads
   as much.
-- **A line diff of its own** (`crates/podssh-todo/src/diff.rs`): the longest
+- **A line diff of its own** (`PodUtils/podssh:crates/podssh-todo/src/diff.rs`): the longest
   common subsequence after the common head and tail, with no dependency.
 
 ## Prove
@@ -2775,6 +2775,10 @@ cargo todo remap docs/ROADMAP.md         # on a clean tree: nothing moves
 
 Planted defects: add a line above a cited line and skip the remap, then
 change a quoted line; each test that guards it fails.
+
+## Correction
+
+The test targets `remap`, `plants` of `podssh-todo` moved to `pod-todo` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-todo` there runs them.
 
 ## Done
 
@@ -2832,7 +2836,7 @@ table, then a row of the doctor) without a remap of that file. 45 citations of i
 neighbouring row: the entries of IRC named the row of `podssh-cli` instead of `podssh-core`, and
 those of Tailscale the row of `podssh-core`. Each one was found by tracing its line through the
 history of its file to the row that it named when it was written. The check of a cited line
-(`crates/podssh-todo/src/refs.rs`) tests that the line exists; a quote is checked only where an
+(`PodUtils/podssh:crates/podssh-todo/src/refs.rs`) tests that the line exists; a quote is checked only where an
 entry quotes.
 
 ## Approach
@@ -2868,15 +2872,19 @@ cargo clippy -p podssh-todo --all-targets -- -D warnings
 Plant on this repository: one line added at the top of a cited file, with no remap; `cargo todo
 check` must exit 1 and name each citation of it, and exit 0 again when the file is restored.
 
+## Correction
+
+The test targets `remap` of `podssh-todo` moved to `pod-todo` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-todo` there runs them.
+
 ## Done
 
 2026-10-09, in the commit "cargo todo check finds a citation that a forgotten remap left".
 
-- `crates/podssh-todo/src/remap.rs`: `changed_since_head` (the files that differ from `HEAD` and
-  exist; `None` when git cannot say). `crates/podssh-todo/src/check.rs`: `check` passes them to
+- `PodUtils/podssh:crates/podssh-todo/src/remap.rs`: `changed_since_head` (the files that differ from `HEAD` and
+  exist; `None` when git cannot say). `PodUtils/podssh:crates/podssh-todo/src/check.rs`: `check` passes them to
   `check_with`, which runs `remap` without writing and reports each citation that would move:
   "cites FILE N -> M, as FILE changed since HEAD: run `cargo todo remap FILE`".
-- `crates/podssh-todo/src/refs.rs`: a citation whose range ends before it starts, or that names
+- `PodUtils/podssh:crates/podssh-todo/src/refs.rs`: a citation whose range ends before it starts, or that names
   line 0 at `4e817d7`, is a problem; two plant tests.
 - `TODO/RULES.md` (citations), `docs/development.md` (checks) and the rows of `podssh-todo` and of
   the work record in `docs/STATUS.md` say so.
@@ -2885,11 +2893,11 @@ check` must exit 1 and name each citation of it, and exit 0 again when the file 
   `cargo test -p podssh-todo`: 65 passed. `cargo clippy -p podssh-todo --all-targets -- -D
   warnings`: no warning. `cargo test --no-fail-fast`: 795 passed, 0 failed, 7 ignored.
 - Plants: a range `4-2` and a line `0`, planted in the record of
-  `crates/podssh-todo/tests/plants.rs`, are found.
+  `PodUtils/podssh:crates/podssh-todo/tests/plants.rs`, are found.
   `// planted` added at the top of `crates/podssh-ws/src/names.rs` with no remap: `cargo
   todo check` exited 1 with 6 problems, one for each citation of the file, each naming `cargo todo
   remap crates/podssh-ws/src/names.rs`; restored, it exited 0. While this entry was written, the
-  check found its own missing remap of `crates/podssh-todo/src/refs.rs`.
+  check found its own missing remap of `PodUtils/podssh:crates/podssh-todo/src/refs.rs`.
 
 # T-258: Line numbers written as plain text in the record are not moved
 
@@ -2914,7 +2922,7 @@ right for that commit only.
 
 Measured on 2026-10-09 with a scan of `TODO/` and `docs/`: 42 numbers
 written as plain text follow a citation of a Rust file that the format of
-T-215 changed. `crates/podssh-todo/src/refs.rs` reads citations in backticks
+T-215 changed. `PodUtils/podssh:crates/podssh-todo/src/refs.rs` reads citations in backticks
 only.
 
 ## Approach
@@ -2951,7 +2959,7 @@ names, as `remap` does.
 2026-10-09, in the commit "The record's checker finds a line number in plain
 text after a citation, and reads each bare :N".
 
-- `crates/podssh-todo/src/numbers.rs`: in each paragraph of `TODO/`, a
+- `PodUtils/podssh:crates/podssh-todo/src/numbers.rs`: in each paragraph of `TODO/`, a
   "line N" or "lines N-M" (also "lines 3 and 5") outside code spans and
   quotes, after a citation, with no "at `COMMIT`" after it and no reading at
   a named commit before it, is a problem that names the two forms. Each
@@ -3416,8 +3424,8 @@ file was checked for no file.
 
 ## Premise
 
-Read, at `832149e`: `crates/podssh-todo/src/check.rs` lines 80-83 give the check the files
-changed since `HEAD` and their texts there, from `crates/podssh-todo/src/remap.rs` lines 51-67
+Read, at `832149e`: `PodUtils/podssh:crates/podssh-todo/src/check.rs` lines 80-83 give the check the files
+changed since `HEAD` and their texts there, from `PodUtils/podssh:crates/podssh-todo/src/remap.rs` lines 51-67
 (`git show HEAD:FILE`) and lines 72-84 (`git diff --name-only HEAD`). The check's `unmoved`
 returns with no problem when the remap fails (`check.rs` line 114), and the remap fails on a file
 that `fs::read_to_string` cannot read (`remap.rs` line 94). The gate runs the check on its
@@ -3474,7 +3482,7 @@ and a remap that fails in the check is a problem. CI's job `checks` checks out t
 runs `cargo todo check --base HEAD~1` (`.github/workflows/build.yml`). `TODO/RULES.md` and
 `docs/development.md` say how to repair a commit made without the remap.
 - Native, Windows 11: `cargo test -p podssh-todo`: 15 unit tests, 2 tests with a real repository
-  (`crates/podssh-todo/tests/base.rs`), 37 plant tests, 13 tests of the remap, the test of this
+  (`PodUtils/podssh:crates/podssh-todo/tests/base.rs`), 37 plant tests, 13 tests of the remap, the test of this
   record and 7 tests of the writer: all pass. Planted, each fails its test: `--base` ignored
   (`HEAD` used); a base that git cannot read let pass; a changed binary file failing the remap
   again; a failed remap passed over.
@@ -4550,7 +4558,7 @@ the curves' 0.14 once needed a newer Rust than the library crates allowed.
 
 - Read: the root `Cargo.toml` asks for `p256` 0.13 and `p384` 0.13 for
   podssh-ws's provider; `deny.toml` ignores RUSTSEC-2026-0387 for the
-  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3877-3880` says why:
+  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3885-3888` says why:
   the curves' 0.14 needed Rust 1.87, above the library crates' 1.85 then).
   T-333 raised the library crates to 1.89 (the operator's ruling of Q48).
 - Read: #68 moves `p384` alone; `p256` stays at 0.13 in the PR, so the copy
@@ -4695,8 +4703,8 @@ red: a session that reads the map to learn which requests wait does not see them
 - Read: `TODO/RULES.md:96-97` says "Map each GitHub issue to its entries in"; an issue closes
   when each of its entries is done, and the map then says so (`TODO/RULES.md:99-104`).
 - Read: the checker knows `issues.md` as a file of the record that holds no entries
-  (`crates/podssh-todo/src/model.rs:23`); it reads its ids and its citations, as in each file of
-  `TODO/` (`crates/podssh-todo/src/refs.rs:22-35`), and no number of an issue.
+  (`PodUtils/podssh:crates/podssh-todo/src/model.rs:23`); it reads its ids and its citations, as in each file of
+  `TODO/` (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:22-35`), and no number of an issue.
 - Read, on GitHub on 2026-10-31: #59 is a survey of the carriers that need no relay of the
   operator's, and #60 to #63 are its four requests (a relay template, SSH on port 443 as a hop, a
   Shadowsocks road, and WARP and Arti). The map names none of them, and its line of pull requests
@@ -4754,7 +4762,7 @@ the row is the place.
 
 2026-10-31: `TODO/github.txt` lists each of GitHub's 77 numbers (53 issues, 24 pull requests)
 with its state, made from GitHub's own lists of the day; `cargo todo check` holds the map to it
-(`crates/podssh-todo/src/github.rs`): each issue in one place, a row of a table or the bold head
+(`PodUtils/podssh:crates/podssh-todo/src/github.rs`): each issue in one place, a row of a table or the bold head
 of a paragraph; each pull request in the map's line of them, its ranges read; the State of a row
 beginning with the issue's state; and no number that the list does not hold.
 
@@ -4792,8 +4800,8 @@ that does not exist today.
 ## Premise
 
 - Read: the check of a Prove is that its body holds a backtick
-  (`crates/podssh-todo/src/check.rs:325-329`); a line in a fenced block is no citation
-  (`crates/podssh-todo/src/refs.rs:96-99`), and the commands of a Prove are in one.
+  (`PodUtils/podssh:crates/podssh-todo/src/check.rs:325-329`); a line in a fenced block is no citation
+  (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:96-99`), and the commands of a Prove are in one.
 - Measured on 2026-10-31, with a script of this triage over the `## Prove` of each entry: each
   `cargo test -p CRATE --test NAME` against the crate's `tests/` and its `[[test]]` targets, and
   each `scripts/` path. Five done entries name `-p podssh-transport` (T-071, T-072, T-073, T-075
@@ -4848,7 +4856,7 @@ where the triage's script read its commands. Each has a Correction for the move 
 ## Done
 
 2026-10-31: `cargo todo check` reads the Prove of each done entry
-(`crates/podssh-todo/src/prove.rs`): each `-p`/`--package` of its `cargo test` commands is a
+(`PodUtils/podssh:crates/podssh-todo/src/prove.rs`): each `-p`/`--package` of its `cargo test` commands is a
 package of the tree (the workspace's crates, `fuzz/`, `vendor/` and its crates), each `--test` a
 file of a `tests/` of one of them or a `[[test]]` of its manifest, and each `scripts/` path
 exists; a target that the entry's `## Correction` names is taken. `cargo todo set T-NNN done`
@@ -4856,7 +4864,7 @@ refuses a Prove whose target does not exist, with its name.
 
 - Its first run named the eight entries of the Correction above; each got a Correction for the
   move of T-082 into `podssh-relay`. T-136's `cp_resume` is taken, as its Correction names it.
-- Tests (`crates/podssh-todo/tests/prove.rs`, on the checker's own tree, which now holds the
+- Tests (`PodUtils/podssh:crates/podssh-todo/tests/prove.rs`, on the checker's own tree, which now holds the
   manifest and a test of its package `x`): the control, and a `--test` that exists, pass; planted,
   a `--test gone` ("TODO/area.md:84: T-003: its Prove names the test target gone"), and a
   script that does not exist (check.sh of the tree's scripts), are named; a target that the Correction names is taken;
@@ -4900,7 +4908,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
   (`docs/cli.md:2000`) and "did not act on yet" (`docs/cli.md:1627`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
-  (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
+  (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame
   cap is never compiled in, is T-342's: its Premise reads that line, and its Approach item 5
   corrects it with the code (`TODO/relay.md:2137-2140`).
@@ -4946,7 +4954,7 @@ check names both.
 ## Done
 
 2026-10-31: `cargo todo check` reads the claims of `docs/`, `README.md`, `AGENTS.md` and
-`SECURITY.md` (`crates/podssh-todo/src/claims.rs`): each "yet" outside fenced blocks and code
+`SECURITY.md` (`PodUtils/podssh:crates/podssh-todo/src/claims.rs`): each "yet" outside fenced blocks and code
 spans is in a unit, a paragraph, an item of a list or a row of a table, that names an entry that is
 not done, or a date or a commit, and a done entry beside it is named; each status beside an id
 agrees with the index, unless its unit reads at a date or a commit. The release notes are
@@ -5386,7 +5394,7 @@ podnet's session the same day (`TODO/PROGRESS.md`, Q101).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** L
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -5427,10 +5435,31 @@ sh scripts/plant-each.sh
 For each crate that podssh takes: podssh's tests of the module it replaced pass on the crate, and
 its plants are caught. No test against a released binary (the operator, 2026-11-05).
 
-## Blocker
+## Correction
 
-The operator: Q101 (the list, the waves, and who builds podcrates), and PodUtils/podcrates made.
+2026-11-05. The blocker is gone: PodUtils/podcrates exists, its own session builds the crates, and
+the owner reserved their names. Two rules of the Approach changed by the owner's rulings
+(`docs/decisions.md`, "The crates of PodUtils/podcrates"): podssh takes each crate by a git tag of
+PodUtils/podcrates (`pod-x = { git = "https://github.com/PodUtils/podcrates", tag = "vX.Y.Z" }`,
+with that URL in `allow-git` of `deny.toml`), not from crates.io; and a crate may link C and
+declares Rust 1.97, edition 2024 (T-685). The podcrates session hands over each crate as a patch of
+podssh (owner/repo `PodUtils/podcrates:adoption/podssh/`), made at a commit of podssh's `main` and
+green in podcrates' `adoption.yml`; podssh applies it on the day of the crate's release, runs its own
+checks, and sends the podcrates session the new commit of `main`.
 
+## Done
+
+2026-11-05, partial. Of `v0.1.0` (`pod-todo`, `pod-core`, `pod-testkit`, `pod-term`,
+`pod-identity`):
+
+- `pod-todo`: `podssh-todo` is the checker of `pod-todo` with podssh's facts in `TODO/todo.toml`;
+  its `interop` command stays in podssh. `cargo todo remap Cargo.lock`; `cargo todo check`: the
+  record agrees; `cargo todo interop`: 741 ids of 56 harnesses meet the baseline;
+  `cargo test -p podssh-todo`: 11 passed. The plant of T-272 still applies to its tests' scratch
+  tree.
+
+Next: `pod-term`, then `pod-identity`; then each crate of the next releases (`pod-tls` in `v0.2.0`,
+then `pod-proxy`, `pod-dns`, `pod-ws`).
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
 
 **Source:** the operator, 2026-11-05: "we use whatever is necessary, including c, zig, modern rust,

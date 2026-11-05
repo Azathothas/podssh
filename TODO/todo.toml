@@ -1,0 +1,4 @@
+# The facts of this repository for the checker of the record (pod-todo of
+# PodUtils/podcrates). The other facts are the defaults of pod-todo, which
+# are podssh's.
+tool = "podssh-todo"

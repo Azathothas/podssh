@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
-# No dependencies: the record is Markdown with fixed lines, and the gate
-# builds this crate on every push.
+# The checker of the record is pod-todo of PodUtils/podcrates; the facts of
+# podssh are in TODO/todo.toml.
 [dependencies]
+pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0" }

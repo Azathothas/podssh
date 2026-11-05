@@ -1,5 +1,5 @@
 //! `podssh-todo`: check the work record, or move a status and derive the
-//! counts. See `TODO/RULES.md`.
+//! counts (`pod-todo`), or check the interop harnesses. See `TODO/RULES.md`.
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();

@@ -37,7 +37,7 @@ recorded one.
   and Status, and the sections Problem, Premise, Approach and Prove. It can
   also have Decision, Blocker, Start condition, Correction and Done, in that
   order. `TODO/INDEX.md` gives the meaning of each value.
-  `crates/podssh-todo/src/model.rs` is the list that the checker accepts.
+  `TODO/todo.toml` and the defaults of `pod-todo` (PodUtils/podcrates) are the lists that the checker accepts.
 - To close an entry: run its Prove, write `## Done` with the date, the commit
   and the result, then run `cargo todo set T-NNN done`.
 - A premise that a measurement disproves keeps its title. Write a

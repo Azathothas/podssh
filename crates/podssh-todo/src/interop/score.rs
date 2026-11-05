@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use super::{is_id, Baseline, Want, BASELINE};
-use crate::model::Problem;
+use pod_todo::model::Problem;
 
 const VERDICTS: &[&str] = &["ok", "FAIL", "skip", "env"];
 

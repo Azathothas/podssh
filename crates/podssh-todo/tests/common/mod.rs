@@ -186,7 +186,7 @@ impl Tree {
     }
 
     pub fn problems(&self) -> Vec<String> {
-        podssh_todo::check::check(&self.root, None).problems.iter().map(|p| p.to_string()).collect()
+        pod_todo::check::check(&self.root, None).problems.iter().map(|p| p.to_string()).collect()
     }
 
     pub fn path(&self) -> &Path {

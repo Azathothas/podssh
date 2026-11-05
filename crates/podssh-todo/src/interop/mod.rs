@@ -14,7 +14,7 @@ use std::path::Path;
 
 pub use score::{score, Log};
 
-use crate::model::Problem;
+use pod_todo::model::Problem;
 
 /// The baseline, relative to the root.
 pub const BASELINE: &str = "scripts/interop-baseline.txt";
