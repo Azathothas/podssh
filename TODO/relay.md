@@ -46,7 +46,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
    (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
    (`crates/podssh-relay/src/open.rs:389-398`), and the token check of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 142-165 at `2da855f`).
-3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:55-64`), with a
+3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:49-58`), with a
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
    an old entry only under the default key, where it was right.
 4. Change in the same commit: `docs/relay.md` (lines 43-45 at `2da855f`), the comments at `relay.rs:36-37` and
@@ -275,7 +275,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 1. After a host fails with an error that another host can repair (`another_host_may_help`,
    `crates/podssh-relay/src/open.rs:71-93`), write a record (host, time, class) into a private
    file `relay-failures-KEY.json` with `cache::store_file`
-   (`crates/podssh-relay/src/cache.rs:159-193`). Remove the record when the host succeeds.
+   (`crates/podssh-relay/src/cache.rs:153-187`). Remove the record when the host succeeds.
 2. At the start of `open` (`crates/podssh-relay/src/open.rs:212-298`), move each host whose
    record is younger than a fixed window (10 min) to the end of the list, in its old order.
    Never remove a host: each host is still tried.
@@ -907,7 +907,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:435-452`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:429-446`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:109-123`), so that the tests can set it.
@@ -1640,7 +1640,7 @@ the user's own file is read. Planted: a check that returns `true`; a test fails.
 
 ## Done
 
-2026-10-11. On Windows `closed` (`crates/podssh-relay/src/cache.rs:470-496`) reads the owner and
+2026-10-11. On Windows `closed` (`crates/podssh-relay/src/cache.rs:464-490`) reads the owner and
 the access list of the opened file (`crates/podssh-relay/src/cache/closed_win.rs:45-49`) and judges
 them by the rules of the Decision (`crates/podssh-relay/src/cache/closed.rs:45-65`); podssh's
 directories and files are made private (`crates/podssh-relay/src/cache/closed_win.rs:218-294`).
@@ -4405,7 +4405,7 @@ plant), and a session cut at its key's budget, which the Approach does not ask a
 client's shell in the middle. A request that never became a session (a refusal, a target out of
 reach) charges nothing and counts no session: the count starts at the upgrade. Each link of the layer
 is a session of its own, its frames of the layer among its payload, as for its cap of 64 MiB. The file
-is read up to 16 MiB, not the cache's 64 KiB (`crates/podssh-relay/src/cache.rs:53`), which holds a few
+is read up to 16 MiB, not the cache's 64 KiB (`crates/podssh-relay/src/cache.rs:47`), which holds a few
 hundred keys: a role whose own file grew past it would not start. `--quota` is whole MiB from 1 to
 16777216; `--quota` and `--usage` beside `--mint anyone` or `nobody`, which count no key, are usage
 errors (64). The relay behind a quick tunnel counts in memory, with no budget; lost: `--quota` for
@@ -4805,7 +4805,7 @@ Read at `2042200`:
 - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB
   (`crates/podssh-cli/src/shadowsocks/subscription.rs:19`), a day kept (`:21`), 20 s (`:23`), three
   redirects (`:25`), `https://` alone (`:48`), through `podssh_ws::client::https_get`
-  (`crates/podssh-ws/src/client.rs:280`), kept by `crates/podssh-relay/src/cache.rs:161`.
+  (`crates/podssh-ws/src/client.rs:280`), kept by `crates/podssh-relay/src/cache.rs:155`.
 
 ## Approach
 

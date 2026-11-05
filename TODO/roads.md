@@ -173,7 +173,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:366-367`,
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
    (`crates/podssh-relay/src/cache.rs`, lines 61-76 at `4dd52f8`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:329-354`: mode 0600, no
+   the token cache (`crates/podssh-relay/src/cache.rs:323-348`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket

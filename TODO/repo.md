@@ -1256,7 +1256,7 @@ Read:
   `stty`, `vi`, `less`, `top`, `seq`, `sed` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
   `crates/podssh-ssh/src/prompt.rs:100`, and the `cfg(not(unix))` branches of
-  `crates/podssh-relay/src/cache.rs:362-496`.
+  `crates/podssh-relay/src/cache.rs:356-490`.
 
 ## Approach
 

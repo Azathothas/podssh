@@ -1894,7 +1894,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The
    node checks the grant before it dials the TARGET, so the dial moves after `ready` (`docs/reverse.md:16`):
    the seam of T-088 and T-089. Spent nonces are create-new private files
-   (`crates/podssh-relay/src/cache.rs:370-388`).
+   (`crates/podssh-relay/src/cache.rs:364-382`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
    (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:307-309`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the
@@ -1986,7 +1986,7 @@ parts, and the Decision above (the relay's shape, by the relay's operator) gives
   window that it must have, a random serial, and the critical option `once@podssh`. OpenSSH's
   `ssh-keygen -s ... -O critical:once@podssh` mints one, and so does `podssh keygen -s`
   (`crates/podssh-cli/src/keygen_cert.rs:1-6`). The node checks it before it dials, records the
-  serial in a create-new private file (`crates/podssh-relay/src/cache.rs:370-376`), and refuses
+  serial in a create-new private file (`crates/podssh-relay/src/cache.rs:364-370`), and refuses
   a second use. Bound to the grantee's key, a leaked grant is worth nothing without that key,
   which answers the reporter's correction; a resume of the layer runs no new handshake, so a
   used grant ends no resumed session.

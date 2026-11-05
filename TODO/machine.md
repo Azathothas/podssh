@@ -219,7 +219,7 @@ owner row (line 429) and no arguments (`crates/podssh-cli/src/positionals.rs` li
 has a local source that
 opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:107-125`,
 `crates/podssh-relay/src/pool.rs:113-126`); the token cache
-(`crates/podssh-relay/src/cache.rs:92-112`, which returns the token itself in `Cached`, lines
+(`crates/podssh-relay/src/cache.rs:86-106`, which returns the token itself in `Cached`, lines
 29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:90-96`, 90-98); the attachment
 (`crates/podssh-cli/src/non_interactive.rs:68-70`); the proxy, shown with no credentials
 (its `Display`, `crates/podssh-ws/src/proxy.rs:70-75` since T-070).
@@ -830,7 +830,7 @@ host, and how they ended. Each of these facts is lost when the process ends.
 Read: podssh keeps no record of a session. `-E LOGFILE` appends podssh's own messages, which is
 another purpose (`crates/podssh-cli/src/flags.rs:145-146`). The cache directories and the rules
 for private files are in `crates/podssh-relay/src/cache/dirs.rs:136-241` and
-`crates/podssh-relay/src/cache.rs:197-332`. `write_private`
+`crates/podssh-relay/src/cache.rs:191-326`. `write_private`
 replaces a whole file (lines 178-197 at `22c3b88`), and no function appends to one.
 
 ## Approach

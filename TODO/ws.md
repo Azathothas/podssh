@@ -2285,7 +2285,7 @@ and each other command print rustls's words alone. An error should tell what to 
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid
   yet") holds for both.
 - Read: the expiry of a cached token is read against the local clock, and a token that the relay
-  refuses is minted again once (`crates/podssh-relay/src/cache.rs:105`;
+  refuses is minted again once (`crates/podssh-relay/src/cache.rs:99`;
   `crates/podssh-relay/src/open.rs:389-401`): that case needs no hint.
 
 ## Approach
