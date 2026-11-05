@@ -269,14 +269,24 @@ pub fn names_from(dirs: &[PathBuf], prefix: &str, suffix: &str) -> Vec<String> {
 /// is a regular file of this user that nobody else can read, as ssh reads a
 /// key. A symbolic link that the user gives is followed.
 pub fn read_private(path: &Path) -> Result<String, String> {
+    read_private_up_to(path, MAX_FILE)
+}
+
+/// [`read_private`] of a file that may hold `most` bytes: a role's own file
+/// of pairs or of counts, which a full role makes larger than a file of the
+/// cache (T-677).
+pub fn read_private_up_to(path: &Path, most: u64) -> Result<String, String> {
     let shown = path.display();
     let file = std::fs::File::open(path).map_err(|e| format!("{shown}: {e}"))?;
     let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
     if !meta.is_file() {
         return Err(format!("{shown} is not a regular file"));
     }
-    if meta.len() > MAX_FILE {
-        return Err(format!("{shown} is larger than a file of the cache can be"));
+    if meta.len() > most {
+        return Err(match most {
+            MAX_FILE => format!("{shown} is larger than a file of the cache can be"),
+            _ => format!("{shown} holds more than {} KiB", most >> 10),
+        });
     }
     closed(path, &file, Others::NoAccess)?;
     let mut text = String::new();

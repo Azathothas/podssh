@@ -37,17 +37,5 @@ pub fn load(path: &Path, day: u64) -> Result<HashMap<String, Totals>, String> {
 /// The text of the private file `path`, as the cache reads one, but
 /// [`FILE_MOST`] at most.
 fn read_counts(path: &Path) -> Result<String, String> {
-    let shown = path.display();
-    let file = std::fs::File::open(path).map_err(|e| format!("{shown}: {e}"))?;
-    let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
-    if !meta.is_file() {
-        return Err(format!("{shown} is not a regular file"));
-    }
-    if meta.len() > FILE_MOST {
-        return Err(format!("{shown} holds more than {} MiB", FILE_MOST >> 20));
-    }
-    crate::cache::closed(path, &file, crate::cache::Others::NoAccess)?;
-    let mut text = String::new();
-    std::io::Read::read_to_string(&mut &file, &mut text).map_err(|e| format!("{shown}: {e}"))?;
-    Ok(text)
+    crate::cache::read_private_up_to(path, FILE_MOST)
 }

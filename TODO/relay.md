@@ -907,7 +907,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:417-434`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:427-444`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:109-123`), so that the tests can set it.
@@ -1308,7 +1308,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:346`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:347`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -1640,7 +1640,7 @@ the user's own file is read. Planted: a check that returns `true`; a test fails.
 
 ## Done
 
-2026-10-11. On Windows `closed` (`crates/podssh-relay/src/cache.rs:452-478`) reads the owner and
+2026-10-11. On Windows `closed` (`crates/podssh-relay/src/cache.rs:462-488`) reads the owner and
 the access list of the opened file (`crates/podssh-relay/src/cache/closed_win.rs:45-49`) and judges
 them by the rules of the Decision (`crates/podssh-relay/src/cache/closed.rs:45-65`); podssh's
 directories and files are made private (`crates/podssh-relay/src/cache/closed_win.rs:218-294`).
@@ -4361,8 +4361,8 @@ Read at `2042200`:
   replaces; the issue's own Risks say so.
 - The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:368-372` takes the key that
   proved itself, and drops it after its line.
-- The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:446`)
-  and a SHA-256 of each token (`:443`).
+- The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:451`)
+  and a SHA-256 of each token (`:448`).
 - The brake counts requests for each address (`crates/podssh-relay/src/serve/brake.rs:22` says
   "pub const PER_MINUTE: usize = 120;"), never bytes.
 
@@ -4809,3 +4809,52 @@ client's Close; planted, the silence counted from the Close, it fails. The layer
   session_relay_resume`: 16 and 6 passed; `--features serve --lib serve::forward`: 2; the relay
   crate with each serve feature and podssh-ws whole: 1,318 passed, 0 failed. Plants
   `t671-close-ends-the-session` and `t671-silence-from-the-close` caught. Clippy and rustfmt clean.
+
+# T-677: A role with some 200 pairs or more does not start again: its file of pairs is read as a file of the cache
+
+**Source:** the drafting agent of T-636, 2026-11-05 (a defect that it saw beside its work).
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`podssh relay serve --pairs FILE` keeps up to 4,096 pairs, and writes each into FILE; at its start it
+reads FILE again. It read FILE as a file of the cache, whose reader refuses more than 64 KiB, and a
+pair takes a few hundred bytes of it: a role with some 200 pairs or more did not start again (78),
+and its pairs were lost to each node and operator.
+
+## Premise
+
+- `crates/podssh-relay/src/serve/reverse/pairs.rs` at `8462c35`, line 438, said "let text =
+  crate::cache::read_private(path)?;", and line 31 says "pub const MAX_PAIRS: usize = 4096;".
+- `crates/podssh-relay/src/cache.rs` at `8462c35`, line 45, said "pub const MAX_FILE: u64 = 64 *
+  1024;", which `read_private` held each file to.
+
+## Approach
+
+A private read with a bound of its caller's (`cache::read_private_up_to`); the file of pairs takes 4
+MiB, and T-636's file of counts, which had a copy of the reader for its 16 MiB, takes the same one.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,pair --lib -- serve::reverse::pairs
+sh scripts/plant-each.sh --here t677-pairs-at-the-cache-s-cap
+```
+
+A role with 400 pairs, a file over 64 KiB, starts again with each of them; planted, the file read as
+a file of the cache, the test fails.
+
+## Done
+
+2026-11-05. `cache::read_private_up_to(path, most)`, of which `read_private` is the cache's case; the
+file of pairs is read up to 4 MiB (`FILE_MOST`), and the file of counts of T-636 through the same
+reader. The test `a_file_larger_than_a_file_of_the_cache_is_read_again` makes 400 pairs, checks that
+their file is over 64 KiB, and finds the first and the last after a restart: passed; planted
+(`t677-pairs-at-the-cache-s-cap`), it fails: caught. `cargo test -p podssh-relay --features
+serve,plain-ws,quick,pair,grant,piping,code,quic --lib -- pairs:: usage cache`: 35 passed. Clippy and
+rustfmt clean.

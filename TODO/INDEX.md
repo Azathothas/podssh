@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**631 entries: 102 open, 10 partial, 3 blocked, 516 done.**
+**632 entries: 102 open, 10 partial, 3 blocked, 517 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
-| P2 | 25 | 4 | 0 | 247 | 276 |
+| P2 | 25 | 4 | 0 | 248 | 277 |
 | P3 | 77 | 4 | 3 | 203 | 287 |
-| **All** | 102 | 10 | 3 | 516 | 631 |
+| **All** | 102 | 10 | 3 | 517 | 632 |
 
 ## Entries
 
@@ -707,3 +707,4 @@ repository and CI).
 | [T-674](robustness.md) | P3 | S | none | feature | done | The SSH client's own lines keep one priority in the journal |
 | [T-675](ssh.md) | P1 | S | M10 | defect | done | The gate red since T-664: the record of the keys that hosts took loses a change, and the stall's check names the old first request |
 | [T-676](roads.md) | P2 | S | M10 | defect | done | A WARP test inherits an earlier test's memory of a re-terminated TLS at a reused port |
+| [T-677](relay.md) | P2 | S | M10 | defect | done | A role with some 200 pairs or more does not start again: its file of pairs is read as a file of the cache |

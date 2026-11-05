@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/reverse/pairs.rs
++++ b/crates/podssh-relay/src/serve/reverse/pairs.rs
+@@ -440,7 +440,7 @@
+     if matches!(std::fs::symlink_metadata(path), Err(e) if e.kind() == std::io::ErrorKind::NotFound) {
+         return Ok(Vec::new());
+     }
+-    let text = crate::cache::read_private_up_to(path, FILE_MOST)?;
++    let text = crate::cache::read_private(path)?;
+     let file: File =
+         serde_json::from_str(&text).map_err(|e| format!("{}: not a file of pairs: {e}", path.display()))?;
+     Ok(file.pairs)

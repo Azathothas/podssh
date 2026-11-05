@@ -830,7 +830,7 @@ host, and how they ended. Each of these facts is lost when the process ends.
 Read: podssh keeps no record of a session. `-E LOGFILE` appends podssh's own messages, which is
 another purpose (`crates/podssh-cli/src/flags.rs:145-146`). The cache directories and the rules
 for private files are in `crates/podssh-relay/src/cache/dirs.rs:136-241` and
-`crates/podssh-relay/src/cache.rs:189-314`. `write_private`
+`crates/podssh-relay/src/cache.rs:189-324`. `write_private`
 replaces a whole file (lines 178-197 at `22c3b88`), and no function appends to one.
 
 ## Approach

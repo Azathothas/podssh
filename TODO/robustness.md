@@ -607,7 +607,7 @@ fail.
   covers both reads.
 - A pool body past its bound, and a file of the cache past its bound, are dropped with no word:
   the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:400`), and the cache reads a
-  file that it cannot use as none (`crates/podssh-relay/src/cache.rs:313-315`). Each is made again,
+  file that it cannot use as none (`crates/podssh-relay/src/cache.rs:323-325`). Each is made again,
   so the table says so, and nothing is added.
 - `PODSSH_REPLAY_BUFFER` above 16 MiB gives 4 MiB, the default, not 16 MiB
   (`crates/podssh-relay/src/session/replay.rs:27-31`), as its comment says: another value is
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-32`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:714-734`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:715-735`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
@@ -977,7 +977,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io/msg.rs:35-42`, with `crates/podssh-ssh/src/io.rs:68-70`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:158`, `docs/STATUS.md:164`).
+  (`docs/STATUS.md:159`, `docs/STATUS.md:165`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:5249-5250` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the

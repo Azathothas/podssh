@@ -431,11 +431,16 @@ impl Kept {
     }
 }
 
+/// The largest file of pairs read: [`MAX_PAIRS`] of a few hundred bytes
+/// each. Read as a file of the cache, 64 KiB held some 200, and a role with
+/// more did not start again (T-677).
+pub(crate) const FILE_MOST: u64 = 4 << 20;
+
 fn load(path: &Path) -> Result<Vec<Kept>, String> {
     if matches!(std::fs::symlink_metadata(path), Err(e) if e.kind() == std::io::ErrorKind::NotFound) {
         return Ok(Vec::new());
     }
-    let text = crate::cache::read_private(path)?;
+    let text = crate::cache::read_private_up_to(path, FILE_MOST)?;
     let file: File =
         serde_json::from_str(&text).map_err(|e| format!("{}: not a file of pairs: {e}", path.display()))?;
     Ok(file.pairs)

@@ -1,0 +1,7 @@
+# T-677: the role's file of pairs read as a file of the cache, 64 KiB at
+# most, so a role with some 200 pairs or more does not start again; the test
+# of 400 pairs read again after a restart must fail.
+ENTRY=T-677
+GROUP=resume
+EXPECT='test serve::reverse::pairs::tests::a_file_larger_than_a_file_of_the_cache_is_read_again \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,pair --lib -- serve::reverse::pairs::tests::a_file_larger_than_a_file_of_the_cache_is_read_again'

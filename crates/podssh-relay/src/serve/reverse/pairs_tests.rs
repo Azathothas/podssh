@@ -376,3 +376,22 @@ async fn past_the_grace_a_socket_that_took_nothing_gets_1012_first() {
     assert_eq!(close, (Some(1012), "relay restarting".to_string()));
     assert!(!pairs.stopping(), "the stop is over");
 }
+
+/// T-677: a file of more pairs than a file of the cache holds (64 KiB, some
+/// 200 pairs) is read again after a restart, each pair in it.
+#[test]
+fn a_file_larger_than_a_file_of_the_cache_is_read_again() {
+    let dir = std::env::temp_dir().join(format!("podssh-pairs-{}-{}", std::process::id(), line!()));
+    crate::cache::private_dir(&dir).unwrap();
+    let path = dir.join("pairs.json");
+    let now = super::super::super::tokens::now_ms();
+    let pairs = Pairs::open(Some(path.clone())).unwrap();
+    let made: Vec<_> = (0..400).map(|_| pairs.make(now).unwrap()).collect();
+    let size = std::fs::metadata(&path).unwrap().len();
+    assert!(size > crate::cache::MAX_FILE, "the file holds {size} bytes, within a file of the cache");
+    let again = Pairs::open(Some(path)).expect("a role with 400 pairs starts again");
+    for pair in [&made[0], &made[399]] {
+        assert!(again.find(&pair.name, Role::Connect, Some(&pair.connect), now).is_some(), "{}", pair.name);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
