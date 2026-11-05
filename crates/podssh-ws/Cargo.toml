@@ -69,6 +69,7 @@ libc = { workspace = true }
 plain-ws = []
 
 [dev-dependencies]
+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0", features = ["screen"] }
 # The doctor is async because it may be asked to perform a handshake, and
 # the plants that assert `????` rather than `ok` have to drive it as a caller
 # would. `macros` is what makes `#[tokio::test]` exist.

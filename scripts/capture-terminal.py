@@ -4,12 +4,12 @@
     python3 scripts/capture-terminal.py [OUT_DIR]
 
 The tests of where a stream of terminal output may start
-(crates/podssh-terminal/tests/grammar_boundary.rs) cut captured sessions at
+(tests/grammar_boundary.rs of pod-term, in PodUtils/podcrates; T-684) cut captured sessions at
 each offset. less and top write their screens only to a terminal, so each
 runs here in a real pty of 24 rows and 80 columns, with
 TERM=xterm-256color, and gets a few keys; vi too, which the tests' first
 capture ran with output to a file. Each program's bytes go unchanged to
-OUT_DIR/NAME.bin (default: crates/podssh-terminal/tests/fixtures):
+OUT_DIR/NAME.bin (default: .work/terminal-captures; copy them to pod-term):
 less.bin, top.bin and vi-pty.bin. A program that is missing gets an `env`
 line and no file.
 
@@ -31,7 +31,7 @@ import termios
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "crates", "podssh-terminal", "tests", "fixtures")
+OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, ".work", "terminal-captures")
 ROWS, COLS = 24, 80
 # Each program ends within this time after its last key, or is killed.
 END_WAIT = 10.0

@@ -2270,7 +2270,7 @@ test of the order fails.
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:323`).
+(`docs/architecture.md:322`).
 
 ## Premise
 
@@ -3062,7 +3062,7 @@ Read at `2042200`:
   this runs for the target", and DNS over HTTPS is the fifth step, after the system's resolver
   (`crates/podssh-ws/src/resolve.rs:10`). So the issue's "ride the query that the name already causes"
   holds for few runs: in the target host, behind its proxy, no query is made at all.
-- TLS has podssh's own provider and no other: `Cargo.toml:80` says "default-features = false and NO
+- TLS has podssh's own provider and no other: `Cargo.toml:78` says "default-features = false and NO
   crypto provider feature."; its parts (`crates/podssh-ws/src/crypto/`) hold no HPKE, which rustls's ECH
   needs, and aws-lc's is C, which `podssh-ws` may not hold (rule 4 of `AGENTS.md`).
 - The resolvers are compiled in (`crates/podssh-ws/src/resolve.rs:66`), and are asked through the proxy

@@ -26,8 +26,7 @@
 #![cfg(target_os = "linux")]
 
 mod pty_harness;
-#[path = "../../podssh-terminal/tests/screen/mod.rs"]
-mod screen;
+use pod_testkit::screen;
 mod ssh_harness;
 mod stand_harness;
 mod throughput_harness;

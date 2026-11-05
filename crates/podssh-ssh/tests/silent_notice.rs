@@ -7,8 +7,7 @@
 //! gives the title back before the far end's next bytes. A planted notice
 //! written at the cursor, as a line, fails the check of the screen.
 
-#[path = "../../podssh-terminal/tests/screen/mod.rs"]
-mod screen;
+use pod_testkit::screen;
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

@@ -90,6 +90,7 @@ windows-sys = { version = "0.61", features = [
 pageant = { version = "0.2.4", default-features = false, features = ["wmmessage"] }
 
 [dev-dependencies]
+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0", features = ["screen"] }
 # `test-util` gives the tests a paused clock: a hop's 10 s of silence (T-462)
 # and the relay's idle cut at 180 s (T-463) pass at once.
 tokio = { workspace = true, features = ["macros", "rt", "signal", "process", "test-util"] }

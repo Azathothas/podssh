@@ -378,7 +378,7 @@ Decided in the work (2026-10-12):
   `Parser`, rows, cursor and cells are all that the tests use, so a later
   release, which may share `unicode-width` 0.2 with the workspace where 0.15
   brings 0.1 into the tests, is a change of one line.
-- One model, `crates/podssh-terminal/tests/screen/mod.rs`, which the tests
+- One model, `PodUtils/podssh:crates/podssh-terminal/tests/screen/mod.rs`, which the tests
   of podssh-ws and podssh-ssh read through `#[path]`, as podssh-ts reads a
   test of the fork. A copy in each crate lost: three models can disagree, as
   two sanitizers once did. A crate of its own for tests lost: a workspace
@@ -387,7 +387,7 @@ Decided in the work (2026-10-12):
   line drawn on an empty screen, and the cursor where a mark after the text
   before the line's cursor lands. Each cell from the prompt's row down must
   agree. A model of the wrap written in the test lost: it would be a second
-  copy of the rules of `crates/podssh-terminal/src/echo/screen.rs`, and the
+  copy of the rules of `PodUtils/podssh:crates/podssh-terminal/src/echo/screen.rs`, and the
   oracle would judge the discipline by its own rules.
 - The runs of keys come from a fixed xorshift, as `pseudo_random` in
   `crates/podssh-relay/tests/session_replay.rs`, with the seed in each
@@ -426,7 +426,7 @@ columns, `screen_runs_of_keys_with_iutf8_on_8_columns` (seed 1016) and its
 neighbour on 16 columns failed: a redraw over rows wrote the prompt and the
 line in one piece, and where a wide character did not fit in the last cell
 of a row, the terminal took it to the next row and kept what that cell
-held, a `7` of the line before. `crates/podssh-terminal/src/echo/screen.rs`
+held, a `7` of the line before. `PodUtils/podssh:crates/podssh-terminal/src/echo/screen.rs`
 said that the terminal leaves the rest of such a row blank; the `vt100`
 model keeps it. `redraw_rows` now writes the line a step at a time, with
 `ESC [ K` before a wide glyph that starts the next row, and the module's
@@ -436,7 +436,7 @@ below).
 2026-10-12: tmux 3.7c's `capture-pane -p` gives the cells that a tab
 skipped as the tab itself, so the case `bell-and-tab` differed in its text
 and not in its screen (the cursor in column 9 in both).
-`crates/podssh-terminal/tests/calibration.rs` reads each tab of tmux's rows
+`PodUtils/podssh:crates/podssh-terminal/tests/calibration.rs` reads each tab of tmux's rows
 as the blanks up to the next stop of 8.
 
 ## Done
@@ -445,12 +445,12 @@ as the blanks up to the next stop of 8.
 pure, and the prefix of a host (T-183) goes on each line in `host_text`.
 - The model: `vt100` 0.15 in `[workspace.dependencies]` (`Cargo.toml`), a
   dev-dependency of podssh-terminal, podssh-ws and podssh-ssh.
-  `crates/podssh-terminal/tests/screen/mod.rs`: bytes in, a screen out (each
+  `PodUtils/podssh:crates/podssh-terminal/tests/screen/mod.rs`: bytes in, a screen out (each
   row, the cursor, each cell's character and attributes, the other screen).
 - The newline rule is a pure function, `podssh_ssh::log::message_text`
   (`crates/podssh-ssh/src/log.rs`), which `Log::write` calls with the state
   of raw mode; the test touches no global state.
-- `crates/podssh-terminal/tests/oracle.rs` (M5, T-125 to T-129 being done):
+- `PodUtils/podssh:crates/podssh-terminal/tests/oracle.rs` (M5, T-125 to T-129 being done):
   `screen_t127_a_wide_character_and_an_accent_take_their_cells`,
   `screen_t127_backspace_takes_a_whole_character_off_the_screen`,
   `screen_t126_a_wide_character_that_does_not_fit_starts_the_next_row`,
@@ -473,9 +473,9 @@ pure, and the prefix of a host (T-183) goes on each line in `host_text`.
   `after_the_server_s_output_a_message_and_the_help_start_on_rows_of_their_own`,
   and the control
   `without_raw_mode_the_text_keeps_its_line_feeds_which_a_raw_terminal_shows_as_stairs`.
-- The calibration: `crates/podssh-terminal/tests/screen/corpus.txt`, 33
+- The calibration: `PodUtils/podssh:crates/podssh-terminal/tests/screen/corpus.txt`, 33
   sequences of the kinds that podssh writes, and
-  `crates/podssh-terminal/tests/calibration.rs`:
+  `PodUtils/podssh:crates/podssh-terminal/tests/calibration.rs`:
   `the_corpus_reads_and_the_model_draws_each_case`,
   `the_model_and_tmux_show_the_same_screens` (each sequence raw in a tmux
   pane of its own, each call of tmux within 10 s) and
@@ -490,7 +490,7 @@ pure, and the prefix of a host (T-183) goes on each line in `host_text`.
   terminal_oracle` 4 passed; clippy of the three crates clean. Planted: the
   CR LF conversion of `message_text` removed, 3 of the 4 cases of
   podssh-ssh failed, the help's among them; the cells of a step counted as
-  its bytes in `crates/podssh-terminal/src/echo/units.rs`, 6 of the 10
+  its bytes in `PodUtils/podssh:crates/podssh-terminal/src/echo/units.rs`, 6 of the 10
   cases of the oracle failed. Both were taken out.
 - In the build image (Alpine, tmux 3.7c, `CC` and `CXX` at `/nonexistent`
   as in the gate's step `libs`): the calibration 3 passed (the model and
@@ -556,7 +556,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:545-548`): a proxy head that never ends stops at
+   (`docs/development.md:542-545`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -731,7 +731,7 @@ Decided in the work (2026-10-12):
   says so on each run.
 - Item 3 is done here: T-096 and T-125 to T-129 are done.
   `crates/podssh-core/tests/properties.rs` cuts the IRC framing anywhere;
-  `crates/podssh-terminal/tests/properties.rs` cuts the keys anywhere and
+  `PodUtils/podssh:crates/podssh-terminal/tests/properties.rs` cuts the keys anywhere and
   checks the line, the cursor and the history. What the screen shows is the
   terminal oracle's (T-200).
 - The property of a message past 16 MiB takes 4 inputs: each moves more
@@ -793,7 +793,7 @@ trip of frames must fail and print the smallest frame that fails.
   `a_stream_cut_anywhere_gives_the_same_lines`,
   `a_stream_of_lines_within_the_limit_loses_none` and
   `any_bytes_cut_anywhere_stay_under_the_limit`.
-- `crates/podssh-terminal/tests/properties.rs`:
+- `PodUtils/podssh:crates/podssh-terminal/tests/properties.rs`:
   `keys_cut_anywhere_give_the_same_events`,
   `after_any_bytes_the_line_and_the_history_hold` and
   `with_iutf8_the_cursor_stays_between_characters`.
@@ -871,7 +871,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate, item 9 since T-156,
-   `docs/development.md:366-378`) and the faults table of docs/STATUS.md.
+   `docs/development.md:363-375`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 

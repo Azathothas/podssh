@@ -122,12 +122,12 @@ echo "steps: $*"
 
 # Each package of the workspace, by name: `cargo fmt --all` would also format
 # the fork in vendor/, which keeps its own format and its patches.
-PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-iroh -p podssh-todo -p podssh-warp -p podssh-tor"
+PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-probe -p podssh-ts -p podssh-iroh -p podssh-todo -p podssh-warp -p podssh-tor"
 
 # The library crates. Each crate may use C, zig and the newest stable Rust;
 # the one rule of the build is a statically compiled binary (the operator,
 # 2026-11-05), which the step release checks (scripts/check-static.sh).
-LIBS="-p podssh-ws -p podssh-relay -p podssh-core -p podssh-terminal -p podssh-probe"
+LIBS="-p podssh-ws -p podssh-relay -p podssh-core -p podssh-probe"
 
 # The format of the code (rustfmt.toml) and clippy's lints: the format needs
 # no build. The image has the minimal profile of rustup, so the two

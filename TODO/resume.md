@@ -1550,7 +1550,7 @@ place to live. The parts that need no server (the lease, the limits, the stop
 and the state file) wait too, as the TOTP code of T-115 waits: their shape
 follows the server's pty and channels, which T-107 to T-110 decide. The
 ring of step 1 exists: T-221's `Ring`
-(`crates/podssh-terminal/src/grammar/ring.rs`), which drops its oldest
+(`PodUtils/podssh:crates/podssh-terminal/src/grammar/ring.rs`), which drops its oldest
 bytes only up to a boundary of the terminal's grammar.
 
 # T-160: Local echo and prediction for high latency
@@ -1744,7 +1744,7 @@ says that it is at a boundary
 ## Approach
 
 1. A sans-IO tracker in `podssh-terminal`, a crate with no C, in a new module
-   beside the escape parser (`crates/podssh-terminal/src/escape.rs`). Bytes
+   beside the escape parser (`PodUtils/podssh:crates/podssh-terminal/src/escape.rs`). Bytes
    go in; it says whether the next byte is at a boundary. The caller gives
    the time with each chunk; the module reads no clock.
 2. The states: plain, escape, CSI, OSC, DCS, and the other strings (SOS, PM,
@@ -1785,7 +1785,7 @@ starts at the next newline.
 - Step 3 puts the tracker beside the ring of a kept shell, and no far end
   keeps a shell: T-159 waits for `podssh serve`, which the operator holds
   (Q32). So the ring is made here, in `podssh-terminal`, with no shell
-  around it (`crates/podssh-terminal/src/grammar/ring.rs`). T-159's step 1
+  around it (`PodUtils/podssh:crates/podssh-terminal/src/grammar/ring.rs`). T-159's step 1
   already puts a ring that drops its oldest bytes at a boundary into each
   kept shell; it takes this one.
 - The Prove names the terminal model of T-200 (`vt100`) as the oracle. The
@@ -1806,12 +1806,12 @@ starts at the next newline.
 
 2026-10-13.
 
-- `crates/podssh-terminal/src/grammar.rs`: `Tracker`, sans-IO. `feed`
+- `PodUtils/podssh:crates/podssh-terminal/src/grammar.rs`: `Tracker`, sans-IO. `feed`
   takes a chunk with the time it came and gives each `Boundary`: its
   offset, and whether it is the first after a broken sequence. The states
   of step 2 and UTF-8; `BROKEN_AFTER`, 10 s, after which the next start is
   the byte after a newline or the `ESC` of a repaint.
-  `crates/podssh-terminal/src/grammar/ring.rs`: `Ring`, at most its
+  `PodUtils/podssh:crates/podssh-terminal/src/grammar/ring.rs`: `Ring`, at most its
   capacity, which drops its oldest bytes up to a boundary and gives the
   bytes from it (`start`, `kept`).
 - The calls made where the Approach left a choice. Where terminals differ,
@@ -1827,15 +1827,15 @@ starts at the next newline.
   boundary left it keeps its last bytes and gives none until one comes, so
   it never holds more than its capacity.
 - The captures, with a `-text` line in `.gitattributes`:
-  `crates/podssh-terminal/tests/fixtures/vi.bin`, vim 9.2 of MSYS2
+  `PodUtils/podssh:crates/podssh-terminal/tests/fixtures/vi.bin`, vim 9.2 of MSYS2
   drawing 60 lines of UTF-8 text in 24 rows and 80 columns (10038 bytes:
   the alternate screen, titles by OSC 2, colours, a search, line numbers,
-  a split, its exit); `crates/podssh-terminal/tests/fixtures/prompt.bin`,
+  a split, its exit); `PodUtils/podssh:crates/podssh-terminal/tests/fixtures/prompt.bin`,
   bash run interactive with a prompt that sets the title by OSC 0, then
   `ls --color=always` and UTF-8 text (560 bytes).
   `scripts/capture-terminal.py` captured busybox's less (8230 bytes), top
   (1361) and vi (5355) in a pty of Linux in the build image:
-  `crates/podssh-terminal/tests/fixtures/less.bin`, `top.bin` and
+  `PodUtils/podssh:crates/podssh-terminal/tests/fixtures/less.bin`, `top.bin` and
   `vi-pty.bin`. The test reads each capture there is.
 - `docs/terminal.md`, "Where kept output may start"; `docs/STATUS.md`, the
   row of `podssh-terminal`.

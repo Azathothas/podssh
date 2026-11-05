@@ -1,7 +1,7 @@
 This file holds the work that makes podssh usable by programs and agents: JSON forms of `doctor`,
 `man` and the result of `ssh`, `podssh status`, the end-to-end check in the binary, `podssh
 ping`, an MCP server, and a log of sessions. stdout carries the answer and nothing else
-(`docs/architecture.md:321-322`). `serde` and `serde_json` are already dependencies of the binary
+(`docs/architecture.md:320-321`). `serde` and `serde_json` are already dependencies of the binary
 (`crates/podssh-cli/Cargo.toml:93`), so no entry here needs a new crate for JSON.
 
 # T-049: `podssh doctor --json` (GitHub #9)

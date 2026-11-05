@@ -331,17 +331,17 @@ command, and the session must end.
 
 ## Premise
 
-- Read: `crates/podssh-terminal` holds podbox's echo, editing and history
+- Read: `PodUtils/podssh:crates/podssh-terminal` holds podbox's echo, editing and history
   rules (`docs/terminal.md:172-210`), and reports Ctrl-C and Ctrl-\ as
-  `Event::Signal` (`crates/podssh-terminal/src/echo.rs:421-423`). No command
+  `Event::Signal` (`PodUtils/podssh:crates/podssh-terminal/src/echo.rs:421-423`). No command
   uses it, and it has the defects T-125 to T-129, which come first.
 - Read, at `cb94460`: the crate refuses to add `\r` before `\n`
-  (`crates/podssh-terminal/src/echo.rs` lines 31-37,
-  `crates/podssh-terminal/src/passthrough.rs:56-74`). Here the child writes
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo.rs` lines 31-37,
+  `PodUtils/podssh:crates/podssh-terminal/src/passthrough.rs:56-74`). Here the child writes
   to a pipe and the client's terminal is raw: the case where a lone `\n`
   must become `\r\n` (`docs/terminal.md:265-268`).
 - Read: a signal to the group also stops a shell that does not catch it
-  (`crates/podssh-terminal/src/session.rs:36-46`). Not measured yet: which
+  (`PodUtils/podssh:crates/podssh-terminal/src/session.rs:36-46`). Not measured yet: which
   shell mode survives.
 
 ## Approach
@@ -699,7 +699,7 @@ syslog and no `/var`. A record must not leak secrets or session data.
 
 - Read: podssh's log goes to stderr or to a file
   (`crates/podssh-ssh/src/log.rs:46-62`), as lines with no structure.
-- Read: `serde_json` is a workspace dependency (`Cargo.toml:120`), but not a
+- Read: `serde_json` is a workspace dependency (`Cargo.toml:118`), but not a
   dependency of `podssh-ssh` yet.
 - Read in the report of GitHub #25, not verified here: USBoverSSH writes an
   audit log of connection events.
@@ -946,7 +946,7 @@ files add them, and many cage images have none.
 ## Premise
 
 - Read: in the line discipline mode (T-111), serve prints the prompt and
-  sees each submitted line (`crates/podssh-terminal/src/echo.rs:324-341`),
+  sees each submitted line (`PodUtils/podssh:crates/podssh-terminal/src/echo.rs:324-341`),
   so it knows where each mark goes.
 - Read: with a real pty (T-110), only the shell knows; it needs hooks in its
   start files.

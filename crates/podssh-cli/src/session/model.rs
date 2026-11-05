@@ -16,7 +16,7 @@
 
 use std::time::{Duration, Instant};
 
-use podssh_terminal::grammar::{Ring, Tracker, BROKEN_AFTER};
+use pod_term::grammar::{Ring, Tracker, BROKEN_AFTER};
 
 /// What a raw capture keeps, and the most text that a match reads.
 pub const KEPT: usize = 64 * 1024;
@@ -127,7 +127,7 @@ impl Model {
 }
 
 /// The reader of the text of terminal output, for a match: the states of
-/// the grammar of `podssh_terminal::grammar`, and each text byte kept but
+/// the grammar of `pod_term::grammar`, and each text byte kept but
 /// the control bytes other than LF and TAB. A sequence may be cut between
 /// two chunks.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

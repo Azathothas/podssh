@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:228-235` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5529-5530`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5538-5539`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -2961,7 +2961,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
   after the login, as the failure's decode ends it. #83's 15 bytes are a failure's too, then: a
   Go server that knows no `keepalive@openssh.com` refuses it.
 - Read: the project carries a patched crate in `vendor/` through `[patch.crates-io]`, iroh-relay's
-  (`vendor/README.md:154-173`, `Cargo.toml:237-239`), and watches its upstream (T-341); russh's
+  (`vendor/README.md:154-173`, `Cargo.toml:235-237`), and watches its upstream (T-341); russh's
   copy went with T-356, as 0.65.0 gave what its patch had added.
 
 ## Approach
@@ -3093,7 +3093,7 @@ same day. The WIP `818f7fe` (branch `worktree-agent-t460-ssh`) is carried onto
   bytes)"). The rest the draft named for the main
   session: `cargo todo interop`; `cargo todo remap` of
   `Cargo.toml`, `docs/development.md`, `vendor/README.md`, `AGENTS.md`, `docs/cli.md` and
-  `docs/STATUS.md` (the draft moved their citations by hand, `Cargo.toml:212` among them);
+  `docs/STATUS.md` (the draft moved their citations by hand, `Cargo.toml:210` among them);
   and TruffleHog: the test keys of russh 0.65.0 are where 0.64.1 held them, so after the commit
   on `main` add to `.github/secrets-allow.txt`, with that commit's first 12 digits for COMMIT
   (and the draft branch's commit, if it is pushed):

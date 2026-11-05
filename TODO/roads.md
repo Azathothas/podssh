@@ -3941,7 +3941,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
   registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:314-315`),
-  `1.0.0-beta.2` today (`Cargo.toml:51`).
+  `1.0.0-beta.2` today (`Cargo.toml:49`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
 - Read: cloudflared's README says "Cloudflare currently supports versions of cloudflared that are
@@ -4687,7 +4687,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:315-320`; `docs/design.md:66`), and
+- Read: credentials never go in URLs (`docs/architecture.md:314-319`; `docs/design.md:66`), and
   `docs/decisions.md:85` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -6437,7 +6437,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:315-320`); an `ss://` URI holds the password.
+  (`docs/architecture.md:314-319`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH

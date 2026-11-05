@@ -24,7 +24,7 @@ shows each key two times.
 | refused | terminal | Keeps the local terminal in its normal mode, so its line discipline gives echo and editing. Prints "no pty on the server" one time on stderr. |
 | refused | not a terminal | A plain pipe, as for a command. |
 
-The line discipline in the process (`crates/podssh-terminal`) is for the
+The line discipline in the process (`pod-term` of PodUtils/podcrates, until T-684 `crates/podssh-terminal`) is for the
 case that remains: keys arrive raw, and nothing below edits them, neither a
 pty nor a line discipline. Three facts choose its mode (`Mode::select`):
 a pty below, a line discipline below, and the caller's selection. It
@@ -391,7 +391,7 @@ title would show on the command line (GitHub #31). A resume of the
 resumable layer never meets this: it sends again each byte that the other
 side did not acknowledge (T-152).
 
-`crates/podssh-terminal/src/grammar.rs` (T-221) reads the output as a
+`PodUtils/podssh:crates/podssh-terminal/src/grammar.rs` (T-221) reads the output as a
 terminal does, and finds each boundary: a place where a terminal that
 starts to read shows no part of a sequence. Its ring
 (`podssh_terminal::grammar::Ring`) drops bytes only up to a boundary.
@@ -413,7 +413,7 @@ starts to read shows no part of a sequence. Its ring
   broken sequence, and the newest, so a cut drops at most about 1/256 of
   the ring more than it must.
 
-`crates/podssh-terminal/tests/grammar_boundary.rs` cuts the output that
+`PodUtils/podssh:crates/podssh-terminal/tests/grammar_boundary.rs` cuts the output that
 real programs wrote (vim, and an interactive bash whose prompt sets the
 title; `scripts/capture-terminal.py` adds less and top from a pty of
 Linux) at each offset, and checks the first byte kept against anstyle-parse,
@@ -577,11 +577,11 @@ The terminal oracle (T-200) judges what a terminal shows, not the bytes. A
 test that compares bytes with bytes that a person wrote passes when both
 share a mistake, such as a wrong column or lines that step down like
 stairs. The model is the `vt100` crate, a VT terminal in raw mode, in the
-tests only (`crates/podssh-terminal/tests/screen/mod.rs`); the tests of
+tests only (`PodUtils/podssh:crates/podssh-terminal/tests/screen/mod.rs`); the tests of
 podssh-ws and podssh-ssh read the same file. Each test compares rows, the
 cursor and the attributes of cells:
 
-- `cargo test -p podssh-terminal --test oracle`: after each key of a run,
+- `cargo test -p pod-term --test oracle` (in PodUtils/podcrates): after each key of a run,
   the screen shows the prompt and the line from the first column of a row,
   wrapped as the terminal wraps them, with nothing after them, and the
   cursor in the cell where the next character after the text before the
@@ -606,8 +606,8 @@ cursor and the attributes of cells:
   forward session on a link that stays silent.
 
 The model must agree with tmux before it judges podssh: each sequence of a
-fixed corpus (`crates/podssh-terminal/tests/screen/corpus.txt`) goes
+fixed corpus (`PodUtils/podssh:crates/podssh-terminal/tests/screen/corpus.txt`) goes
 through both, and the rows and the cursor must be the same
-(`cargo test -p podssh-terminal --test calibration`). `PODSSH_TEST_TMUX`
+(`cargo test -p pod-term --test calibration` in PodUtils/podcrates). `PODSSH_TEST_TMUX`
 names tmux; the gate installs it and names it, and with no tmux on the host
 the check says that it did not run.

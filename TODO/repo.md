@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:838-951`): the
+5. docs/development.md, "Release builds" (`docs/development.md:835-948`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1898,7 +1898,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:212` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:210` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -2023,7 +2023,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:324-326` states the rule with `CXX`, and
+- `docs/development.md:321-323` states the rule with `CXX`, and
   `docs/STATUS.md:856` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -2304,7 +2304,7 @@ Read, names of files that do not exist, at `f32334c`: docs/spec/06-cli.md
 (`crates/podssh-cli/src/flags.rs` lines 3, 12 and 404-406, and four more
 files); docs/TODO/cli/surface.md (`crates/podssh-cli/src/flags.rs` line 103,
 `crates/podssh-cli/src/suggest.rs` line 9); docs/TODO/protocol/ssh-core.md
-(`crates/podssh-terminal/src/window.rs` lines 42-44); docs/spec/01-relay-protocol.md
+(`PodUtils/podssh:crates/podssh-terminal/src/window.rs` lines 42-44); docs/spec/01-relay-protocol.md
 (`crates/podssh-core/src/irc/limits.rs` line 8,
 `crates/podssh-probe/facts/relay-facts.toml` lines 3-5); a root RULES.md with lines
 138-142 (crates/podssh-transport/src/lib.rs line 4 at `e8bbd4d`); check-todo.py
@@ -3961,19 +3961,19 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 ## Premise
 
 - Read: `crates/podssh-ssh/Cargo.toml:25` and `crates/podssh-cli/Cargo.toml:98`
-  ask for `sha1` 0.10.7, and the root `Cargo.toml:137` for `hmac` 0.12;
+  ask for `sha1` 0.10.7, and the root `Cargo.toml:135` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
   builds on the newer line, so the binary holds both lines today. podssh's `sha1`
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
-- Read: the root `Cargo.toml:146` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:155` for `x25519-dalek` 2;
+- Read: the root `Cargo.toml:144` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:153` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
   `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
-- Read: `vt100` 0.15 (`Cargo.toml:112`) is the model of the terminal
+- Read: `vt100` 0.15 (`Cargo.toml:110`) is the model of the terminal
   oracle (T-200) and of `podssh session` (T-186).
 
 ## Approach
@@ -4045,7 +4045,7 @@ x25519-dalek 3 stays; #47 goes to T-333, which waits for the operator
   failed, and passed again without the plant.
 - The second step: vt100 0.18.1 (Dependabot's #45), on vte 0.15. The size
   is a `NonZero<u16>` there, both ways: the model of the oracle
-  (`crates/podssh-terminal/tests/screen/mod.rs`) and `podssh session`'s
+  (`PodUtils/podssh:crates/podssh-terminal/tests/screen/mod.rs`) and `podssh session`'s
   (`crates/podssh-cli/src/session/model.rs`) give it a row and a column at
   least, and read it back as numbers. The lock loses vt100 0.15.2, vte
   0.11.1 and `vte_generate_state_changes`, and unicode-width 0.1.14.
@@ -5246,8 +5246,8 @@ builds with, so that its DNS packets and iroh's are of one type.
   box's CONNECT proxy (`scripts/box/proxy.py`), which `scripts/test_in_box.sh` and
   `scripts/chat-in-boxes.sh` build; `images/build/Dockerfile:6` pins `rust:1-alpine` by the digest
   `0cce0a5...`, the gate's image.
-- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:139`), and the lock holds 0.11.0; 0.11.1
-  needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:58`, Q48).
+- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:137`), and the lock holds 0.11.0; 0.11.1
+  needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:56`, Q48).
 - Read: `crates/podssh-iroh/Cargo.toml:54-57` takes `simple-dns` 0.12, "the simple-dns that
   iroh-dns builds and reads with, so no crate is added"; iroh-dns 1.4.1, which the lock holds,
   takes simple-dns 0.12.0, the lock's only version.
@@ -5322,7 +5322,7 @@ built after the transfer refuses each release, whose signer names PodUtils/podss
 
 ## Premise
 
-- Read: `Cargo.toml:61` sets `repository = "https://github.com/Azathothas/podssh"`;
+- Read: `Cargo.toml:59` sets `repository = "https://github.com/Azathothas/podssh"`;
   `crates/podssh-cli/src/update/mod.rs:163` takes the repository from `CARGO_PKG_REPOSITORY`.
 - Read: `crates/podssh-cli/src/update/sigstore.rs:30` makes the signer's URI from that repository,
   and `crates/podssh-cli/src/update/sigstore.rs:134` refuses a leaf that does not name it.
@@ -5380,7 +5380,7 @@ The operator has transferred the repository to PodUtils/podssh.
   `cargo test -p podssh-cli --test update`: 19 passed.
 - Check 12 of `python scripts/check-repo.py` (`scripts/repo_names.py`): no tracked file names the
   old repository outside the dated records; it passed (2,916 files read). Planted, the old name back
-  in `Cargo.toml`: it failed and named `Cargo.toml:61`; `--plant-empty`: each of the 12 checks
+  in `Cargo.toml`: it failed and named `Cargo.toml:59`; `--plant-empty`: each of the 12 checks
   failed on an empty tree.
 - The frozen files of Q3a (`docs/decisions.md`) hold no old name: no file of podcrates' imports
   changed.
@@ -5458,7 +5458,15 @@ checks, and sends the podcrates session the new commit of `main`.
   `cargo test -p podssh-todo`: 11 passed. The plant of T-272 still applies to its tests' scratch
   tree.
 
-Next: `pod-term`, then `pod-identity`; then each crate of the next releases (`pod-tls` in `v0.2.0`,
+- `pod-term`: podssh-terminal is gone from the workspace; `podssh-cli`'s session model,
+  and the terminal oracle's tests of `podssh-ws` and `podssh-ssh`, take `pod-term` (and
+  `pod-testkit`'s oracle) by the tag `v0.1.0`. The gate, `AGENTS.md`'s map, the documents and
+  `scripts/capture-terminal.py` (its captures now go to `.work/`, for pod-term's fixtures) follow.
+  `cargo test -p podssh-ws --test terminal_oracle`: 3 passed; `cargo test -p podssh-ssh --test
+  terminal_oracle --test silent_notice`: 5 and 4 passed; `cargo test -p podssh-cli --test
+  silent_notice`: 1 passed, 6 ignored (live); `cargo test -p podssh-cli --lib session::`: 17 passed.
+
+Next: `pod-identity`; then each crate of the next releases (`pod-tls` in `v0.2.0`,
 then `pod-proxy`, `pod-dns`, `pod-ws`).
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
 
@@ -5486,7 +5494,7 @@ compiled binary, has no check of its own beside the release's.
   (`.github/workflows/build.yml:50`), so a step removed from the list leaves CI.
 - Read: `scripts/gate.sh` runs 17 commands under `env CC=/nonexistent CXX=/nonexistent`, which
   refuse a crate that builds C (`scripts/gate.sh:128` tells why).
-- Read: `Cargo.toml:58` declares `rust-version = "1.89"` and `Cargo.toml:52` edition 2021; each crate
+- Read: `Cargo.toml:56` declares `rust-version = "1.89"` and `Cargo.toml:50` edition 2021; each crate
   declares its own minimum (1.89, 1.91 or 1.92).
 
 ## Approach

@@ -3,11 +3,10 @@
 //! printed before it; the cursor moves by the width of what is left and no
 //! further, and no cell takes a color or an attribute. Through
 //! `multi_line`, each line is a row of its own, and nothing else moves.
-//! The model of the terminal is the one of podssh-terminal's tests
+//! The model of the terminal is the one of pod-testkit (feature screen)
 //! (`tests/screen/`), which the gate calibrates against tmux.
 
-#[path = "../../podssh-terminal/tests/screen/mod.rs"]
-mod screen;
+use pod_testkit::screen;
 use screen::Screen;
 
 use podssh_ws::text::{multi_line, one_line};

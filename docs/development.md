@@ -13,9 +13,6 @@ target sandbox, and release it.
   through `russh`). On Windows x86_64, also NASM: without it, aws-lc's build
   fails unless `AWS_LC_SYS_PREBUILT_NASM=1` asks for its prebuilt objects
   (aws-lc-sys's README).
-- No C compiler for the library crates (`podssh-ws`, `podssh-relay`,
-  `podssh-core`, `podssh-terminal`, `podssh-probe`). The gate makes sure of
-  this.
 - `cmake` and `perl` for the `ts` feature only.
 - Python 3 for the repository checks.
 - For the container gate on Windows: Git Bash, PowerShell, and the
@@ -122,8 +119,8 @@ cargo todo check                    # the work record in TODO/ agrees: counts, s
 cargo todo remap FILE...            # after an edit of FILE: move its citations by a diff against HEAD
 cargo todo check --base HEAD~1      # the same check against the last commit's parent, as CI runs it; remap takes --base too
 cargo deny --locked check advisories licenses bans sources   # the dependencies (deny.toml)
-cargo fmt -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-todo -- --check
-cargo clippy --locked --all-targets -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-todo -- -D warnings
+cargo fmt -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-probe -p podssh-ts -p podssh-todo -- --check
+cargo clippy --locked --all-targets -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-probe -p podssh-ts -p podssh-todo -- -D warnings
 cargo deny --locked --all-features check licenses sources    # the same, with the Tailscale fork
 ```
 
@@ -555,8 +552,8 @@ wrong: the tests built their input with the same assumptions as the code.
 
 ## Property tests
 
-`tests/properties.rs` of podssh-ws, podssh-relay, podssh-ssh, podssh-core
-and podssh-terminal state what must hold for each input of a state
+`tests/properties.rs` of podssh-ws, podssh-relay, podssh-ssh and
+podssh-core (and of `pod-term` in PodUtils/podcrates) state what must hold for each input of a state
 machine, and proptest checks it on inputs that it makes (T-202): frames
 and fragments of WebSocket, the sanitizer, relay lists and paths,
 `known_hosts` patterns, the escape filter, the IRC line framing and the

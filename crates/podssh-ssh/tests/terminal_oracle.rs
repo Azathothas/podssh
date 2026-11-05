@@ -2,12 +2,11 @@
 //! (T-200): each line of a message and of the help of `~?` starts at the
 //! first column. A terminal in raw mode does not turn LF into CR LF, so a
 //! text that kept a bare LF would step down the screen like stairs. The
-//! model of the terminal is the one of podssh-terminal's tests
+//! model of the terminal is the one of pod-testkit (feature screen)
 //! (`tests/screen/`), a terminal in raw mode, which the gate calibrates
 //! against tmux.
 
-#[path = "../../podssh-terminal/tests/screen/mod.rs"]
-mod screen;
+use pod_testkit::screen;
 use screen::Screen;
 
 use podssh_ssh::escape::Escapes;

@@ -1,4 +1,4 @@
-This file holds the defects of the line discipline in `crates/podssh-terminal`,
+This file holds the defects of the line discipline in `PodUtils/podssh:crates/podssh-terminal`,
 the rows L1 to L5 of the former defects page (`git show 3ee70dc:docs/defects.md`),
 as T-125 to T-129. `podssh serve` needs the crate on a host with no
 `/dev/ptmx` (T-111), so they come before it. No command uses the crate yet
@@ -26,13 +26,13 @@ a local echo to the echo of the remote pty, so each key shows two times.
 
 - Read: `Mode::from_grant` gives `NoPty` for no pty, `Cooked` for a pty and a
   shell, and `Passthrough` for a pty and another program
-  (`crates/podssh-terminal/src/session.rs` lines 79-85 at `6e77829`). In `NoPty`, each local byte
-  sets `ended` and returns a bell (`crates/podssh-terminal/src/session.rs` lines 169-174 at `6e77829`).
+  (`PodUtils/podssh:crates/podssh-terminal/src/session.rs` lines 79-85 at `6e77829`). In `NoPty`, each local byte
+  sets `ended` and returns a bell (`PodUtils/podssh:crates/podssh-terminal/src/session.rs` lines 169-174 at `6e77829`).
   In `Cooked`, the discipline echoes each byte
-  (`crates/podssh-terminal/src/echo/editing.rs:237-269`).
-- Read, at `6e77829`: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs` lines 315-326,
-  `crates/podssh-terminal/tests/keys.rs` lines 328-346), and plant E builds
-  `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs` line 327).
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo/editing.rs:237-269`).
+- Read, at `6e77829`: tests pin the wrong table (`PodUtils/podssh:crates/podssh-terminal/tests/keys.rs` lines 315-326,
+  `PodUtils/podssh:crates/podssh-terminal/tests/keys.rs` lines 328-346), and plant E builds
+  `Session::new(true, true)` (`PodUtils/podssh:crates/podssh-terminal/tests/plants.rs` line 327).
 - Read: the rule: three inputs select the mode, the user selects the
   discipline, and the absence of a pty alone never selects it
   (`docs/terminal.md:10-18`, and lines 27-32 at `6e77829`). On the server side,
@@ -45,7 +45,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    is no pty and no discipline below, and the caller selected it.
 2. Each other case is `Transparent`: each byte passes both ways unchanged,
    with no echo and no refusal. Keep the frame and resize logic of
-   `Passthrough` in it (`crates/podssh-terminal/src/window.rs:143-151`).
+   `Passthrough` in it (`PodUtils/podssh:crates/podssh-terminal/src/window.rs:143-151`).
 3. Remove `NoPty` and its path that rings the bell and ends the session.
    Remove `remote_is_shell`: a caller cannot know it.
 4. The callers give the facts: serve with no `/dev/ptmx` selects the
@@ -53,8 +53,8 @@ a local echo to the echo of the remote pty, so each key shows two times.
    absence of a pty alone never selects `Cooked`.
 5. Rewrite the tests above to the new table. Same commit:
    `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:814`, and the module notes
-   (`crates/podssh-terminal/src/session.rs:1-46`,
-   `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
+   (`PodUtils/podssh:crates/podssh-terminal/src/session.rs:1-46`,
+   `PodUtils/podssh:crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
    from the lines that you change (`AGENTS.md:313-314`).
 
 ## Decision
@@ -82,16 +82,20 @@ restore `(true, true) => Mode::Cooked`; the first test fails on the echo. No
 command uses the crate, so no check of the binary applies; T-111 runs it
 through serve.
 
+## Correction
+
+The package `podssh-terminal` moved to `pod-term` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-term` there runs its tests, with their names.
+
 ## Done
 
 2026-10-09, in the commit "The line discipline runs only when it is selected
 and nothing below echoes".
 
-- `crates/podssh-terminal/src/session.rs`: `Facts` (`pty_below`,
+- `PodUtils/podssh:crates/podssh-terminal/src/session.rs`: `Facts` (`pty_below`,
   `discipline_below`, `selected`) and `Mode::select`; `Mode` is `Cooked` or
   `Transparent`; `NoPty`, `from_grant`, `has_pty` and the path that rang the
   bell and ended the session are gone. The module notes state the rule.
-- `crates/podssh-terminal/src/passthrough.rs`: the transparent leg passes
+- `PodUtils/podssh:crates/podssh-terminal/src/passthrough.rs`: the transparent leg passes
   each byte as it came, Ctrl-Z, Ctrl-S and Ctrl-Q too, and a chunk as one
   event (`forward_local_bytes`); `refusal.rs`, `echo.rs` and `lib.rs` no
   longer say that it refuses. T-129's step 3 is thereby done, and T-129
@@ -130,14 +134,14 @@ writes over the rows above it.
 ## Premise
 
 - Read: no `termios`, `TIOCGWINSZ` or `libc` call is in
-  `crates/podssh-terminal/src`; `libc` is declared and not used
-  (`crates/podssh-terminal/Cargo.toml` lines 10-11 at `8d3f63d`). The notes say that the crate
-  never reads the size and never sends (`crates/podssh-terminal/src/window.rs:37-42`).
+  `PodUtils/podssh:crates/podssh-terminal/src`; `libc` is declared and not used
+  (`PodUtils/podssh:crates/podssh-terminal/Cargo.toml` lines 10-11 at `8d3f63d`). The notes say that the crate
+  never reads the size and never sends (`PodUtils/podssh:crates/podssh-terminal/src/window.rs:37-42`).
 - Read, at `7e4a518`: the redraw is `\r`, the prompt, the line, `ESC [ K`, `\r`,
   the prompt and the line up to the cursor
-  (`crates/podssh-terminal/src/echo.rs` lines 202-212): one row.
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo.rs` lines 202-212): one row.
   `Session::on_resize` gives the size to `Window` only
-  (`crates/podssh-terminal/src/session.rs` lines 214-219).
+  (`PodUtils/podssh:crates/podssh-terminal/src/session.rs` lines 214-219).
 - Read: `podssh-ssh` has a raw mode and a size that work, and the gate checks
   them (`crates/podssh-ssh/src/terminal/unix.rs:16-81`,
   `crates/podssh-ssh/src/terminal/windows.rs:37-130`, `docs/STATUS.md:169`).
@@ -203,6 +207,8 @@ the first test fails. `cargo tree` shows no `libc` for the crate.
 
 ## Correction
 
+The package `podssh-terminal` moved to `pod-term` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-term` there runs its tests, with their names.
+
 2026-10-09: T-127 removed the unused `libc` of step 5 (its commit, "With
 IUTF8, the line discipline's cursor steps over characters and its screen
 moves by cells").
@@ -221,7 +227,7 @@ transcribed `ESC [ C` and `ESC [ D` stay byte-exact.
 2026-10-09, in the commit "The line discipline takes the terminal's width
 and draws a long line over several rows".
 
-- `crates/podssh-terminal/src/echo/screen.rs` (new): places by row and
+- `PodUtils/podssh:crates/podssh-terminal/src/echo/screen.rs` (new): places by row and
   column, the motions between them, the wrap of a full row and of a wide
   character; `Discipline::resize`, the append with `\r\n` at a full row, the
   rubout only where `\b` reaches, the redraw over rows, and the way down to
@@ -275,14 +281,14 @@ character takes two cells and counts as one.
 
 ## Premise
 
-- Read, at `8d3f63d`: the cursor is a byte offset (`crates/podssh-terminal/src/echo/inspect.rs` lines 23-29).
+- Read, at `8d3f63d`: the cursor is a byte offset (`PodUtils/podssh:crates/podssh-terminal/src/echo/inspect.rs` lines 23-29).
   `erase_left` removes one byte and rubs out one cell
-  (`crates/podssh-terminal/src/echo/editing.rs` lines 64-77). The arrows move one
-  byte and echo one cell (`crates/podssh-terminal/src/echo/editing.rs` lines 143-150).
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo/editing.rs` lines 64-77). The arrows move one
+  byte and echo one cell (`PodUtils/podssh:crates/podssh-terminal/src/echo/editing.rs` lines 143-150).
   The redraw writes `line[..cursor]`, which can end inside a character
-  (`crates/podssh-terminal/src/echo.rs` lines 182-192).
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo.rs` lines 182-192).
 - Read, at `8d3f63d`: the history keeps `String::from_utf8_lossy` copies
-  (`crates/podssh-terminal/src/echo.rs` lines 212-224), so a line that is not UTF-8
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo.rs` lines 212-224), so a line that is not UTF-8
   comes back changed when it is recalled.
 - Read: the client sends `IUTF8` in its pty modes
   (`crates/podssh-ssh/src/terminal/unix.rs:155-161`), so serve (T-111) knows
@@ -335,12 +341,16 @@ Backspace: the submitted line is empty, and one cell is rubbed out),
 Plant: give `erase_left` its one-byte step again; the first test fails with
 a stray 0xC3.
 
+## Correction
+
+The package `podssh-terminal` moved to `pod-term` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-term` there runs its tests, with their names.
+
 ## Done
 
 2026-10-09, in the commit "With IUTF8, the line discipline's cursor steps
 over characters and its screen moves by cells".
 
-- `crates/podssh-terminal/src/echo/units.rs`: the steps of a line (a
+- `PodUtils/podssh:crates/podssh-terminal/src/echo/units.rs`: the steps of a line (a
   character with its zero-width marks, or a byte), their cells by
   `unicode-width`, and the motion of `n` cells.
 - `echo/editing.rs`: Backspace, Ctrl-W, Ctrl-D and the arrows by step and
@@ -349,7 +359,7 @@ over characters and its screen moves by cells".
   put in as typed when the next byte cannot continue them.
   `session.rs`: `Session::with_utf8`.
 - `Cargo.toml`: `unicode-width` 0.2.2 (MIT or Apache-2.0, no dependency, no
-  build script). `crates/podssh-terminal/Cargo.toml`: the `libc` that no
+  build script). `PodUtils/podssh:crates/podssh-terminal/Cargo.toml`: the `libc` that no
   code used is gone. Re-resolving moved `errno` and `rustix` to the
   `windows-sys` 0.61.2 that the lock file already held.
 - Tests: the entry's three in `tests/discipline.rs`, and
@@ -387,19 +397,19 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
 ## Premise
 
 - Read, at `a7648ff`: after `ESC`, each byte that is not `[` is refused and
-  consumed (`crates/podssh-terminal/src/escape.rs` lines 128-138). So `O` is
+  consumed (`PodUtils/podssh:crates/podssh-terminal/src/escape.rs` lines 128-138). So `O` is
   consumed, and the byte after it (`P`, `A`) is a fresh key that is inserted
-  (`crates/podssh-terminal/src/echo.rs` lines 294-304 and 338).
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo.rs` lines 294-304 and 338).
 - Read, at `a7648ff`: the path that gives a control byte back to the key
   handling (`Restart`) exists only in the CSI state
-  (`crates/podssh-terminal/src/escape.rs` lines 157-161). So `ESC` then
+  (`PodUtils/podssh:crates/podssh-terminal/src/escape.rs` lines 157-161). So `ESC` then
   Ctrl-C loses the Ctrl-C, against the module's own note
-  (`crates/podssh-terminal/src/escape.rs` lines 40-45). Its test covers
-  `ESC [ 1` then Ctrl-C only (`crates/podssh-terminal/src/escape.rs` lines
+  (`PodUtils/podssh:crates/podssh-terminal/src/escape.rs` lines 40-45). Its test covers
+  `ESC [ 1` then Ctrl-C only (`PodUtils/podssh:crates/podssh-terminal/src/escape.rs` lines
   290-306).
 - Read, at `a7648ff`: tests pin the loss: `ESC x a` gives a bell and `a`
-  (`crates/podssh-terminal/tests/keys.rs` lines 253-261,
-  `crates/podssh-terminal/src/escape.rs` lines 308-313). The rule says that
+  (`PodUtils/podssh:crates/podssh-terminal/tests/keys.rs` lines 253-261,
+  `PodUtils/podssh:crates/podssh-terminal/src/escape.rs` lines 308-313). The rule says that
   `ESC O x` is a sequence (`docs/terminal.md` line 108).
 
 ## Approach
@@ -459,6 +469,8 @@ the first test fails with `A` in the line.
 
 ## Correction
 
+The package `podssh-terminal` moved to `pod-term` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-term` there runs its tests, with their names.
+
 2026-10-09. **"Tests pin the loss" holds for the bell, not for the loss.**
 Under this entry's own Decision, `ESC x` with no pause is an Alt key, refused
 whole, so the test of `ESC x a` (a bell, then `a`) and the parser's unit test
@@ -476,7 +488,7 @@ key, which ends the pair.
 2026-10-09, in the commit "The line discipline reads the ESC O keys, and a
 lone Escape rings at its caller's idle tick".
 
-- `crates/podssh-terminal/src/escape.rs`: the SS3 state, the Linux
+- `PodUtils/podssh:crates/podssh-terminal/src/escape.rs`: the SS3 state, the Linux
   console's `ESC [ [`, the Alt state, `ESC` that starts a new sequence in
   every state, a control byte that is a key right after `ESC`, the
   introducer and `Param` in the final step, `is_open` and `abandon`. Its
@@ -528,20 +540,20 @@ that arrives during an edit is written over the edited line.
 - Read, at `cb94460`: `ESC [ 3 ~` (Delete), `ESC [ 1 ~` and `ESC [ 7 ~` (Home),
   and `ESC [ 4 ~` and `ESC [ 8 ~` (End) carry a parameter, and each final
   with a parameter is refused
-  (`crates/podssh-terminal/src/echo/editing.rs` lines 154-157).
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo/editing.rs` lines 154-157).
 - Read, at `cb94460`: `ESC [ H` and `ESC [ F` move the cursor and send nothing
-  (`crates/podssh-terminal/src/echo/editing.rs` lines 168-175); Ctrl-A and
-  Ctrl-E do the same (`crates/podssh-terminal/src/echo.rs` lines 417-424).
+  (`PodUtils/podssh:crates/podssh-terminal/src/echo/editing.rs` lines 168-175); Ctrl-A and
+  Ctrl-E do the same (`PodUtils/podssh:crates/podssh-terminal/src/echo.rs` lines 417-424).
   Tests pin the silence
-  (`crates/podssh-terminal/tests/discipline.rs` lines 189-217).
+  (`PodUtils/podssh:crates/podssh-terminal/tests/discipline.rs` lines 189-217).
 - Read, at `6e77829`: passthrough refuses `0x1a`, `0x11` and `0x13`
-  (`crates/podssh-terminal/src/passthrough.rs` lines 89-95,
-  `crates/podssh-terminal/src/refusal.rs:33-35`), and a test pins it
-  (`crates/podssh-terminal/src/passthrough.rs` lines 223-236).
+  (`PodUtils/podssh:crates/podssh-terminal/src/passthrough.rs` lines 89-95,
+  `PodUtils/podssh:crates/podssh-terminal/src/refusal.rs:33-35`), and a test pins it
+  (`PodUtils/podssh:crates/podssh-terminal/src/passthrough.rs` lines 223-236).
 - Read, at `cb94460`: in the cooked mode, remote bytes go out as they come, and
   the edited line is not drawn again
-  (`crates/podssh-terminal/src/session.rs` lines 204-206,
-  `crates/podssh-terminal/src/passthrough.rs` lines 68-74).
+  (`PodUtils/podssh:crates/podssh-terminal/src/session.rs` lines 204-206,
+  `PodUtils/podssh:crates/podssh-terminal/src/passthrough.rs` lines 68-74).
 
 ## Approach
 
@@ -591,6 +603,8 @@ Each makes its test fail.
 
 ## Correction
 
+The package `podssh-terminal` moved to `pod-term` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-term` there runs its tests, with their names.
+
 2026-10-09 (T-125): step 3 is done: the transparent mode refuses nothing.
 The cooked mode now runs only with nothing below, so the program's output
 reaches it from a pipe, with no `ONLCR`: T-111 adds the `\r` before a lone
@@ -612,7 +626,7 @@ of step 3 is T-125's `mode_transparent_passes_ctrl_z_s_q`.
 2026-10-09, in the commit "Home, End and Delete move the screen's cursor,
 and the program's output goes around the line under edit".
 
-- `crates/podssh-terminal/src/echo/editing.rs`: `ESC [ n ~` with 1 or 7
+- `PodUtils/podssh:crates/podssh-terminal/src/echo/editing.rs`: `ESC [ n ~` with 1 or 7
   is Home, 4 or 8 End, and 3 Delete; each other `~` rings once.
   `Discipline::home` and `Discipline::end` move the screen's cursor by rows
   and columns, and Ctrl-A, Ctrl-E, `ESC [ H` and `ESC [ F` use them;
