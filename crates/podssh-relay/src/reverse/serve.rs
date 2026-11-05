@@ -443,7 +443,7 @@ where
             Out::Stop => {
                 let live: Vec<SessionId> = sessions.live().map(|(id, _)| *id).collect();
                 for id in live {
-                    if let Some(text) = json(control::close(&id, Some("the node is stopping"))) {
+                    if let Some(text) = json(control::close(&id, Some(super::node::stopping_words()))) {
                         let _ = session.send_text(&text).await;
                     }
                 }

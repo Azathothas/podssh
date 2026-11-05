@@ -144,6 +144,25 @@ pub fn after_close(close: &RelayClose) -> Next {
 /// podssh's relay role sends before it stops (T-255).
 pub const RESTART: u16 = 1012;
 
+/// Whether this node stops for the binary that takes its place (T-668).
+static UPGRADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// This node's next stop is for the binary that takes its place, or no
+/// longer is: its `close` of each session says which.
+pub fn set_upgrading(on: bool) {
+    UPGRADING.store(on, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// The words of a stop's `close` of each session. Either way a client of
+/// the resumable layer resumes, as a node's `close` is no `CLOSE` of the
+/// layer; the words tell its user which.
+pub fn stopping_words() -> &'static str {
+    match UPGRADING.load(std::sync::atomic::Ordering::SeqCst) {
+        true => "the node is upgrading",
+        false => "the node is stopping",
+    }
+}
+
 /// A node connects again at once this often at most: a relay that takes each
 /// socket and drops it at once meets the backoff from the second time.
 pub const AT_ONCE_EVERY: Duration = Duration::from_secs(10);

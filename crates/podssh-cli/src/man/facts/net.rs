@@ -1,6 +1,6 @@
 //! The variables of the net (T-429), of the pairing by a short code
-//! (T-086) and of a service's journal (T-640), apart from `facts.rs` for the
-//! length of that file.
+//! (T-086), of a service's journal (T-640) and of a node's upgrade in place
+//! (T-668), apart from `facts.rs` for the length of that file.
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -27,5 +27,13 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           fatal one), so that journalctl -p warning shows a refusal and why a node ended; each line stays on \
           stderr, at the stream's info, as before. The socket binds nothing, and a send that fails is dropped, \
           never an exit code. No flag turns it on or off (T-640).",
+    ),
+    (
+        &["PODSSH_HANDOVER"],
+        "Set by podssh alone, never by hand: between the two binaries of a node's upgrade in place (T-668, see \
+          the notes of podssh node), it names the descriptor of the memory that holds the node's sessions, and the \
+          node's pid, so that only that process reads it, never a program that the node starts. probe makes \
+          podssh --version add the line podssh-handover and the version of the sessions that this binary takes, \
+          which a node reads before it hands its sessions to a binary.",
     ),
 ];

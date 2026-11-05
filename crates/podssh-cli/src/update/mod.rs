@@ -362,10 +362,24 @@ pub fn run(args: &UpdateArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         Ok(runtime) => runtime,
         Err(e) => return fail(Failure::Config(format!("a runtime: {e}")), err),
     };
+    let before = stamp(&opts.exe);
     match runtime.block_on(update(&opts, args.check, asked.as_ref(), out)) {
-        Ok(()) => 0,
+        Ok(()) => {
+            // Each node of --detach that takes the signal of an upgrade
+            // takes the binary now in place, its sessions with it (T-668).
+            if !args.check && stamp(&opts.exe) != before {
+                crate::node_upgrade::mark::ask_each(out);
+            }
+            0
+        }
         Err(failure) => fail(failure, err),
     }
+}
+
+/// What tells a file that an update replaced from the one before it: its
+/// length and the time of its last write.
+fn stamp(path: &std::path::Path) -> Option<(u64, Option<std::time::SystemTime>)> {
+    std::fs::metadata(path).ok().map(|meta| (meta.len(), meta.modified().ok()))
 }
 
 /// `podssh update --rollback` (T-396): no network, only the file that the

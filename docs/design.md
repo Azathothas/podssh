@@ -1054,6 +1054,23 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   the offer from the handshake, then SSH asks the far end to keep a shell
   (`~d`) or to join one (`--attach`), with requests of its own
   (`docs/terminal.md`, "Detach and attach again").
+- **A far end's upgrade in place** (T-668). A node's sessions outlive its
+  binary: at SIGUSR2, once the binary at its path said in a probe that it
+  takes them, each link stops at a record's end, as for a resume, and each
+  session gives its state as values (its offsets, its replay buffer, the
+  bytes that its target has not had, its flags), with its target's TCP
+  connection and, above it, the end-to-end channel's keys and nonces. The
+  node becomes the new binary by `execve`, in the same process, the state in
+  anonymous memory and the sockets open across the exec; the new binary
+  keeps each session as one whose link was lost, and each client resumes as
+  after any loss. The handover reads no record of the wire, so the format of
+  the records may change between the two builds; a version of the handover's
+  own bytes guards it, and a binary that reads another version is never
+  asked. A session that cannot move waits as an ended one, and its resume
+  hears `CLOSE` with why. osewa's sessions outlive a restart of its server
+  as a process for each session does (`docs/research/osewa-paper.md`, G8);
+  here the target's connection itself, an sshd's too, survives
+  ([reverse.md](reverse.md), "A node's upgrade in place").
 
 Measured 2026-10-09: `podssh node` runs the far end for each session, and
 `podssh ssh node://` and `podssh operator` run the client. A node keeps 64

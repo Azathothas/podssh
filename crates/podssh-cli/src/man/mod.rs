@@ -52,6 +52,8 @@ mod notes_session;
 mod notes_ssh;
 mod notes_ssh_more;
 mod notes_update;
+// A node's upgrade in place (T-668).
+mod notes_upgrade;
 // The notes of --vless (T-440).
 mod notes_vless;
 pub mod roff;

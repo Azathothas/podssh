@@ -27,6 +27,8 @@ pub const UPDATE: &[&str] = &[
      that command with its paths. --rollback is in 1.0.0-beta.4 and later: the line names it beside the move \
      only when the binary now in place has it, as the binary of an older release, which --version can install, \
      refuses it as an unknown flag. The line of --rollback says the same of the binary that it put back.",
+    // The nodes that run take the new binary with their sessions (T-668).
+    super::notes_upgrade::UPDATE,
     "Exit 0 when the binary was replaced, or there was nothing to do; 69 when GitHub, the release or one of \
      its files did not come; 65 when a check failed, the run of the new binary too; 73 when the binary could \
      not be replaced, as in a directory that this user cannot write; 78 when no release has a binary for this \

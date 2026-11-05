@@ -108,9 +108,10 @@ impl Handler for Routed {
     fn open(&self, _id: SessionId) -> Opening<DuplexStream> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (routes, node) = (self.routes.clone(), self.node.clone());
-        tokio::spawn(async move {
+        // A handover finds the channel by the layer's id of its session (T-668).
+        tokio::spawn(crate::e2e::hold::holding(async move {
             serve_asked(theirs, &node, move |key, ask: Ask| async move { routes.open(&key, &ask).await }).await;
-        });
+        }));
         Box::pin(async move { Ok(ours) })
     }
 

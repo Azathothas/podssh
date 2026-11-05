@@ -1,0 +1,8 @@
+# T-668: the node leaves each target's socket close-on-exec, so it closes at
+# the exec and the new binary takes no connection; the test of a session
+# through a node across the node's upgrade, its bytes whole, must fail.
+ENTRY=T-668
+GROUP=cli-tests
+EXPECT='test a_session_through_a_node_goes_on_across_the_node_s_upgrade_its_bytes_whole \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test node_moves -- a_session_through_a_node_goes_on_across_the_node_s_upgrade_its_bytes_whole'
+LIMIT=2400

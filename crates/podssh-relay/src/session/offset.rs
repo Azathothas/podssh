@@ -90,6 +90,12 @@ impl Outbound {
         Outbound { next, acknowledged: next }
     }
 
+    /// A sender as a handover gives it back (T-668): `next` bytes sent, and
+    /// the peer's acknowledgement at `acknowledged`, which is not past them.
+    pub(crate) fn restored(next: u64, acknowledged: u64) -> Outbound {
+        Outbound { next, acknowledged: acknowledged.min(next) }
+    }
+
     /// The offset of the next byte to send: the count of the bytes sent.
     pub fn sent(&self) -> u64 {
         self.next

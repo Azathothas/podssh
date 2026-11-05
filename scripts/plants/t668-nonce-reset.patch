@@ -1,0 +1,14 @@
+--- a/crates/podssh-relay/src/e2e/hold/mod.rs
++++ b/crates/podssh-relay/src/e2e/hold/mod.rs
+@@ -162,9 +162,10 @@
+         return;
+     };
+     drain(&mut transport, &mut start.unread).await;
++    let _ = sent;
+     let state = ChannelState {
+         keys,
+-        sent,
++        sent: 0,
+         received,
+         out_ended: start.out_ended,
+         in_ended: start.in_ended,

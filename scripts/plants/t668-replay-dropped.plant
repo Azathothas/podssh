@@ -1,0 +1,7 @@
+# T-668: a handed-over link leaves its replay buffer behind, so the next
+# binary cannot send again what the client did not acknowledge; the test of a
+# link that resumes from its parts as the one before must fail.
+ENTRY=T-668
+GROUP=resume
+EXPECT='test session::handover::tests::a_link_from_its_parts_resumes_as_the_one_before \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib -- session::handover::tests::a_link_from_its_parts_resumes_as_the_one_before'

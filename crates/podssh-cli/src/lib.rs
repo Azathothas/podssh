@@ -144,6 +144,8 @@ pub mod node_warp;
 // `podssh node --temporary`: the far end of `podssh ssh --upgrade` (T-167).
 pub mod node_target;
 pub mod node_temp;
+// A node that keeps its sessions across its own upgrade (T-668).
+pub mod node_upgrade;
 // The soft limit of open files, raised at start within the hard one (T-564).
 pub mod nofile;
 // `--no-resume` of a client of a node (T-612).
