@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**631 entries: 107 open, 10 partial, 3 blocked, 511 done.**
+**631 entries: 106 open, 10 partial, 3 blocked, 512 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 65 | 67 |
 | P2 | 25 | 4 | 0 | 247 | 276 |
-| P3 | 82 | 4 | 3 | 198 | 287 |
-| **All** | 107 | 10 | 3 | 511 | 631 |
+| P3 | 81 | 4 | 3 | 199 | 287 |
+| **All** | 106 | 10 | 3 | 512 | 631 |
 
 ## Entries
 
@@ -703,7 +703,7 @@ repository and CI).
 | [T-670](ssh.md) | P3 | M | M10 | feature | partial | The download's rate while a key waits on a slow path: win back what T-661 gives up |
 | [T-671](relay.md) | P2 | S | M10 | defect | done | The relay role's forward road drops a target's bytes after the client's Close, where the contract keeps them |
 | [T-672](ssh.md) | P3 | M | backlog | feature | blocked | TLS tickets kept across runs, once a release of rustls lets a client write one |
-| [T-673](ssh.md) | P3 | S | M10 | defect | open | The rate's best on a lossy link: a burst after a loss's stall read as the path's rate |
+| [T-673](ssh.md) | P3 | S | M10 | defect | done | The rate's best on a lossy link: a burst after a loss's stall read as the path's rate |
 | [T-674](robustness.md) | P3 | S | none | feature | open | The SSH client's own lines keep one priority in the journal |
 | [T-675](ssh.md) | P1 | S | M10 | defect | done | The gate red since T-664: the record of the keys that hosts took loses a change, and the stall's check names the old first request |
 | [T-676](roads.md) | P2 | S | M10 | defect | done | A WARP test inherits an earlier test's memory of a re-terminated TLS at a reused port |

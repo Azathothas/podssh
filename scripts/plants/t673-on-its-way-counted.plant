@@ -1,0 +1,6 @@
+# T-673: a message that was on its way during a stall is counted in the next
+# interval; the test of a message 31 ms after a burst must fail.
+ENTRY=T-673
+GROUP=resume
+EXPECT='test pace::path::tests::a_message_on_its_way_during_a_stall_opens_the_next_interval \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::path::tests::a_message_on_its_way_during_a_stall_opens_the_next_interval'

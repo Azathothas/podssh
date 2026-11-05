@@ -15,6 +15,9 @@ const RATE_SPAN: Duration = Duration::from_secs(5);
 /// since, the last one stands, as the path's delay does not drift fast.
 const RTT_SPAN: Duration = Duration::from_secs(10);
 
+/// Before any rate, two messages this close came in one burst.
+const BURST_GAP: Duration = Duration::from_millis(1);
+
 /// The best sample of the last one or two spans, kept in two numbers: a
 /// windowed filter that needs no list of samples.
 #[derive(Debug, Clone, Copy)]
@@ -77,6 +80,12 @@ pub(super) struct Path {
     /// The start of the interval being counted, and its bytes.
     since: Option<Instant>,
     bytes: u64,
+    /// When the last message came, and the first of the burst it came in.
+    last: Option<Instant>,
+    burst: Option<Instant>,
+    /// The interval opened with a burst that may still come: its messages
+    /// came at the start too.
+    opening: bool,
     /// Bytes a second.
     rate: Best<u64>,
     rtt: Best<Duration>,
@@ -86,7 +95,16 @@ pub(super) struct Path {
 
 impl Default for Path {
     fn default() -> Self {
-        Path { since: None, bytes: 0, rate: Best::new(RATE_SPAN, true), rtt: Best::new(RTT_SPAN, false), sharing: 1 }
+        Path {
+            since: None,
+            bytes: 0,
+            last: None,
+            burst: None,
+            opening: false,
+            rate: Best::new(RATE_SPAN, true),
+            rtt: Best::new(RTT_SPAN, false),
+            sharing: 1,
+        }
     }
 }
 
@@ -122,22 +140,72 @@ impl Path {
     /// `n` bytes came now; true when they closed an interval, whose rate is
     /// then a sample. The bytes of the message that opens an interval came
     /// at its start, so they are not counted in it.
+    ///
+    /// An interval ends at the end of a burst (T-673): a loss holds the bytes
+    /// behind it a round trip, and they then come at once. An interval that
+    /// ended at the burst's first message read the stall alone, and the next
+    /// one the burst alone, over the path's rate. A burst longer than an
+    /// interval ends it anyway, as on a fast path each message comes with the
+    /// one before.
     pub(super) fn count(&mut self, now: Instant, n: u64) -> bool {
-        let Some(since) = self.since else {
+        let (Some(since), Some(last)) = (self.since, self.last) else {
             self.since = Some(now);
+            self.last = Some(now);
+            self.burst = Some(now);
             self.bytes = 0;
+            self.opening = true;
             return false;
         };
-        self.bytes += n;
-        let took = now.saturating_duration_since(since);
-        if took < self.interval() {
+        let together = now.saturating_duration_since(last) <= self.burst_gap(now, n);
+        let burst = if together { self.burst.unwrap_or(last) } else { now };
+        self.last = Some(now);
+        self.burst = Some(burst);
+        let interval = self.interval();
+        if self.opening && together && now.saturating_duration_since(burst) <= self.burst_gap(now, n) {
+            // A loss held the ones behind the opening message, and they came
+            // with it, at the interval's start: not in its rate. A burst
+            // that lasts longer is a fast path's flow, which counts.
+            self.since = Some(now);
             return false;
         }
-        let rate = (u128::from(self.bytes) * 1_000_000 / took.as_micros().max(1)) as u64;
-        self.rate.add(now, rate);
+        self.opening = false;
+        if !together && last.saturating_duration_since(since) >= interval {
+            // The burst of the last message ended with it: so does the
+            // interval, and the last message opens the next one. This one
+            // came in that opening, by the rate just measured, when it came
+            // sooner than the path carries a message: it was on its way
+            // during the stall.
+            self.sample(now, last.saturating_duration_since(since), self.bytes);
+            if now.saturating_duration_since(last) <= self.burst_gap(now, n) {
+                (self.since, self.bytes, self.opening) = (Some(now), 0, true);
+            } else {
+                (self.since, self.bytes) = (Some(last), n);
+            }
+            return true;
+        }
+        self.bytes += n;
+        if now.saturating_duration_since(since) < interval || now.saturating_duration_since(burst) < interval {
+            return false;
+        }
+        self.sample(now, now.saturating_duration_since(since), self.bytes);
         self.since = Some(now);
         self.bytes = 0;
         true
+    }
+
+    /// The longest gap between two messages of one burst: half a message's
+    /// time at the best rate, where a flow's messages come a whole one
+    /// apart; [`BURST_GAP`] before any rate.
+    fn burst_gap(&self, now: Instant, n: u64) -> Duration {
+        self.rate(now).map_or(BURST_GAP, |rate| {
+            Duration::try_from_secs_f64(n as f64 / rate.max(1) as f64 / 2.0).unwrap_or(BURST_GAP)
+        })
+    }
+
+    /// The rate of `bytes` over `took` is a sample.
+    fn sample(&mut self, now: Instant, took: Duration, bytes: u64) {
+        let rate = (u128::from(bytes) * 1_000_000 / took.as_micros().max(1)) as u64;
+        self.rate.add(now, rate);
     }
 }
 

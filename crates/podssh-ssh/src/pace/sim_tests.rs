@@ -327,9 +327,9 @@ fn on_a_slow_long_path_too() {
 /// (T-661's Decision 8), until the drain at the first key lets it come; a
 /// drain that ended at a guess of when it comes ended before it came, and
 /// the window went back to the queue's round trip, seconds of it (T-670).
-/// Each key after the drain waits for little; a loss holds the bytes behind
-/// it a round trip, and the rate's best reads the burst after it (T-673),
-/// so the bound is four idle echoes.
+/// Each key after the drain waits for little: a loss holds the bytes behind
+/// it a round trip, and the burst after it joins the interval of its stall,
+/// so the rate's best is the path's (T-673), and the bound two idle echoes.
 #[test]
 fn on_a_slow_lossy_link_the_drain_waits_for_its_queue() {
     static PACED: Keys = Keys::new();
@@ -351,7 +351,7 @@ fn on_a_slow_lossy_link_the_drain_waits_for_its_queue() {
     );
     assert!(today.echo_p50() > 10 * idle, "the reference queues up to 4 s in front of each key");
     assert!(paced.echo_p50() <= 8 * idle, "echo p50 {} ms, idle {idle} ms", paced.echo_p50());
-    assert!(after <= 4 * idle, "the last 20 keys' p50 {after} ms, idle {idle} ms");
+    assert!(after <= 2 * idle, "the last 20 keys' p50 {after} ms, idle {idle} ms");
 }
 
 /// A window that bounds the flow, the road's cap on a long fat path where

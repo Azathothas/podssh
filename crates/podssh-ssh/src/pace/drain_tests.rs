@@ -46,7 +46,9 @@ fn a_drain_lasts_until_a_clean_round_trip_not_a_guess() {
     let t0 = Instant::now();
     let mut pace = Pace::default().with_keys(&KEYS);
     assert!(!pace.path.count(t0, 0));
-    assert!(pace.path.count(t0 + ms(100), 1_000_000));
+    assert!(!pace.path.count(t0 + ms(100), 1_000_000));
+    // The next message, apart from the last, ends the interval at it.
+    assert!(pace.path.count(t0 + ms(150), 0));
     let at = t0 + ms(200);
     let pace = two_downloads(pace, at);
     assert!(pace.draining(at + ms(5_000)), "a guess from the rate ended it at 292 ms");

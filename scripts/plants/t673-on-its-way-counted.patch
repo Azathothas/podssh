@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/pace/path.rs
++++ b/crates/podssh-ssh/src/pace/path.rs
+@@ -176,7 +176,7 @@
+             // sooner than the path carries a message: it was on its way
+             // during the stall.
+             self.sample(now, last.saturating_duration_since(since), self.bytes);
+-            if now.saturating_duration_since(last) <= self.burst_gap(now, n) {
++            if false {
+                 (self.since, self.bytes, self.opening) = (Some(now), 0, true);
+             } else {
+                 (self.since, self.bytes) = (Some(last), n);

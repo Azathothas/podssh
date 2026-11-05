@@ -1,0 +1,6 @@
+# T-673: no message is in a burst, so an interval ends at the first message
+# after a stall and the next reads the burst alone; the test of a burst after a stall must fail.
+ENTRY=T-673
+GROUP=resume
+EXPECT='test pace::path::tests::a_burst_after_a_stall_joins_the_interval_before_it \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::path::tests::a_burst_after_a_stall_joins_the_interval_before_it'

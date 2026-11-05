@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/pace/path.rs
++++ b/crates/podssh-ssh/src/pace/path.rs
+@@ -156,7 +156,7 @@
+             self.opening = true;
+             return false;
+         };
+-        let together = now.saturating_duration_since(last) <= self.burst_gap(now, n);
++        let together = false;
+         let burst = if together { self.burst.unwrap_or(last) } else { now };
+         self.last = Some(now);
+         self.burst = Some(burst);

@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:725`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:726`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -5186,7 +5186,7 @@ the key exchange, which the release of 0.23 lets a store keep.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5200,7 +5200,7 @@ the target was twice the path's, and a key after T-670's drain waited three idle
 
 ## Premise
 
-- `crates/podssh-ssh/src/pace/path.rs:125` says "pub(super) fn count(&mut self, now: Instant, n: u64) -> bool {":
+- `crates/podssh-ssh/src/pace/path.rs:150` says "pub(super) fn count(&mut self, now: Instant, n: u64) -> bool {":
   an interval ends at the first message past its length, which after a stall is the stall's first,
   so the next interval opens with the rest of the burst.
 - `crates/podssh-ssh/src/pace/path.rs:10` says "/// A rate is the best of the samples of the last 5 to 10 s; older, none:".
@@ -5223,6 +5223,36 @@ cargo test -p podssh-ssh --lib pace
 
 On the fake path's slow lossy link (`on_a_slow_lossy_link_the_drain_waits_for_its_queue`), the last
 20 keys' p50 at most twice the idle echo.
+
+## Done
+
+2026-11-05.
+
+- An interval of the rate ends at the end of a burst: a message within half a message's time at
+  the best rate of the one before it (1 ms before any rate) came in the same burst, and an
+  interval whose length passed ends at the first message after the burst, at the burst's last; a
+  burst longer than an interval, as a fast path's flow, ends it anyway. Half, not the quarter of
+  item 1: a message that was on its way during a stall came 31 ms after the burst on the slow lossy
+  link, where a message takes 66 ms.
+- Item 2's cause: the messages that a loss held came with the interval's first message, at its
+  start, and were counted as if they came later (the first sample, 32 KiB in 197 ms, read 166 kB/s
+  with the burst rule alone). Each message of the opening's burst now opens the interval too, for at
+  most a burst's gap, and after a sample the next interval opens at a message that came that soon
+  after the last one, by the rate just measured.
+- Item 3 is not needed: the drain's long round trip came from the rate. Each round trip subtracts
+  the time of the bytes behind the timed byte at the measured rate, and a rate a third over the
+  path's left 16 ms of each message in it (the least read 115.7 ms on a path of 100); with the
+  path's rate it reads 99.7 ms.
+- On the fake path's slow lossy link (`on_a_slow_lossy_link_the_drain_waits_for_its_queue`, now
+  bounded at two idle echoes): the rate's best 125,387 B/s on a path of 125,000 (166,335 before),
+  the least round trip 99.7 ms, and the last 20 keys' p50 177 ms, idle 101 (325 before). The other
+  four runs of the fake path moved by under 0.5 percent.
+- `cargo test -p podssh-ssh --lib pace`: 47 passed; the crate whole, each target, passed. Four
+  tests are new (a burst after a stall, the opening's burst, a message on its way, a burst longer
+  than an interval); three of the old ones end their interval one message later. Plants
+  `t673-burst-ends-the-interval`, `t673-opening-counted` and `t673-on-its-way-counted` caught.
+  Clippy and rustfmt clean.
+
 
 # T-675: The gate red since T-664: the record of the keys that hosts took loses a change, and the stall's check names the old first request
 

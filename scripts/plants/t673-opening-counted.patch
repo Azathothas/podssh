@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/pace/path.rs
++++ b/crates/podssh-ssh/src/pace/path.rs
+@@ -161,7 +161,7 @@
+         self.last = Some(now);
+         self.burst = Some(burst);
+         let interval = self.interval();
+-        if self.opening && together && now.saturating_duration_since(burst) <= self.burst_gap(now, n) {
++        if false && self.opening && together {
+             // A loss held the ones behind the opening message, and they came
+             // with it, at the interval's start: not in its rate. A burst
+             // that lasts longer is a fast path's flow, which counts.

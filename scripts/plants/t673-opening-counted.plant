@@ -1,0 +1,6 @@
+# T-673: the messages that come with the interval's first are counted, as if
+# they came later; the test of the opening's burst must fail.
+ENTRY=T-673
+GROUP=resume
+EXPECT='test pace::path::tests::the_messages_that_come_with_the_first_open_the_interval_too \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- pace::path::tests::the_messages_that_come_with_the_first_open_the_interval_too'
