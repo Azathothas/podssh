@@ -286,6 +286,6 @@ mod tests {
             assert_eq!(code, Some(crate::exit_codes::EXIT_USAGE), "{ttl:?} {stale:?}");
         }
         let file = ServeArgs { mint: Some("keys:owners".into()), list_stale: Some("0".into()), ..ServeArgs::default() };
-        assert!(Lists::of(&file, None).unwrap_err().message.contains("go with --mint keys:https://"));
+        assert!(matches!(Lists::of(&file, None), Err(e) if e.message.contains("go with --mint keys:https://")));
     }
 }
