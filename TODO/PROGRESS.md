@@ -5,29 +5,27 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## State
 
-- **Checkpoint, 2026-11-04, about 14:00 UTC: a new cloud session, after the operator's rulings.**
-  1. **The gate at `909e4f5`** failed on two causes of the place, none of podssh: macOS could not
-     resolve `static.crates.io` (its job is run again), and TruffleHog could not verify five test
-     keys of russh on the branch `draft/worktree-agent-t460-ssh` and read them "unknown"
-     (`.github/secrets-allow.txt` now lists each test key of that copy and of ssh-key's).
-  2. **`v1.1.0-beta.2` is published** (Q98), from `dbd0fac` at 18:48 UTC: its gate passed (run
-     41869313854, after one job that GitHub abandoned ran again), the release workflow by hand on
-     `beta/v1.1.0-beta.2` (run 41869341058), `scripts/release-short.sh BINARY --net` on a static
-     build of the same code, then the tag's run (41885270408); `release-proofs.yml` (run
-     41892109498) and `update-live.yml` (run 41892114409) passed. `docs/STATUS.md` marks its 80
-     rows. `v1.1.0-beta.3` follows at the end of the night with the night's work (Q98).
-  3. **GitHub #126 to #148** (Nemo-010, 2026-11-04): #126 is repaired (T-628) and closed; #127 to
-     #148 are T-629 to T-650, by a triage draft merged the same evening (Q100).
-  4. **osewa** (Q99): two agents studied `rjyo/osewa`'s code and its paper
-     (`docs/research/osewa.md`); its gaps are T-660 to T-669, ahead of the rest of M10.
-  5. **Partial and watched:** T-465 (`pipe`'s end of input lost 2 runs in 50 on Windows and
-     macOS; the probe of Windows' AF_UNIX lost none of 600, so the next step is a client in another
-     process than its server, or a failure that says the time of each step); T-627 (a test of
-     T-615 timed out once in the relay crate's suite; it says the role's events at its limit); T-319,
-     T-321 and T-253 (their parts that wait for a runner, Q88).
-  6. **The work order** (below): the testers' defects (#126 first), then osewa's entries, then
-     item 2, T-106; item 3, T-433, T-180, T-434 and T-459 (a WIP branch, `draft/wip-459`
-     (`b5f9a50`), untested).
+- **Checkpoint, 2026-11-05, about 00:30 UTC: the end of the night of 2026-11-04 (Q98 to Q100).**
+  1. **`v1.1.0-beta.2` is published** (from `dbd0fac`, 2026-11-04 18:48 UTC; its proofs passed).
+     **`v1.1.0-beta.3`** is made ready at `35e4932` (`docs/releases/v1.1.0-beta.3.md`; the short
+     form of its static binary passed): its gate, the release workflow by hand on
+     `beta/v1.1.0-beta.3`, then `release.yml` with `publish=v1.1.0-beta.3`, `release-proofs.yml`
+     and `update-live.yml`, then the marks of `docs/STATUS.md`, as beta.2's record did.
+  2. **GitHub #126 to #148** (Nemo-010) are T-628 to T-650 (Q100); done and closed: #126, #127,
+     #128, #132, #133, #137, #138, #143, #145, #146. The others are open entries by priority.
+  3. **osewa** (Q99, `docs/research/osewa.md`): T-660 to T-670, T-673. Done: T-661, T-663, T-664;
+     partial: T-660 (iroh's and DERP's rows, osewa on a runner), T-662 (a copy through a shaped
+     link), T-665 (the A/B run on a wide-area path), T-666 (the HTTP/2 part), T-670 (a far link's
+     download while typing, a node's road on the slow link). Measured on the loopback (T-660's
+     matrix): a key's echo beside a download is now about 100 to 140 ms on a cellular link
+     (OpenSSH 1.6 s) and 0.4 to 0.8 s on a link of 1 Mbit/s (OpenSSH 16 s); a session resumes 1 s
+     after a move; a cold connect is two round trips shorter than before and than OpenSSH's.
+  4. **Partial and watched:** T-465, T-627, T-319, T-321, T-253 (as before), and those of item 3.
+  5. **The work order** (below): the rest of osewa's entries (T-667, T-668, T-669, T-673), then
+     GitHub #127 to #148's open entries by priority, then M10's items 2 and 3 (T-106, T-433,
+     T-180, T-434, T-459).
+  6. **Two lessons of the night** (each in the paragraph of the drafts below): never commit while
+     `scripts/plant-each.sh` runs; when the disk fills, remove `target/` whole.
 
 - **The record.** The work is in `TODO/` since 2026-10-08 (T-204). Each open
   item of `docs/ROADMAP.md`, each row of the former defects page, each
