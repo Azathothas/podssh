@@ -1,8 +1,0 @@
-# T-642: an HTTPS record's parameter taken up to the record's end where its
-# length runs past it, so a record cut short gives a list cut short, or none,
-# where it must be an error that says so; the test of the cuts must fail.
-ENTRY=T-642
-GROUP=cli-tests
-EXPECT='test resolve::https::tests::a_record_cut_short_is_an_error_that_says_so \.\.\. FAILED'
-RUN='cargo test --locked -p podssh-ws --lib -- resolve::https::tests'
-LIMIT=1800

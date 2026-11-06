@@ -2,7 +2,7 @@
 //! set; TLS of [`crate::tls`]; HTTP/2; and one CONNECT, as connect-ip-go's
 //! fork sends it over HTTP/2 (`client_h2.go`, `DialH2`, with usque's
 //! headers from `api/masque.go`): `:method CONNECT`, `:authority`
-//! [`crate::AUTHORITY`], `cf-connect-proto: cf-connect-ip` and `pq-enabled:
+//! [`crate::authority`], `cf-connect-proto: cf-connect-ip` and `pq-enabled:
 //! false`, no `User-Agent`. Its request body carries the client's packets,
 //! and its response body the edge's, each in a capsule.
 //!
@@ -77,7 +77,7 @@ pub enum Opening {
 pub fn request() -> Result<http::Request<()>, String> {
     http::Request::builder()
         .method(http::Method::CONNECT)
-        .uri(crate::AUTHORITY)
+        .uri(crate::authority())
         .header("cf-connect-proto", "cf-connect-ip")
         .header("pq-enabled", "false")
         .body(())
@@ -110,7 +110,8 @@ pub async fn open(
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     // A certificate from a minute ago, for a clock a little ahead of the edge's.
     let (config, pinned) = crate::tls::config(&device.key, &device.endpoint_point, now - 60).map_err(Opening::Local)?;
-    let name = rustls_pki_types::ServerName::try_from(crate::SERVER_NAME).map_err(|e| Opening::Local(e.to_string()))?;
+    let name =
+        rustls_pki_types::ServerName::try_from(crate::server_name()).map_err(|e| Opening::Local(e.to_string()))?;
     let connector = tokio_rustls::TlsConnector::from(config);
     let tls = match tokio::time::timeout(limit, connector.connect(name, tcp)).await {
         Err(_) => return Err(Opening::Timeout("the TLS handshake with WARP's endpoint")),

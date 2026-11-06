@@ -116,8 +116,8 @@ fn a_role_s_signed_list_names_a_deployment_outside_the_domain() {
     assert_eq!(bad.status.code(), Some(78), "{}", text(&bad.stderr));
     // relay status names each deployment, and that the list was signed; the
     // default's hosts are pinned where nothing listens.
-    let mut pins: Vec<String> = podssh_relay::pool::SEED.iter().map(|h| format!("{h}=127.0.0.1")).collect();
-    pins.extend([format!("{}=127.0.0.1", podssh_relay::relay::DEFAULT_RELAY_HOST), names.to_string()]);
+    let mut pins: Vec<String> = podssh_relay::pool::seed().iter().map(|h| format!("{h}=127.0.0.1")).collect();
+    pins.extend([format!("{}=127.0.0.1", podssh_relay::relay::default_relay_host()), names.to_string()]);
     let pins = pins.join(",");
     let out = ran(client(&s.home, &words(&["relay", "status", "--ca-file", &ca, "--relay-addr", &pins]), trusted));
     let stdout = text(&out.stdout);

@@ -28,7 +28,9 @@ use tokio::sync::mpsc;
 
 /// The edge's address inside the stand-in's tunnel: TEST-NET-2, which no
 /// network of this host routes.
-const INSIDE: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(198, 51, 100, 7)), edge::PORT);
+fn inside() -> SocketAddr {
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(198, 51, 100, 7)), edge::port())
+}
 
 /// A P-256 key of podssh-warp's, for rcgen's certificates.
 struct Signer(DeviceKey, Vec<u8>);
@@ -71,7 +73,7 @@ async fn quick_edge() -> (SocketAddr, Accepted, Trust) {
     ca.serial_number = Some(rcgen::SerialNumber::from_slice(&rand::random::<[u8; 16]>()));
     let ca_cert = ca.self_signed(&ca_key).unwrap();
     let issuer = rcgen::Issuer::new(ca, &ca_key);
-    let mut leaf = rcgen::CertificateParams::new(vec![edge::SERVER_NAME.to_string()]).unwrap();
+    let mut leaf = rcgen::CertificateParams::new(vec![edge::server_name().to_string()]).unwrap();
     leaf.serial_number = Some(rcgen::SerialNumber::from_slice(&rand::random::<[u8; 16]>()));
     let leaf = leaf.signed_by(&leaf_key, &issuer).unwrap();
     let certified = rustls::sign::CertifiedKey::new(vec![leaf.der().clone()], leaf_key.0.signer());
@@ -102,14 +104,14 @@ async fn quick_edge() -> (SocketAddr, Accepted, Trust) {
 async fn a_node_registers_through_warp_s_tunnel_and_a_visitor_passes() {
     let (edge_addr, mut conns, trust) = quick_edge().await;
     let key = DeviceKey::generate().unwrap();
-    let route = Route { inside: INSIDE, outside: edge_addr };
+    let route = Route { inside: inside(), outside: edge_addr };
     let warp_edge = StandIn::start(vec![key.point()], vec![route]).await.unwrap();
     let warp = podssh_warp::Warp::open(&warp_edge.device(key), &ProxyChoice::Direct, LIMIT)
         .await
         .expect("WARP's tunnel to the stand-in opens");
     // The edge by its address inside the tunnel, as its SRV record names
     // regions that the tunnel reaches.
-    let found = Edge { regions: vec![INSIDE.ip().to_string()], port: edge::PORT, fixed: None };
+    let found = Edge { regions: vec![inside().ip().to_string()], port: edge::port(), fixed: None };
     let tls = tokio::time::timeout(LIMIT, edge_warp::connect(&warp, &found, &trust))
         .await
         .expect("in time")
@@ -144,7 +146,7 @@ async fn an_edge_that_the_tunnel_does_not_reach_is_named() {
     let key = DeviceKey::generate().unwrap();
     let warp_edge = StandIn::start(vec![key.point()], vec![]).await.unwrap();
     let warp = podssh_warp::Warp::open(&warp_edge.device(key), &ProxyChoice::Direct, LIMIT).await.unwrap();
-    let found = Edge { regions: vec![INSIDE.ip().to_string()], port: edge::PORT, fixed: None };
+    let found = Edge { regions: vec![inside().ip().to_string()], port: edge::port(), fixed: None };
     let why = match edge_warp::connect(&warp, &found, &trust).await {
         Ok(_) => panic!("an edge where the tunnel reaches none"),
         Err(why) => why,

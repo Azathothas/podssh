@@ -152,8 +152,8 @@ async fn a_record_that_cannot_be_read_gives_the_fixed_names_and_why() {
     drop(closed);
     let proxy = podssh_ws::proxy::Proxy::parse(&format!("http://127.0.0.1:{port}")).unwrap();
     let found = edge::find(&podssh_ws::ProxyChoice::Via(proxy)).await;
-    assert_eq!(found.regions, edge::REGIONS.map(String::from).to_vec());
-    assert_eq!(found.port, edge::PORT);
+    assert_eq!(found.regions, edge::regions().into_iter().map(String::from).collect::<Vec<_>>());
+    assert_eq!(found.port, edge::port());
     let why = found.fixed.expect("the reason of the fixed names");
     assert!(why.contains("the edge's SRV record was not read"), "{why}");
 }

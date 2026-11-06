@@ -40,7 +40,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
 
 1. Add `token_key(relay)` to `podssh-relay`: the default host for the default host and for each
    host that `pool::same_deployment(DEFAULT_RELAY_HOST, host)` accepts; else the host itself,
-   with the port when it is not 443. `same_deployment` (`crates/podssh-relay/src/pool.rs:148-153`)
+   with the port when it is not 443. `same_deployment` (`crates/podssh-relay/src/pool.rs:144-149`)
    is the one rule that already decides where a token may go.
 2. Use the key of the host in use at each place: the load and the store through `MintContext`
    (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
@@ -132,8 +132,8 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
 (`docs/relay.md:530-531`). The `health` function of `doctor`
-(`crates/podssh-cli/src/doctor/relay_checks.rs:102-119`) already makes a verified `/health`
-request; `crates/podssh-relay/src/pool.rs:182-208` fetches `/relays.json`. `https_get` sends no
+(`crates/podssh-cli/src/doctor/relay_checks.rs:112-129`) already makes a verified `/health`
+request; `crates/podssh-relay/src/pool.rs:178-204` fetches `/relays.json`. `https_get` sends no
 token header (`PodUtils/podssh:crates/podssh-ws/src/client.rs:294-305`); `https_request` takes headers (lines
 282-303).
 
@@ -142,7 +142,7 @@ token header (`PodUtils/podssh:crates/podssh-ws/src/client.rs:294-305`); `https_
 1. `relay status`: `/health` on each host of the list. Move `health` into `podssh-relay`, so
    `doctor` and `relay` share one path, and podbox can use it.
 2. `relay info [HOST PORT]`: `/relays.json?host=&port=`, the pool and the limits, read with
-   `crates/podssh-relay/src/pool.rs:157-178`.
+   `crates/podssh-relay/src/pool.rs:153-174`.
 3. `relay spec`: the `/health` version and `/llms-full.txt`, checked against the pinned facts by
    `verdict_from` (`crates/podssh-probe/src/relay_facts.rs:345-359`), or `--document FILE`.
    This is T-060.
@@ -152,7 +152,7 @@ token header (`PodUtils/podssh:crates/podssh-ws/src/client.rs:294-305`); `https_
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:26`), and the run has a limit too.
+   (`crates/podssh-cli/src/doctor/relay_checks.rs:29`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs` line 442 at `af0a163`); change `DISPATCHED`, `usage_tail`
    (`crates/podssh-cli/src/help.rs`, line 237 at `24f3e2a`), the notes, `docs/relay.md`, lines 296-302 at `24f3e2a`, and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
@@ -760,7 +760,7 @@ Read, at `3214fa1`, as the issue says on `3ee70dc`: a plain `for` loop over the 
 `CONNECT_TIMEOUT` 20 s (line 25). `notes` is declared at line 180 and line 215; its four call
 sites are line 189 (the round notice), line 193 (into `try_host`), line 201 (a failed host) and
 line 221 (the token cache). The session returns with its host at line 197 (the issue says 192).
-The order of preference is built in `crates/podssh-relay/src/relay.rs:107-125`. No
+The order of preference is built in `crates/podssh-relay/src/relay.rs:128-146`. No
 `FuturesUnordered`, `JoinSet` or `join_all` is in `podssh-relay` or `podssh-ws`. Measured in the gate (`docs/STATUS.md`, "Faults between podssh
 and the relay, measured"): each silent-host fault costs 20 s. The issue calls rule 3 of
 `docs/architecture.md` "no option dropped silently"; it is "One outbound connection, never a
@@ -2102,8 +2102,8 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
 ## Premise
 
 - Read: the idle cut (180 s), the byte cap (64 MiB), the time cap (12 h) and podssh's budgets
-  under them (60 MiB, 11 h 30 min) are constants (`crates/podssh-relay/src/relay.rs:19-37`);
-  `PODSSH_SESSION_BUDGET` lowers the byte budget and never raises it (`:39-73`).
+  under them (60 MiB, 11 h 30 min) are constants (`crates/podssh-relay/src/relay.rs:33-58`);
+  `PODSSH_SESSION_BUDGET` lowers the byte budget and never raises it (`:60-94`).
 - Read: the frame decoder refuses a received frame over 262144 bytes
   (`crates/podssh-ws/src/frame.rs:30`, `:221-231`), and the session then ends with a Close 1002
   (`crates/podssh-ws/src/session.rs:347`); a message is at most 16 MiB (`:36`).
@@ -2114,7 +2114,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   `/health` alone (`scripts/check-relay-spec.py:399-400`); `:196-197` reads the cap from the
   facts file.
 - Read: podssh fetches `/relays.json` at a mint for its pool, and keeps `pool[].host` alone
-  (`crates/podssh-relay/src/pool.rs:155-246`). `podssh relay info` reads its `limits`
+  (`crates/podssh-relay/src/pool.rs:151-242`). `podssh relay info` reads its `limits`
   (`connect_timeout_ms`, `idle_timeout_ms`, `max_session_ms`, `max_session_bytes` and
   `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:114-127`), and a test asserts a
   stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:261`).
@@ -2226,7 +2226,7 @@ relay's operator has no way to move the binaries in the field to another deploym
 - Read: the default host and the six seeds of the pool are names under `ssh.relay.ajam.dev`
   (`crates/podssh-relay/src/relay.rs:13`; `crates/podssh-relay/src/pool.rs:25-34`), and a host of
   `/relays.json` outside the default's parent domain is dropped
-  (`crates/podssh-relay/src/pool.rs:144-157`).
+  (`crates/podssh-relay/src/pool.rs:140-153`).
 - Read: the relay is a Worker of Cloudflare
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:5-7`); its pool names placements
   in regions of AWS, GCP and Azure, each a name of the same domain (`:30-68`). Inferred: each is a
@@ -3161,7 +3161,7 @@ URL written into each result, and a download target that is no test target of `A
   WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-150`), one host after another
   (`crates/podssh-cli/src/ping/mod.rs:167-172`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
-  (`crates/podssh-cli/src/doctor/relay_checks.rs:199-230`); `--quick` keeps the relay's sections and
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:209-240`); `--quick` keeps the relay's sections and
   `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:163-167`).
 - Read: `podssh relay trace` asks the relay to dial a target and gives its own times
   (`crates/podssh-cli/src/relay_diag.rs:182-185`); `relay info` gives the pool
@@ -3305,11 +3305,11 @@ working hosts, which a measurement can make.
 
 ## Premise
 
-- Read: `crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize = 3;", and the
+- Read: `crates/podssh-relay/src/relay.rs:99` says "pub const MAX_ALTERNATES: usize = 3;", and the
   default list is the default host, then the pool in its order
-  (`crates/podssh-relay/src/relay.rs:104-125`).
+  (`crates/podssh-relay/src/relay.rs:125-146`).
 - Read: the alternates are the cached pool, in the order of `/relays.json`
-  (`crates/podssh-relay/src/pool.rs:111-126`); `docs/relay.md:574-576` says that `/relays.json`
+  (`crates/podssh-relay/src/pool.rs:107-122`); `docs/relay.md:574-576` says that `/relays.json`
   ranks relays by the edge that answered, and that its `score_ms` did not agree with the measured
   latency.
 - Read: `podssh ping`'s leg times the token, the dial, TLS and the upgrade of one host, and its
@@ -3466,7 +3466,7 @@ times the hosts that it tries, and throws the times away.
 - Read: `crates/podssh-cli/src/relay_settings.rs:75`, where the default list took
   `pool::alternates` of the default host as `/relays.json` gave them: the one place where the default list
   takes its alternates, which `select_relays` puts after the default host
-  (`crates/podssh-relay/src/relay.rs:104-125`).
+  (`crates/podssh-relay/src/relay.rs:125-146`).
 - Read: `open` loads the record and orders the list by it, then races the hosts
   (`crates/podssh-relay/src/open.rs:221-227`, `crates/podssh-relay/src/open.rs:258`); each host's
   attempt is `attempt` (`crates/podssh-relay/src/open.rs:330-348`); the file has 473 lines.
@@ -3833,7 +3833,7 @@ changes with the edge", which is not true of the role: it has no edge and gives 
   (`crates/podssh-cli/src/man/notes_relay.rs`, lines 72-78 at `366f511`), and so does
   `docs/cli.md:3326-3332`.
 - Read: `relay status` and `ping` time the hosts of the run's list, the default host and three
-  others at most (`crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize =
+  others at most (`crates/podssh-relay/src/relay.rs:99` says "pub const MAX_ALTERNATES: usize =
   3;"; `crates/podssh-cli/src/relay_diag.rs:88-97`, `crates/podssh-cli/src/ping/mod.rs:167-172`),
   not the 37 hosts of the pool, which only `relay rank` measures.
 - Read: the order that a run of the default list takes, in a word, is `order_now`
@@ -3911,7 +3911,7 @@ info` with `--relay-host` reads the order named, and `--json` has `relay_order` 
   from the cache by `order_now` and `placed_now` with no connection, and `order_words`, the words
   that `doctor/relay_checks.rs` had, with the background rank's; `doctor_line` takes the list alone
   and calls them, so `doctor`'s line `rank` keeps its words
-  (`crates/podssh-cli/src/doctor/relay_checks.rs:45`).
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:55`).
 - `crates/podssh-cli/src/relay_diag_text.rs`: the line of the measures names `podssh relay rank`
   (each host of the pool) first (`crates/podssh-cli/src/relay_diag_text.rs:39-40`); the next line,
   with a pool or none, is "a run from this host takes WORDS; its list: HOSTS"
@@ -4094,7 +4094,7 @@ Read at `2042200`:
   (`crates/podssh-relay/src/serve/reverse/pairs.rs:296`), and ACME's cache at each renewal. A root
   that dropped `CAP_DAC_OVERRIDE` reads a file of another owner only as its mode lets uid 0
   (Inferred from capabilities(7); not measured here).
-- `crates/podssh-cli/Cargo.toml:144` says "[target.'cfg(unix)'.dependencies]" above the binary's
+- `crates/podssh-cli/Cargo.toml:148` says "[target.'cfg(unix)'.dependencies]" above the binary's
   `libc` row, so the calls need no new crate and no C of a library crate (rule 4 of `AGENTS.md`).
 - `crates/podssh-cli/src/exitmap.rs:139` says "Fault::Capability | Fault::Config => sysexits::EX_CONFIG":
   78 is this host not set up for the mode.
@@ -4505,7 +4505,7 @@ Read at `2042200`:
 
 ## Approach
 
-1. A gate for each origin (`Relay`, host and port, `crates/podssh-relay/src/relay.rs:83-86`), in the
+1. A gate for each origin (`Relay`, host and port, `crates/podssh-relay/src/relay.rs:104-107`), in the
    process: up to 8 attempts at once while the host has not failed; after a failure that
    `another_host_may_help` gives to the host, one probe at a time, after a wait of 5 s that doubles to
    300 s, and the gate opens again on any answer that shows the host alive (a policy's `403` or the
@@ -4928,7 +4928,7 @@ Read at `2042200`:
   (`crates/podssh-relay/tests/opentunnel_stand_in/parse.rs:110` for the record's length, `:120` for the
   name), and routing by a name's label in OpenTunnel's road (`crates/podssh-relay/src/opentunnel/wire.rs:206`).
 - A node that ends a visitor's TLS with a name of its own exists for OpenTunnel (T-530):
-  `crates/podssh-relay/Cargo.toml:97` says "the key and the CSR of its" name come from the binary.
+  `crates/podssh-relay/Cargo.toml:101` says "the key and the CSR of its" name come from the binary.
 - Publishing a local HTTP service at a public name is T-180 (`podssh funnel`, TLS at the quick tunnel's
   edge); this entry is the role's form, with TLS at the node.
 

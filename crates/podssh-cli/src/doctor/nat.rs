@@ -35,8 +35,12 @@ pub(crate) const ENV: &str = "PODSSH_STUN";
 /// The servers asked by default (the operator's call to confirm, Q86):
 /// Cloudflare's, which its Realtime TURN documentation names, then
 /// Google's, which WebRTC's samples name. Two operators, so that the two
-/// answers come from two destinations.
-pub(crate) const DEFAULT: [&str; 2] = ["stun.cloudflare.com:3478", "stun.l.google.com:19302"];
+/// answers come from two destinations: the services of the kind `stun` of
+/// `pod-services`, by their rank.
+pub(crate) fn defaults() -> Vec<String> {
+    let endpoints = pod_services::of_kind("stun").filter_map(|s| s.endpoint("udp"));
+    endpoints.map(|e| e.authority()).collect()
+}
 /// STUN's port when a server names none (RFC 8489, 9).
 const PORT: u16 = 3478;
 /// The tries of each question, and the wait after each: a request lost on
@@ -77,8 +81,9 @@ pub(crate) enum Setting {
 pub(crate) fn setting_of(value: Option<&str>) -> Result<Setting, Refusal> {
     let text = value.map(str::trim).unwrap_or_default();
     let words = format!("give 2 to {MOST} STUN servers as HOST[:PORT],HOST[:PORT], or no");
+    let defaults = defaults();
     let list: Vec<&str> = match text {
-        "" => DEFAULT.to_vec(),
+        "" => defaults.iter().map(String::as_str).collect(),
         "no" => return Ok(Setting::Off),
         _ => text.split(',').map(str::trim).collect(),
     };

@@ -338,7 +338,7 @@ async fn serve(tcp: TcpStream, acceptor: tokio_rustls::TlsAcceptor, routes: Arc<
             .map(|(name, value)| (name.as_str().to_string(), value.to_str().unwrap_or_default().to_string()))
             .collect();
         let connect_ip = request.method() == http::Method::CONNECT
-            && authority.as_deref() == Some(crate::AUTHORITY)
+            && authority.as_deref() == Some(crate::authority().as_str())
             && request.headers().get("cf-connect-proto").is_some_and(|v| v == "cf-connect-ip");
         *seen.authority.lock().unwrap_or_else(PoisonError::into_inner) = authority;
         *seen.headers.lock().unwrap_or_else(PoisonError::into_inner) = headers;
@@ -385,7 +385,7 @@ fn far(link: crate::stack::Link, routes: &[Route], seen: &Arc<Seen>) {
     // The stack keeps two addresses at most: a test with routes at two
     // others gets no answer to the probe, and skips it on its device
     // (`Device::probing`).
-    let probe = crate::probe::TARGET_V4;
+    let probe = crate::probe::target_v4();
     if !addresses.contains(&probe.ip()) && addresses.len() < 2 {
         addresses.push(probe.ip());
     }

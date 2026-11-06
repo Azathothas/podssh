@@ -107,7 +107,7 @@ fn record(pem: &str) -> String {
 
 /// The API's answer to `request`, in the form of usque's `AccountData`.
 fn answer(request: &podssh_ws::http::Request, pem: &str, status: Option<u16>) -> (u16, String) {
-    let reg = format!("/{}/reg", register::API_VERSION);
+    let reg = format!("/{}/reg", register::api_version());
     let device = format!("{reg}/{ID}");
     let bearer = format!("Bearer {TOKEN}");
     let bearer = Some(bearer.as_str());
@@ -140,7 +140,7 @@ async fn a_registration_gives_a_device_with_the_endpoint_s_key() {
     assert_eq!(device.id, ID);
     assert_eq!(device.token(), TOKEN);
     assert_eq!(device.endpoint_point, endpoint.point());
-    assert_eq!(device.endpoint, crate::ENDPOINT_H2.parse::<std::net::SocketAddr>().unwrap());
+    assert_eq!(device.endpoint, crate::endpoint_h2());
     // The API's own peers, on port 443, after the endpoint of HTTP/2 (T-561).
     let peers = ["162.159.198.1:443", "[2606:4700:103::]:443"];
     let peers: Vec<std::net::SocketAddr> = peers.iter().map(|p| p.parse().unwrap()).collect();

@@ -24,20 +24,47 @@ use crate::device::Device;
 use crate::key::DeviceKey;
 use crate::routes::Route;
 
-/// The API (usque's `ApiUrl`, `ApiVersion`).
-pub const API_HOST: &str = "api.cloudflareclient.com";
-pub const API_VERSION: &str = "v0a4471";
+/// A text fact of WARP's service (`pod-services`).
+fn fact(name: &str) -> &'static str {
+    crate::service().text(name).unwrap_or_else(|| panic!("cloudflare-warp of pod-services holds no fact {name}"))
+}
+
+/// The host of an endpoint of WARP's service.
+fn host_of(name: &str) -> &'static str {
+    let endpoint = crate::service().endpoint(name);
+    endpoint.map(|e| e.host()).unwrap_or_else(|| panic!("cloudflare-warp of pod-services has no endpoint {name}"))
+}
+
+/// The API (usque's `ApiUrl`, `ApiVersion`): the endpoint `api` and the
+/// fact `usque-api-version`.
+pub fn api_host() -> &'static str {
+    host_of("api")
+}
+pub fn api_version() -> &'static str {
+    fact("usque-api-version")
+}
 /// A second name of the same API, tried after the first (T-562): it
 /// resolved on 2026-11-02 to addresses of Cloudflare's other than the
 /// first's, and the issue reads it as the same service; the live run of
-/// `warp-live.yml` registers a throwaway device through it.
-pub const API_SECOND: &str = "api.devices.cloudflare.com";
-/// The names of the API, in the order that they are tried.
-pub const API_HOSTS: [&str; 2] = [API_HOST, API_SECOND];
+/// `warp-live.yml` registers a throwaway device through it. The endpoint
+/// `api-second`.
+pub fn api_second() -> &'static str {
+    host_of("api-second")
+}
+/// The names of the API, in the order that they are tried: the endpoints of
+/// the role `api`.
+pub fn api_hosts() -> Vec<&'static str> {
+    crate::service().endpoints_of("api").map(|e| e.host()).collect()
+}
 /// The headers of the app (usque's `Headers`), but `Connection`: each
-/// request here has its own connection.
-pub const USER_AGENT: &str = "WARP for Android";
-pub const CLIENT_VERSION: &str = "a-6.35-4471";
+/// request here has its own connection. The facts `user-agent` and
+/// `usque-client-version`, the pair of usque's `API_VERSION`.
+pub fn user_agent() -> &'static str {
+    fact("user-agent")
+}
+pub fn client_version() -> &'static str {
+    fact("usque-client-version")
+}
 pub const CONTENT_TYPE: &str = "application/json; charset=UTF-8";
 /// The device's model and locale (usque's defaults), and the key's types.
 pub const MODEL: &str = "PC";
@@ -61,7 +88,7 @@ pub struct Api {
 impl Api {
     /// Cloudflare's: each of its names, on port 443.
     pub fn cloudflare(trust: Trust, proxy: ProxyChoice, limit: Duration) -> Api {
-        Api { routes: API_HOSTS.iter().map(|host| Route::https(host)).collect(), trust, proxy, limit }
+        Api { routes: api_hosts().into_iter().map(Route::https).collect(), trust, proxy, limit }
     }
 
     /// The same API with `route` tried first, and once.
@@ -167,9 +194,11 @@ pub fn request(
         return Err("a request line or a header holds a line break".into());
     }
     let mut head = format!(
-        "{method} {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: {USER_AGENT}\r\n\
-         CF-Client-Version: {CLIENT_VERSION}\r\nContent-Type: {CONTENT_TYPE}\r\nAccept: application/json\r\n\
-         Connection: close\r\n"
+        "{method} {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: {}\r\n\
+         CF-Client-Version: {}\r\nContent-Type: {CONTENT_TYPE}\r\nAccept: application/json\r\n\
+         Connection: close\r\n",
+        user_agent(),
+        client_version(),
     );
     if let Some(token) = bearer {
         head.push_str(&format!("Authorization: Bearer {token}\r\n"));
@@ -214,7 +243,7 @@ pub fn peers(value: &serde_json::Value) -> Vec<SocketAddr> {
                     Err(_) => continue,
                 },
             };
-            let at = SocketAddr::new(ip, crate::PORT_H2);
+            let at = SocketAddr::new(ip, crate::port_h2());
             if !out.contains(&at) {
                 out.push(at);
             }
@@ -295,7 +324,7 @@ async fn exchange_at(api: &Api, route: &Route, ask: &Ask<'_>) -> Result<Answer, 
 
 /// Register a new device with `api`, and give it a key of MASQUE; `team` is
 /// the token of a Cloudflare One organization, when the user gives one. The
-/// caller has the user's acceptance of the Terms ([`crate::TERMS_URL`]).
+/// caller has the user's acceptance of the Terms ([`crate::terms_url`]).
 /// The enrolment goes by the route that registered the device first, and
 /// the device keeps that route (T-562).
 pub async fn register(api: &Api, team: Option<&str>, now: SystemTime) -> Result<Device, Fault> {
@@ -305,18 +334,18 @@ pub async fn register(api: &Api, team: Option<&str>, now: SystemTime) -> Result<
     drawn.map_err(|_| Fault::Local("this host's random source gave no bytes".into()))?;
     let tos = terms_time(now);
     let body = registration_body(&wg_key, &serial, &tos);
-    let path = format!("/{API_VERSION}/reg");
+    let path = format!("/{}/reg", api_version());
     let ask = Ask { method: "POST", path: &path, bearer: None, team, body: &body };
     let (mut made, route) = exchange(api, &ask).await?;
     let token = made.token.take().ok_or_else(|| Fault::Answer("its answer has no token".into()))?;
     let token = zeroize::Zeroizing::new(token);
     let key = DeviceKey::generate().map_err(Fault::Local)?;
-    let path = format!("/{API_VERSION}/reg/{}", made.id);
+    let path = format!("/{}/reg/{}", api_version(), made.id);
     let body = enrolment_body(&key.spki());
     let ask = Ask { method: "PATCH", path: &path, bearer: Some(token.as_str()), team: None, body: &body };
     let (enrolled, _) = exchange(&api.clone().first(route.clone()), &ask).await?;
     let pem = enrolled.endpoint_key.ok_or_else(|| Fault::Answer("its answer has no endpoint key".into()))?;
-    let endpoint = crate::ENDPOINT_H2.parse().map_err(|_| Fault::Local("the endpoint of HTTP/2".into()))?;
+    let endpoint = crate::endpoint_h2();
     let v4 = enrolled.address_v4.and_then(|t| t.parse::<std::net::Ipv4Addr>().ok());
     let v6 = enrolled.address_v6.and_then(|t| t.parse::<std::net::Ipv6Addr>().ok());
     let device = Device::new(made.id, token.to_string(), key, &pem, endpoint, v4, v6, tos, team.is_some());
@@ -334,7 +363,7 @@ pub async fn read_record(api: &Api, device: &Device) -> Result<(Answer, Route), 
     if device.id.is_empty() || !device.id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
         return Err(Fault::Answer("the device's id in its record is not one that a path can hold".into()));
     }
-    let path = format!("/{API_VERSION}/reg/{}", device.id);
+    let path = format!("/{}/reg/{}", api_version(), device.id);
     let ask = Ask { method: "GET", path: &path, bearer: Some(device.token()), team: None, body: "" };
     let (answer, route) = exchange(api, &ask).await?;
     if answer.id != device.id {
@@ -382,7 +411,7 @@ mod tests {
     /// added through a line break.
     #[test]
     fn a_request_has_the_app_s_headers() {
-        let bytes = request("PATCH", API_HOST, "/v0a4471/reg/abc", Some("tok"), None, "{}").unwrap();
+        let bytes = request("PATCH", api_host(), "/v0a4471/reg/abc", Some("tok"), None, "{}").unwrap();
         let text = String::from_utf8(bytes).unwrap();
         assert!(text.starts_with("PATCH /v0a4471/reg/abc HTTP/1.1\r\nHost: api.cloudflareclient.com\r\n"), "{text}");
         for line in [
@@ -395,7 +424,7 @@ mod tests {
         }
         assert!(text.ends_with("\r\n\r\n{}"));
         assert!(!text.contains("CF-Access-Jwt-Assertion"));
-        assert!(request("POST", API_HOST, "/", None, Some("a\r\nX: y"), "").is_err());
+        assert!(request("POST", api_host(), "/", None, Some("a\r\nX: y"), "").is_err());
     }
 
     /// The parts of an answer of usque's form; an id that a path cannot hold

@@ -129,7 +129,7 @@ mod tests {
         let (key, endpoint, other) =
             (DeviceKey::generate().unwrap(), DeviceKey::generate().unwrap(), DeviceKey::generate().unwrap());
         let (_, pinned) = config(&key, &endpoint.point(), 0).unwrap();
-        let name = ServerName::try_from(crate::SERVER_NAME).unwrap();
+        let name = ServerName::try_from(crate::server_name()).unwrap();
         let now = UnixTime::since_unix_epoch(std::time::Duration::from_secs(1_791_440_989));
         let own = CertificateDer::from(endpoint.certificate(1_791_440_989));
         assert!(pinned.verify_server_cert(&own, &[], &name, &[], now).is_ok());

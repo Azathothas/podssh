@@ -27,7 +27,7 @@ use std::time::Duration;
 
 use podssh_relay::open::Request;
 use podssh_relay::pair::{self, Pair, PairContext};
-use podssh_relay::relay::{self, Relay, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{self, default_relay_host, Relay};
 use podssh_relay::reverse::SessionId;
 use podssh_relay::reverse::{operator, run, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits};
 use podssh_relay::reverse::{Settings, Wire};
@@ -270,7 +270,7 @@ async fn through_the_loop(pair: &Pair, rate: Option<usize>, counts: Counts) -> (
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "the live relay: run with --ignored"]
 async fn a_slow_forward_client_through_the_relay_s_own_loop() {
-    let relay = Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 };
+    let relay = Relay { host: default_relay_host().into(), port: 443 };
     let ctx =
         PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
     let made = pair::create(&ctx).await.expect("a pair");

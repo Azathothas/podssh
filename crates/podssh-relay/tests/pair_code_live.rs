@@ -25,11 +25,11 @@ const OPERATOR: PublicKey = PublicKey([0x11; 32]);
 #[tokio::test]
 #[ignore = "live: the public magic-wormhole mailboxes (Q65)"]
 async fn two_ends_pair_through_each_public_mailbox() {
-    for url in code::MAILBOXES {
+    for url in code::public_mailboxes() {
         let said = Arc::new(Mutex::new(Vec::<String>::new()));
         let kept = said.clone();
         let say: code::Say = Arc::new(move |line: String| kept.lock().unwrap().push(line));
-        let url = WsUrl::parse(url).unwrap();
+        let url = WsUrl::parse(&url).unwrap();
         let proxy = ProxyChoice::FromEnvironment;
         let ends = Ends { mailboxes: vec![url.clone()], trust: Trust::Default, proxy, say };
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;

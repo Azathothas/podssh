@@ -11,7 +11,7 @@ use podssh_ws::Trust;
 
 // The edge's TLS on either road, as the node serves it: one trait for both.
 pub use super::edge::EdgeIo;
-use super::edge::{Edge, DIAL_LIMIT, SERVER_NAME};
+use super::edge::{server_name, Edge, DIAL_LIMIT};
 
 /// The road's words, as the node says how it registered.
 pub const ROAD: &str = "HTTP/2 inside WARP's tunnel";
@@ -29,7 +29,7 @@ pub async fn connect(warp: &podssh_warp::Warp, edge: &Edge, trust: &Trust) -> Re
                 continue;
             }
         };
-        match podssh_ws::tls::connect_over(stream, SERVER_NAME, trust, DIAL_LIMIT).await {
+        match podssh_ws::tls::connect_over(stream, server_name(), trust, DIAL_LIMIT).await {
             Ok(tls) => return Ok(Box::new(tls)),
             Err(e) => failed.push(format!("{region}:{port}: {e}")),
         }

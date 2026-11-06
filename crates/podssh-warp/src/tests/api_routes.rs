@@ -72,8 +72,8 @@ async fn a_refusal_by_the_first_route_goes_to_no_other() {
 fn a_route_put_first_goes_first_once() {
     let api = Api::cloudflare(podssh_ws::Trust::Default, podssh_ws::ProxyChoice::Direct, Duration::ZERO);
     let names: Vec<String> = api.routes.iter().map(Route::to_string).collect();
-    assert_eq!(names, vec![register::API_HOST.to_string(), register::API_SECOND.to_string()]);
-    let second = Route::https(register::API_SECOND);
+    assert_eq!(names, vec![register::api_host().to_string(), register::api_second().to_string()]);
+    let second = Route::https(register::api_second());
     let routes = api.first(second.clone()).routes;
-    assert_eq!(routes, vec![second, Route::https(register::API_HOST)]);
+    assert_eq!(routes, vec![second, Route::https(register::api_host())]);
 }

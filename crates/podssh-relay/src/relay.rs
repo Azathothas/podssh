@@ -6,26 +6,47 @@
 //! environment variable replace it with an ordered list of hosts. With no list
 //! given, the default host comes first and alternates from the relay's own
 //! pool follow ([`crate::pool`]), so one unreachable host, or a proxy that
-//! refuses one name, does not stop podssh. This is the only place the default
-//! name appears in library code.
+//! refuses one name, does not stop podssh. The default deployment, its host
+//! and its limits are data of `pod-services` (the service `ajam-relay`).
+
+/// The default deployment of the relay: the service `ajam-relay` of
+/// `pod-services`, which holds its host, its limits and its seed.
+pub fn deployment() -> &'static pod_services::Service {
+    pod_services::get("ajam-relay").expect("pod-services holds the service ajam-relay")
+}
+
+/// A limit of the default deployment, a whole number.
+fn limit(name: &str) -> u64 {
+    let value = deployment().int(name).and_then(|n| u64::try_from(n).ok());
+    value.unwrap_or_else(|| panic!("ajam-relay of pod-services holds no fact {name}"))
+}
 
 /// The relay podssh uses when nothing else is configured.
-pub const DEFAULT_RELAY_HOST: &str = "tcp.ssh.relay.ajam.dev";
+pub fn default_relay_host() -> &'static str {
+    deployment().endpoint("default").map(|e| e.host()).expect("ajam-relay of pod-services has the endpoint default")
+}
 
 /// Environment variable that replaces the relay: `host`, `host:port`, or an
 /// ordered list of them separated by commas.
 pub const RELAY_ENV: &str = "PODSSH_RELAY";
 
 /// The relay closes a session after this many seconds with no traffic (its
-/// `/relays.json`, version 2026-10-03-r2), so keepalives must come sooner.
-pub const RELAY_IDLE_SECS: u64 = 180;
+/// `/relays.json`; the fact `idle-timeout-ms`), so keepalives must come
+/// sooner.
+pub fn relay_idle_secs() -> u64 {
+    limit("idle-timeout-ms") / 1000
+}
 
 /// The relay ends a session after this many payload bytes, both ways
-/// together, with `1009 session byte cap` (the same document).
-pub const SESSION_BYTE_CAP: u64 = 64 << 20;
+/// together, with `1009 session byte cap` (the fact `max-session-bytes`).
+pub fn session_byte_cap() -> u64 {
+    limit("max-session-bytes")
+}
 
-/// The relay ends a session after this long (720 minutes).
-pub const SESSION_TIME_CAP: std::time::Duration = std::time::Duration::from_secs(12 * 3600);
+/// The relay ends a session after this long (the fact `max-session-ms`).
+pub fn session_time_cap() -> std::time::Duration {
+    std::time::Duration::from_millis(limit("max-session-ms"))
+}
 
 /// podssh's own byte budget for one session, under the cap: the relay
 /// counts bytes that podssh has not read yet, and can hold 2 MiB queued, so a
@@ -51,7 +72,7 @@ pub fn byte_budget(env: Option<&str>) -> u64 {
 /// less with the same margin when the relay's `max_session_bytes` is
 /// smaller; a larger one never raises it. Then `env` lowers it.
 pub fn byte_budget_under(env: Option<&str>, limits: &crate::pool::Limits) -> u64 {
-    let margin = SESSION_BYTE_CAP - SESSION_BYTE_BUDGET;
+    let margin = session_byte_cap() - SESSION_BYTE_BUDGET;
     let under = limits.max_session_bytes.and_then(|cap| cap.checked_sub(margin)).filter(|n| *n >= 1 << 20);
     let budget = under.map_or(SESSION_BYTE_BUDGET, |n| n.min(SESSION_BYTE_BUDGET));
     env.and_then(|v| v.trim().parse::<u64>().ok()).filter(|n| *n >= 1 << 20).map_or(budget, |n| n.min(budget))
@@ -60,7 +81,7 @@ pub fn byte_budget_under(env: Option<&str>, limits: &crate::pool::Limits) -> u64
 /// The time budget under a relay's `limits` (T-342): the compiled-in one, or
 /// half an hour under a smaller `max_session_ms`.
 pub fn time_budget(limits: &crate::pool::Limits) -> std::time::Duration {
-    let margin = SESSION_TIME_CAP - SESSION_TIME_BUDGET;
+    let margin = session_time_cap() - SESSION_TIME_BUDGET;
     let under = limits.max_session_ms.map(std::time::Duration::from_millis).and_then(|cap| cap.checked_sub(margin));
     under.filter(|d| !d.is_zero()).map_or(SESSION_TIME_BUDGET, |d| d.min(SESSION_TIME_BUDGET))
 }
@@ -69,7 +90,7 @@ pub fn time_budget(limits: &crate::pool::Limits) -> std::time::Duration {
 /// a smaller `idle_timeout_ms`.
 pub fn idle_secs(limits: &crate::pool::Limits) -> u64 {
     let given = limits.idle_timeout_ms.map(|ms| ms / 1000).filter(|s| *s > 0);
-    given.map_or(RELAY_IDLE_SECS, |s| s.min(RELAY_IDLE_SECS))
+    given.map_or(relay_idle_secs(), |s| s.min(relay_idle_secs()))
 }
 
 /// How many pool hosts follow the default host when no list is given. Each
@@ -110,7 +131,7 @@ pub fn select_relays(flag: Option<&str>, env: Option<String>, pool: &[String]) -
         let hosts = parse_relay_list(&value)?;
         return Ok(RelayList { hosts, explicit: true });
     }
-    let mut hosts = vec![Relay { host: DEFAULT_RELAY_HOST.to_string(), port: 443 }];
+    let mut hosts = vec![Relay { host: default_relay_host().to_string(), port: 443 }];
     for host in pool {
         if hosts.len() > MAX_ALTERNATES {
             break;
@@ -242,33 +263,14 @@ pub fn ipv6_note(ipv6_target: bool, reason: &str) -> Option<&'static str> {
 mod tests {
     use super::*;
 
-    /// T-342: the compiled-in limits are the facts of the relay's limits,
-    /// which scripts/check-relay-limits.py compares with the live
-    /// `/relays.json`; a change of the facts fails here until they move.
-    #[test]
-    fn the_compiled_limits_are_the_facts_of_the_relays_limits() {
-        let facts = include_str!("../../podssh-probe/facts/relay-limits.toml");
-        let value = |name: &str| -> u64 {
-            facts
-                .lines()
-                .find_map(|line| line.strip_prefix(name)?.trim_start().strip_prefix('=')?.trim().parse().ok())
-                .unwrap_or_else(|| panic!("relay-limits.toml holds no {name}"))
-        };
-        assert_eq!(value("idle_timeout_ms"), RELAY_IDLE_SECS * 1000);
-        assert_eq!(value("max_session_ms"), SESSION_TIME_CAP.as_millis() as u64);
-        assert_eq!(value("max_session_bytes"), SESSION_BYTE_CAP);
-        assert_eq!(value("max_frame_bytes"), podssh_ws::frame::FORWARD_MAX_FRAME as u64);
-    }
-
-    // The byte budget stays under the cap, with room for what the relay can
-    // hold queued: checked when the crate compiles.
-    const _: () = assert!(SESSION_BYTE_BUDGET < SESSION_BYTE_CAP && SESSION_BYTE_CAP - SESSION_BYTE_BUDGET >= 2 << 20);
-
     #[test]
     fn each_budget_is_under_its_cap() {
-        assert!(SESSION_TIME_BUDGET < SESSION_TIME_CAP);
+        // The byte budget stays under the cap, with room for what the relay
+        // can hold queued.
+        assert!(SESSION_BYTE_BUDGET < session_byte_cap() && session_byte_cap() - SESSION_BYTE_BUDGET >= 2 << 20);
+        assert!(SESSION_TIME_BUDGET < session_time_cap());
         // The idle cut is far shorter than either: keepalives handle it.
-        assert!(std::time::Duration::from_secs(RELAY_IDLE_SECS) < SESSION_TIME_BUDGET);
+        assert!(std::time::Duration::from_secs(relay_idle_secs()) < SESSION_TIME_BUDGET);
     }
 
     #[test]
@@ -291,10 +293,10 @@ mod tests {
         let list = select_relays(None, None, &pool).unwrap();
         assert!(!list.explicit);
         let hosts: Vec<&str> = list.hosts.iter().map(|r| r.host.as_str()).collect();
-        assert_eq!(hosts, vec![DEFAULT_RELAY_HOST, "a.example", "b.example", "c.example"]);
-        assert_eq!(list.primary().host, DEFAULT_RELAY_HOST);
+        assert_eq!(hosts, vec![default_relay_host(), "a.example", "b.example", "c.example"]);
+        assert_eq!(list.primary().host, default_relay_host());
         let alone = select_relays(None, Some("  ".into()), &[]).unwrap();
-        assert_eq!(alone.hosts, vec![Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 }]);
+        assert_eq!(alone.hosts, vec![Relay { host: default_relay_host().into(), port: 443 }]);
     }
 
     /// T-346: the hosts of other deployments follow the default list, each
@@ -306,7 +308,7 @@ mod tests {
         let others = vec![other("relay.example.org"), other("a.ssh.relay.ajam.dev"), other("relay.example.org")];
         let list = with_others(default, others);
         let hosts: Vec<&str> = list.hosts.iter().map(|r| r.host.as_str()).collect();
-        assert_eq!(hosts, vec![DEFAULT_RELAY_HOST, "a.ssh.relay.ajam.dev", "relay.example.org"]);
+        assert_eq!(hosts, vec![default_relay_host(), "a.ssh.relay.ajam.dev", "relay.example.org"]);
         let named = with_others(select_relays(Some("mine.example"), None, &[]).unwrap(), vec![other("b.example")]);
         assert_eq!(named.hosts, vec![other("mine.example")], "a list that the user named is the relay alone");
     }

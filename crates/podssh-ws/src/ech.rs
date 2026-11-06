@@ -9,7 +9,8 @@
 //! a proxy no resolver of podssh's makes otherwise (the call of T-642's
 //! Decision, for the operator to confirm under Q86). The list is read from
 //! the resolvers of DNS over HTTPS through the same proxy
-//! ([`crate::resolve::https`]), once for each name and TTL. The dial is
+//! ([`crate::resolve::doh_https`], pod-dns's reader), once for each name
+//! and TTL. The dial is
 //! podssh's ([`crate::dial::dialer`]).
 
 use std::net::SocketAddr;
@@ -73,7 +74,7 @@ pub async fn open(
     let target = Target::new(host, port);
     // The dial's error goes as the cause, so that the road gives it back as
     // it was ([`tls::connect_error`]).
-    let dial = crate::dial::Bare(crate::dial::dialer(proxy, false));
+    let dial = crate::dial::dialer(proxy, false);
     let records = Records(proxy.clone());
     let route =
         pod_tls::ech::Route { target: &target, server_name, trust, dial: &dial, records: &records, limit, alpn };
@@ -87,6 +88,6 @@ pub struct Records(pub ProxyChoice);
 
 impl pod_tls::ech::Records for Records {
     fn ech_list<'a>(&'a self, name: &'a str, deadline: Instant) -> BoxFuture<'a, Result<Option<Published>, String>> {
-        Box::pin(crate::resolve::https::doh_https(name, &self.0, deadline))
+        Box::pin(crate::resolve::doh_https(name, &self.0, deadline))
     }
 }

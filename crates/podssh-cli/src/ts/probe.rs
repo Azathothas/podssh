@@ -26,9 +26,21 @@ use super::control::Server;
 pub const STEP: Duration = Duration::from_secs(8);
 
 /// Where Tailscale publishes its default DERP map; the fork's own tests read
-/// it from there.
-pub const DERP_MAP_HOST: &str = "login.tailscale.com";
-pub const DERP_MAP_PATH: &str = "/derpmap/default";
+/// it from there: the endpoint `map` of `tailscale-derp-map` (`pod-services`).
+fn derp_map() -> &'static pod_services::Endpoint {
+    let service = pod_services::get("tailscale-derp-map").expect("pod-services holds the service tailscale-derp-map");
+    service.endpoint("map").expect("tailscale-derp-map of pod-services has the endpoint map")
+}
+
+/// The host of the default DERP map.
+pub fn derp_map_host() -> &'static str {
+    derp_map().host()
+}
+
+/// The path of the default DERP map.
+pub fn derp_map_path() -> &'static str {
+    derp_map().path().unwrap_or("/")
+}
 
 /// The largest map read. The map of 2026-10-10 is 15 KB.
 pub(crate) const MAP_MAX: usize = 1024 * 1024;
@@ -119,7 +131,7 @@ pub async fn reach(mode: &TsMode, control: Option<&Server>, proxy: &ProxyChoice,
 /// `tcp`: the default DERP map, then a handshake with a server of the
 /// first regions in it, until one answers.
 async fn stock_derp(proxy: &ProxyChoice, deadline: Deadline) -> Verdict {
-    let from = format!("the default DERP map from {DERP_MAP_HOST}");
+    let from = format!("the default DERP map from {}", derp_map_host());
     let limit = deadline.limit(STEP);
     if limit.is_zero() {
         return Verdict::Fail(format!("{from}: not read, the bound had passed"));
@@ -128,7 +140,15 @@ async fn stock_derp(proxy: &ProxyChoice, deadline: Deadline) -> Verdict {
     // step bounds all three.
     let fetched = tokio::time::timeout(
         limit,
-        podssh_ws::https_get(DERP_MAP_HOST, 443, DERP_MAP_PATH, MAP_MAX, &Trust::Default, proxy, limit),
+        podssh_ws::https_get(
+            derp_map_host(),
+            derp_map().port(),
+            derp_map_path(),
+            MAP_MAX,
+            &Trust::Default,
+            proxy,
+            limit,
+        ),
     )
     .await;
     let map = match fetched {

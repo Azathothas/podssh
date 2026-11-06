@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use super::super::kept::{self, Taken};
 use super::*;
-use crate::relay::{select_relays, with_others, DEFAULT_RELAY_HOST};
+use crate::relay::{default_relay_host, select_relays, with_others};
 
 /// 2026-11-02, in seconds and in milliseconds.
 const NOW_S: i64 = 1_793_577_600;
@@ -83,7 +83,7 @@ fn a_signed_list_of_a_trusted_key_names_hosts_outside_the_domain() {
     let taken = kept::take_in(at(&dirs), &signed, &trusting(&k), NOW_MS).unwrap();
     assert!(matches!(taken, Taken::Kept(_)), "{taken:?}");
     assert_eq!(taken.checked().by, "the test");
-    assert_eq!(default_list(&dirs, &trusting(&k)), vec![DEFAULT_RELAY_HOST, "relay.example.org"]);
+    assert_eq!(default_list(&dirs, &trusting(&k)), vec![default_relay_host(), "relay.example.org"]);
     // The same list again changes nothing.
     assert!(matches!(kept::take_in(at(&dirs), &signed, &trusting(&k), NOW_MS), Ok(Taken::Same(_))));
     // As /relays.json carries it, beside the pool.
@@ -104,13 +104,13 @@ fn one_changed_byte_keeps_the_parent_domain_alone() {
         assert_eq!(check(&bad, &trusting(&k), NOW_S), Err(Refused::Signature(k.public())));
         assert!(kept::take_in(at(&dirs), &bad, &trusting(&k), NOW_MS).is_err());
     }
-    assert_eq!(default_list(&dirs, &trusting(&k)), vec![DEFAULT_RELAY_HOST], "nothing was kept");
+    assert_eq!(default_list(&dirs, &trusting(&k)), vec![default_relay_host()], "nothing was kept");
     // A list kept, then changed in the cache, holds no more.
     kept::take_in(at(&dirs), &signed, &trusting(&k), NOW_MS).unwrap();
     let file = dirs[0].join(kept::FILE);
     let changed = std::fs::read_to_string(&file).unwrap().replace("relay.example.org", "relay.example.orh");
     std::fs::write(&file, changed).unwrap();
-    assert_eq!(default_list(&dirs, &trusting(&k)), vec![DEFAULT_RELAY_HOST]);
+    assert_eq!(default_list(&dirs, &trusting(&k)), vec![default_relay_host()]);
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn an_old_not_after_keeps_the_parent_domain_alone() {
     let signed = sign(&k, &ended);
     assert_eq!(check(&signed, &trusting(&k), NOW_S), Err(Refused::Ended { not_after: NOW_S - 1 }));
     assert!(kept::take_in(at(&dirs), &signed, &trusting(&k), NOW_MS).is_err());
-    assert_eq!(default_list(&dirs, &trusting(&k)), vec![DEFAULT_RELAY_HOST]);
+    assert_eq!(default_list(&dirs, &trusting(&k)), vec![default_relay_host()]);
     // A list kept that ends later holds until then, and no more after it.
     let live = sign(&k, &doc(8, "relay.example.org"));
     kept::take_in(at(&dirs), &live, &trusting(&k), NOW_MS).unwrap();
@@ -140,10 +140,10 @@ fn a_lower_serial_keeps_the_list_kept() {
     kept::take_in(at(&dirs), &sign(&k, &doc(5, "five.example.org")), &trusting(&k), NOW_MS).unwrap();
     let lower = kept::take_in(at(&dirs), &sign(&k, &doc(4, "four.example.org")), &trusting(&k), NOW_MS);
     assert_eq!(lower.unwrap_err(), Refused::Older { serial: 4, kept: 5 });
-    assert_eq!(default_list(&dirs, &trusting(&k)), vec![DEFAULT_RELAY_HOST, "five.example.org"]);
+    assert_eq!(default_list(&dirs, &trusting(&k)), vec![default_relay_host(), "five.example.org"]);
     // A higher one takes its place.
     kept::take_in(at(&dirs), &sign(&k, &doc(6, "six.example.org")), &trusting(&k), NOW_MS).unwrap();
-    assert_eq!(default_list(&dirs, &trusting(&k)), vec![DEFAULT_RELAY_HOST, "six.example.org"]);
+    assert_eq!(default_list(&dirs, &trusting(&k)), vec![default_relay_host(), "six.example.org"]);
 }
 
 #[test]
@@ -152,7 +152,7 @@ fn an_unknown_key_keeps_the_parent_domain_alone() {
     let signed = sign(&other, &doc(7, "relay.example.org"));
     assert_eq!(check(&signed, &trusting(&k), NOW_S), Err(Refused::Untrusted(other.public())));
     assert!(kept::take_in(at(&dirs), &signed, &trusting(&k), NOW_MS).is_err());
-    assert_eq!(default_list(&dirs, &trusting(&k)), vec![DEFAULT_RELAY_HOST]);
+    assert_eq!(default_list(&dirs, &trusting(&k)), vec![default_relay_host()]);
     // A key named by its fingerprint is trusted as the key itself.
     let print = other.public().fingerprint();
     let by_print = Keys::from_parts(Some(print.as_str()), Vec::new());
@@ -160,11 +160,11 @@ fn an_unknown_key_keeps_the_parent_domain_alone() {
     // A list kept, then its key no longer trusted, holds no more; `none`
     // trusts no key, the settings' too.
     kept::take_in(at(&dirs), &signed, &by_print, NOW_MS).unwrap();
-    assert_eq!(default_list(&dirs, &by_print), vec![DEFAULT_RELAY_HOST, "relay.example.org"]);
-    assert_eq!(default_list(&dirs, &trusting(&k)), vec![DEFAULT_RELAY_HOST]);
+    assert_eq!(default_list(&dirs, &by_print), vec![default_relay_host(), "relay.example.org"]);
+    assert_eq!(default_list(&dirs, &trusting(&k)), vec![default_relay_host()]);
     let none = Keys::from_parts(Some("none"), vec![(KeyName::Key(other.public()), "RelayKeys".into())]);
     assert!(none.is_empty());
-    assert_eq!(default_list(&dirs, &none), vec![DEFAULT_RELAY_HOST]);
+    assert_eq!(default_list(&dirs, &none), vec![default_relay_host()]);
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn a_deployment_and_keys_are_read_as_the_flags_give_them() {
 #[test]
 fn the_keys_compiled_in_are_keys() {
     let keys = Keys::from_parts(None, Vec::new());
-    for word in BUILT_IN {
+    for word in built_in() {
         let name = KeyName::parse(word).unwrap_or_else(|| panic!("{word} is not a key"));
         if let KeyName::Key(key) = name {
             assert_eq!(keys.trusts(&key), Some("built in"));

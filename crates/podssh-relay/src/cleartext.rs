@@ -252,7 +252,7 @@ mod tests {
     /// list; a host that failed otherwise is not tried.
     #[test]
     fn a_host_of_each_deployment_whose_tls_failed_is_tried() {
-        let default = crate::relay::DEFAULT_RELAY_HOST;
+        let default = crate::relay::default_relay_host();
         let relay = |host: &str| Relay { host: host.into(), port: 443 };
         let pool = "tcp-eu-west-3.ssh.relay.ajam.dev";
         let hosts = [relay(default), relay(pool), relay("a.example"), relay("b.example")];

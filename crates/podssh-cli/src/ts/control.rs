@@ -15,7 +15,7 @@ use podssh_ts::wait::Deadline;
 use podssh_ws::dial::authority;
 use podssh_ws::{ProxyChoice, Trust};
 
-use super::probe::{connect_error, seconds, try_servers, DERP_MAP_PATH, MAP_MAX, STEP};
+use super::probe::{connect_error, derp_map_path, seconds, try_servers, MAP_MAX, STEP};
 
 /// The variable of a test's CA file, which the node's fork adds to its roots
 /// (patch 0027 of `vendor/patches/`): a stand-in control server of a test's
@@ -138,7 +138,7 @@ pub async fn reach(control: &Server, trust: &Trust, proxy: &ProxyChoice, deadlin
     if limit.is_zero() {
         return Verdict::Fail(format!("{from}: not read, the bound had passed"));
     }
-    match get(control, DERP_MAP_PATH, MAP_MAX, trust, proxy, limit).await {
+    match get(control, derp_map_path(), MAP_MAX, trust, proxy, limit).await {
         Ok(r) if r.status == 200 => {
             try_servers(&from, &format!("DERP server of {at}"), &r.body, trust, proxy, deadline).await
         }

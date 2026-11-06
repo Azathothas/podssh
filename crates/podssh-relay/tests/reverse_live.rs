@@ -12,7 +12,7 @@ use std::time::Duration;
 use podssh_relay::e2e::{self, ends};
 use podssh_relay::identity::{pins, Identity, PublicKey};
 use podssh_relay::pair::{self, Pair, PairContext};
-use podssh_relay::relay::{Relay, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{default_relay_host, Relay};
 use podssh_relay::reverse::SessionId;
 use podssh_relay::reverse::{
     operator, run, E2e, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings, Wire,
@@ -64,7 +64,7 @@ impl Handler for Refuse {
 }
 
 fn relay() -> Relay {
-    Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 }
+    Relay { host: default_relay_host().into(), port: 443 }
 }
 
 /// A pair, and a second copy of it for the operator's side.

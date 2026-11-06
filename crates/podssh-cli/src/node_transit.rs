@@ -75,7 +75,7 @@ fn keys_now(label: &str, pair: &Pair, stored: bool) -> far::KeysNow {
 /// relay's own CA; a relay that `PODSSH_TRANSIT` names takes the pair's, as
 /// it may be the user's own, under the same CA.
 fn trust_for(url: &WsUrl, pair: &Trust, host: Trust) -> Trust {
-    match WsUrl::parse(transit::DEFAULT_URL) {
+    match WsUrl::parse(&transit::default_url()) {
         Ok(least) if least == *url => host,
         _ => pair.clone(),
     }
@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn least_authority_s_relay_takes_the_host_s_trust_and_a_named_relay_the_pair_s() {
         let pair = Trust::File("/the/pair/relay/ca.pem".into());
-        let least = WsUrl::parse(transit::DEFAULT_URL).unwrap();
+        let least = WsUrl::parse(&transit::default_url()).unwrap();
         assert!(matches!(trust_for(&least, &pair, Trust::Default), Trust::Default));
         let own = WsUrl::parse("wss://transit.example.test/").unwrap();
         assert!(

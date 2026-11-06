@@ -30,8 +30,8 @@ const WAIT: Duration = Duration::from_secs(60);
 /// The default host, then its seed pool: the plan of a day's rank, as a
 /// fresh cache gives it, each name with its port.
 fn plan() -> Vec<String> {
-    let seed = podssh_relay::pool::SEED.iter().copied();
-    let hosts = std::iter::once(podssh_relay::relay::DEFAULT_RELAY_HOST).chain(seed);
+    let seed = podssh_relay::pool::seed().into_iter();
+    let hosts = std::iter::once(podssh_relay::relay::default_relay_host()).chain(seed);
     hosts.take(podssh_relay::rank_auto::MOST).map(|h| format!("{h}:443")).collect()
 }
 

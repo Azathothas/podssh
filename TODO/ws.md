@@ -313,7 +313,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`client.rs` lines 47-61 at `723d90b`). The same `Trust` goes through `podssh-relay`: `Request`
 (`crates/podssh-relay/src/open.rs:157-169`), `MintContext`
 (`crates/podssh-relay/src/token.rs:95-100`), the pool refresh
-(`crates/podssh-relay/src/pool.rs:182-190`), and the `https_*` functions (`client.rs` lines
+(`crates/podssh-relay/src/pool.rs:178-186`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
 HTTP/1.1 only (`docs/relay.md:611`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
@@ -721,7 +721,7 @@ once (`crates/podssh-relay/src/open.rs:79`) and gives exit 78 in `podssh proxy`
 ## Approach
 
 1. A proxy type with two forms, HTTP and SOCKS5, in `dial.rs`; `ProxyChoice::Via` takes it
-   (`crates/podssh-ws/src/dial.rs:34-43`). Parse `socks5://` and `socks5h://` with an optional
+   (`crates/podssh-ws/src/dial.rs:30-39`). Parse `socks5://` and `socks5h://` with an optional
    `user:password@`, decoded as for HTTP (now `PodUtils/podssh:crates/podssh-ws/src/proxy.rs:177-195`).
 2. The SOCKS5 exchange (RFC 1928): offer the method 0x00, and 0x02 only with credentials; the
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
@@ -1431,7 +1431,7 @@ refuses from one that was slow, nor a steady path from a lossy one.
 - The meaning of a wrong accept is podssh-ws's
   (`crates/podssh-ws/src/handshake.rs:231`), so `podssh ssh` says it too; the
   death after a valid 101 is doctor's
-  (`crates/podssh-cli/src/doctor/relay_checks.rs:237`), as a session of
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:247`), as a session of
   `podssh ssh` already names the relay's end.
 
 ## Prove
@@ -1455,7 +1455,7 @@ failure. Against a stand-in that drops one probe in three, the loss reads
 gives an answer other than 101 its status and its text
 (`crates/podssh-ws/src/handshake.rs:205` says "if status != 101 {"), and a
 101 with a wrong or no `Sec-WebSocket-Accept` its own error, and the
-forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:183`).
+forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:193`).
 Measured against the stand-in relay before the change: a wrong accept read
 "Sec-WebSocket-Accept was ..., expected ...", with nothing of what it means,
 and a valid 101 that the stand-in ended 200 ms later read "the connection
@@ -1962,13 +1962,13 @@ command says what to do. Four of the eight release binaries are for Windows and 
   with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
   kept rustls's words. doctor adds a hint for the
   clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`), and its test
-  asserts none for `UnknownIssuer` (`:369`).
+  asserts none for `UnknownIssuer` (`:379`).
 - Read: the release builds two binaries for macOS and two for Windows
   (`.github/workflows/release.yml:291-302`, `:334-350`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
-  (`crates/podssh-relay/Cargo.toml:133-134`), a crate with no C; `rustls-native-certs` 0.8.4,
+  (`crates/podssh-relay/Cargo.toml:137-138`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
-  (`Cargo.lock:6162-6163`).
+  (`Cargo.lock:6199-6200`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
   system's store of Linux (`docs/target-environment.md:61-67`).
 - Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
@@ -2121,7 +2121,7 @@ of that form, leaves `--relay-addr` alone. podssh keeps no address that carried 
 - Read: the resolvers are Cloudflare's and Google's, by IP literal, each with its JSON path
   (lines 28-32 at `927eb24`); each query dials port 443 directly (lines 144-163 at `927eb24`),
   with `Accept: application/dns-json` (line 156 at `927eb24`), for A and then AAAA (line 125 at `927eb24`).
-- Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:180-208`);
+- Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:176-204`);
   nothing caches an address.
 - Inferred: RFC 8484 defines the wire form, `application/dns-message`, and no standard defines the
   JSON form; firewalls that block the known addresses of public resolvers are common.
@@ -2182,7 +2182,7 @@ Decided in the work (2026-10-31):
   the cost of each address that a firewall drops.
 - **Quad9 third, its two addresses, in the wire form alone.** Read on 2026-10-31 through
   fetch.web.pkgforge.dev: `https://dns.quad9.net/dns-query` answered RFC 8484's GET in the wire
-  form (`crates/podssh-ws/tests/fixtures/doh/README.md`), and the JSON API's query with
+  form (`PodUtils/podssh:crates/podssh-ws/tests/fixtures/doh/README.md`), and the JSON API's query with
   `400 DoH unable to decode BASE64-URL`; the certificate that `dns.quad9.net` presented (serial
   `0cc33029e45df0257de872a8fccf1731`, read from crt.sh) names 9.9.9.9 and 149.112.112.112 among
   its IP addresses. Its filter of malware's names takes no relay's name.
@@ -2201,7 +2201,7 @@ Decided in the work (2026-10-31):
 - **Files under 500 lines**: the race of addresses moved from `dial.rs` to
   `PodUtils/podssh:crates/podssh-ws/src/race.rs`, doctor's DNS checks from `net.rs` to
   `crates/podssh-cli/src/doctor/names.rs`, and the tests of `resolve.rs` to
-  `crates/podssh-ws/src/resolve/tests.rs`; `podssh_ws::dial::interleave` and `connect_direct` stay
+  `PodUtils/podssh:crates/podssh-ws/src/resolve/tests.rs`; `podssh_ws::dial::interleave` and `connect_direct` stay
   where their callers find them.
 
 ## Prove
@@ -2229,17 +2229,19 @@ test of the order fails.
   HTTPS fail takes a name that no resolver can be asked for (with a `+`), so that it needs no
   network; DNS over HTTPS's own failure is the unit test's, with a stand-in for its answer.
 
+The test target `doh_wire`, the tests `resolve` of the library and the fixtures of `tests/fixtures/doh/` of `podssh-ws` moved to `pod-dns` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-dns --all-features` there runs them, with their names. Its plant `t642-length-past-end` moved there too: `PodUtils/podcrates:scripts/plants/dns-length-past-end.plant`; the fuzz target `dns_wire` is in `PodUtils/podcrates:fuzz/`.
+
 ## Done
 
 2026-10-31, done: drafted, then merged and measured; the fuzz run waits for T-251 (below).
 
 - `podssh_ws::resolve` asks, in order, an IP literal, the pins, the system resolver, the fresh
   addresses that carried a session, DNS over HTTPS, then the old ones
-  (`crates/podssh-ws/src/resolve/order.rs`); `resolve_from` resumes after a source, and `Found`
+  (`PodUtils/podssh:crates/podssh-ws/src/resolve/order.rs`); `resolve_from` resumes after a source, and `Found`
   names the source and whether another follows. The dialer races each source's addresses, hands
   over after 4 s when another follows, and keeps the source of each connection
-  (`PodUtils/podssh:crates/podssh-ws/src/race.rs`, `crates/podssh-ws/src/resolve/memory.rs`). The wire form is
-  `crates/podssh-ws/src/resolve/wire.rs`: the query, its base64url, and the decoder of A, AAAA
+  (`PodUtils/podssh:crates/podssh-ws/src/race.rs`, `PodUtils/podssh:crates/podssh-ws/src/resolve/memory.rs`). The wire form is
+  `PodUtils/podssh:crates/podssh-ws/src/resolve/wire.rs`: the query, its base64url, and the decoder of A, AAAA
   and SRV. `DOH_RESOLVERS` gives each resolver's forms, Quad9's two after the four; `doh_ask`
   names the form that answered, and `doh_srv` takes the wire form too.
 - `podssh_relay::addresses` keeps `relay-addresses.json` in the cache
@@ -2253,7 +2255,7 @@ test of the order fails.
   way to the relay, three limits), `docs/design.md`, `docs/development.md` (the seeds), and
   `docs/STATUS.md`.
 - Bytes that podssh did not write: 15 answers of Cloudflare, Google and Quad9
-  (`crates/podssh-ws/tests/fixtures/doh/`), and RFC 8484's own queries and answer in the unit
+  (`PodUtils/podssh:crates/podssh-ws/tests/fixtures/doh/`), and RFC 8484's own queries and answer in the unit
   tests. The fuzz target `dns_wire`, seeded by the 15 answers (`scripts/fuzz-seeds.py`).
 - Measured at the merge (2026-10-31): `cargo test -p podssh-ws --lib resolve` passed 15 (the
   order with stand-ins, the codec against RFC 8484's examples, the forms and their misses, the
@@ -2274,11 +2276,11 @@ test of the order fails.
   failed it.
 - The live run (less than 5 minutes) cannot run on this host: its sandbox answers TLS to any
   address with a certificate for `default.domain`, which podssh refused for each of the six. It
-  runs in GitHub Actions, `.github/workflows/doh-live.yml`, by hand. Its first run (41203490598,
+  runs in GitHub Actions, `PodUtils/podssh:.github/workflows/doh-live.yml`, by hand. Its first run (41203490598,
   at `298761e`) found a defect that no test here could: the four of Cloudflare and Google answered
   in each form, and Quad9 answered `HTTP 505`, as it serves HTTP/2 alone (curl through this host's
   proxy: 505 to HTTP/1.1, 200 to HTTP/2). Repaired: a resolver marked `http2` is asked over HTTP/2
-  with ALPN `h2` (`crates/podssh-ws/src/resolve/h2.rs`, h2's client, pure Rust), directly and
+  with ALPN `h2` (`PodUtils/podssh:crates/podssh-ws/src/resolve/h2.rs`, h2's client, pure Rust), directly and
   through a proxy. `cargo test -p podssh-ws --test doh_h2` passed 3 against h2's own server behind
   TLS: Quad9's captured answer came whole and decoded, a server of HTTP/1.1 alone was refused before
   a request, an answer over the bound was refused; planted, no ALPN offered, the two that need an
@@ -2307,11 +2309,11 @@ and each other command print rustls's words alone. An error should tell what to 
 ## Premise
 
 - Read: doctor's hint (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`) and its tests
-  (`:366-369`).
+  (`:376-379`).
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:142` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `PodUtils/podssh:crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
-- Read: rustls 0.23.46 (`Cargo.lock:6112-6113`) has the errors `Expired`, `ExpiredContext`,
+- Read: rustls 0.23.46 (`Cargo.lock:6149-6150`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid
@@ -2327,7 +2329,7 @@ and each other command print rustls's words alone. An error should tell what to 
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
    (`crates/podssh-ws/src/client.rs:258`), `tls::connect_over` (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:151`)
-   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:180-183`). doctor's `clock_hint`
+   and the query of DNS over HTTPS (`PodUtils/podssh:crates/podssh-ws/src/resolve.rs:180-183`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
    `podssh cp` each name the clock and its reading.
@@ -2433,7 +2435,7 @@ host has.
 - Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
   address literals (`crates/podssh-cli/src/doctor/net.rs:306-377`;
   `crates/podssh-ws/src/resolve.rs:26-31`), each checked by TLS for its address
-  (`crates/podssh-ws/src/resolve.rs:173-183`).
+  (`PodUtils/podssh:crates/podssh-ws/src/resolve.rs:173-183`).
 - Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,
   and `403 not a public host` for private and metadata addresses
   (`docs/target-environment.md:21`); no public address literal was asked. The box's proxy
@@ -2590,11 +2592,11 @@ the next real failure.
 
 - Read: the test's server sent its answer, then drove the connection until the client went, for
   10 s at most, and only then gave back what it was asked; the test waited for that with its own
-  bound of 10 s, which started later (`crates/podssh-ws/tests/doh_h2.rs`, at `abf1322`). When the
+  bound of 10 s, which started later (`PodUtils/podssh:crates/podssh-ws/tests/doh_h2.rs`, at `abf1322`). When the
   server does not see the client go, the two bounds race, and the test's lost by a hair in CI.
 - Measured here: 60 runs, and 30 more under four busy loops, each in about 0.1 s, none failed; the
   client aborts its connection's task after its answer (`get` in
-  `crates/podssh-ws/src/resolve/h2.rs`), so the server sees its end at once here. Why it did not in
+  `PodUtils/podssh:crates/podssh-ws/src/resolve/h2.rs`), so the server sees its end at once here. Why it did not in
   CI's run is not known.
 
 ## Approach
@@ -2611,11 +2613,15 @@ export CARGO_BUILD_JOBS=4
 cargo test -p podssh-ws --test doh_h2
 ```
 
+## Correction
+
+The test target `doh_h2` of `podssh-ws` moved to `pod-dns` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-dns --all-features` there runs them, with their names.
+
 ## Done
 
 2026-11-01: the test is deterministic, and names a client that does not end its connection.
 
-- `crates/podssh-ws/tests/doh_h2.rs`: `Served` gives `asked` (a oneshot, sent once the answer went)
+- `PodUtils/podssh:crates/podssh-ws/tests/doh_h2.rs`: `Served` gives `asked` (a oneshot, sent once the answer went)
   and `ended` (whether the client ended the connection within 10 s of the answer); the test waits
   for the second with a bound of 20 s, so the server's bound decides.
 - `cargo test -p podssh-ws --test doh_h2`: 3 passed, in 0.05 s. Planted, a client that keeps a
@@ -2645,14 +2651,14 @@ the resolver.
 ## Premise
 
 - Read: the test's server drives its connection after its answer with
-  `while connection.accept().await.is_some() {}` (`crates/podssh-ws/tests/doh_h2.rs`, at
+  `while connection.accept().await.is_some() {}` (`PodUtils/podssh:crates/podssh-ws/tests/doh_h2.rs`, at
   `7855981`). h2's server (0.4.20, `src/proto/connection.rs`, `handle_poll2_result`) ends the
   connection at a read's `UnexpectedEof` only when its own buffer is empty; any other error of the
   socket, a reset among them, it returns, and returns again at the next call, as it does an error of
   its own shutdown on a socket that the client closed. The loop spins on `Some(Err(_))` until its
   bound.
 - Read: the client aborts the task that drives its connection once it has its answer
-  (`get` in `crates/podssh-ws/src/resolve/h2.rs`), so its socket closes with no GOAWAY and no TLS
+  (`get` in `PodUtils/podssh:crates/podssh-ws/src/resolve/h2.rs`), so its socket closes with no GOAWAY and no TLS
   close_notify: a reset, where data waited unread, or an end that rustls calls an error.
 - Measured here: 60 runs alone and 120 under 24 at once, all passed; with the client changed to end
   its connection itself and the old loop, 8 of 40 failed as CI's run did. With a trace of the
@@ -2683,16 +2689,20 @@ cargo clippy -p podssh-ws --all-targets -- -D warnings
 
 The test 40 times alone and 144 times 24 at once; planted, the old abort; `doh-live.yml`.
 
+## Correction
+
+The test target `doh_h2` of `podssh-ws` moved to `pod-dns` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-dns --all-features` there runs them, with their names.
+
 ## Done
 
 2026-11-01:
 
-- `crates/podssh-ws/src/resolve/h2.rs`: `get` no longer aborts its connection's task; a task of its
+- `PodUtils/podssh:crates/podssh-ws/src/resolve/h2.rs`: `get` no longer aborts its connection's task; a task of its
   own waits for h2's end (GOAWAY, then close_notify) for 2 s (`CLOSE`), then aborts it.
-- `crates/podssh-ws/tests/doh_h2.rs`: the server stops at `Some(Err(_))`; `Watched` wraps its TLS
+- `PodUtils/podssh:crates/podssh-ws/tests/doh_h2.rs`: the server stops at `Some(Err(_))`; `Watched` wraps its TLS
   stream and notes a read that failed; the test fails by name, "the client tore its socket, with no
   GOAWAY".
-- `crates/podssh-ws/tests/live_doh.rs`: each resolver alone, and each in the wire form, is asked
+- `PodUtils/podssh:crates/podssh-ws/tests/live_doh.rs`: each resolver alone, and each in the wire form, is asked
   twice at most (`TRIES`), each attempt printed.
 - `cargo test -p podssh-ws --test doh_h2`: 3 passed; `an_answer_comes_over_http2` 40 times alone
   and 144 times 24 at once: none failed. Planted, the old abort at once: 48 of 48 failed, "the
@@ -2718,7 +2728,7 @@ falls back to the edge's fixed names after a wasted attempt; other lookups of Do
 ## Premise
 
 - Read: `doh_srv` dials each resolver by its address through the proxy
-  (`crates/podssh-ws/src/resolve.rs:309`).
+  (`crates/podssh-ws/src/resolve.rs:145`).
 
 ## Approach
 
@@ -2756,7 +2766,7 @@ cargo test -p podssh-ws --lib resolve::
 cargo test -p podssh-ws --test doh_names
 ```
 
-Live, in GitHub Actions (`.github/workflows/doh-live.yml`, by hand): the edge's SRV record through
+Live, in GitHub Actions (`PodUtils/podssh:.github/workflows/doh-live.yml`, by hand): the edge's SRV record through
 `scripts/box/proxy.py --take names`, whose log shows a resolver's name taken. Planted: `hosts`
 that gives the address alone: `doh_names` fails, the proxy having been asked the address and
 refused it.
@@ -2767,12 +2777,14 @@ refused it.
   `403 not on the allowlist` (T-366; `scripts/box/proxy.py:18-21`, `:111-113`). This entry uses
   it, and adds none.
 - Read: no other lookup of DNS over HTTPS goes through a proxy. `doh_lookup` dials each
-  resolver's address directly (`crates/podssh-ws/src/resolve.rs:317`), as the source of the
-  resolver's order (`crates/podssh-ws/src/resolve/order.rs:124`), which the dialer runs only
+  resolver's address directly (`PodUtils/podssh:crates/podssh-ws/src/resolve.rs:154`), as the source of the
+  resolver's order (`PodUtils/podssh:crates/podssh-ws/src/resolve/order.rs:124`), which the dialer runs only
   with no proxy (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:235`, `:239`; `PodUtils/podssh:crates/podssh-ws/src/race.rs:51`);
   doctor's line asks `doh_ask`, the same direct way
-  (`crates/podssh-cli/src/doctor/names.rs:101`). So "other lookups of DoH fail the same way" does
+  (`crates/podssh-cli/src/doctor/names.rs:102`). So "other lookups of DoH fail the same way" does
   not hold: the change is `doh_srv`'s alone.
+
+The test target `doh_names` and the tests `resolve::` of the library of `podssh-ws` moved to `pod-dns` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-dns --all-features` there runs them, with their names. The live test `live_doh` and its workflow `doh-live.yml` leave podssh: pod-dns runs `cargo test -p pod-dns --test live_doh -- --ignored`.
 
 ## Done
 
@@ -2787,14 +2799,14 @@ run the same day; at the merge a test's temporaries are bound before the lookup 
 - `resolve::tests::through_a_proxy_a_resolver_is_asked_by_its_name_first`: the order of the
   eleven hosts, the address alone with no proxy, each name a name for TLS.
   `cargo test -p podssh-ws --lib resolve::`: 17 passed.
-- `crates/podssh-ws/tests/doh_names.rs`, against a stand-in proxy of names alone (403 to an
+- `PodUtils/podssh:crates/podssh-ws/tests/doh_names.rs`, against a stand-in proxy of names alone (403 to an
   address literal, as the box's `--take names`) and h2's server with Quad9's SRV answer:
   `a_proxy_of_names_alone_carries_the_question_by_the_resolver_s_name` (the records, the proxy
   asked the name alone) and `the_address_follows_a_name_refused_and_a_name_is_asked_once`.
   `cargo test -p podssh-ws --test doh_names`: 2 passed. Planted, `hosts` of the address alone:
   both failed. `cargo test -p podssh-ws`: 366 passed; clippy `-D warnings`: clean.
 - Live: `the_edge_s_record_comes_through_a_proxy_of_names_alone` in
-  `crates/podssh-ws/tests/live_doh.rs`, which `.github/workflows/doh-live.yml` runs through
+  `PodUtils/podssh:crates/podssh-ws/tests/live_doh.rs`, which `PodUtils/podssh:.github/workflows/doh-live.yml` runs through
   `scripts/box/proxy.py --take names`, with the check that the proxy took a resolver's name: at
   `87645d1` (run 41298470792), the edge's SRV record (`region1` and `region2.v2.argotunnel.com`,
   port 7844) came through the proxy of names alone, which logged `200 CONNECT
@@ -2825,9 +2837,9 @@ met.
 
 ## Premise
 
-- Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:42-61`),
+- Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:52-71`),
   and DNS over HTTPS one line with each resolver's error
-  (`crates/podssh-cli/src/doctor/names.rs:140`); the end of the report gives the counts alone
+  (`crates/podssh-cli/src/doctor/names.rs:141`); the end of the report gives the counts alone
   (`crates/podssh-cli/src/doctor/report.rs:124-146`).
 - Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
   (`crates/podssh-ws/src/client.rs` line 115 at `38f424c`), and `HealthError::Connect` the
@@ -2954,7 +2966,7 @@ at the cited lines, read at `38f424c`.
 - `crates/podssh-ws/src/client.rs`: `ConnectError::Tls(TlsFailure)`; `crates/podssh-ws/src/tls_wrap.rs`
   keeps the cut. `crates/podssh-ws/src/dial.rs`: `DialError::Connect` has `cut`, which
   `PodUtils/podssh:crates/podssh-ws/src/race.rs` (the last attempt's kind, and a source's wait as a timeout) and
-  `crates/podssh-ws/src/plain.rs` fill. `crates/podssh-ws/tests/doh_wire.rs` reads the words of a
+  `crates/podssh-ws/src/plain.rs` fill. `PodUtils/podssh:crates/podssh-ws/tests/doh_wire.rs` reads the words of a
   `TlsFailure`.
 - `crates/podssh-relay/src/health.rs`: `HealthError::Connect(ConnectError)`.
   `crates/podssh-relay/src/derp/servers.rs`: `Missed` and `probe_kept`, which `probe` wraps.
@@ -3047,9 +3059,9 @@ test fails.
 (`crates/podssh-cli/src/doctor/names.rs:26`, `direct`), straight at their addresses
 on port 443, so no stand-in proxy reaches them and `doctor_tls`, whose egresses are a proxy's,
 cannot count one. A stand-in resolver on the loopback at a port of its own proves the cut where
-it is kept (`crates/podssh-ws/src/resolve/tests/cuts.rs`), and the diagnosis's own test counts the
+it is kept (`PodUtils/podssh:crates/podssh-ws/src/resolve/tests/cuts.rs`), and the diagnosis's own test counts the
 resolvers and n0's relays as roads. `resolve.rs` had 478 lines: the asking of one resolver moved to
-`crates/podssh-ws/src/resolve/direct.rs`, which keeps its cut.
+`PodUtils/podssh:crates/podssh-ws/src/resolve/direct.rs`, which keeps its cut.
 
 ## Done
 
@@ -3088,9 +3100,9 @@ the name's own `HTTPS` record publishes; podssh reads no such record and has no 
 
 Read at `2042200`:
 
-- The resolver's answer is addresses: `crates/podssh-ws/src/resolve.rs:246-247` reads one type for each
+- The resolver's answer is addresses: `PodUtils/podssh:crates/podssh-ws/src/resolve.rs:246-247` reads one type for each
   call, `AAAA` or `A`; an `HTTPS` record (type 65) is never asked.
-- Behind a proxy no resolver runs: `crates/podssh-ws/src/resolve.rs:17` says "With an HTTP proxy none of
+- Behind a proxy no resolver runs: `crates/podssh-ws/src/resolve.rs:11` says "With an HTTP proxy none of
   this runs for the target", and DNS over HTTPS is the fifth step, after the system's resolver
   (`crates/podssh-ws/src/resolve.rs:10`). So the issue's "ride the query that the name already causes"
   holds for few runs: in the target host, behind its proxy, no query is made at all.
@@ -3185,7 +3197,7 @@ parameter's length past the record's end taken, and the test of a record cut sho
 added.
 
 - **What ECH hides from a proxy.** Through `HTTPS_PROXY` the CONNECT names the host
-  (`crates/podssh-ws/src/resolve.rs:17` says "With an HTTP proxy none of this runs for the target"),
+  (`crates/podssh-ws/src/resolve.rs:11` says "With an HTTP proxy none of this runs for the target"),
   and a SOCKS5 proxy gets the name too: ECH hides the name from what reads hellos beyond the proxy, never
   from the proxy itself, so an allowlist of names in the host's own proxy reads it as before. The
   manual, `docs/cli.md` and `SECURITY.md` say so.
@@ -3215,7 +3227,7 @@ The test target `ech_handshake` of `podssh-ws` moved to `pod-tls` of PodUtils/po
   at sequence numbers 0 to 256 and opened again), read from the RFC's text (fetched through the
   services of web.pkgforge.dev and parsed by a script, so no byte was typed by hand), and rustls's
   interface (a changed byte, AAD, info or key refused; two seals, two ephemeral keys).
-- `crates/podssh-ws/src/resolve/https.rs`: the reader of a name's `HTTPS` record (type 65) for its
+- `PodUtils/podssh:crates/podssh-ws/src/resolve/https.rs`: the reader of a name's `HTTPS` record (type 65) for its
   `ech`, from the JSON API's presentation form and RFC 3597's generic form, and from the wire form
   (`wire.rs` keeps each record's TTL now, `records_kept`), each length checked, the keys in increasing
   order, the ECHConfigList's own lengths, 4096 bytes at most, the record of the lowest priority; and

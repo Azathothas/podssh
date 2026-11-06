@@ -320,7 +320,7 @@ fn least_authority() -> WsUrl {
     let named = std::env::var(transit::ENV).ok();
     match transit::setting(named.as_deref()).expect("PODSSH_TRANSIT") {
         transit::Setting::On(url) => url,
-        transit::Setting::Off => WsUrl::parse(transit::DEFAULT_URL).unwrap(),
+        transit::Setting::Off => WsUrl::parse(&transit::default_url()).unwrap(),
     }
 }
 

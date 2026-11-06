@@ -22,10 +22,20 @@ pub enum TsMode {
     },
 }
 
+/// The host and the port of the default relay: the endpoint `default` of
+/// the service `ajam-ts-relay` of `pod-services`.
+pub fn default_relay_endpoint() -> (&'static str, u16) {
+    let service = pod_services::get("ajam-ts-relay").expect("pod-services holds the service ajam-ts-relay");
+    let endpoint = service.endpoint("default").expect("ajam-ts-relay of pod-services has the endpoint default");
+    (endpoint.host(), endpoint.port())
+}
+
 impl TsMode {
-    /// The default relay: the sibling worker over WebSocket/443.
+    /// The default relay: the sibling worker over WebSocket/443, the
+    /// endpoint `default` of `ajam-ts-relay` (`pod-services`).
     pub fn default_relay() -> Self {
-        TsMode::Relay { host: "tcp.ts.relay.ajam.dev".to_string(), port: 443 }
+        let (host, port) = default_relay_endpoint();
+        TsMode::Relay { host: host.to_string(), port }
     }
 
     /// The fork runtime selection this mode implies. `Tcp` keeps UDP and the

@@ -33,8 +33,12 @@ pub use meet::{Missed, Part};
 pub use token::{Keys, Side};
 
 /// Least Authority's transit relay, which its Winden and Destiny use, as a
-/// WebSocket on port 443.
-pub const DEFAULT_URL: &str = "wss://relay.mw.leastauthority.com";
+/// WebSocket on port 443: the endpoint `relay` of `leastauthority-transit`
+/// (`pod-services`).
+pub fn default_url() -> String {
+    let service = pod_services::get("leastauthority-transit").expect("pod-services holds leastauthority-transit");
+    service.endpoint("relay").map(|e| e.url()).expect("leastauthority-transit of pod-services has the endpoint relay")
+}
 /// `no` turns the road off; a `ws://` or `wss://` URL names another relay.
 pub const ENV: &str = "PODSSH_TRANSIT";
 
@@ -56,7 +60,7 @@ pub enum Setting {
 pub fn setting(value: Option<&str>) -> Result<Setting, String> {
     let value = value.map(str::trim).unwrap_or_default();
     match value.to_ascii_lowercase().as_str() {
-        "" | "yes" | "on" | "true" | "1" => WsUrl::parse(DEFAULT_URL).map(Setting::On),
+        "" | "yes" | "on" | "true" | "1" => WsUrl::parse(&default_url()).map(Setting::On),
         "no" | "off" | "false" | "0" => Ok(Setting::Off),
         _ => WsUrl::parse(value).map(Setting::On).map_err(|why| format!("{ENV}: yes, no, or a relay's URL: {why}")),
     }
@@ -68,7 +72,7 @@ mod tests {
 
     #[test]
     fn the_variable_turns_the_road_off_names_a_relay_or_is_refused_without_its_text() {
-        let least = WsUrl::parse(DEFAULT_URL).unwrap();
+        let least = WsUrl::parse(&default_url()).unwrap();
         assert_eq!((least.tls, least.host.as_str(), least.port), (true, "relay.mw.leastauthority.com", 443));
         for on in [None, Some(""), Some(" yes "), Some("On"), Some("1")] {
             assert_eq!(setting(on), Ok(Setting::On(least.clone())), "{on:?}");

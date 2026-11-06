@@ -75,8 +75,8 @@ fn the_net_s_relay_member_gives_its_list_with_no_relay_host() {
     net_of(&s.home, &doc, &shown(&owner), &role.hex(), &role_host);
     // The default's hosts are pinned where nothing listens, and the hosts of
     // the roles to the loopback.
-    let mut pins: Vec<String> = podssh_relay::pool::SEED.iter().map(|h| format!("{h}=127.0.0.1")).collect();
-    pins.push(format!("{}=127.0.0.1", podssh_relay::relay::DEFAULT_RELAY_HOST));
+    let mut pins: Vec<String> = podssh_relay::pool::seed().iter().map(|h| format!("{h}=127.0.0.1")).collect();
+    pins.push(format!("{}=127.0.0.1", podssh_relay::relay::default_relay_host()));
     pins.push("relay-a.test=127.0.0.1,relay-b.test=127.0.0.1".into());
     let pins = pins.join(",");
     let member = |home: &Path, doc: &Path, args: &[String], keys: Option<&str>| {

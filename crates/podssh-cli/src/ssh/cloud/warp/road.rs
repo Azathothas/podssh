@@ -114,7 +114,7 @@ pub async fn device(
         let line = format!(
             "WARP's road needs a device, which podssh registers once with Cloudflare's API under Cloudflare's \
              Terms ({}); {ACCEPT_TERMS_ENV}=yes accepts them, and the device's record is kept in the cache",
-            podssh_warp::TERMS_URL
+            podssh_warp::terms_url()
         );
         return Err((line, EX_CONFIG));
     }

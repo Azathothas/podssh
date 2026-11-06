@@ -22,7 +22,7 @@ fn payload(secret: &SecretKey, relays: &[RelayUrl]) -> Vec<u8> {
 
 #[test]
 fn n0_s_server_and_its_times_are_iroh_s() {
-    assert_eq!(N0, iroh::address_lookup::N0_DNS_PKARR_RELAY_PROD, "n0's server in iroh changed: read it again");
+    assert_eq!(n0_url(), iroh::address_lookup::N0_DNS_PKARR_RELAY_PROD, "n0's server in iroh changed: read it again");
     assert_eq!(TTL, iroh::address_lookup::DEFAULT_PKARR_TTL);
     assert_eq!(REPUBLISH, iroh::address_lookup::DEFAULT_REPUBLISH_INTERVAL);
 }

@@ -36,8 +36,11 @@ pub use phrase::Code;
 /// one: nameplates and mailboxes of another application never meet it.
 pub const APPID: &str = "github.com/PodUtils/podssh/pair";
 /// The public mailboxes, in order: magic-wormhole's, on port 443 since its
-/// commit "public_relay.py: use TLS" (2026-05-13), then Least Authority's.
-pub const MAILBOXES: [&str; 2] = ["wss://relay.magic-wormhole.io/v1", "wss://mailbox.mw.leastauthority.com/v1"];
+/// commit "public_relay.py: use TLS" (2026-05-13), then Least Authority's:
+/// the services of the kind `mailbox` of `pod-services`, by their rank.
+pub fn public_mailboxes() -> Vec<String> {
+    pod_services::of_kind("mailbox").filter_map(|s| s.endpoint("mailbox")).map(|e| e.url()).collect()
+}
 /// `no` turns pairing by code off; mailbox URLs, by commas, name others.
 pub const ENV: &str = "PODSSH_PAIR_MAILBOX";
 /// How long a code lives: past it the giver leaves, and the code fails.
@@ -107,7 +110,7 @@ pub fn mailboxes_for(named: Option<&str>, value: Option<&str>, way: &str) -> Res
         None => (value.map(str::trim).unwrap_or_default(), ENV),
     };
     match text.to_ascii_lowercase().as_str() {
-        "" | "yes" | "on" | "true" | "1" => MAILBOXES.iter().map(|url| WsUrl::parse(url)).collect(),
+        "" | "yes" | "on" | "true" | "1" => public_mailboxes().iter().map(|url| WsUrl::parse(url)).collect(),
         "no" | "off" | "false" | "0" => Err(format!("{whose} no turns pairing by code off: {way}")),
         _ => text
             .split(',')

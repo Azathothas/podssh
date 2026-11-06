@@ -109,7 +109,7 @@ pub(super) async fn check(report: &mut Report<'_>, trust: &Trust) {
 /// one doctor's.
 async fn transit_line(report: &mut Report<'_>, url: &WsUrl, trust: &Trust) {
     let label = format!("transit relay {}", url.shown());
-    let least = WsUrl::parse(transit::DEFAULT_URL).is_ok_and(|least| least == *url);
+    let least = WsUrl::parse(&transit::default_url()).is_ok_and(|least| least == *url);
     let trust = if least { crate::pairs::trust(None) } else { trust.clone() };
     let started = Instant::now();
     let dialed = tokio::time::timeout(WAIT, transit::far::dial(url, &trust, &ProxyChoice::FromEnvironment)).await;
@@ -177,9 +177,9 @@ mod tests {
     #[test]
     fn each_carrier_is_asked_unless_its_variable_turns_it_off() {
         let all = plan(None, None, None);
-        assert_eq!(all.transit, Ok(Some(WsUrl::parse(transit::DEFAULT_URL).unwrap())));
+        assert_eq!(all.transit, Ok(Some(WsUrl::parse(&transit::default_url()).unwrap())));
         let shown: Vec<String> = all.mailboxes.clone().unwrap().unwrap().iter().map(WsUrl::shown).collect();
-        let public = podssh_relay::code::MAILBOXES.iter().map(|url| WsUrl::parse(url).unwrap().shown());
+        let public = podssh_relay::code::public_mailboxes().into_iter().map(|url| WsUrl::parse(&url).unwrap().shown());
         let public: Vec<String> = public.collect();
         assert_eq!(shown, public);
         assert_eq!(all.piping, Ok(Some(Server::default())));

@@ -26,6 +26,9 @@ iroh = { version = ">=1.4.1, <1.5", default-features = false, features = ["tls-a
 # names its DERP home as its ticket, which a client reads back (T-445).
 podssh-relay = { path = "../podssh-relay", features = ["derp"] }
 podssh-ws = { path = "../podssh-ws" }
+# The services of other parties: n0's relays and pkarr, the zone of the
+# quick tunnel.
+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.4.0" }
 tokio = { workspace = true }
 # The types of iroh's interfaces: the relay's certificate verifier (rustls),
 # the proxy's URL (url), and the resolver's errors (n0-error), at the

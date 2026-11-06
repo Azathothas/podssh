@@ -239,8 +239,8 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                  says once of a key where to move it; it moves nothing. podssh status and podssh doctor name \
                  each place passed over, and why. Above the cache's own directory, podssh makes a missing \
                  one only in a directory of yours or of root.",
-                podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),
-                podssh_relay::pool::file_name(podssh_relay::DEFAULT_RELAY_HOST),
+                podssh_relay::cache::file_name(podssh_relay::default_relay_host()),
+                podssh_relay::pool::file_name(podssh_relay::default_relay_host()),
                 podssh_relay::addresses::FILE,
                 podssh_relay::tls_groups::FILE,
                 podssh_ssh::accepted::FILE,

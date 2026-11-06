@@ -51,7 +51,7 @@ drop or add frames (`SECURITY.md:33-36`).
    resume: `OPEN` names the session, and `PROOF` and `ACCEPT` carry an
    HMAC-SHA256 over both nonces and the sender's received offset.
 5. Use `x25519-dalek`, `hkdf`, `hmac`, `sha2` and `zeroize` (`Cargo.toml`), and
-   `rand` (`crates/podssh-relay/Cargo.toml:20`). Return an error when the
+   `rand` (`crates/podssh-relay/Cargo.toml:24`). Return an error when the
    system gives no random bytes (T-064). Keep the secret and the proofs out of
    output, logs and argv.
 6. `GREETING` names its features (`replay.v1`, `heartbeat.v1`, `move.v1`); a
@@ -329,7 +329,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
 
 1. The client drives the resume. On a loss with no `CLOSE` record, it tries
    the roads of T-164 and each host of the `RelayList`
-   (`crates/podssh-relay/src/relay.rs:88-102`), each within `HOST_DEADLINE`
+   (`crates/podssh-relay/src/relay.rs:109-123`), each within `HOST_DEADLINE`
    (`crates/podssh-relay/src/open.rs:35-37`), with `open::backoff` between
    rounds (`crates/podssh-relay/src/open.rs:421-435`). Do not fork it (T-077).
 2. A `CLOSE` record never reconnects; each other loss reconnects first

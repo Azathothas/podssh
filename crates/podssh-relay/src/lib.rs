@@ -118,4 +118,4 @@ pub mod transit;
 pub mod udp;
 
 pub use open::{open, Failure, OpenError, Opened, Request};
-pub use relay::{Relay, DEFAULT_RELAY_HOST, RELAY_ENV};
+pub use relay::{default_relay_host, Relay, RELAY_ENV};

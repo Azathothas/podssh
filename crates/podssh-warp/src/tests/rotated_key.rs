@@ -127,7 +127,7 @@ async fn a_key_that_the_api_never_gave_is_never_taken() {
 async fn a_proxy_s_ca_stays_an_interception() {
     let [first] = keys();
     let (stand_in, edge, mut device) = registered(&first).await;
-    let (acceptor, _) = tls_server("Corp Proxy CA", &[crate::SERVER_NAME]);
+    let (acceptor, _) = tls_server("Corp Proxy CA", &[crate::server_name()]);
     let via = proxy(Mode::Reterminate(acceptor)).await;
     let fault = Warp::open_reading(&mut device, &stand_in.api, &via, LIMIT).await.unwrap_err();
     let Fault::Intercepted(line) = &fault else { panic!("{fault:?}") };

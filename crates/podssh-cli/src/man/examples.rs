@@ -6,8 +6,8 @@ use super::model::{Block, Section};
 
 /// `(what it does, the command line)`, in the order of the manual.
 fn examples() -> Vec<(&'static str, String)> {
-    let relay = podssh_relay::DEFAULT_RELAY_HOST;
-    let other = podssh_relay::pool::SEED[0];
+    let relay = podssh_relay::default_relay_host();
+    let other = podssh_relay::pool::seed()[0];
     vec![
         ("what works on this host, one line for each check", "podssh doctor".into()),
         (

@@ -12,15 +12,24 @@ use std::time::Duration;
 use podssh_ws::{Cut, ProxyChoice, Trust};
 use tokio::time::Instant;
 
+/// tailcat's DERP: the service `tailcat-derp` of `pod-services`.
+fn tailcat_derp() -> &'static pod_services::Service {
+    pod_services::get("tailcat-derp").expect("pod-services holds the service tailcat-derp")
+}
+
 /// The servers of tailcat's map, in the order of its regions: New York,
-/// San Francisco, Frankfurt and Tokyo.
-pub const TAILCAT: &[&str] = &["tc301a.ipn.dev", "tc302a.ipn.dev", "tc303a.ipn.dev", "tc304a.ipn.dev"];
+/// San Francisco, Frankfurt and Tokyo (the endpoints of the role `region`).
+pub fn tailcat() -> Vec<&'static str> {
+    tailcat_derp().endpoints_of("region").map(|e| e.host()).collect()
+}
 /// The variable that names the servers in place of the fleet:
 /// `HOST[:PORT][,...]`.
 pub const ENV: &str = "PODSSH_DERP_SERVER";
-/// derper's probe of latency (tailscale/tailscale:cmd/derper/derper.go at
-/// v1.104.4): an empty answer to a GET.
-pub const PROBE_PATH: &str = "/derp/probe";
+/// derper's probe of latency (tailscale/tailscale:cmd/derper/derper.go): an
+/// empty answer to a GET; the fact `probe-path`.
+pub fn probe_path() -> &'static str {
+    tailcat_derp().text("probe-path").expect("tailcat-derp of pod-services holds the fact probe-path")
+}
 /// The bound of each probe, its connection included.
 pub const PROBE_LIMIT: Duration = Duration::from_secs(5);
 /// The port of a server that names none.
@@ -64,7 +73,7 @@ impl Server {
 
     /// Whether this is a server of tailcat's fleet.
     pub fn in_fleet(&self) -> bool {
-        self.port == PORT && TAILCAT.contains(&self.host.as_str())
+        self.port == PORT && tailcat().contains(&self.host.as_str())
     }
 }
 
@@ -79,7 +88,7 @@ impl fmt::Display for Server {
 
 /// Tailscale's servers for tailcat.
 pub fn fleet() -> Vec<Server> {
-    TAILCAT.iter().map(|host| Server { host: (*host).to_string(), port: PORT }).collect()
+    tailcat().into_iter().map(|host| Server { host: host.to_string(), port: PORT }).collect()
 }
 
 /// The servers of `flag`, else of [`ENV`], else the fleet; and whether the
@@ -127,15 +136,15 @@ pub async fn probe(server: &Server, trust: &Trust, proxy: &ProxyChoice) -> Resul
 /// [`probe`], with the cut of a failure beside its words.
 pub async fn probe_kept(server: &Server, trust: &Trust, proxy: &ProxyChoice) -> Result<Duration, Missed> {
     let started = Instant::now();
-    let get = podssh_ws::client::https_get(&server.host, server.port, PROBE_PATH, 1024, trust, proxy, PROBE_LIMIT);
+    let get = podssh_ws::client::https_get(&server.host, server.port, probe_path(), 1024, trust, proxy, PROBE_LIMIT);
     let missed = |why: String, cut: Option<Cut>| Err(Missed { why, cut });
     match tokio::time::timeout(PROBE_LIMIT, get).await {
         Err(_) => missed(
-            format!("{server} did not answer {PROBE_PATH} within {} s", PROBE_LIMIT.as_secs()),
+            format!("{server} did not answer {} within {} s", probe_path(), PROBE_LIMIT.as_secs()),
             Some(Cut::TimedOut),
         ),
         Ok(Ok(answer)) if (200..300).contains(&answer.status) => Ok(started.elapsed()),
-        Ok(Ok(answer)) => missed(format!("{server} answered {PROBE_PATH} with HTTP {}", answer.status), None),
+        Ok(Ok(answer)) => missed(format!("{server} answered {} with HTTP {}", probe_path(), answer.status), None),
         Ok(Err(e)) => missed(format!("{server}: {e}"), e.cut()),
     }
 }

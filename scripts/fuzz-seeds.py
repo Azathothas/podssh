@@ -3,8 +3,7 @@
 Each seed is bytes that podssh did not make: the frames of RFC 6455's
 section 5.7, the IRC lines that crates/podssh-core/tests/fixtures/grammar.txt
 recorded from the RFCs and from real servers, the relay hosts that the
-relay's own document names, the answers of DNS over HTTPS that three
-resolvers sent (crates/podssh-ws/tests/fixtures/doh/, T-344), the messages of
+relay's own document names, the messages of
 Cap'n Proto that the reference encoder wrote for the quick tunnel
 (crates/podssh-relay/tests/fixtures/quick/, T-403), and the capsules and
 variable-length integers of connect-ip-go's tests and of RFC 9000. They go
@@ -90,11 +89,6 @@ def main():
     put("relay_list", ",".join(hosts).encode())
     pool = ",".join('{"host":"%s"}' % host for host in hosts)
     put("relay_pool", ('{"pool":[%s]}' % pool).encode())
-    answers = sorted((ROOT / "crates/podssh-ws/tests/fixtures/doh").glob("*.bin"))
-    if not answers:
-        sys.exit("fuzz-seeds.py: no answer of DNS over HTTPS in crates/podssh-ws/tests/fixtures/doh")
-    for answer in answers:
-        put("dns_wire", answer.read_bytes())
     messages = sorted((ROOT / "crates/podssh-relay/tests/fixtures/quick").glob("*.bin"))
     if not messages:
         sys.exit("fuzz-seeds.py: no message of Cap'n Proto in crates/podssh-relay/tests/fixtures/quick")

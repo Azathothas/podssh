@@ -14,7 +14,7 @@ use podssh_relay::e2e::{self, Ask, Refusal};
 use podssh_relay::grant::{self, Door, Mint, Spent};
 use podssh_relay::identity::{Identity, PublicKey};
 use podssh_relay::pair::{self, Pair, PairContext};
-use podssh_relay::relay::{Relay, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{default_relay_host, Relay};
 use podssh_relay::reverse::{operator, run, E2e, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits};
 use podssh_relay::reverse::{Outcome, SessionId, Settings, Wire};
 use podssh_ws::{ProxyChoice, Trust};
@@ -100,7 +100,7 @@ async fn granted_echo(pair: &Pair, operator_key: Arc<Identity>, grant: Vec<u8>) 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "the live relay: run with --ignored"]
 async fn a_grant_is_used_once_through_the_live_relay() {
-    let relay = Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 };
+    let relay = Relay { host: default_relay_host().into(), port: 443 };
     let ctx =
         PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
     let made = pair::create(&ctx).await.expect("a pair");

@@ -15,7 +15,7 @@ use std::time::Duration;
 use tokio::sync::Notify;
 
 use crate::rank::{self, Probe, Rank, BACKGROUND};
-use crate::relay::DEFAULT_RELAY_HOST;
+use crate::relay::default_relay_host;
 
 /// How long a session runs before its first probe: a short run, as a
 /// command's, makes none.
@@ -148,8 +148,8 @@ fn same(a: &str, b: &str) -> bool {
 /// The hosts of a day's rank, in order: the default host, then its pool as
 /// `/relays.json` gave it, [`MOST`] at most.
 pub fn hosts() -> Vec<String> {
-    let pool = crate::pool::alternates(DEFAULT_RELAY_HOST);
-    first_hosts(std::iter::once(DEFAULT_RELAY_HOST.to_string()).chain(pool))
+    let pool = crate::pool::alternates(default_relay_host());
+    first_hosts(std::iter::once(default_relay_host().to_string()).chain(pool))
 }
 
 /// The first [`MOST`] names of `names`, each once.

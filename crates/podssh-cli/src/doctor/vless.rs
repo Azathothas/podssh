@@ -11,13 +11,13 @@ use podssh_ws::dial::{self, ProxyChoice};
 use podssh_ws::vless::{self, Dial};
 use podssh_ws::Trust;
 
-use super::relay_checks::{github_keys, judge_unlisted, FORWARD_HOST, GITHUB_KEYS, TIMEOUT};
+use super::relay_checks::{forward_host, github_keys, judge_unlisted, published_keys, TIMEOUT};
 use super::Report;
 use crate::vless::Servers;
 
 /// A line for each server and each transport that it is tried on.
 pub(super) async fn check(report: &mut Report<'_>, servers: &Servers, trust: &Trust) {
-    let target = dial::authority(FORWARD_HOST, 22);
+    let target = dial::authority(forward_host(), 22);
     let road = Dial {
         trust,
         proxy: &ProxyChoice::FromEnvironment,
@@ -34,7 +34,7 @@ pub(super) async fn check(report: &mut Report<'_>, servers: &Servers, trust: &Tr
         };
         for transport in vless::modes(server.transport) {
             let started = std::time::Instant::now();
-            let opened = match vless::open_as(server, transport, FORWARD_HOST, 22, &road).await {
+            let opened = match vless::open_as(server, transport, forward_host(), 22, &road).await {
                 Ok(opened) => opened,
                 Err(e) => {
                     report.fail("vless", format!("{}{first}: {}", transport.name(), e.line(&shown, &target)));
@@ -53,7 +53,7 @@ pub(super) async fn check(report: &mut Report<'_>, servers: &Servers, trust: &Tr
             let fingerprint = podssh_ssh::known_hosts::fingerprint(&key);
             let kind = podssh_ssh::known_hosts::key_type(&key);
             let line = format!("{reached}; {kind} host key {fingerprint}");
-            if GITHUB_KEYS.contains(&fingerprint.as_str()) {
+            if published_keys().contains(&fingerprint.as_str()) {
                 report.ok("vless", format!("{line}, one of GitHub's published keys"));
                 continue;
             }

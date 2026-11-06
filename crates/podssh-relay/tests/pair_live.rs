@@ -7,13 +7,13 @@
 use std::time::Duration;
 
 use podssh_relay::pair::{self, PairContext, PairError};
-use podssh_relay::relay::{Relay, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{default_relay_host, Relay};
 use podssh_ws::{ProxyChoice, Trust};
 
 #[tokio::test]
 #[ignore = "the live relay: run with --ignored"]
 async fn a_pair_is_made_asked_about_and_stopped() {
-    let relay = Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 };
+    let relay = Relay { host: default_relay_host().into(), port: 443 };
     let ctx = PairContext {
         relay: &relay,
         trust: &Trust::Default,

@@ -10,4 +10,4 @@ publish.workspace = true
 # The checker of the record is pod-todo of PodUtils/podcrates; the facts of
 # podssh are in TODO/todo.toml.
 [dependencies]
-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0" }
+pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.4.0" }

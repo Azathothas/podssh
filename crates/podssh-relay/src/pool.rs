@@ -3,7 +3,7 @@
 //!
 //! The pool is fetched only when a token is minted (rarely: tokens last up to
 //! 72 h), so it costs no extra connection on an ordinary run. Until a pool is
-//! cached, the default relay's alternates come from [`SEED`]. Only hosts under
+//! cached, the default relay's alternates come from [`seed`]. Only hosts under
 //! the primary relay's own parent domain are accepted, because the token is
 //! sent to them. A host of another deployment comes from a signed list alone
 //! ([`signed`], kept by [`kept`], T-346), and mints a token of its own.
@@ -20,18 +20,14 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::cache;
-use crate::relay::{check_host, Relay, DEFAULT_RELAY_HOST};
+use crate::relay::{check_host, default_relay_host, Relay};
 
-/// Hosts of the default relay's pool, read from its `/relays.json` on
-/// 2026-10-08 and spread across regions. A cached pool replaces them.
-pub const SEED: &[&str] = &[
-    "tcp-us-east-1.ssh.relay.ajam.dev",
-    "tcp-eu-west-3.ssh.relay.ajam.dev",
-    "tcp-ap-southeast-1.ssh.relay.ajam.dev",
-    "tcp-azure-westeurope.ssh.relay.ajam.dev",
-    "tcp-us-central1.ssh.relay.ajam.dev",
-    "tcp-ap-south-1.ssh.relay.ajam.dev",
-];
+/// Hosts of the default relay's pool, spread across regions: the endpoints
+/// of the role `seed` of `ajam-relay` (`pod-services`, read from its
+/// `/relays.json`). A cached pool replaces them.
+pub fn seed() -> Vec<&'static str> {
+    crate::relay::deployment().endpoints_of("seed").map(|e| e.host()).collect()
+}
 
 /// A cached pool older than this is still used, and refreshed at the next mint.
 pub const STALE_AFTER_MS: i64 = 7 * 24 * 3600 * 1000;
@@ -109,7 +105,7 @@ pub fn file_name(primary: &str) -> String {
 }
 
 /// The alternates for `primary`, best first: the cached pool, else (for the
-/// default relay only) [`SEED`].
+/// default relay only) [`seed`].
 pub fn alternates(primary: &str) -> Vec<String> {
     let cached: Vec<String> = cache::load_file(&file_name(primary))
         .and_then(|text| serde_json::from_str::<CachedPool>(&text).ok())
@@ -117,8 +113,8 @@ pub fn alternates(primary: &str) -> Vec<String> {
         .unwrap_or_default();
     let hosts: Vec<String> = if !cached.is_empty() {
         cached
-    } else if primary.eq_ignore_ascii_case(DEFAULT_RELAY_HOST) {
-        SEED.iter().map(|s| s.to_string()).collect()
+    } else if primary.eq_ignore_ascii_case(default_relay_host()) {
+        seed().into_iter().map(str::to_string).collect()
     } else {
         Vec::new()
     };
@@ -255,7 +251,7 @@ mod tests {
 
     #[test]
     fn only_hosts_of_the_same_deployment_are_accepted() {
-        let p = DEFAULT_RELAY_HOST;
+        let p = default_relay_host();
         assert!(same_deployment(p, "tcp-us-east-1.ssh.relay.ajam.dev"));
         assert!(same_deployment(p, "TCP-EU-WEST-3.SSH.RELAY.AJAM.DEV"));
         assert!(!same_deployment(p, p), "the primary is not its own alternate");
@@ -268,13 +264,6 @@ mod tests {
     }
 
     #[test]
-    fn the_seed_hosts_belong_to_the_default_deployment() {
-        for host in SEED {
-            assert!(same_deployment(DEFAULT_RELAY_HOST, host), "{host}");
-        }
-    }
-
-    #[test]
     fn a_relays_json_pool_is_read_in_order_and_filtered() {
         let body = br#"{"service":"tcp-ssh-relay","pool":[
             {"rank":0,"name":"a","host":"tcp-a.ssh.relay.ajam.dev"},
@@ -283,11 +272,11 @@ mod tests {
             {"rank":3,"name":"b","host":"tcp-b.ssh.relay.ajam.dev"},
             {"rank":4,"name":"a-again","host":"TCP-A.ssh.relay.ajam.dev"}]}"#;
         assert_eq!(
-            parse_pool(body, DEFAULT_RELAY_HOST).unwrap(),
+            parse_pool(body, default_relay_host()).unwrap(),
             vec!["tcp-a.ssh.relay.ajam.dev", "tcp-b.ssh.relay.ajam.dev"]
         );
-        assert!(parse_pool(b"{\"pool\":[]}", DEFAULT_RELAY_HOST).is_err());
-        assert!(parse_pool(b"not json", DEFAULT_RELAY_HOST).is_err());
+        assert!(parse_pool(b"{\"pool\":[]}", default_relay_host()).is_err());
+        assert!(parse_pool(b"not json", default_relay_host()).is_err());
     }
 
     /// T-342: the limits of the same body, each a whole number above zero;

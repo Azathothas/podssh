@@ -246,7 +246,7 @@ current node key (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
 1. Probe each mode before `TsNode::start`, through the proxy of T-103, in 8 s per step as
    `podssh doctor` does (`crates/podssh-cli/src/doctor/net.rs:17-18`): for `tcp`, a TLS handshake to
    a stock DERP server on port 443; for `relay`, one to the relay host. Dial with
-   `crates/podssh-ws/src/dial.rs:91-94`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
+   `crates/podssh-ws/src/dial.rs:83-86`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
 2. Add a logout to the fork: a register request with an expiry in the past, a `ControlRunner`
    message and `Device::logout(timeout)`, as a new patch with its row in
    `vendor/tailscale-rs/LOCAL-PATCHES.md`.
@@ -779,7 +779,7 @@ Read: the ignored test makes a new state file in the temporary directory and rem
 (`docs/tailscale.md:143-144`). Its reason still names M5. On 2026-10-07, registration worked, no map
 came in 60 s, and only the operator can add a node key to the allowlist (`docs/tailscale.md:8-24`).
 
-Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:271-275`), but
+Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:272-276`), but
 the fork can listen in its own network stack, with no socket of the host
 (`vendor/tailscale-rs/src/lib.rs:296-305`). The fork's echo example takes the auth key on the
 command line (`vendor/tailscale-rs/examples/tcp_echo/main.rs:24-28`), which podssh must not do. With
@@ -921,7 +921,7 @@ Read: the row is at `crates/podssh-cli/src/flags.rs`, lines 293-294 at `efee2fc`
 (`crates/podssh-cli/src/ts.rs`, lines 314-316 at `efee2fc`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs`, lines 391-393 at `efee2fc`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs`, lines 179-187 at `efee2fc`, `crates/podssh-cli/src/non_interactive.rs`, lines 309-320 at `efee2fc`).
-`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:91`).
+`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:95`).
 
 ## Approach
 

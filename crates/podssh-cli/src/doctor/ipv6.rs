@@ -8,7 +8,7 @@
 
 use std::time::Duration;
 
-use podssh_relay::relay::{Relay, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{default_relay_host, Relay};
 use podssh_relay::serve::ipv6::Ipv6Out;
 use podssh_ws::{dial, http, ProxyChoice, Trust};
 use serde_json::Value;
@@ -38,7 +38,7 @@ pub(super) async fn check(report: &mut Report<'_>, relay: Option<&Relay>, trust:
 /// Whether `host` is the default relay or a host of its pool, whose
 /// deployment was measured with no IPv6 out.
 fn default_deployment(host: &str) -> bool {
-    host.eq_ignore_ascii_case(DEFAULT_RELAY_HOST) || podssh_relay::pool::same_deployment(DEFAULT_RELAY_HOST, host)
+    host.eq_ignore_ascii_case(default_relay_host()) || podssh_relay::pool::same_deployment(default_relay_host(), host)
 }
 
 /// `GET /relays.json` on `relay`, over the path of its `/health`.
@@ -135,14 +135,14 @@ mod tests {
             "{proxied}"
         );
         let silent = Ok(br#"{"pool": [{"host": "tcp-a.ssh.relay.ajam.dev"}]}"#.to_vec());
-        let default = relay_words(DEFAULT_RELAY_HOST, true, silent.clone()).unwrap();
+        let default = relay_words(default_relay_host(), true, silent.clone()).unwrap();
         assert!(default.contains("none when last measured, on 2026-11-03") && default.contains("1011"), "{default}");
         let other = relay_words(at, false, silent).unwrap();
         assert!(other.ends_with("unknown, as its /relays.json says nothing of IPv6 (podssh relay serve says it)"));
         let cut = relay_words(at, false, Err("HTTP 404".into())).unwrap_err();
         assert_eq!(cut, "through r.example: /relays.json: HTTP 404");
         assert!(relay_words(at, false, Ok(b"<html>".to_vec())).unwrap_err().ends_with("is not JSON"));
-        assert!(default_deployment("TCP-EU-WEST-3.SSH.RELAY.AJAM.DEV") && default_deployment(DEFAULT_RELAY_HOST));
+        assert!(default_deployment("TCP-EU-WEST-3.SSH.RELAY.AJAM.DEV") && default_deployment(default_relay_host()));
         assert!(!default_deployment("relay.example"));
     }
 

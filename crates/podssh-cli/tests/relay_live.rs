@@ -58,7 +58,7 @@ fn status_reads_the_health_of_the_default_relay() {
     let stdout = text(&out.stdout);
     assert_eq!(out.status.code(), Some(0), "stdout: {stdout}\nstderr: {}", text(&out.stderr));
     let first = stdout.lines().next().unwrap_or_default();
-    assert!(first.starts_with(&format!("{}: tcp-ssh-relay ", podssh_relay::DEFAULT_RELAY_HOST)), "{stdout}");
+    assert!(first.starts_with(&format!("{}: tcp-ssh-relay ", podssh_relay::default_relay_host())), "{stdout}");
     assert!(first.contains("certificate verified"), "{stdout}");
 }
 

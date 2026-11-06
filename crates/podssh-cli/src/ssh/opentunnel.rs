@@ -19,8 +19,12 @@ use podssh_ws::{ProxyChoice, Trust};
 use super::args::SshArgs;
 use crate::relay_settings::Refusal;
 
-/// The domain of OpenTunnel's own tunnels, whose certificates are public.
-const HOSTED: &str = ".opentunnel.xyz";
+/// The domain of OpenTunnel's own tunnels, whose certificates are public:
+/// `.` and the fact `tunnel-zone` of `opentunnel` (`pod-services`).
+fn hosted() -> String {
+    let service = pod_services::get("opentunnel").expect("pod-services holds the service opentunnel");
+    format!(".{}", service.text("tunnel-zone").expect("opentunnel of pod-services holds the fact tunnel-zone"))
+}
 
 /// The OpenTunnel road of a `node://NAME` destination: the name of
 /// `--opentunnel-name`, or none; and whether a name kept under NAME may be
@@ -89,7 +93,7 @@ pub(crate) fn kept(label: &str) -> Option<Name> {
 /// whose certificate is public; `trust`, the relay's `--ca-file` when given,
 /// for a tunnel of another service, which may be the user's own.
 fn trust_for(name: &Name, trust: &Trust) -> Trust {
-    if name.hostname.ends_with(HOSTED) {
+    if name.hostname.ends_with(&hosted()) {
         crate::pairs::trust(None)
     } else {
         trust.clone()

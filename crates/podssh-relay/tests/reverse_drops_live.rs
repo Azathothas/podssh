@@ -27,7 +27,7 @@ use podssh_relay::relay::{self, forward_path, node_path, operator_path};
 use podssh_relay::reverse::control::{self, NodeInbound, NodeOutbound};
 use podssh_relay::reverse::framing::legs::encode_node_frame;
 use podssh_relay::reverse::SessionId;
-use podssh_relay::{Relay, DEFAULT_RELAY_HOST};
+use podssh_relay::{default_relay_host, Relay};
 use podssh_ws::frame::{OPCODE_CLOSE, OPCODE_TEXT};
 use podssh_ws::session::close_code_and_reason;
 use podssh_ws::{connect, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
@@ -126,7 +126,7 @@ const LIVE_RELAY: &str = "PODSSH_LIVE_RELAY";
 fn relay() -> Relay {
     match std::env::var(LIVE_RELAY) {
         Ok(named) => relay::parse_relay(&named).expect("PODSSH_LIVE_RELAY: HOST:PORT"),
-        Err(_) => Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 },
+        Err(_) => Relay { host: default_relay_host().into(), port: 443 },
     }
 }
 
@@ -348,7 +348,7 @@ async fn pair_holder(index: usize, until: Instant) -> (Tally, Option<bool>) {
 async fn forward_holder(until: Instant) -> Tally {
     let who = "forward";
     let mut tally = Tally::default();
-    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
+    let pool = podssh_relay::pool::alternates(relay::default_relay_host());
     let relays = relay::select_relays(None, std::env::var(LIVE_RELAY).ok(), &pool).expect("the relay list");
     let path = forward_path("github.com", 22).expect("a forward path");
     let trust = trust();

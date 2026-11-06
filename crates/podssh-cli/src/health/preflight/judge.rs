@@ -73,9 +73,9 @@ pub fn road(road: &Road, relay_host: Option<&str>, limits: &Limits) -> Verdict {
         let through = if road.proxy { ", through HTTPS_PROXY" } else { "" };
         return ok(format!("{}{through}: not the relay, so none of its limits on a session", road.name));
     }
-    let bytes = limits.max_session_bytes.unwrap_or(relay::SESSION_BYTE_CAP);
-    let idle = limits.idle_timeout_ms.map_or(relay::RELAY_IDLE_SECS, |ms| ms / 1000);
-    let most = limits.max_session_ms.map_or(relay::SESSION_TIME_CAP.as_secs(), |ms| ms / 1000);
+    let bytes = limits.max_session_bytes.unwrap_or(relay::session_byte_cap());
+    let idle = limits.idle_timeout_ms.map_or(relay::relay_idle_secs(), |ms| ms / 1000);
+    let most = limits.max_session_ms.map_or(relay::session_time_cap().as_secs(), |ms| ms / 1000);
     let read = limits.max_session_bytes.or(limits.idle_timeout_ms).or(limits.max_session_ms).is_some();
     let from = if read { "its /relays.json" } else { "podssh's own: no /relays.json was read" };
     let host = relay_host.map(|h| format!(" {h}")).unwrap_or_default();

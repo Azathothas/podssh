@@ -13,7 +13,7 @@ use podssh_relay::identity::KeyName;
 use podssh_relay::pool::kept::{self, Seen, Taken};
 use podssh_relay::pool::members;
 use podssh_relay::pool::signed::{self, Checked, Deployment, Keys, Signed};
-use podssh_relay::relay::{self, RelayList, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{self, default_relay_host, RelayList};
 use podssh_relay::token::relay_name;
 use serde_json::{json, Value};
 
@@ -165,9 +165,9 @@ pub fn status_lines(relays: &RelayList) -> Vec<String> {
         return Vec::new();
     }
     let pool = relays.hosts.iter().filter(|r| kept::of_default(r)).count().saturating_sub(1);
-    let mut lines = vec![format!(
-        "deployment default: {DEFAULT_RELAY_HOST} and {pool} hosts of its pool, unsigned, as they share its domain"
-    )];
+    let host = default_relay_host();
+    let mut lines =
+        vec![format!("deployment default: {host} and {pool} hosts of its pool, unsigned, as they share its domain")];
     for seen in kept::seen(&Keys::of_process(), crate::pairs::now_ms()) {
         lines.extend(seen_lines(&seen));
     }

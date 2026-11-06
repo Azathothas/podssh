@@ -17,7 +17,7 @@ use podssh_relay::relay::{node_path, operator_path};
 use podssh_relay::reverse::control::{self, NodeInbound, NodeOutbound};
 use podssh_relay::reverse::framing::legs::{decode_node_frame, encode_node_frame};
 use podssh_relay::reverse::SessionId;
-use podssh_relay::{Relay, DEFAULT_RELAY_HOST};
+use podssh_relay::{default_relay_host, Relay};
 use podssh_ws::frame::{OPCODE_BINARY, OPCODE_CLOSE, OPCODE_TEXT};
 use podssh_ws::session::close_code_and_reason;
 use podssh_ws::{connect, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
@@ -185,7 +185,7 @@ fn short(text: &str) -> String {
 }
 
 fn relay() -> Relay {
-    Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 }
+    Relay { host: default_relay_host().into(), port: 443 }
 }
 
 fn socket_config(relay: &Relay, path: String) -> WsClientConfig {

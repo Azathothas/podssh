@@ -96,7 +96,7 @@ impl<V> Shared<V> {
 /// give (T-339).
 fn speaks(e: &Ended) -> String {
     match e.may_be_the_protocol() {
-        true => format!(" (podssh speaks {})", super::SPEAKS),
+        true => format!(" (podssh speaks {})", super::speaks()),
         false => String::new(),
     }
 }

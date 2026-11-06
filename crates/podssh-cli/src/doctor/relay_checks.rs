@@ -19,22 +19,32 @@ use super::clock::{format_http_date, parse_http_date};
 use super::diagnosis::{Met, Of};
 use super::Report;
 
-/// The relay version podssh was last measured against (docs/relay.md).
-const MEASURED_VERSION: &str = "2026-10-03-r2";
+/// The relay version podssh was last measured against (docs/relay.md): the
+/// fact `measured-version` of `ajam-relay` (`pod-services`).
+fn measured_version() -> &'static str {
+    podssh_relay::relay::deployment().text("measured-version").unwrap_or("an unknown version")
+}
 
 /// Bound on each request and handshake here.
 pub(super) const TIMEOUT: Duration = Duration::from_secs(10);
 
-/// The forward session's target, and the SHA-256 fingerprints of the host
-/// keys GitHub publishes for it (Ed25519, ECDSA, RSA; equal to
-/// `api.github.com/meta` on 2026-10-08). The forwarders' check reads them
-/// too (T-369).
-pub(super) const FORWARD_HOST: &str = "github.com";
-pub(super) const GITHUB_KEYS: [&str; 3] = [
-    "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
-    "SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM",
-    "SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
-];
+/// GitHub's SSH: the service `github-ssh` of `pod-services`.
+fn github() -> &'static pod_services::Service {
+    pod_services::get("github-ssh").expect("pod-services holds the service github-ssh")
+}
+
+/// The forward session's target: GitHub's SSH host. The forwarders' check
+/// reads it too (T-369).
+pub(super) fn forward_host() -> &'static str {
+    github().endpoint("ssh").map(|e| e.host()).expect("github-ssh of pod-services has the endpoint ssh")
+}
+
+/// The SHA-256 fingerprints of the host keys that GitHub publishes for
+/// [`forward_host`] (Ed25519, ECDSA, RSA; `api.github.com/meta`): the fact
+/// `host-key-sha256`.
+pub(super) fn published_keys() -> Vec<&'static str> {
+    github().texts("host-key-sha256").unwrap_or_default().iter().map(|k| k.as_ref()).collect()
+}
 
 /// Skew beyond which this host's clock is called wrong.
 const CLOCK_LIMIT: i64 = 3600;
@@ -104,8 +114,8 @@ async fn health(relay: &Relay, trust: &Trust) -> (Result<(String, Option<String>
     match podssh_relay::health::fetch(relay, trust, &ProxyChoice::FromEnvironment, TIMEOUT).await {
         Ok(found) => {
             let mut line = found.line(host);
-            if found.version.as_deref() != Some(MEASURED_VERSION) {
-                line.push_str(&format!("; podssh was measured against {MEASURED_VERSION}"));
+            if found.version.as_deref() != Some(measured_version()) {
+                line.push_str(&format!("; podssh was measured against {}", measured_version()));
             }
             (Ok((line, found.date)), Met::Completed)
         }
@@ -174,8 +184,8 @@ async fn open_github(
     trust: &Trust,
     failover: Mode,
 ) -> Result<(tokio::io::DuplexStream, RelayStatus, String), String> {
-    let target = dial::authority(FORWARD_HOST, 22);
-    let path = podssh_relay::relay::forward_path(FORWARD_HOST, 22)?;
+    let target = dial::authority(forward_host(), 22);
+    let path = podssh_relay::relay::forward_path(forward_host(), 22)?;
     let request = Request { relays, path: &path, trust, target: &target, rounds: 1, failover };
     // Its progress notes repeat what the relay lines above already say.
     let opened = podssh_relay::open(&request, &mut |_: &str| {})
@@ -197,7 +207,7 @@ async fn open_github(
 /// nothing in between answered in GitHub's place. Gives the fingerprint
 /// that passed.
 async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode) -> Option<String> {
-    let target = dial::authority(FORWARD_HOST, 22);
+    let target = dial::authority(forward_host(), 22);
     let (stream, status, via) = match open_github(relays, trust, failover).await {
         Ok(opened) => opened,
         Err(why) => {
@@ -216,7 +226,7 @@ async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, fai
     let fingerprint = podssh_ssh::known_hosts::fingerprint(&key);
     let kind = podssh_ssh::known_hosts::key_type(&key);
     let shown = format!("{target} through {via}: {kind} host key {fingerprint}");
-    if GITHUB_KEYS.contains(&fingerprint.as_str()) {
+    if published_keys().contains(&fingerprint.as_str()) {
         report.ok("forward", format!("{shown}, one of GitHub's published keys"));
         return Some(fingerprint);
     }
@@ -255,7 +265,7 @@ fn after_upgrade(why: &str, end: Option<RelayEnd>, age: Duration) -> String {
 /// be the one that `forward` identified. Then the handshake, the host key
 /// and the authentication path work end to end, with no account.
 async fn login(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, host_key: &str) {
-    let target = dial::authority(FORWARD_HOST, 22);
+    let target = dial::authority(forward_host(), 22);
     let (stream, status, via) = match open_github(relays, trust, failover).await {
         Ok(opened) => opened,
         Err(why) => return report.fail("login", why),
@@ -294,7 +304,7 @@ fn judge_login(shown: &str, outcome: Result<Login, String>, relay: Option<String
     }
 }
 
-/// The verdict on a key that is not in [`GITHUB_KEYS`], given what
+/// The verdict on a key that is not in [`published_keys`], given what
 /// `api.github.com/meta` says now: equality with a published fingerprint,
 /// never anything about the server's banner.
 pub(super) fn judge_unlisted(shown: &str, fingerprint: &str, current: Result<Vec<String>, String>) -> Verdict {
@@ -384,7 +394,7 @@ mod tests {
         let unasked = judge_unlisted("k", planted, Err("HTTP 403".into()));
         assert!(matches!(&unasked, Verdict::Failed { detail } if detail.contains("HTTP 403")), "{unasked:?}");
         // The key measured through the relay on 2026-10-08 is in the list.
-        assert!(GITHUB_KEYS.contains(&theirs.as_str()));
+        assert!(published_keys().contains(&theirs.as_str()));
     }
 
     /// A refused key passes; another host key, or a broken link, fails.
@@ -415,14 +425,5 @@ mod tests {
         assert!(!relay.contains("drops"), "{relay}");
         let open = after_upgrade("no host key within 10 s", None, age);
         assert!(open.ends_with("then no host key within 10 s") && !open.contains("drops"), "{open}");
-    }
-
-    #[test]
-    fn the_published_keys_are_well_formed_sha256_fingerprints() {
-        for key in GITHUB_KEYS {
-            let b64 = key.strip_prefix("SHA256:").expect(key);
-            assert_eq!(b64.len(), 43, "{key}");
-            assert!(b64.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/'), "{key}");
-        }
     }
 }

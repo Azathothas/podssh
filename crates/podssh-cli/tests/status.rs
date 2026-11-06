@@ -89,7 +89,7 @@ fn the_line_names_the_relays_and_where_they_came_from() {
     let doc = one_line(&out);
     assert_eq!(doc["schema"], 1);
     assert_eq!(doc["relays_from"], "default and pool");
-    assert_eq!(doc["relays"][0]["host"], podssh_relay::DEFAULT_RELAY_HOST);
+    assert_eq!(doc["relays"][0]["host"], podssh_relay::default_relay_host());
     assert_eq!(doc["offline"], true);
     assert_eq!(doc["attachment"], "pipe");
     assert!(doc["host"].is_null());
@@ -114,7 +114,7 @@ fn the_line_names_the_relays_and_where_they_came_from() {
 fn no_token_appears_and_the_cache_is_unchanged() {
     let home = scratch("secret");
     let dir = cache_dir(&home);
-    let key = podssh_relay::DEFAULT_RELAY_HOST;
+    let key = podssh_relay::default_relay_host();
     let far = 9_999_999_999_999;
     podssh_relay::cache::store_in_first(std::slice::from_ref(&dir), key, SECRET_CACHED, far, key)
         .expect("a cache entry");

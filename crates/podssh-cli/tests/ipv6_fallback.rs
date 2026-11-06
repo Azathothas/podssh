@@ -97,7 +97,7 @@ fn stand_in_proxy(session: &Session, relay_port: &str, log: &std::path::Path) ->
         .arg("--log")
         .arg(log)
         .arg("--map")
-        .arg(format!("{}=127.0.0.1:{relay_port}", podssh_relay::relay::DEFAULT_RELAY_HOST))
+        .arg(format!("{}=127.0.0.1:{relay_port}", podssh_relay::relay::default_relay_host()))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -172,7 +172,7 @@ fn an_ipv6_target_that_the_relay_closed_at_once_falls_back_to_the_direct_road() 
     assert!(err.contains("the direct road carried the session"), "-v names the road: {err}");
     // The run took the built-in relay, through the proxy, before the direct road.
     let asked = std::fs::read_to_string(&at.proxy_log).unwrap_or_default();
-    let builtin = format!("CONNECT {}:443", podssh_relay::relay::DEFAULT_RELAY_HOST);
+    let builtin = format!("CONNECT {}:443", podssh_relay::relay::default_relay_host());
     assert!(asked.lines().any(|l| l.starts_with("200 ") && l.contains(&builtin)), "{asked}");
 }
 

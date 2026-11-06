@@ -309,7 +309,7 @@ impl Cell {
 fn certificates(dir: &std::path::Path) -> Result<(), String> {
     let p = |name: &str| dir.join(name).display().to_string();
     std::fs::write(dir.join("req.cnf"), "[req]\ndistinguished_name = dn\n[dn]\n").map_err(|e| e.to_string())?;
-    let builtin = podssh_relay::relay::DEFAULT_RELAY_HOST;
+    let builtin = podssh_relay::relay::default_relay_host();
     std::fs::write(
         dir.join("ext"),
         format!(

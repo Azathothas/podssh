@@ -25,8 +25,22 @@ use podssh_ws::text::one_line;
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
-pub const HOST: &str = "api.trycloudflare.com";
-pub const PATH: &str = "/tunnel";
+/// The API of quick tunnels: the endpoint `api` of `trycloudflare`
+/// (`pod-services`).
+fn api() -> &'static pod_services::Endpoint {
+    let service = pod_services::get("trycloudflare").expect("pod-services holds the service trycloudflare");
+    service.endpoint("api").expect("trycloudflare of pod-services has the endpoint api")
+}
+
+/// The host of the API.
+pub fn host() -> &'static str {
+    api().host()
+}
+
+/// The path of the request for a tunnel.
+pub fn path() -> &'static str {
+    api().path().unwrap_or("/tunnel")
+}
 /// cloudflared waits 15 s for the reply.
 pub const TIMEOUT: Duration = Duration::from_secs(15);
 /// How long refusals for now are asked again: past it, a later run does
@@ -74,9 +88,9 @@ impl Refused {
 impl std::fmt::Display for Refused {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Refused::Status { status, detail } => write!(f, "{HOST} answered {status}{detail}"),
-            Refused::Errors(errors) => write!(f, "{HOST} made no tunnel: {errors}"),
-            Refused::Malformed(why) => write!(f, "{HOST} gave a reply that is not a tunnel: {why}"),
+            Refused::Status { status, detail } => write!(f, "{} answered {status}{detail}", host()),
+            Refused::Errors(errors) => write!(f, "{} made no tunnel: {errors}", host()),
+            Refused::Malformed(why) => write!(f, "{} gave a reply that is not a tunnel: {why}", host()),
         }
     }
 }
@@ -270,9 +284,9 @@ pub async fn request(
     say: &dyn Fn(String),
 ) -> Result<Tunnel, Failed> {
     let post = move || async move {
-        podssh_ws::client::https_post_json(HOST, 443, PATH, b"", trust, proxy, TIMEOUT)
+        podssh_ws::client::https_post_json(host(), api().port(), path(), b"", trust, proxy, TIMEOUT)
             .await
-            .map_err(|e| format!("the request for a quick tunnel to {HOST} failed: {e}"))
+            .map_err(|e| format!("the request for a quick tunnel to {} failed: {e}", host()))
     };
     ask(post, say, unix_now).await
 }

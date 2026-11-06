@@ -11,7 +11,7 @@ use serde::Deserialize;
 use zeroize::Zeroizing;
 
 use crate::cache as token_cache;
-use crate::relay::{parse_relay, Relay, DEFAULT_RELAY_HOST};
+use crate::relay::{default_relay_host, parse_relay, Relay};
 
 /// Environment variable carrying a token to use instead of minting.
 pub const TOKEN_ENV: &str = "PODSSH_RELAY_TOKEN";
@@ -105,8 +105,8 @@ pub struct MintContext<'a> {
 /// its port when that is not 443. So a token never goes to a deployment that
 /// did not mint it (the operator, 2026-10-08).
 pub fn token_key(relay: &Relay) -> String {
-    if relay.host == DEFAULT_RELAY_HOST || crate::pool::same_deployment(DEFAULT_RELAY_HOST, &relay.host) {
-        DEFAULT_RELAY_HOST.to_string()
+    if relay.host == default_relay_host() || crate::pool::same_deployment(default_relay_host(), &relay.host) {
+        default_relay_host().to_string()
     } else {
         relay_name(relay)
     }

@@ -35,8 +35,12 @@ pub const DERP_KEY: &str = "derp";
 /// The key of the quick tunnel: its name, `NAME.trycloudflare.com`.
 pub const QUICK_KEY: &str = "quick";
 
-/// The zone of each quick tunnel's name, as Cloudflare's API gives one.
-pub const QUICK_ZONE: &str = "trycloudflare.com";
+/// The zone of each quick tunnel's name, as Cloudflare's API gives one: the
+/// fact `tunnel-zone` of `trycloudflare` (`pod-services`).
+pub fn quick_zone() -> &'static str {
+    let service = pod_services::get("trycloudflare").expect("pod-services holds the service trycloudflare");
+    service.text("tunnel-zone").expect("trycloudflare of pod-services holds the fact tunnel-zone")
+}
 
 /// pkarr's cap on the DNS packet of a record (iroh-dns's
 /// `MAX_DNS_PACKET_SIZE`), checked here to say so in words.
@@ -159,12 +163,12 @@ fn derp_home(value: &str, node: &PublicKey) -> Result<Ticket, String> {
 }
 
 /// A quick tunnel's name: one label of letters, digits and '-', under
-/// [`QUICK_ZONE`], as Cloudflare's API gives one; so a record never sends a
+/// [`quick_zone`], as Cloudflare's API gives one; so a record never sends a
 /// client to a host outside Cloudflare's edge. Not echoed: a stranger's
 /// record may hold anything.
 pub fn quick_name(value: &str) -> Result<String, String> {
     let name = value.trim().trim_end_matches('.').to_ascii_lowercase();
-    let label = name.strip_suffix(QUICK_ZONE).and_then(|rest| rest.strip_suffix('.'));
+    let label = name.strip_suffix(quick_zone()).and_then(|rest| rest.strip_suffix('.'));
     let good = label.is_some_and(|label| {
         !label.is_empty()
             && label.len() <= MAX_LABEL
@@ -174,7 +178,7 @@ pub fn quick_name(value: &str) -> Result<String, String> {
     });
     match good {
         true => Ok(name),
-        false => Err(format!("its quick tunnel is not one name under {QUICK_ZONE}, and is set aside")),
+        false => Err(format!("its quick tunnel is not one name under {}, and is set aside", quick_zone())),
     }
 }
 

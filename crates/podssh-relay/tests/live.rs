@@ -13,7 +13,7 @@ use podssh_relay::relay;
 use podssh_ws::Trust;
 
 async fn open_github() -> podssh_relay::Opened {
-    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
+    let pool = podssh_relay::pool::alternates(relay::default_relay_host());
     let relays = relay::select_relays(None, std::env::var(relay::RELAY_ENV).ok(), &pool).unwrap();
     let path = relay::forward_path("github.com", 22).unwrap();
     let request = Request {
@@ -68,7 +68,7 @@ async fn the_relay_answers_websocket_pings() {
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "network: the live relay"]
 async fn ipv6_the_relay_takes_the_bare_literal() {
-    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
+    let pool = podssh_relay::pool::alternates(relay::default_relay_host());
     let relays = relay::select_relays(None, std::env::var(relay::RELAY_ENV).ok(), &pool).unwrap();
     // Google's DNS over TLS: a public IPv6 address, on a port that is not a
     // web port (the relay's direct road refuses those).

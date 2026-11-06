@@ -29,7 +29,7 @@ fn the_flags_of_the_exit_go_with_exit_name() {
         assert_eq!((refusal.code, refusal.message), (64, format!("{flag} is for --exit NAME")));
     }
     let plan = asked(&Flags { name: Some("gw".into()), ..Flags::default() }, Some("ca.pem")).unwrap().unwrap();
-    assert_eq!((plan.host.as_str(), plan.port, plan.to.name.as_str()), (FORWARD_HOST, 22, "gw"));
+    assert_eq!((plan.host.as_str(), plan.port, plan.to.name.as_str()), (forward_host(), 22, "gw"));
     assert_eq!(plan.to.ca_file.as_deref(), Some("ca.pem"));
     let flags = Flags { name: Some("gw".into()), target: Some("h:x".into()), ..Flags::default() };
     let refusal = asked(&flags, None).err().unwrap();

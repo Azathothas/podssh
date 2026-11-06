@@ -69,7 +69,7 @@ fn relays() -> Block {
              at most each, and the first that answers is the home relay; a node's ticket names it. A client \
              asks the relay of the ticket first. When none answers, iroh probes them all and takes the one \
              that answers fastest.",
-            relays::DEFAULT.join(", "),
+            relays::default_urls().join(", "),
             relays::ENV,
             relays::PING_LIMIT.as_secs()
         ),
@@ -97,7 +97,7 @@ fn record() -> Block {
              and the quick tunnel. A record that the node's key did not sign is refused; of a record, a DERP \
              ticket of another key, or a quick tunnel that is not one name under trycloudflare.com, is set \
              aside; and the end-to-end channel checks the node's key on each road either way.",
-            n0 = pkarr::N0,
+            n0 = pkarr::n0_url(),
             env = pkarr::ENV,
             minutes = pkarr::REPUBLISH.as_secs() / 60,
             after = podssh_iroh::client::FIND_AFTER.as_secs(),

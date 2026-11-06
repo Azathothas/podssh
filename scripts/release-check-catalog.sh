@@ -56,7 +56,6 @@ actions.warp|both|T-352|GitHub Actions|0|warp-live.yml at the commit, confirm=Q5
 actions.quick|both|T-300|GitHub Actions|0|quick-tunnel-live.yml at the commit, confirm=Q43: Cloudflare's edge from GitHub's network
 actions.forwarders|both|T-370|GitHub Actions|0|forwarder-live.yml at the commit: the public forwarders of GitHub #59 (Q56)
 actions.hop|both|T-371|GitHub Actions|0|hop-live.yml at the commit: a -J hop on port 443
-actions.doh|both|T-344|GitHub Actions|0|doh-live.yml at the commit: DNS over HTTPS by address and by name
 actions.service|both|T-121|GitHub Actions|0|service-live.yml at the commit: a node as a unit of systemd
 actions.via|both|T-439|GitHub Actions|0|via-interop.yml at the commit: --via through Caddy's forwardproxy and squid over TLS
 actions.wstunnel|both|T-441|GitHub Actions|0|wstunnel-interop.yml at the commit: --wstunnel through wstunnel 11.1.0's own server, ws:// and wss://
@@ -91,7 +90,6 @@ actions.warp|warp|warp-live.yml|live:1|commit|gh workflow run warp-live.yml --re
 actions.quick|quick|quick-tunnel-live.yml|live:1|commit|gh workflow run quick-tunnel-live.yml --ref REF -f confirm=Q43
 actions.forwarders|forwarders|forwarder-live.yml|live:1|commit|gh workflow run forwarder-live.yml --ref REF
 actions.hop|hop|hop-live.yml|live:1|commit|gh workflow run hop-live.yml --ref REF
-actions.doh|doh|doh-live.yml|live:1|commit|gh workflow run doh-live.yml --ref REF
 actions.service|service|service-live.yml|unit:1|commit|gh workflow run service-live.yml --ref REF
 actions.via|via|via-interop.yml|interop:1|commit|gh workflow run via-interop.yml --ref REF
 actions.wstunnel|wstunnel|wstunnel-interop.yml|interop:1|commit|gh workflow run wstunnel-interop.yml --ref REF

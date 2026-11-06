@@ -31,8 +31,8 @@ impl Cell {
 /// The leaf of the stand-in's key for the default relay host and each host
 /// of its seed pool, as `scripts/interop-faults.sh` signs its others.
 pub fn certificate(dir: &Path) -> Result<(), String> {
-    let seed = podssh_relay::pool::SEED.iter().copied();
-    let names = std::iter::once(podssh_relay::relay::DEFAULT_RELAY_HOST).chain(seed);
+    let seed = podssh_relay::pool::seed().into_iter();
+    let names = std::iter::once(podssh_relay::relay::default_relay_host()).chain(seed);
     let san = names.map(|n| format!("DNS:{n}")).collect::<Vec<_>>().join(",");
     let ext = format!(
         "subjectAltName={san}\nbasicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature\n\

@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use podssh_ws::{dial, Trust};
 use tokio::io::AsyncReadExt;
 
-use super::relay_checks::{github_keys, judge_unlisted, FORWARD_HOST, GITHUB_KEYS, TIMEOUT};
+use super::relay_checks::{forward_host, github_keys, judge_unlisted, published_keys, TIMEOUT};
 use super::Report;
 use crate::exit::open::{Kind, Refused, To};
 use crate::relay_settings::Refusal;
@@ -48,7 +48,7 @@ pub(super) fn asked(flags: &Flags, ca_file: Option<&str>) -> Result<Option<Plan>
         return Ok(None);
     };
     let (host, port) = match flags.target.as_deref() {
-        None => (FORWARD_HOST.to_string(), 22),
+        None => (forward_host().to_string(), 22),
         Some(text) => target(text).map_err(|why| Refusal::usage(format!("--exit-target {text}: {why}")))?,
     };
     // `--exit auto` (T-432): the exit of the target, by the net's routes.
@@ -142,12 +142,12 @@ async fn session_line(report: &mut Report<'_>, plan: &Plan, relay: &str, trust: 
     let reached = format!("{target} from the exit {name}, over the pair's road at {relay}, in {ms} ms");
     let ending = end.ending;
     let mut stream = tokio::io::join(end.read, end.write);
-    if plan.host == FORWARD_HOST && plan.port == 22 {
+    if plan.host == forward_host() && plan.port == 22 {
         match podssh_ssh::probe::host_key(stream, TIMEOUT).await {
             Ok(key) => {
                 let fingerprint = podssh_ssh::known_hosts::fingerprint(&key);
                 let line = format!("{reached}; {} host key {fingerprint}", podssh_ssh::known_hosts::key_type(&key));
-                match GITHUB_KEYS.contains(&fingerprint.as_str()) {
+                match published_keys().contains(&fingerprint.as_str()) {
                     true => report.ok("exit", format!("{line}, one of GitHub's published keys")),
                     false => report.line("exit", judge_unlisted(&line, &fingerprint, github_keys(trust).await)),
                 }

@@ -11,7 +11,7 @@ use podssh_relay::cache::{
     candidate_dirs_from, chosen_from, chosen_note, file_name, load_from, remove_from, store_in_first, store_noting,
     valid_token, Chosen, MIN_REMAINING_MS,
 };
-use podssh_relay::relay::{parse_relay, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{default_relay_host, parse_relay};
 use podssh_relay::token::{relay_name, token_key, usable};
 
 const NOW: i64 = 1_900_000_000_000;
@@ -145,10 +145,10 @@ fn files_others_could_read_or_symlinks_are_not_trusted() {
 #[test]
 fn token_key_is_one_for_each_deployment() {
     let key = |r: &str| token_key(&parse_relay(r).unwrap());
-    assert_eq!(key(DEFAULT_RELAY_HOST), DEFAULT_RELAY_HOST);
-    assert_eq!(key("tcp-eu-west-3.ssh.relay.ajam.dev"), DEFAULT_RELAY_HOST);
-    assert_eq!(key("TCP-EU-WEST-3.ssh.relay.ajam.dev"), DEFAULT_RELAY_HOST);
-    assert_eq!(key("tcp.ssh.relay.ajam.dev:8443"), DEFAULT_RELAY_HOST);
+    assert_eq!(key(default_relay_host()), default_relay_host());
+    assert_eq!(key("tcp-eu-west-3.ssh.relay.ajam.dev"), default_relay_host());
+    assert_eq!(key("TCP-EU-WEST-3.ssh.relay.ajam.dev"), default_relay_host());
+    assert_eq!(key("tcp.ssh.relay.ajam.dev:8443"), default_relay_host());
     assert_eq!(key("other.example"), "other.example");
     assert_eq!(key("other.example:8443"), "other.example:8443");
     for foreign in ["relay.ajam.dev", "evil.relay.ajam.dev", "x.ssh.relay.ajam.dev.attacker.example", "dead.invalid"] {
@@ -160,31 +160,31 @@ fn token_key_is_one_for_each_deployment() {
 /// does not name its minting relay is not used.
 #[test]
 fn a_token_is_usable_only_under_the_key_of_the_relay_that_minted_it() {
-    assert!(usable(DEFAULT_RELAY_HOST, Some("tcp-eu-west-3.ssh.relay.ajam.dev")));
-    assert!(usable(DEFAULT_RELAY_HOST, Some(DEFAULT_RELAY_HOST)));
+    assert!(usable(default_relay_host(), Some("tcp-eu-west-3.ssh.relay.ajam.dev")));
+    assert!(usable(default_relay_host(), Some(default_relay_host())));
     assert!(usable("other.example", Some("other.example")));
     assert!(usable("other.example:8443", Some("other.example:8443")));
-    assert!(!usable(DEFAULT_RELAY_HOST, Some("other.example")));
-    assert!(!usable("other.example", Some(DEFAULT_RELAY_HOST)));
+    assert!(!usable(default_relay_host(), Some("other.example")));
+    assert!(!usable("other.example", Some(default_relay_host())));
     assert!(!usable("other.example", Some("other.example:8443")));
-    assert!(!usable(DEFAULT_RELAY_HOST, None), "an old entry is not used, also under the default key");
-    assert!(!usable(DEFAULT_RELAY_HOST, Some("not a host")));
+    assert!(!usable(default_relay_host(), None), "an old entry is not used, also under the default key");
+    assert!(!usable(default_relay_host(), Some("not a host")));
 }
 
 #[test]
 fn an_old_entry_with_no_minting_relay_loads_but_is_not_usable() {
     let dir = scratch("old-entry");
     let old = format!(r#"{{"token":"{TOKEN}","expires":{}}}"#, NOW + MIN_REMAINING_MS * 2);
-    std::fs::write(dir.join(file_name(DEFAULT_RELAY_HOST)), old).unwrap();
+    std::fs::write(dir.join(file_name(default_relay_host())), old).unwrap();
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(dir.join(file_name(DEFAULT_RELAY_HOST)), std::fs::Permissions::from_mode(0o600))
+        std::fs::set_permissions(dir.join(file_name(default_relay_host())), std::fs::Permissions::from_mode(0o600))
             .unwrap();
     }
-    let cached = load_from(&[dir], DEFAULT_RELAY_HOST, NOW).expect("the old entry parses");
+    let cached = load_from(&[dir], default_relay_host(), NOW).expect("the old entry parses");
     assert_eq!(cached.minted_at, None);
-    assert!(!usable(DEFAULT_RELAY_HOST, cached.minted_at.as_deref()));
+    assert!(!usable(default_relay_host(), cached.minted_at.as_deref()));
 }
 
 /// GitHub #3: with `dead.invalid,tcp.ssh.relay.ajam.dev`, the second host
@@ -192,7 +192,7 @@ fn an_old_entry_with_no_minting_relay_loads_but_is_not_usable() {
 #[test]
 fn a_failover_files_the_token_under_the_host_that_minted_it() {
     let dir = scratch("failover");
-    let (dead, live) = (parse_relay("dead.invalid").unwrap(), parse_relay(DEFAULT_RELAY_HOST).unwrap());
+    let (dead, live) = (parse_relay("dead.invalid").unwrap(), parse_relay(default_relay_host()).unwrap());
     let path = store_in_first(
         std::slice::from_ref(&dir),
         &token_key(&live),
@@ -201,13 +201,13 @@ fn a_failover_files_the_token_under_the_host_that_minted_it() {
         &relay_name(&live),
     )
     .unwrap();
-    assert!(path.ends_with(file_name(DEFAULT_RELAY_HOST)), "{}", path.display());
+    assert!(path.ends_with(file_name(default_relay_host())), "{}", path.display());
     assert!(
         load_from(std::slice::from_ref(&dir), &token_key(&dead), NOW).is_none(),
         "nothing is filed under the dead host"
     );
     let cached = load_from(&[dir], &token_key(&live), NOW).unwrap();
-    assert_eq!(cached.minted_at.as_deref(), Some(DEFAULT_RELAY_HOST));
+    assert_eq!(cached.minted_at.as_deref(), Some(default_relay_host()));
     assert!(usable(&token_key(&live), cached.minted_at.as_deref()));
 }
 

@@ -44,9 +44,13 @@ pub const MAX_DOC: usize = 8 * 1024;
 pub const KEYS_ENV: &str = "PODSSH_RELAY_KEYS";
 /// The keys compiled in, by their fingerprints: the default deployment's
 /// operator's (`docs/relay-operator.md`, item 14), the current key and the
-/// next, so that a binary in the field takes the operator's next deployment.
-/// An empty list trusts the user's keys and the net's alone.
-pub const BUILT_IN: &[&str] = &[];
+/// next, so that a binary in the field takes the operator's next deployment:
+/// the fact `signed-list-keys` of `ajam-relay` (`pod-services`). An empty
+/// list trusts the user's keys and the net's alone.
+pub fn built_in() -> Vec<&'static str> {
+    let keys = crate::relay::deployment().texts("signed-list-keys").unwrap_or_default();
+    keys.iter().map(|k| k.as_ref()).collect()
+}
 
 /// A deployment of a list: its name, and its hosts in order.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -327,7 +331,7 @@ impl Keys {
         if env.is_some_and(is_none) {
             return Keys::default();
         }
-        let built = BUILT_IN.iter().filter_map(|k| KeyName::parse(k)).map(|k| (k, "built in".to_string()));
+        let built = built_in().into_iter().filter_map(KeyName::parse).map(|k| (k, "built in".to_string()));
         let named = env.into_iter().flat_map(|text| {
             let words = text.split([',', ' ', '\t']).filter_map(|w| KeyName::parse(w.trim()));
             words.map(|k| (k, KEYS_ENV.to_string())).collect::<Vec<_>>()

@@ -9,7 +9,7 @@ use podssh_ws::dial::{self, ProxyChoice};
 use podssh_ws::shadowsocks::{self, Dial};
 use podssh_ws::Trust;
 
-use super::relay_checks::{github_keys, judge_unlisted, FORWARD_HOST, GITHUB_KEYS, TIMEOUT};
+use super::relay_checks::{forward_host, github_keys, judge_unlisted, published_keys, TIMEOUT};
 use super::Report;
 use crate::shadowsocks::order::Order;
 use crate::shadowsocks::Servers;
@@ -17,7 +17,7 @@ use crate::shadowsocks::Servers;
 /// One line for the first server of the file, and one for each line of a
 /// list that its fetch said.
 pub(super) async fn check(report: &mut Report<'_>, servers: &Servers, trust: &Trust) {
-    let target = dial::authority(FORWARD_HOST, 22);
+    let target = dial::authority(forward_host(), 22);
     let mut notes: Vec<String> = Vec::new();
     let first = Order::new(servers, trust).next(&mut |line: &str| notes.push(line.to_string())).await;
     let Some(node) = first else {
@@ -38,7 +38,7 @@ pub(super) async fn check(report: &mut Report<'_>, servers: &Servers, trust: &Tr
         answer: Some(shadowsocks::ANSWER_WAIT),
         silence_is_ready: false,
     };
-    let opened = match shadowsocks::open(&node, FORWARD_HOST, 22, &road).await {
+    let opened = match shadowsocks::open(&node, forward_host(), 22, &road).await {
         Ok(opened) => opened,
         Err(e) => {
             report.fail("shadowsocks", e.line(&shown, &target));
@@ -59,7 +59,7 @@ pub(super) async fn check(report: &mut Report<'_>, servers: &Servers, trust: &Tr
     let fingerprint = podssh_ssh::known_hosts::fingerprint(&key);
     let kind = podssh_ssh::known_hosts::key_type(&key);
     let line = format!("{reached}; {kind} host key {fingerprint}");
-    if GITHUB_KEYS.contains(&fingerprint.as_str()) {
+    if published_keys().contains(&fingerprint.as_str()) {
         report.ok("shadowsocks", format!("{line}, one of GitHub's published keys"));
         return;
     }

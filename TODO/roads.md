@@ -164,7 +164,7 @@ Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
 the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:369-370`,
-`crates/podssh-cli/src/ts.rs:181`). Credentials never go on argv
+`crates/podssh-cli/src/ts.rs:182`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
 ## Approach
@@ -501,7 +501,7 @@ in iroh's source at the pinned version.
    of one line, with its measurement (T-157).
 2. `--iroh-relay URL[,URL...]` and `PODSSH_IROH_RELAY` replace the table, as
    `--relay-host` and `PODSSH_RELAY` replace the relay list
-   (`crates/podssh-relay/src/relay.rs:104-125`). The flag wins.
+   (`crates/podssh-relay/src/relay.rs:125-146`). The flag wins.
 3. Accept `https://` URLs only, with a host that passes `check_host`
    (`crates/podssh-ws/src/names.rs:8-32`), and with no user information
    and no query.
@@ -2582,7 +2582,7 @@ The part of podssh, when the start condition holds:
    URL or in output (`docs/relay.md:461-463`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
-   `crates/podssh-relay/src/pool.rs:144-153`).
+   `crates/podssh-relay/src/pool.rs:140-149`).
 5. Test against the relay's implementation, live, and against the stand-in
    relay with the same state machine.
 6. When the relay's version changes, update the pinned contract and
@@ -2781,7 +2781,7 @@ the far end closes the target at a cut; the test fails. Live, on a GitHub runner
 
 2026-11-04 (the drafting agent). Read at `6a62cdc`: the Premise holds at each line that it cites
 (`docs/design.md` lines 659-662, 702-706 and 1410-1413 at that commit; `docs/relay.md:450-452`;
-`crates/podssh-relay/src/pool.rs:144-153`), and so does the Correction above: the far end of the
+`crates/podssh-relay/src/pool.rs:140-149`), and so does the Correction above: the far end of the
 layer is `crates/podssh-relay/src/session/far.rs`, and the role's `/connect/` ends the target with
 its WebSocket (`crates/podssh-relay/src/serve/forward.rs`). Three parts of the Approach above
 change, by the `## Decision`: the layer is asked for by a path of its own,
@@ -3961,11 +3961,11 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   audit cited `:305-311`).
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
-  one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
+  one (`:66-70`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
   registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:338-339`),
   `1.0.0-beta.2` today (`Cargo.toml:49`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
-  (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
+  (`PodUtils/podssh:crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
 - Read: cloudflared's README says "Cloudflare currently supports versions of cloudflared that are
   within one year of the most recent release", and that breaking changes "may be introduced" for
   older ones (`cloudflare/cloudflared:README.md`, read in a clone).
@@ -3976,7 +3976,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`docs/design.md:235-241`), and podssh's DNS over HTTPS asks for A and AAAA only
   (`crates/podssh-ws/src/resolve.rs`, line 125 at `927eb24`).
 - Read: the edge's trust is podssh's default roots, `podssh-ca.pem` next to the binary among them,
-  and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:35-46`;
+  and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:61-72`;
   `PodUtils/podssh:crates/podssh-ws/src/tls.rs:204-233`).
 - Inferred: Cloudflare cannot map `podssh 1.0.0-beta.2` to a release of cloudflared; some filters
   block `trycloudflare.com`.
@@ -5560,7 +5560,7 @@ code that no command of the default build uses is P2 at most".
   (`TODO/roads.md:2157`); its Decision took QUIC only where no proxy is set, on the connection's
   own socket (`TODO/roads.md:2189-2196`), and the QUIC handshake, bounded at 5 s, is its probe:
   QUIC that fails gave way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs`, its `link`,
-  read at `a09f40e`, which T-400 replaced by a race; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
+  read at `a09f40e`, which T-400 replaced by a race; `crates/podssh-relay/src/quick/quic.rs:44`). Its cost on a host that drops UDP is
   one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2197-2201`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
@@ -5587,7 +5587,7 @@ code that no command of the default build uses is P2 at most".
 4. doctor: `bind UDP` says only what a bind shows. A new line, `UDP out`, gives the answer and
    its time: with the feature, the QAD round trip to the home relay; in each build where no proxy
    is set, a QUIC handshake to the quick tunnel's edge as `podssh node --quick-tunnel` makes it
-   (`crates/podssh-relay/src/quick/quic.rs:125-145`), and with a proxy set, that the quick tunnel
+   (`crates/podssh-relay/src/quick/quic.rs:137-157`), and with a proxy set, that the quick tunnel
    takes HTTP/2. Each answer is `ok`, as a road with no UDP works; a home relay that does not
    answer is already `FAIL` (`crates/podssh-cli/src/doctor/iroh.rs:89-95`).
 5. `-v` says which answer the road took. The manual's `PODSSH_IROH_UDP`, `docs/design.md`
@@ -5907,8 +5907,8 @@ relay's path and token.
 - Read: the study of carriers found no documented service, with no account, that carries any TCP
   target over a WebSocket (`docs/carriers.md:22-23`); the three above publish no limit, and say
   nothing of other clients.
-- Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:56-62`), and its forward
-  path is `/connect/<host>/<port>` (`:154-167`); a run has one road, of five kinds
+- Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:77-83`), and its forward
+  path is `/connect/<host>/<port>` (`:175-188`); a run has one road, of five kinds
   (`crates/podssh-cli/src/ssh/resolve.rs:23-78`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:74-113`, `:181-205`); a token goes only to the deployment that
@@ -5999,8 +5999,8 @@ are). Planted: the host put in with no check; the test of `&` fails.
 ## Correction
 
 2026-10-31 (the drafting agent): four citations of the Premise name other lines, read at
-`a3f948d`. A relay is a host and a port at `crates/podssh-relay/src/relay.rs:80-86`, and its
-forward path is built at `crates/podssh-relay/src/relay.rs:178-191`; `:56-62` and `:154-167` hold
+`a3f948d`. A relay is a host and a port at `crates/podssh-relay/src/relay.rs:101-107`, and its
+forward path is built at `crates/podssh-relay/src/relay.rs:199-212`; `:77-83` and `:175-188` hold
 the byte budget and the parser of a relay list. A token goes only to the deployment that minted it
 at `docs/decisions.md:99` (T-057), and at Q49's row, `docs/decisions.md:53`; `docs/decisions.md:94`
 holds the exit codes. `Transport` in `crates/podssh-cli/src/ssh/resolve.rs` had six kinds, not five
@@ -6618,7 +6618,7 @@ edge still needs the operator's relay. WARP's tunnel (T-352) carries any port ov
 
 ## Premise
 
-- Read: `crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". The relay's
+- Read: `PodUtils/podssh:crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". The relay's
   VPC road carried TLS to that port, and `TODO/roads.md:1960` says "the edge's 443 and 8443 serve
   no tunnel".
 - Read: the measured proxy allows ports 443, 80 and 8443 alone (`docs/target-environment.md:21`).
@@ -6695,7 +6695,7 @@ T-352 is done: WARP's road, on which this road runs. The operator allowed it on 
 Read at `a3f948d` on 2026-10-31.
 
 - The first item of the Premise holds for the edge's port:
-  `crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". But the node has
+  `PodUtils/podssh:crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". But the node has
   no road of the relay to the edge: `link`
   of `crates/podssh-cli/src/node_quick.rs` takes QUIC, then TCP directly or through the proxy, and
   the VPC road carried TLS to 7844 when T-299 measured it by hand through `podssh proxy`. Step 1
@@ -7273,8 +7273,8 @@ start and at each reconnect, and a client meets that wait as a refusal.
 ## Premise
 
 - Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs`, line 316 at `a09f40e`);
-  QUIC's limit (`crates/podssh-relay/src/quick/quic.rs:32`) and the edge's dial limit
-  (`crates/podssh-relay/src/quick/edge.rs:31`).
+  QUIC's limit (`crates/podssh-relay/src/quick/quic.rs:44`) and the edge's dial limit
+  (`crates/podssh-relay/src/quick/edge.rs:54`).
 - Read: podssh already races relay hosts with a stagger (`PodUtils/podssh:crates/podssh-ws/src/race.rs`).
 - Read in cfrs's issues: the edge answers a QUIC packet of a reserved version with a Version
   Negotiation of 27 bytes (cfrs #11, #12), a probe that takes one round trip.
@@ -8479,9 +8479,9 @@ device's record shows an endpoint that podssh chose, not the service.
 
 ## Premise
 
-- `crates/podssh-warp/src/lib.rs:69` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
-- `crates/podssh-warp/src/register.rs:235` says "[0];", the first peer of the answer alone.
-- `crates/podssh-warp/src/register.rs:319` says "let endpoint = crate::ENDPOINT_H2.parse()": the record takes the constant.
+- `PodUtils/podssh:crates/podssh-warp/src/lib.rs:69` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
+- `crates/podssh-warp/src/register.rs:264` says "[0];", the first peer of the answer alone.
+- `PodUtils/podssh:crates/podssh-warp/src/register.rs:319` says "let endpoint = crate::ENDPOINT_H2.parse()": the record takes the constant.
 - `crates/podssh-warp/src/device.rs:71` says "pub endpoint: SocketAddr,": one address.
 
 ## Approach
@@ -8625,7 +8625,7 @@ the API did not answer, not which name failed.
 
 ## Premise
 
-- `crates/podssh-warp/src/register.rs:28` says "pub const API_HOST", the one name `api.cloudflareclient.com`.
+- `PodUtils/podssh:crates/podssh-warp/src/register.rs:28` says "pub const API_HOST", the one name `api.cloudflareclient.com`.
 
 ## Approach
 

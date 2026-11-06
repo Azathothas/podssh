@@ -1,6 +1,6 @@
 //! Opening the TCP connection to the relay: `pod-proxy` of PodUtils/podcrates
-//! with podssh's settings ([`settings`]) and podssh's resolver ([`Resolver`],
-//! the order of [`crate::resolve`]). Directly, or through an HTTP CONNECT
+//! with podssh's settings ([`settings`]) and podssh's resolver (`pod-dns`, the
+//! order of [`crate::resolve`]). Directly, or through an HTTP CONNECT
 //! proxy or a SOCKS5 proxy named by the environment (`https_proxy`,
 //! `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, minus anything
 //! `no_proxy`/`NO_PROXY` excludes), read at each dial.
@@ -12,14 +12,10 @@
 //! address, and this host needs no DNS. A `socks5://` proxy gets the address
 //! that podssh's resolver gives, as curl does.
 
-use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
 use std::time::Duration;
 
-use pod_core::{BoxFuture, Class, Failure, Found, Resolve};
 use pod_proxy::{Dialer, Environment, Settings};
 use tokio::net::TcpStream;
-use tokio::time::Instant;
 
 pub use pod_proxy::env::{is_loopback, no_proxy_entry, no_proxy_matches, NO_PROXY_VARS, PROXY_VARS};
 pub use pod_proxy::host::{authority, check_name, split_host_port};
@@ -69,14 +65,10 @@ fn environment() -> Environment {
     Environment::read(&|name| std::env::var_os(name))
 }
 
-/// The dialer of `proxy`, over podssh's resolver.
+/// The dialer of `proxy`, over podssh's resolver ([`resolve::resolver`]).
 pub fn dialer(proxy: &ProxyChoice, multipath: bool) -> Dialer {
-    Dialer::new(settings(proxy, multipath), Arc::new(Resolver))
+    Dialer::new(settings(proxy, multipath), resolve::resolver())
 }
-
-// The dial of the TLS roads, which gives rustls the bare TCP stream.
-mod bare;
-pub use bare::Bare;
 
 /// The proxy, if any, the process environment selects for `target_host`. A
 /// loopback target never goes through a proxy (as in Go's net/http): the
@@ -108,78 +100,9 @@ pub async fn dial_multipath(
     dialer(proxy, true).tcp_multipath(host, port, timeout).await
 }
 
-/// podssh's resolver as the dial asks it: the order of [`crate::resolve`]
-/// (an IP literal, the pins, the system resolver, the cache, DNS over
-/// HTTPS, the old cache), each source by its place in [`resolve::ORDER`].
-/// The dial tells it the source of each address that connected, for
-/// `podssh doctor` and for the cache.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Resolver;
-
-/// The source of the resolver as `pod-core` names it: its place in the
-/// order, and a word.
-fn source_of(source: resolve::Source) -> pod_core::Source {
-    let rank = resolve::ORDER.iter().position(|s| *s == source).unwrap_or_default() as u8;
-    let name = match source {
-        resolve::Source::Literal => "literal",
-        resolve::Source::Pin => "pin",
-        resolve::Source::System => "system",
-        resolve::Source::Cache => "cache",
-        resolve::Source::Doh => "doh",
-        resolve::Source::OldCache => "old-cache",
-    };
-    pod_core::Source { rank, name }
-}
-
-/// The source of the resolver of a `pod-core` source.
-fn source_from(source: pod_core::Source) -> Option<resolve::Source> {
-    resolve::ORDER.get(usize::from(source.rank)).copied()
-}
-
-impl Resolve for Resolver {
-    fn label(&self) -> String {
-        "podssh's resolver".into()
-    }
-
-    fn resolve_from<'a>(
-        &'a self,
-        host: &'a str,
-        port: u16,
-        deadline: Instant,
-        after: Option<pod_core::Source>,
-    ) -> BoxFuture<'a, Result<Found, Failure>> {
-        Box::pin(async move {
-            let after = after.and_then(source_from);
-            match resolve::resolve_from(host, port, deadline, after).await {
-                Ok(found) => Ok(Found { addrs: found.addrs, source: source_of(found.source), more: found.more }),
-                Err(detail) => Err(Failure::new(Stage::Dns, Class::Unavailable, detail)),
-            }
-        })
-    }
-
-    fn pinned(&self, host: &str) -> Vec<IpAddr> {
-        resolve::pinned(host)
-    }
-
-    fn note_dialed(&self, host: &str, peer: SocketAddr, source: pod_core::Source) {
-        if let Some(source) = source_from(source) {
-            resolve::note_dialed(host, peer, source);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Each source of podssh's order keeps its place through `pod-core`.
-    #[test]
-    fn each_source_of_the_order_comes_back_as_it_went() {
-        for source in resolve::ORDER {
-            assert_eq!(source_from(source_of(source)), Some(source), "{source:?}");
-        }
-        assert_eq!(source_from(pod_core::Source { rank: 6, name: "other" }), None);
-    }
 
     /// podssh's words and its user agent: a refusal names podssh.
     #[test]

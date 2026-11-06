@@ -14,7 +14,7 @@ use podssh_ws::dial::{self, ProxyChoice};
 use podssh_ws::forwarder::Dial;
 use podssh_ws::{Trust, Verdict};
 
-use super::relay_checks::{github_keys, judge_unlisted, FORWARD_HOST, GITHUB_KEYS, TIMEOUT};
+use super::relay_checks::{forward_host, github_keys, judge_unlisted, published_keys, TIMEOUT};
 use super::Report;
 use crate::forwarder::{fallback, Forwarder};
 use crate::relay_settings::Refusal;
@@ -49,9 +49,9 @@ pub(super) fn fallback_verdict(on: Result<bool, Refusal>, explicit: bool) -> Ver
 /// One line for each forwarder, in order, and what a request with no TLS
 /// meets on the way to its host (T-326).
 pub(super) async fn check(report: &mut Report<'_>, forwarders: &[Forwarder], trust: &Trust) {
-    let target = dial::authority(FORWARD_HOST, 22);
+    let target = dial::authority(forward_host(), 22);
     for forwarder in forwarders {
-        if let Ok(url) = forwarder.template.fill(FORWARD_HOST, 22) {
+        if let Ok(url) = forwarder.template.fill(forward_host(), 22) {
             super::cleartext::forwarder(report, &url.host, url.port, TIMEOUT).await;
             // What its TLS offers HTTP/2 (T-321).
             if url.tls {
@@ -66,7 +66,7 @@ pub(super) async fn check(report: &mut Report<'_>, forwarders: &[Forwarder], tru
             close_at_end: true,
             note: Arc::new(|_: &str| {}),
         };
-        let carried = match podssh_ws::forwarder::open(&forwarder.template, FORWARD_HOST, 22, &road).await {
+        let carried = match podssh_ws::forwarder::open(&forwarder.template, forward_host(), 22, &road).await {
             Ok(carried) => carried,
             Err(e) => {
                 report.fail("forwarder", format!("{target}: {}", e.line(name)));
@@ -87,7 +87,7 @@ pub(super) async fn check(report: &mut Report<'_>, forwarders: &[Forwarder], tru
         let fingerprint = podssh_ssh::known_hosts::fingerprint(&key);
         let kind = podssh_ssh::known_hosts::key_type(&key);
         let shown = format!("{target} through the forwarder {name}: {kind} host key {fingerprint}");
-        if GITHUB_KEYS.contains(&fingerprint.as_str()) {
+        if published_keys().contains(&fingerprint.as_str()) {
             report.ok("forwarder", format!("{shown}, one of GitHub's published keys"));
             continue;
         }

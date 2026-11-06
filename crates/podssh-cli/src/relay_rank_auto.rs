@@ -13,7 +13,7 @@
 
 use podssh_relay::rank::{self, Rank};
 use podssh_relay::rank_auto;
-use podssh_relay::relay::{Relay, RelayList, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{default_relay_host, Relay, RelayList};
 use serde_json::json;
 
 use crate::ping::relay::REFERENCE;
@@ -32,7 +32,7 @@ pub(crate) fn spawn(transport: &Transport, through_relay: bool) -> Option<tokio:
     if podssh_relay::cache::candidate_dirs().is_empty() {
         return None;
     }
-    let egress = podssh_relay::rank_list::egress_for(DEFAULT_RELAY_HOST);
+    let egress = podssh_relay::rank_list::egress_for(default_relay_host());
     // A rank that holds for this egress: none is due today.
     rank_auto::plan(rank::load().as_ref(), &rank_auto::hosts(), &egress, crate::pairs::now_ms())?;
     Some(tokio::spawn(run(trust.clone(), egress)))

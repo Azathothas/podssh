@@ -41,11 +41,20 @@ pub use far::Node;
 pub use record::{Credentials, Record, Store};
 
 /// The hosted service, whose API and bridges are at its own name and whose
-/// tunnels are names under it.
-pub const DEFAULT_API: &str = "https://opentunnel.xyz";
+/// tunnels are names under it: the endpoint `api` of `opentunnel`
+/// (`pod-services`).
+fn hosted_api() -> &'static pod_services::Endpoint {
+    let service = pod_services::get("opentunnel").expect("pod-services holds the service opentunnel");
+    service.endpoint("api").expect("opentunnel of pod-services has the endpoint api")
+}
+
+/// The URL of the hosted service's API.
+pub fn default_api() -> String {
+    hosted_api().url()
+}
 /// `no` turns the road off; an `https://` URL names another service.
 pub const ENV: &str = "PODSSH_OPENTUNNEL";
-/// The port of the API and of each tunnel's name.
+/// The port of the API and of each tunnel's name, where a URL names none.
 pub const PORT: u16 = 443;
 
 /// Where the lines of the road go, for the user.
@@ -99,7 +108,7 @@ impl Service {
 
     /// OpenTunnel's own service, at `opentunnel.xyz`.
     pub fn hosted() -> Service {
-        Service { host: "opentunnel.xyz".into(), port: PORT }
+        Service { host: hosted_api().host().to_string(), port: hosted_api().port() }
     }
 
     /// The value of a request's `Host`: the host alone on port 443.

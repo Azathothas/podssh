@@ -24,9 +24,21 @@ use sha2::Sha256;
 
 use super::edge;
 
-/// The name of the edge's certificate over QUIC, and the ALPN.
-pub const SERVER_NAME: &str = "quic.cftunnel.com";
-pub const ALPN: &[u8] = b"argotunnel";
+/// The edge over QUIC: the first endpoint of the role `quic` of
+/// `cloudflare-tunnel-edge` (`pod-services`).
+fn quic_edge() -> &'static pod_services::Endpoint {
+    super::edge::service().endpoints_of("quic").next().expect("cloudflare-tunnel-edge has the role quic")
+}
+
+/// The name of the edge's certificate over QUIC.
+pub fn server_name() -> &'static str {
+    quic_edge().server_name()
+}
+
+/// The ALPN of the edge over QUIC.
+pub fn alpn() -> &'static [u8] {
+    quic_edge().alpn().first().map_or(b"argotunnel".as_slice(), |a| a.as_bytes())
+}
 /// cloudflared's `HandshakeIdleTimeout`, `MaxIdleTimeout` and
 /// `MaxIdlePingPeriod`.
 pub const HANDSHAKE_WAIT: Duration = Duration::from_secs(5);
@@ -55,7 +67,7 @@ pub fn tls(roots: &TlsRoots) -> Result<Arc<rustls::ClientConfig>, String> {
         .dangerous()
         .with_custom_certificate_verifier(verifier)
         .with_no_client_auth();
-    config.alpn_protocols = vec![ALPN.to_vec()];
+    config.alpn_protocols = vec![alpn().to_vec()];
     Ok(Arc::new(config))
 }
 
@@ -188,7 +200,7 @@ pub async fn connect_edge(found: &edge::Edge) -> Result<EdgeConnection, String> 
                     continue;
                 }
             };
-            match connect(&endpoint, *addr, SERVER_NAME, tls.clone()).await {
+            match connect(&endpoint, *addr, server_name(), tls.clone()).await {
                 Ok(connection) => return Ok(EdgeConnection { endpoint, connection }),
                 Err(e) => failed.push(format!("{region} {e}")),
             }
@@ -223,7 +235,8 @@ pub async fn handshake(found: &edge::Edge, tls: Arc<rustls::ClientConfig>) -> Re
             tries.spawn(async move {
                 let socket = endpoint(addr.is_ipv6())?;
                 let began = tokio::time::Instant::now();
-                let connection = connect(&socket, addr, SERVER_NAME, tls).await.map_err(|e| format!("{region} {e}"))?;
+                let connection =
+                    connect(&socket, addr, server_name(), tls).await.map_err(|e| format!("{region} {e}"))?;
                 let took = began.elapsed();
                 connection.close(VarInt::from_u32(0), b"");
                 let _ = tokio::time::timeout(CLOSE_WAIT, socket.wait_idle()).await;

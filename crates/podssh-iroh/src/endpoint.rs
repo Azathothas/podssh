@@ -36,7 +36,7 @@ pub struct Options {
     /// The relays: iroh takes the one with the least latency as the home
     /// relay, so a caller that wants the first that answers gives that one
     /// alone ([`crate::relays::home`]). Empty is the table of
-    /// [`crate::relays::DEFAULT`].
+    /// [`crate::relays::default_urls`].
     pub relays: Vec<RelayUrl>,
     /// How the relay's connection goes out.
     pub proxy: ProxyChoice,
@@ -139,7 +139,7 @@ impl std::fmt::Display for BindError {
 impl std::error::Error for BindError {}
 
 /// The relays that an endpoint uses when it is given none: the table of
-/// [`crate::relays::DEFAULT`], n0's public relays until the operator runs one.
+/// [`crate::relays::default_urls`], n0's public relays until the operator runs one.
 pub fn default_relays() -> Vec<RelayUrl> {
     crate::relays::defaults()
 }

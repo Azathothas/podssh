@@ -23,7 +23,9 @@ const PROBE: Duration = Duration::from_secs(8);
 /// podssh reaches by address already, public and long lived, with a
 /// certificate for that address.
 pub(super) fn address() -> &'static str {
-    podssh_ws::resolve::DOH_RESOLVERS[0].ip
+    static ADDRESS: std::sync::LazyLock<String> =
+        std::sync::LazyLock::new(|| podssh_ws::resolve::doh_resolvers()[0].ip.to_string());
+    &ADDRESS
 }
 
 /// The probe through `proxy`: whether the proxy took a CONNECT to an

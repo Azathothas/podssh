@@ -4896,8 +4896,8 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.3.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
 dependencies = [
  "libc",
  "rand 0.10.3",
@@ -4906,9 +4906,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-dns"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
+dependencies = [
+ "base64 0.23.1",
+ "bytes",
+ "h2",
+ "http",
+ "pod-core",
+ "pod-proxy",
+ "pod-services",
+ "pod-tls",
+ "rustls",
+ "rustls-pki-types",
+ "serde_json",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+]
+
+[[package]]
 name = "pod-identity"
-version = "0.3.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek 2.2.0",
@@ -4922,8 +4943,8 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.3.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
 dependencies = [
  "base64 0.23.1",
  "libc",
@@ -4937,25 +4958,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-services"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
+dependencies = [
+ "pod-core",
+ "toml 1.1.8+spec-1.1.0",
+]
+
+[[package]]
 name = "pod-term"
-version = "0.3.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
 dependencies = [
  "unicode-width",
 ]
 
 [[package]]
 name = "pod-testkit"
-version = "0.3.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
 dependencies = [
  "vt100",
 ]
 
 [[package]]
 name = "pod-tls"
-version = "0.3.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
 dependencies = [
  "aes 0.9.4",
  "aes-gcm 0.11.1",
@@ -4985,8 +5015,8 @@ dependencies = [
 
 [[package]]
 name = "pod-todo"
-version = "0.3.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
+version = "0.4.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.4.0#ad0f265eb384cc1c92cee219c0514d7ae0ec5a91"
 
 [[package]]
 name = "podssh-cli"
@@ -5000,6 +5030,7 @@ dependencies = [
  "iroh",
  "libc",
  "p256 0.14.0",
+ "pod-services",
  "pod-term",
  "pod-testkit",
  "podssh-core",
@@ -5049,6 +5080,7 @@ dependencies = [
  "n0-error",
  "n0-future",
  "noq-proto",
+ "pod-services",
  "podssh-iroh",
  "podssh-relay",
  "podssh-ws",
@@ -5090,6 +5122,7 @@ dependencies = [
  "p256 0.14.0",
  "pod-core",
  "pod-identity",
+ "pod-services",
  "podssh-warp",
  "podssh-ws",
  "proptest",
@@ -5173,6 +5206,7 @@ dependencies = [
 name = "podssh-ts"
 version = "1.1.0-beta.3"
 dependencies = [
+ "pod-services",
  "podssh-ws",
  "tailscale",
  "tokio",
@@ -5192,6 +5226,7 @@ dependencies = [
  "h2",
  "http",
  "p256 0.14.0",
+ "pod-services",
  "podssh-ws",
  "rcgen",
  "rustls",
@@ -5221,7 +5256,9 @@ dependencies = [
  "md5 0.8.1",
  "p256 0.14.0",
  "pod-core",
+ "pod-dns",
  "pod-proxy",
+ "pod-services",
  "pod-testkit",
  "pod-tls",
  "proptest",

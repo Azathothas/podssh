@@ -308,7 +308,7 @@ fn cached(json: bool, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         return EX_UNAVAILABLE;
     };
     let now = now_ms();
-    let here = egress_of(&Relay { host: podssh_relay::relay::DEFAULT_RELAY_HOST.to_string(), port: 443 });
+    let here = egress_of(&Relay { host: podssh_relay::relay::default_relay_host().to_string(), port: 443 });
     let holds = kept.holds(now, &here);
     if json {
         let mut doc = rank_json(&kept, now);
@@ -339,7 +339,7 @@ fn cached(json: bool, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
 pub(crate) fn status_value() -> serde_json::Value {
     let Some(kept) = rank::load() else { return serde_json::Value::Null };
     let now = now_ms();
-    let here = egress_of(&Relay { host: podssh_relay::relay::DEFAULT_RELAY_HOST.to_string(), port: 443 });
+    let here = egress_of(&Relay { host: podssh_relay::relay::default_relay_host().to_string(), port: 443 });
     json!({
         "age_s": kept.age(now).map(|a| a.as_secs()),
         "this_egress": kept.egress == here,

@@ -29,7 +29,7 @@ pub(super) async fn check(report: &mut Report<'_>, trust: &Trust) {
             Ok(took) => {
                 report.handshake(Of::Derp, &server.host, Met::Completed);
                 let ms = took.as_millis();
-                report.ok(&label, format!("{} answered in {ms} ms, certificate verified", servers::PROBE_PATH));
+                report.ok(&label, format!("{} answered in {ms} ms, certificate verified", servers::probe_path()));
                 home.get_or_insert_with(|| server.clone());
             }
             Err(missed) => {
@@ -43,6 +43,6 @@ pub(super) async fn check(report: &mut Report<'_>, trust: &Trust) {
             "DERP home server",
             format!("{server}: the first of {from} that answered, which podssh node --derp calls home"),
         ),
-        None => report.fail("DERP home server", format!("no server of {from} answered {}", servers::PROBE_PATH)),
+        None => report.fail("DERP home server", format!("no server of {from} answered {}", servers::probe_path())),
     }
 }

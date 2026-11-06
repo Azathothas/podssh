@@ -386,7 +386,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
 /// connection's index (T-402). The edge is asked for at each race, and its
 /// fixed names are said once a run, as `podssh node` has no -v (T-339).
 pub(crate) fn edge_roads(proxy: ProxyChoice, warp: WarpRoad, say: Say) -> Roads {
-    let over_quic = matches!(podssh_ws::dial::proxy_from_env(edge::REGIONS[0]), Ok(None));
+    let over_quic = matches!(podssh_ws::dial::proxy_from_env(edge::regions()[0]), Ok(None));
     let warp_first = warp.first;
     let warp = Arc::new(Mutex::new(warp));
     let said_fixed = Arc::new(AtomicBool::new(false));
@@ -396,7 +396,7 @@ pub(crate) fn edge_roads(proxy: ProxyChoice, warp: WarpRoad, say: Say) -> Roads 
             let found = edge::find(&proxy).await;
             if let Some(why) = &found.fixed {
                 if !said_fixed.swap(true, Ordering::SeqCst) {
-                    say(format!("{why}; the two names of Cloudflare's documents, port {}", edge::PORT));
+                    say(format!("{why}; the two names of Cloudflare's documents, port {}", edge::port()));
                 }
             }
             let found = found.for_connection(plan.conn_index);

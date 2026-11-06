@@ -28,7 +28,7 @@ pub fn limits() -> (u64, u64) {
     use podssh_relay::relay;
     let env = std::env::var(relay::SESSION_BUDGET_ENV).ok();
     let budget = relay::byte_budget(env.as_deref());
-    let cap = podssh_relay::pool::in_use().max_session_bytes.unwrap_or(relay::SESSION_BYTE_CAP);
+    let cap = podssh_relay::pool::in_use().max_session_bytes.unwrap_or(relay::session_byte_cap());
     (budget, cap.max(budget))
 }
 

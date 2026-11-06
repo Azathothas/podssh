@@ -39,7 +39,7 @@ async fn main() {
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
     };
-    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
+    let pool = podssh_relay::pool::alternates(relay::default_relay_host());
     let relays = relay::select_relays(None, std::env::var(relay::RELAY_ENV).ok(), &pool).unwrap_or_else(|why| {
         eprintln!("podssh: {}: {why}", relay::RELAY_ENV);
         std::process::exit(64);

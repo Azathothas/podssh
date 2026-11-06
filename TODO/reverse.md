@@ -196,7 +196,7 @@ verified here).
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
 7. A clean stop (SIGTERM or Ctrl-C): `close {id}` with a reason for each session, a Close `1000`, then exit 0.
-8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:94`), which keeps loopback
+8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:86`), which keeps loopback
    off the proxy (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:105-109`).
 9. Record each rule in `docs/reverse.md`, and each measurement in `docs/STATUS.md`.
 10. The runner takes a `RelaySession` over any stream, not only TLS, so that the tests of podbox
@@ -595,7 +595,7 @@ and a test reads that copy to check them (crates/podssh-transport/src/closes.rs 
    each file at 500 lines or fewer (`AGENTS.md:371-372`).
 3. Delete, do not move: the backpressure module (T-074), the `Transport` trait and `backoff.rs`
    (T-077), and `RelayConfig` (`podssh-relay` has `Relay` and `RelayList`,
-   `crates/podssh-relay/src/relay.rs:80-102`).
+   `crates/podssh-relay/src/relay.rs:101-123`).
 4. Rewrite the comments of the moved code to `AGENTS.md:373-374`: why, in few words; no markers, no
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
@@ -754,7 +754,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
-   `crates/podssh-cli/src/doctor/relay_checks.rs:42-96` (zuko's doctor checks its ticket and state).
+   `crates/podssh-cli/src/doctor/relay_checks.rs:52-106` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-145`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:314` there), examples in

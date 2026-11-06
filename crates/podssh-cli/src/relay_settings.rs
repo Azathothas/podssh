@@ -72,7 +72,7 @@ pub fn relays(flag: Option<&str>, env: Option<String>) -> Result<RelayList, Refu
 /// hosts of other deployments that a signed list names (T-346).
 pub fn relays_from(flag: Option<&str>, env: Option<String>, file: &Defaults) -> Result<RelayList, Refusal> {
     crate::relay_deployments::install(file)?;
-    let pool = ranked(podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST), file);
+    let pool = ranked(podssh_relay::pool::alternates(relay::default_relay_host()), file);
     // select_relays reads the variable only when there is no flag, and an
     // empty variable as no variable.
     let from_env = flag.is_none() && env.as_deref().is_some_and(|v| !v.trim().is_empty());
@@ -102,7 +102,7 @@ fn ranked(pool: Vec<String>, file: &Defaults) -> Vec<String> {
     if !podssh_relay::rank_list::enabled() {
         return pool;
     }
-    let egress = podssh_relay::rank_list::egress_for(relay::DEFAULT_RELAY_HOST);
+    let egress = podssh_relay::rank_list::egress_for(relay::default_relay_host());
     let kept = podssh_relay::rank::load();
     podssh_relay::rank_list::alternates(pool, kept.as_ref(), &egress, crate::pairs::now_ms())
 }

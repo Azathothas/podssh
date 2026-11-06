@@ -321,7 +321,7 @@ fn files() -> Vec<Block> {
 fn relay() -> Vec<Block> {
     use podssh_relay::{failover, open, pool, relay};
     let secs = |d: std::time::Duration| d.as_secs();
-    let doh: Vec<&str> = podssh_ws::resolve::DOH_RESOLVERS.iter().map(|r| r.ip).collect();
+    let doh: Vec<String> = podssh_ws::resolve::doh_resolvers().iter().map(|r| r.ip.to_string()).collect();
     let every = secs(podssh_ws::client::LIVENESS_EVERY);
     let allowed = podssh_ws::client::LIVENESS_ALLOWED;
     let keepalive = crate::ssh::keywords::documented_default("ServerAliveInterval").unwrap_or("60");
@@ -330,7 +330,7 @@ fn relay() -> Vec<Block> {
             "podssh opens a TLS connection to a relay host on port 443, and a WebSocket session for each \
              connection. The relay opens the TCP connection to the target. Thus a host needs only one kind \
              of egress: HTTPS to the relay hosts, directly or through the proxy. The default relay is {}.",
-            relay::DEFAULT_RELAY_HOST
+            relay::default_relay_host()
         )),
         item(
             vec![lit("Hosts")],
@@ -340,10 +340,10 @@ fn relay() -> Vec<Block> {
                  pool. The relay publishes the pool; podssh caches it, and fetches it again at the next token \
                  mint once it is {} days old. Until a pool is cached, these hosts are the pool: {}. Then up to {} \
                  hosts of other deployments that a signed list names, each with its own token (see podssh relay).",
-                relay::DEFAULT_RELAY_HOST,
+                relay::default_relay_host(),
                 relay::MAX_ALTERNATES,
                 pool::STALE_AFTER_MS / (24 * 3600 * 1000),
-                pool::SEED.join(", "),
+                pool::seed().join(", "),
                 pool::kept::MAX_OTHERS
             ),
         ),
@@ -439,7 +439,7 @@ fn relay() -> Vec<Block> {
                  every {keepalive} s. With OpenSSH, set ServerAliveInterval below {idle}. To a node, the \
                  resumable layer's records keep each link busy, and SSH sends no keepalive unless \
                  ServerAliveInterval is set.",
-                idle = relay::RELAY_IDLE_SECS
+                idle = relay::relay_idle_secs()
             ),
         ),
         item(
@@ -456,8 +456,8 @@ fn relay() -> Vec<Block> {
                  node:// and podssh operator warn {warning} minutes before, and then the relay ends each \
                  session of the pair, unless its owner renewed it on podssh relay serve (podssh relay pair \
                  --renew). --direct has no limit.",
-                cap = relay::SESSION_BYTE_CAP >> 20,
-                hours = relay::SESSION_TIME_CAP.as_secs() / 3600,
+                cap = relay::session_byte_cap() >> 20,
+                hours = relay::session_time_cap().as_secs() / 3600,
                 budget = relay::SESSION_BYTE_BUDGET >> 20,
                 minutes = relay::SESSION_TIME_BUDGET.as_secs() / 60,
                 moved = podssh_relay::session::resume::MOVE_BYTES >> 20,

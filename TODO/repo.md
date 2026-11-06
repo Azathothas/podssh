@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:836-961`): the
+5. docs/development.md, "Release builds" (`docs/development.md:833-958`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -2646,7 +2646,7 @@ command uses `podssh-probe`.
 2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
    example can use a dev-dependency, and the binary does not declare them.
 3. Move `libc` to the dependencies for Unix only, as
-   `crates/podssh-relay/Cargo.toml:126` does; else the lint of step 4 fails on
+   `crates/podssh-relay/Cargo.toml:130` does; else the lint of step 4 fails on
    Windows.
 4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
    `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the
@@ -3969,7 +3969,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 
 ## Premise
 
-- Read: `crates/podssh-ssh/Cargo.toml:23` and `crates/podssh-cli/Cargo.toml:96`
+- Read: `crates/podssh-ssh/Cargo.toml:23` and `crates/podssh-cli/Cargo.toml:100`
   ask for `sha1` 0.10.7, and the root `Cargo.toml:139` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
@@ -5264,7 +5264,7 @@ builds with, so that its DNS packets and iroh's are of one type.
   `0cce0a5...`, the gate's image.
 - Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:141`), and the lock holds 0.11.0; 0.11.1
   needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:56`, Q48).
-- Read: `crates/podssh-iroh/Cargo.toml:53-56` takes `simple-dns` 0.12, "the simple-dns that
+- Read: `crates/podssh-iroh/Cargo.toml:56-59` takes `simple-dns` 0.12, "the simple-dns that
   iroh-dns builds and reads with, so no crate is added"; iroh-dns 1.4.1, which the lock holds,
   takes simple-dns 0.12.0, the lock's only version.
 - Inferred: Dependabot closes each pull request once `main` holds its version, as T-386's were.
@@ -5423,7 +5423,7 @@ each free of `podssh-ws`'s types, serves the three.
 
 ## Premise
 
-- Read: `crates/podssh-relay/Cargo.toml:15` depends on `podssh-ws` with no feature; each road of
+- Read: `crates/podssh-relay/Cargo.toml:19` depends on `podssh-ws` with no feature; each road of
   the relay crate takes `podssh-ws`'s dial, TLS and WebSocket.
 - Read: `PodUtils/podssh:crates/podssh-ws/src/crypto/rsa_sig.rs` is the one user of `rsa` 0.9, to verify RSA
   signatures; RUSTSEC-2023-0071 is a timing attack on the private key's operations.
@@ -5515,8 +5515,25 @@ Each crate of `v0.1.0` is taken.
 - 2026-11-06: the adoption of `pod-proxy` brought two regressions, repaired in T-690; the migration
   session paused at `ccfef9e` (`TODO/PROGRESS.md`, the checkpoint of 2026-11-06).
 
-Next: then each crate of the next releases (`pod-tls` in `v0.2.0`,
-then `pod-proxy`, `pod-dns`, `pod-ws`).
+- `pod-dns` and `pod-services` (`v0.4.0`, podcrates `ad0f265`, its hand-off made at podssh
+  `fd261a1`), taken by the session of podssh's own work on 2026-11-06 at `a992dfdd`: the patch
+  applied with `git apply --3way` (ten conflicts, each a line cited in the record, and one of
+  `node_quick.rs`, whose `edge_roads` this session had made `pub(crate)` for `podssh funnel` and the
+  patch reads `edge::regions()`); each podcrates dependency names `v0.4.0`; podssh-ws's resolver is
+  pod-dns behind `resolve.rs`'s glue, each service of another party a read of pod-services, and the
+  workaround `crates/podssh-ws/src/dial/bare.rs` of T-690 gone (pod-proxy forwards vectored
+  writes, podcrates T-065). Each command of the `.run` passed here but its last two: the record and
+  `check-repo.py`; the checks and builds of the gate's features, `iroh,warp`, `tor` and `ts`;
+  clippy; podssh-ws with `plain-ws` 308 passed, podssh-relay's targets 703, podssh-cli's library
+  and 31 targets 1,234, podssh-warp 79, podssh-iroh 43, podssh-ts's `chain`, `convert` and
+  `config` 19 (the test that was skipped runs); rustfmt; the toolchains of the workflows. With them,
+  clippy with `ts` and with `tor`; and this session's new tests on the take (`net`, `chisel`,
+  `node_piping`, `pipe`: 26 passed; `quick_publish` and `quick_exit`: 6; `vless`: 7). The static
+  binary with zig and `check-static.sh` (the `.run`'s last two) did not run: neither zig nor
+  `cargo-zigbuild` is on this host; the gate's step `release` builds the static musl binary and
+  checks it, in CI.
+
+Next: `pod-ws`, then the waves of Q101.
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
 
 **Source:** the operator, 2026-11-05: "we use whatever is necessary, including c, zig, modern rust,
@@ -5738,7 +5755,7 @@ the same job.
 ## Premise
 
 - Read: `crates/podssh-cli/tests/pipe_seen/mod.rs:156` fails with "no end within 10 s".
-- Read: `crates/podssh-ws/tests/doh_wire.rs:160` and `crates/podssh-ws/tests/doh_wire.rs:199`
+- Read: `PodUtils/podssh:crates/podssh-ws/tests/doh_wire.rs:160` and `PodUtils/podssh:crates/podssh-ws/tests/doh_wire.rs:199`
   expect a connect or a TLS refusal, and got a timeout of the resolver.
 
 ## Approach
@@ -5850,7 +5867,7 @@ at each acknowledged offset before. And `podssh-ts`'s test of a SOCKS5 proxy fai
 
 ## Approach
 
-1. `crates/podssh-ws/src/dial/bare.rs`: a `Dial` over podssh's dialer that gives a TCP connection as
+1. `PodUtils/podssh:crates/podssh-ws/src/dial/bare.rs`: a `Dial` over podssh's dialer that gives a TCP connection as
    the bare stream; `ech::open` dials through it. The cause goes to PodUtils/podcrates (a `Stream`
    that passes vectored writes on), and this way stays until podssh takes that fix.
 2. `podssh-ts`'s `TsProxy::url` writes `socks5h://` for a SOCKS5 proxy: the fork sends the name.

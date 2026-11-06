@@ -322,7 +322,7 @@ in the entry); "new" that the record does not hold it.
 | 5 | TURN with RFC 6062 to a coturn carries SSH, directly and through a CONNECT proxy, on two connections. | No TURN client in podssh; `docs/carriers.md:364`, `docs/carriers.md:736-740`, `docs/carriers.md:911-912`. | new; T-621 |
 | 6 | Cloudflare's Realtime TURN and LiveKit's public TURN refuse a TCP allocation (`508`). | `docs/carriers.md:364` and `docs/carriers.md:739`: no RFC 6062 at Cloudflare. | confirms (LiveKit's is new; both need an account) |
 | 7 | `ppng.io`: streams, both ways, binary; about 0.12 to 0.20 MiB/s for one transfer, 0.59 for four; one of 4 MiB moved nothing. | `docs/carriers.md:619`: "Limits: not published, and not determined"; T-437's live runs carried 64 KiB each way. | new (a rate); T-625 |
-| 8 | `ppng.io:8443` not reached from that egress. | `docs/carriers.md:600-601` names the Rust server on 8443; the road uses 443 (`crates/podssh-relay/src/piping/server.rs:12`). | confirms |
+| 8 | `ppng.io:8443` not reached from that egress. | `docs/carriers.md:600-601` names the Rust server on 8443; the road uses 443 (`crates/podssh-relay/src/piping/server.rs:22`). | confirms |
 | 9 | `piping.onrender.com` and a second server on its platform hold a streamed body until its end. | T-497 takes it as the second server, with nothing on buffering (`docs/carriers.md:579-590`). | new; Correction in T-497 |
 | 10 | serv00's Piping Server holds a streamed body. | T-575, step 1: "whether it streams". | answers step 1; Correction in T-575 |
 | 11 | A Piping Server 0.18.0 on a company's cluster streams, 3.10 MiB/s at 8 MiB. | None; no operator offers it to others. | new, not used (Q79; T-497's rule of a public server) |
@@ -366,8 +366,8 @@ host's resolver).
 
 - podssh has: none of TURN (no code names it); the parts that it takes,
   each pure Rust: `hmac`, `md5` and `sha1` in podssh-ws
-  (`crates/podssh-ws/Cargo.toml:24`, `crates/podssh-ws/Cargo.toml:41-42`),
-  the dial through `HTTPS_PROXY` (`crates/podssh-ws/src/dial.rs:94`) and TLS
+  (`crates/podssh-ws/Cargo.toml:30`, `crates/podssh-ws/Cargo.toml:47-48`),
+  the dial through `HTTPS_PROXY` (`crates/podssh-ws/src/dial.rs:86`) and TLS
   over it (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:135`), and its own resolver order
   (`crates/podssh-ws/src/resolve.rs:2`).
 - What the reading finds in it: no Refresh, so a session ends with its

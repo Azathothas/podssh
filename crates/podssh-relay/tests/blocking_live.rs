@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 use podssh_relay::blocking::{Client, Config, Local, NodeChannel, NodeOptions, Operator, OperatorChannel, Stopper};
 use podssh_relay::e2e::ends;
 use podssh_relay::identity::{Identity, KeyName};
-use podssh_relay::relay::{Relay, RelayList, DEFAULT_RELAY_HOST};
+use podssh_relay::relay::{default_relay_host, Relay, RelayList};
 use podssh_relay::reverse::{Exit, Outcome};
 use stand_in::{pipe, Shared};
 
@@ -23,7 +23,7 @@ const MIB: usize = 1024 * 1024;
 const LIMIT: Duration = Duration::from_secs(60);
 
 fn relay() -> Relay {
-    Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 }
+    Relay { host: default_relay_host().into(), port: 443 }
 }
 
 fn pattern(seed: u8) -> Vec<u8> {

@@ -12,7 +12,7 @@ use serde_json::Value;
 use super::signed::{self, Checked, Keys, Refused, Signed};
 use crate::cache;
 use crate::identity::PublicKey;
-use crate::relay::{Relay, DEFAULT_RELAY_HOST};
+use crate::relay::{default_relay_host, Relay};
 
 /// The cache file of the lists.
 pub const FILE: &str = "relay-deployments.json";
@@ -151,7 +151,7 @@ pub fn in_force(keys: &Keys, now_ms: i64) -> Vec<Checked> {
 /// Whether `relay` is a host of the default deployment, whose pool needs no
 /// signature.
 pub fn of_default(relay: &Relay) -> bool {
-    relay.host.eq_ignore_ascii_case(DEFAULT_RELAY_HOST) || super::same_deployment(DEFAULT_RELAY_HOST, &relay.host)
+    relay.host.eq_ignore_ascii_case(default_relay_host()) || super::same_deployment(default_relay_host(), &relay.host)
 }
 
 /// The hosts of the other deployments of `lists`, for the default list: the

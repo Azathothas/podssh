@@ -152,7 +152,7 @@ async fn a_proxy_of_names_alone_is_named() {
 async fn a_proxy_that_re_terminates_tls_is_named_by_its_ca() {
     let key = DeviceKey::generate().unwrap();
     let edge = edge_for(&key).await;
-    let (acceptor, _) = tls_server("Corp Proxy CA", &[crate::SERVER_NAME]);
+    let (acceptor, _) = tls_server("Corp Proxy CA", &[crate::server_name()]);
     let via = proxy(Mode::Reterminate(acceptor)).await;
     let device = edge.device(key);
     let first = Warp::open(&device, &via, LIMIT).await.unwrap_err();

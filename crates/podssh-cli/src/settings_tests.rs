@@ -59,7 +59,7 @@ fn the_flag_beats_the_variable_and_the_variable_the_file() {
     assert_eq!(host(None, Some("env.example"), &file), "env.example");
     assert_eq!(host(Some("flag.example"), Some("env.example"), &file), "flag.example");
     assert_eq!(host(None, Some("  "), &file), "file.example", "an empty variable is no variable");
-    assert_eq!(host(None, None, &Defaults::default()), podssh_relay::DEFAULT_RELAY_HOST);
+    assert_eq!(host(None, None, &Defaults::default()), podssh_relay::default_relay_host());
     assert_eq!(failover_from(None, None, &file).unwrap(), Mode::Serial);
     assert_eq!(failover_from(None, Some("parallel".into()), &file).unwrap(), Mode::Parallel);
     assert_eq!(failover_from(Some("staggered"), Some("parallel".into()), &file).unwrap(), Mode::Staggered);

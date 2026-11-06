@@ -10,16 +10,15 @@ use std::time::{Duration, Instant};
 use iroh::RelayUrl;
 use podssh_ws::{dial, http, Cut, Missed, ProxyChoice, Trust};
 
-/// The relays when nothing is set, in order: n0's public relays, read in
-/// iroh 1.3.0 and the same in 1.4.1 (`defaults::prod`: North America east
-/// and west, Europe, Asia and Pacific). The operator's own relay goes first when it exists
+/// The relays when nothing is set, in order: n0's public relays, as iroh
+/// names them (`defaults::prod`: North America east and west, Europe, Asia
+/// and Pacific), the endpoints of the role `relay` of `n0-iroh-relay`
+/// (`pod-services`). The operator's own relay goes first when it exists
 /// (`docs/decisions.md`, 2026-10-08).
-pub const DEFAULT: &[&str] = &[
-    "https://use1-1.relay.n0.iroh.link.",
-    "https://usw1-1.relay.n0.iroh.link.",
-    "https://euc1-1.relay.n0.iroh.link.",
-    "https://aps1-1.relay.n0.iroh.link.",
-];
+pub fn default_urls() -> Vec<String> {
+    let service = pod_services::get("n0-iroh-relay").expect("pod-services holds the service n0-iroh-relay");
+    service.endpoints_of("relay").map(|e| e.url()).collect()
+}
 
 /// The variable that replaces the table, as `--iroh-relay` does.
 pub const ENV: &str = "PODSSH_IROH_RELAY";
@@ -37,7 +36,7 @@ pub enum Source {
 
 /// The table, as URLs.
 pub fn defaults() -> Vec<RelayUrl> {
-    DEFAULT.iter().map(|text| parse_url(text).expect("each relay of the table is a relay URL")).collect()
+    default_urls().iter().map(|text| parse_url(text).expect("each relay of the table is a relay URL")).collect()
 }
 
 /// One relay: `https://HOST[:PORT]`, where HOST is a name or an IPv4

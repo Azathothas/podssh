@@ -25,8 +25,12 @@ use store::Store;
 
 use crate::relay_settings::Refusal;
 
-/// Let's Encrypt's directory, the default CA.
-pub const LETS_ENCRYPT: &str = "https://acme-v02.api.letsencrypt.org/directory";
+/// Let's Encrypt's directory, the default CA: the endpoint `directory` of
+/// `letsencrypt-acme` (`pod-services`).
+pub fn lets_encrypt() -> String {
+    let service = pod_services::get("letsencrypt-acme").expect("pod-services holds the service letsencrypt-acme");
+    service.endpoint("directory").map(|e| e.url()).expect("letsencrypt-acme of pod-services has the endpoint directory")
+}
 /// A certificate is renewed this long before its end, or at a third of its
 /// life left when that is shorter, as Let's Encrypt advises.
 pub const RENEW_BEFORE: i64 = 30 * 86_400;
@@ -57,7 +61,7 @@ impl Acme {
     /// The client for `name` at the CA of `directory` (Let's Encrypt when
     /// `None`), whose TLS is checked against `trust`.
     pub fn new(name: &str, directory: Option<&str>, trust: Trust) -> Result<Acme, Refusal> {
-        let directory = directory.unwrap_or(LETS_ENCRYPT).to_string();
+        let directory = directory.map_or_else(lets_encrypt, str::to_string);
         crate::update::fetch::Url::parse(&directory)
             .map_err(|why| Refusal::usage(format!("--acme-directory {directory}: {why}")))?;
         let store = Store::open(&directory, name)?;

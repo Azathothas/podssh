@@ -27,8 +27,8 @@ const FELL_BACK: &str = "podssh tries";
 /// The built-in relay host and each of its seed pool, which a fresh cache
 /// tries after it, pinned to the loopback, as `PODSSH_RELAY_ADDR` takes them.
 fn pins() -> String {
-    let seed = podssh_relay::pool::SEED.iter().copied();
-    let hosts = std::iter::once(podssh_relay::relay::DEFAULT_RELAY_HOST).chain(seed);
+    let seed = podssh_relay::pool::seed().into_iter();
+    let hosts = std::iter::once(podssh_relay::relay::default_relay_host()).chain(seed);
     hosts.map(|host| format!("{host}=127.0.0.1")).collect::<Vec<_>>().join(",")
 }
 

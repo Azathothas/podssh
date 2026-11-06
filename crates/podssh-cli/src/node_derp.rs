@@ -187,7 +187,7 @@ pub(crate) async fn online(
         let message = format!(
             "no DERP server answered {} ({}); podssh doctor checks the way to them, and --opentunnel serves the \
              node through OpenTunnel instead",
-            servers::PROBE_PATH,
+            servers::probe_path(),
             missed.join("; ")
         );
         return Err(Refusal { message, code: unreachable });

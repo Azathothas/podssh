@@ -140,8 +140,8 @@ the user gives. For each host, `podssh-ws` connects with the dial of
    that carried one. DNS over HTTPS asks Cloudflare's and Google's
    resolvers by their JSON API, and by RFC 8484's wire form where the JSON
    answer does not read, then Quad9's, which serve the wire form alone; the
-   wire form is podssh's own codec of A, AAAA and SRV
-   (`crates/podssh-ws/src/resolve/wire.rs`), which a fuzz target reaches.
+   wire form is the codec of A, AAAA and SRV of pod-dns
+   (`PodUtils/podcrates:crates/pod-dns/src/wire.rs`), which a fuzz target reaches.
    The addresses of the cache, or of DNS over HTTPS with an old address
    after them, that do not connect within 4 s hand over to the next source;
    an address of the cache at which a host fails as no relay would (TLS
@@ -185,7 +185,7 @@ Encrypted Client Hello (T-642, `PodUtils/podcrates:crates/pod-tls/src/ech/`; `PO
 `ECH` in the settings file). Then each connection that `podssh-ws` opens by
 a name (`client::open_tls`, and the HTTP/2 road's) first takes the name's
 list from the `ech` parameter of its `HTTPS` record (RFC 9460;
-`crates/podssh-ws/src/resolve/https.rs`), read from the resolvers of DNS
+`PodUtils/podcrates:crates/pod-dns/src/https.rs`), read from the resolvers of DNS
 over HTTPS through the host's proxy, as the SRV records are, and kept for
 its TTL; then seals the name inside a hello of TLS 1.3 alone, whose name in
 the clear is the list's public name. HPKE (RFC 9180) is the provider's own
@@ -361,8 +361,8 @@ session whose output nobody reads.
 | The pool, `/relays.json` | 256 KiB | `MAX_BODY`, `crates/podssh-relay/src/pool.rs` | The refresh after a mint fails with no word: the cached pool, or the default relay's seed, stays |
 | A file of the cache: a token, the pool, the addresses | 64 KiB | `MAX_FILE`, `crates/podssh-relay/src/cache.rs` | Not read, as a file that the cache makes again: the token is minted again, the pool is fetched at the next mint, and the next session's address is kept |
 | The addresses kept for each relay host; the hosts | 4; 32 | `PER_HOST`, `HOSTS`, `crates/podssh-relay/src/addresses.rs` | The host's oldest address goes; the host that carried no session for the longest goes |
-| An answer of DNS over HTTPS | 64 KiB | `MAX_ANSWER`, `crates/podssh-ws/src/resolve.rs` | "the response body is larger than allowed", and the next resolver |
-| An `ech` list of a name's `HTTPS` record; the names that ECH keeps a list, a miss or a refusal for (T-642) | 4096 bytes; 256 of each | `MAX_LIST`, `crates/podssh-ws/src/resolve/https.rs`; `MOST`, `PodUtils/podcrates:crates/pod-tls/src/ech/cache.rs` | "an ech parameter is larger than 4096 bytes": no list, so a plain hello; the name whose time ends soonest goes |
+| An answer of DNS over HTTPS | 64 KiB | `MAX_ANSWER`, `PodUtils/podcrates:crates/pod-dns/src/lib.rs` | "the response body is larger than allowed", and the next resolver |
+| An `ech` list of a name's `HTTPS` record; the names that ECH keeps a list, a miss or a refusal for (T-642) | 4096 bytes; 256 of each | `MAX_LIST`, `PodUtils/podcrates:crates/pod-dns/src/https.rs`; `MOST`, `PodUtils/podcrates:crates/pod-tls/src/ech/cache.rs` | "an ech parameter is larger than 4096 bytes": no list, so a plain hello; the name whose time ends soonest goes |
 | A `known_hosts` file | 16 MiB | `MAX_FILE`, `crates/podssh-ssh/src/known_hosts.rs` | "FILE cannot be read (it is larger than 16 MiB, which no known_hosts file is)": no key of it is trusted, and a user file past it records no new key, so `accept-new` refuses an unknown one (exit 255) |
 | An `ssh_config` file | 4 MiB | `MAX_FILE`, `crates/podssh-cli/src/ssh/config.rs` | "FILE is larger than 4 MiB, which no ssh_config is", exit 78 |
 | The SSH window of a channel | 512 KiB to start; then as the path asks: its rate times its least round trip plus 40 ms for 2 s after a key, plus 200 ms idle, and a third more, topped up once a quarter is used, in the server's messages of 8 KiB at most (T-670), 16 KiB at least (T-661), at most the road's cap, which the channels that carry bulk share, each 512 KiB at least: 16 MiB on `--direct`, the iroh road and podssh's relay role; 1.5 MiB through the default relay; 768 KiB on the pair road; 512 KiB on each other road (T-662) | `WINDOW`, `crates/podssh-ssh/src/run.rs`; `crates/podssh-ssh/src/pace/` | The server waits until podssh reads: a session whose output nobody read for 30 s, while the server wrote 50 MB, peaked at 7460 KiB, and one whose reader took each byte at 6884 KiB (`scripts/interop-limits.sh`) |
@@ -387,9 +387,9 @@ session whose output nobody reads.
 | --- | --- | --- | --- |
 | Each step of reaching a relay host: the proxy and TCP, TLS, the upgrade, a mint | 20 s | `CONNECT_TIMEOUT`, `crates/podssh-relay/src/open.rs` | The next relay host |
 | One relay host, its mint included | 45 s | `HOST_DEADLINE`, `crates/podssh-relay/src/open.rs` | "the relay host did not answer within 45 s", and the next relay host |
-| The connection to one resolver of DNS over HTTPS; its answers | 3 s; 5 s | `DOH_CONNECT`, `DOH_EACH`, `crates/podssh-ws/src/resolve.rs` | "no connection within 3 s" or "timed out", and the next resolver |
+| The connection to one resolver of DNS over HTTPS; its answers | 3 s; 5 s | `CONNECT`, `EACH`, `PodUtils/podcrates:crates/pod-dns/src/settings.rs` | "no connection within 3 s" or "timed out", and the next resolver |
 | With `PODSSH_ECH`: the read of a name's `HTTPS` record; the answer to a sealed hello (T-642) | 4 s; 10 s, or the step's bound when it is less | `READ_WITHIN`, `SEALED_WAIT`, `PodUtils/podcrates:crates/pod-tls/src/ech/road.rs` | The hello goes plain, and the name is asked again 30 s later; the hello goes plain on a new connection, and the name is left alone for 5 minutes (`strict`: the connection fails) |
-| The addresses of a source with another after it: the cache's, or those of DNS over HTTPS before an old address | 4 s | `SOURCE_WAIT`, `crates/podssh-ws/src/resolve/order.rs` | "no address of this source answered within 4 s", and the next source; DNS over HTTPS ends 4 s before the step's limit, for the old address |
+| The addresses of a source with another after it: the cache's, or those of DNS over HTTPS before an old address | 4 s | `SOURCE_WAIT`, `PodUtils/podcrates:crates/pod-core/src/dial.rs` | "no address of this source answered within 4 s", and the next source; DNS over HTTPS ends 4 s before the step's limit, for the old address |
 | The SSH handshake, the time of the host key's question left out (T-588) | `ConnectTimeout`, 60 s when none is set; a line 10 s in | `crates/podssh-ssh/src/handshake.rs` | "HOST: the SSH handshake did not finish within N s: " and what came (no byte, another service's line, or the version line and the last message each way; through a node, the bytes of its layer and its channel), exit 255 |
 | Nothing from the relay | 90 s | `DEFAULT_IDLE_TIMEOUT`, `crates/podssh-ws/src/client.rs` | "no data from the relay for 90s": the session ends |
 | The relay's answer to a ping | A ping each 10 s; 3 intervals with nothing | `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `crates/podssh-ws/src/client.rs` | The link is dead ("pings unanswered"): a session of the forward road ends (255), and the resumable layer moves its session to a new link |

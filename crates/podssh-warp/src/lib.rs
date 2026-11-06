@@ -12,7 +12,7 @@
 //!   (`PATCH /reg/ID`), whose answer gives the endpoint's key and the
 //!   device's addresses; [`device`] keeps them, for a private file. Each
 //!   request goes by the [`routes`] of the API in turn (T-562).
-//! - [`tls`]: TLS 1.3 with ALPN `h2` and the name [`SERVER_NAME`], the
+//! - [`tls`]: TLS 1.3 with ALPN `h2` and the name [`server_name`], the
 //!   device's self-signed certificate ([`key`], [`der`]), and the endpoint's
 //!   key pinned: no root signs the endpoint, and a proxy that re-terminates
 //!   TLS is named, never trusted.
@@ -63,20 +63,43 @@ pub use device::Device;
 pub use road::{Fault, Warp};
 pub use stream::Stream;
 
+/// WARP: the service `cloudflare-warp` of `pod-services`, which holds its
+/// API, its front doors, its versions and its Terms.
+pub fn service() -> &'static pod_services::Service {
+    pod_services::get("cloudflare-warp").expect("pod-services holds the service cloudflare-warp")
+}
+
+/// The front door of MASQUE over HTTP/2: the endpoint `masque-v4`.
+fn front_door() -> &'static pod_services::Endpoint {
+    service().endpoint("masque-v4").expect("cloudflare-warp of pod-services has the endpoint masque-v4")
+}
+
 /// The endpoint of HTTP/2, an address: the names of MASQUE had no A record
 /// on 2026-10-31, and usque's HTTP/2 mode dials this one (its
 /// `config/endpoints.go`, `DefaultEndpointH2V4`).
-pub const ENDPOINT_H2: &str = "162.159.198.2:443";
+pub fn endpoint_h2() -> std::net::SocketAddr {
+    front_door().socket_addrs().first().copied().expect("masque-v4 of pod-services has an address")
+}
 /// The port of HTTP/2 at each endpoint, the API's peers too (T-561): the
 /// port of a peer in the API's answer is QUIC's or WireGuard's, or 0.
-pub const PORT_H2: u16 = 443;
+pub fn port_h2() -> u16 {
+    front_door().port()
+}
 /// The name that the client sends in TLS (usque's `internal/consts.go`,
 /// `ConnectSNI`).
-pub const SERVER_NAME: &str = "consumer-masque.cloudflareclient.com";
-/// The authority of the CONNECT (usque's `ConnectURI`, with the port that
-/// connect-ip-go adds).
-pub const AUTHORITY: &str = "cloudflareaccess.com:443";
+pub fn server_name() -> &'static str {
+    front_door().server_name()
+}
+/// The authority of the CONNECT (usque's `ConnectURI`, the fact
+/// `connect-uri`, with the port that connect-ip-go adds).
+pub fn authority() -> String {
+    let uri = service().text("connect-uri").expect("cloudflare-warp of pod-services holds the fact connect-uri");
+    format!("{}:443", uri.strip_prefix("https://").unwrap_or(uri))
+}
 /// The MTU of the tunnel: usque's default, and IPv6's minimum.
 pub const MTU: usize = 1280;
-/// The Terms that a registration accepts, which the user accepts first.
-pub const TERMS_URL: &str = "https://www.cloudflare.com/application/terms/";
+/// The Terms that a registration accepts, which the user accepts first: the
+/// fact `terms-url`.
+pub fn terms_url() -> &'static str {
+    service().text("terms-url").expect("cloudflare-warp of pod-services holds the fact terms-url")
+}

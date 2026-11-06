@@ -437,7 +437,7 @@ mod tests {
     use super::*;
 
     fn at() -> SocketAddr {
-        crate::ENDPOINT_H2.parse().unwrap()
+        crate::endpoint_h2()
     }
 
     /// A proxy's refusal of the address names the case of the doctor's line.
@@ -478,7 +478,7 @@ mod tests {
     #[test]
     fn a_silent_tunnel_names_the_road_and_the_switch() {
         let why = vec!["1.1.1.1:443: no answer inside the tunnel within 3 s".to_string()];
-        let fault = silent("WARP's endpoint 162.159.198.2:443", crate::probe::TARGET_V4, &why);
+        let fault = silent("WARP's endpoint 162.159.198.2:443", crate::probe::target_v4(), &why);
         let Fault::Silent(line) = &fault else { panic!("{fault:?}") };
         let head = "WARP's endpoint 162.159.198.2:443: the tunnel opened and carried nothing";
         assert!(line.starts_with(head), "{line}");

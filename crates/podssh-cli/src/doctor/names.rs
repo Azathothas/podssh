@@ -95,8 +95,9 @@ fn age(ms: i64) -> String {
 /// name. Whether one answered, which it does by its address.
 async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) -> bool {
     let mut failures = Vec::new();
-    for resolver in podssh_ws::resolve::DOH_RESOLVERS {
-        let ip = resolver.ip;
+    for resolver in &podssh_ws::resolve::doh_resolvers() {
+        let ip = resolver.ip.to_string();
+        let ip = ip.as_str();
         let started = Instant::now();
         let deadline = tokio::time::Instant::now() + PROBE;
         // What its TLS met, beside the line, for the diagnosis (T-604).

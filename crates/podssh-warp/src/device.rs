@@ -324,7 +324,7 @@ mod tests {
             "a-token".into(),
             DeviceKey::generate().unwrap(),
             &pem,
-            crate::ENDPOINT_H2.parse().unwrap(),
+            crate::endpoint_h2(),
             Some("172.16.0.2".parse().unwrap()),
             Some("2606:4700:110:8a36::1".parse().unwrap()),
             "2026-10-31T12:00:00.000+00:00".into(),
@@ -358,7 +358,7 @@ mod tests {
         first.reached = Some(peers[1]);
         let again = Device::from_json(&first.to_json()).unwrap();
         assert_eq!((again.peers.clone(), again.reached), (peers.clone(), Some(peers[1])));
-        let h2: SocketAddr = crate::ENDPOINT_H2.parse().unwrap();
+        let h2: SocketAddr = crate::endpoint_h2();
         assert_eq!(again.endpoints(), vec![peers[1], h2, peers[0]]);
         let only: SocketAddr = "127.0.0.1:4443".parse().unwrap();
         let run = again.clone().at(only);
@@ -395,10 +395,10 @@ mod tests {
     #[test]
     fn the_probe_is_a_setting_of_the_run() {
         let first = device();
-        assert_eq!(first.probe, Some(crate::probe::TARGET_V4));
+        assert_eq!(first.probe, Some(crate::probe::target_v4()));
         let json = first.clone().probing(None).to_json().to_string();
         assert!(!json.contains("probe") && !json.contains("1.1.1.1"), "{json}");
-        assert_eq!(Device::from_json(&json).unwrap().probe, Some(crate::probe::TARGET_V4));
+        assert_eq!(Device::from_json(&json).unwrap().probe, Some(crate::probe::target_v4()));
     }
 
     /// Neither the token nor the key shows in `Debug`, nor in an error of a

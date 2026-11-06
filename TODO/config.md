@@ -542,7 +542,7 @@ work.
 ## Premise
 
 Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:377-445`).
-`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:91`), so a JSON
+`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:95`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
 that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 2).
@@ -671,7 +671,7 @@ command, or edits a shell profile. No file states them once.
 ## Premise
 
 Read: each command resolves the same settings in its own copy. Relay hosts (`--relay-host`,
-then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:107-125`)
+then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:128-146`)
 go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:67-92`), called in
 `crates/podssh-cli/src/ssh/resolve.rs`, line 314 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:138-141` and
 `crates/podssh-cli/src/proxy.rs:233-236`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in

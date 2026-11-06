@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(own[0].name, "wisp+wss://w.example/wisp/");
         // The help names each word that the binary takes, and Wisp's form.
         let row = crate::flags::SSH_FLAGS.iter().find(|r| r.long == "forwarder").expect("the row");
-        for b in builtin::BUILTIN {
+        for b in builtin::BUILTIN.iter() {
             assert!(row.help.contains(b.word), "{}: {}", b.word, row.help);
         }
         assert!(row.help.contains("wisp+wss://"), "{}", row.help);

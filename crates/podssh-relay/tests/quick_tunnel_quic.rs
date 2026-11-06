@@ -141,7 +141,7 @@ fn edge() -> (Endpoint, SocketAddr, TlsRoots) {
     ca.serial_number = Some(rcgen::SerialNumber::from_slice(&rand::random::<[u8; 16]>()));
     let ca_cert = ca.self_signed(&ca_key).unwrap();
     let issuer = rcgen::Issuer::new(ca, &ca_key);
-    let mut leaf = rcgen::CertificateParams::new(vec![quic::SERVER_NAME.to_string()]).unwrap();
+    let mut leaf = rcgen::CertificateParams::new(vec![quic::server_name().to_string()]).unwrap();
     leaf.serial_number = Some(rcgen::SerialNumber::from_slice(&rand::random::<[u8; 16]>()));
     let leaf = leaf.signed_by(&leaf_key, &issuer).unwrap();
     let ca_der: CertificateDer<'static> = ca_cert.der().clone();
@@ -152,7 +152,7 @@ fn edge() -> (Endpoint, SocketAddr, TlsRoots) {
         .unwrap()
         .with_no_client_auth()
         .with_cert_resolver(Arc::new(OneCertificate(Arc::new(certified))));
-    tls.alpn_protocols = vec![quic::ALPN.to_vec()];
+    tls.alpn_protocols = vec![quic::alpn().to_vec()];
     let crypto = QuicServerConfig::try_from(tls).expect("QUIC's TLS of the stand-in");
     let server = ServerConfig::new(Arc::new(crypto), Arc::new(TestTokens));
     let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
@@ -201,7 +201,7 @@ async fn node(edge: &Endpoint, addr: SocketAddr, roots: &TlsRoots) -> (Connectio
     let endpoint = quic::endpoint(false).unwrap();
     let tls = quic::tls(roots).unwrap();
     let dialed = tokio::spawn(async move {
-        let connection = quic::connect(&endpoint, addr, quic::SERVER_NAME, tls).await;
+        let connection = quic::connect(&endpoint, addr, quic::server_name(), tls).await;
         (endpoint, connection)
     });
     let incoming = timeout(LIMIT, edge.accept()).await.unwrap().expect("a connection");
@@ -248,7 +248,7 @@ async fn a_visitor_s_websocket_crosses_quic_whole_and_the_end_unregisters() {
     let (edge, addr, roots) = edge();
     let (at_edge, served, mut steps) = node(&edge, addr, &roots).await;
     let alpn = at_edge.handshake_data().and_then(|d| d.downcast::<noq::crypto::rustls::HandshakeData>().ok());
-    assert_eq!(alpn.and_then(|d| d.protocol).as_deref(), Some(quic::ALPN));
+    assert_eq!(alpn.and_then(|d| d.protocol).as_deref(), Some(quic::alpn()));
     let (mut to_node, mut from_node) = register(&at_edge, RETURN_DETAILS).await;
     assert_eq!(steps.next().await, Some(Step::Registered { location: "msp01".into() }));
     let mut finish = vec![0u8; FINISH.len()];

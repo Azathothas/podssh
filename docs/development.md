@@ -602,9 +602,7 @@ gh workflow run fuzz.yml -f seconds=300                       # in CI
    target that found it.
 5. `scripts/fuzz-seeds.py` seeds the targets with bytes that podssh did not
    make: the frames of RFC 6455, the IRC grammar fixture, the hosts of the
-   relay's document, and the answers of DNS over HTTPS that Cloudflare,
-   Google and Quad9 sent in RFC 8484's wire form, for `dns_wire` (T-344);
-   the messages of Cap'n Proto that the reference encoder wrote for the
+   relay's document; the messages of Cap'n Proto that the reference encoder wrote for the
    quick tunnel, and connect-ip-go's capsules (T-403).
 6. A private parser is reached through a function under `cfg(fuzzing)`,
    which cargo-fuzz sets: `podssh_ws::fuzz_exchange` and
@@ -624,7 +622,6 @@ These tests use the network. Run them only on request.
 ```sh
 cargo test -p podssh-cli --test proxy_live -- --ignored   # the proxy path, with a token
 cargo test -p podssh-cli --test doctor -- --ignored       # doctor, end to end
-cargo test -p podssh-ws --test live_doh -- --ignored      # DNS over HTTPS
 cargo test -p podssh-relay --test live -- --ignored       # the relay answers pings
 cargo test -p podssh-relay --features pair --test pair_live -- --ignored     # a pair, made and stopped
 cargo test -p podssh-relay --features pair --test reverse_live -- --ignored  # a node and its operators

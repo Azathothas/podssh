@@ -34,7 +34,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 SOCKS5 proxy's answers (`PodUtils/podssh:crates/podssh-ws/src/socks5.rs:156`); close
 reasons (`crates/podssh-ws/src/close.rs:20`); PEM bundles
 (`PodUtils/podssh:crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
-(`crates/podssh-relay/src/relay.rs:146`, `crates/podssh-relay/src/pool.rs:157`);
+(`crates/podssh-relay/src/relay.rs:167`, `crates/podssh-relay/src/pool.rs:153`);
 `known_hosts` lines, in a private function
 (`crates/podssh-ssh/src/known_hosts.rs:250`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:94`); IRC lines and frames
@@ -528,7 +528,7 @@ Read, the bounds today:
 - A response head: 16 KiB for HTTP (`PodUtils/podssh:crates/podssh-ws/src/http.rs:13`), for the
   proxy (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:25`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:144`).
-- The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:41`). A cache
+- The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:37`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:47`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
   256 KiB each way, frames of 64 KiB
@@ -680,7 +680,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 - The joining of fragments (`crates/podssh-ws/src/session.rs:470-494`). It is
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:114`) takes
   any stream, so a test can drive it.
-- Relay lists and paths (`crates/podssh-relay/src/relay.rs:146-239`, `crates/podssh-ws/src/names.rs:8-85`).
+- Relay lists and paths (`crates/podssh-relay/src/relay.rs:167-260`, `crates/podssh-ws/src/names.rs:8-85`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:94-138`).

@@ -6,9 +6,19 @@
 
 use std::fmt;
 
-/// The server of the road when the user names none.
-pub const DEFAULT_HOST: &str = "ppng.io";
-/// The port of a server that names none.
+/// The server of the road when the user names none: the endpoint `server`
+/// of `ppng-piping` (`pod-services`).
+fn default_endpoint() -> &'static pod_services::Endpoint {
+    let service = pod_services::get("ppng-piping").expect("pod-services holds the service ppng-piping");
+    service.endpoint("server").expect("ppng-piping of pod-services has the endpoint server")
+}
+
+/// The host of the server of the road when the user names none.
+pub fn default_host() -> &'static str {
+    default_endpoint().host()
+}
+
+/// The port of a server that names none: the port of `https://`.
 pub const PORT: u16 = 443;
 
 /// A Piping Server: the name that its certificate holds, its HTTPS port, and
@@ -22,7 +32,7 @@ pub struct Server {
 
 impl Default for Server {
     fn default() -> Server {
-        Server { host: DEFAULT_HOST.to_string(), port: PORT, prefix: String::new() }
+        Server { host: default_host().to_string(), port: default_endpoint().port(), prefix: String::new() }
     }
 }
 

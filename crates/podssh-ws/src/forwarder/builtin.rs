@@ -8,6 +8,8 @@
 //! server of the Wisp protocol (T-438), whose operator says it is "primarily
 //! for demo and testing".
 
+use std::sync::LazyLock;
+
 /// A forwarder that the binary names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Builtin {
@@ -18,32 +20,14 @@ pub struct Builtin {
     pub note: &'static str,
 }
 
-/// The built-in forwarders, in the order of the fallback.
-pub const BUILTIN: &[Builtin] = &[
-    Builtin {
-        word: "mudlet",
-        template: "wss://web-proxy.mudlet.org/?host={host}&port={port}",
-        note: "the Worker of Mudlet's web client, on Cloudflare, whose runtime refuses port 25, private addresses \
-               and Cloudflare's own; each of its users shares the requests of its plan",
-    },
-    Builtin {
-        word: "ssheasy",
-        template: "wss://ssheasy.com/p",
-        note: "the proxy of ssheasy's SSH client in a browser, which takes the target in a first frame; its code \
-               slows a connection to 100 KiB/s after 1 GiB, and takes one connection a second from each address",
-    },
-    Builtin {
-        word: "mudix",
-        template: "wss://mudix.delwing.workers.dev/?host={host}&port={port}",
-        note: "an older copy of Mudlet's Worker, on one person's name under workers.dev",
-    },
-    Builtin {
-        word: "wisp",
-        template: "wisp+wss://wisp.mercurywork.shop/",
-        note: "Mercury Workshop's demo server of the Wisp protocol, for demo and testing, 500 kB/s for each address, \
-               whose names resolve through a resolver that blocks malware and adult names; last, by the ruling Q65",
-    },
-];
+/// The built-in forwarders, in the order of the fallback: the services of
+/// the kind `forwarder` of `pod-services`, by their rank, each with its
+/// facts `word`, `template` and `note`.
+pub static BUILTIN: LazyLock<Vec<Builtin>> = LazyLock::new(|| {
+    let fact = |s: &'static pod_services::Service, name: &str| s.text(name).unwrap_or_default();
+    let each = |s| Builtin { word: fact(s, "word"), template: fact(s, "template"), note: fact(s, "note") };
+    pod_services::of_kind("forwarder").map(each).collect()
+});
 
 /// The built-in forwarder of `word`, in any case.
 pub fn lookup(word: &str) -> Option<&'static Builtin> {

@@ -53,7 +53,7 @@ const NOT_PROBED: &str = "not probed: podssh doctor --full probes UDP to the qui
 /// node's QUIC makes one, closed at once with nothing registered. Each
 /// answer is `ok`, as the node's HTTP/2 is a road that works.
 pub(super) async fn udp_out(report: &mut Report<'_>, full: bool) {
-    match podssh_ws::dial::proxy_from_env(edge::REGIONS[0]) {
+    match podssh_ws::dial::proxy_from_env(edge::regions()[0]) {
         Ok(Some(_)) => report.ok("UDP out", BEHIND_A_PROXY.to_string()),
         Err(why) => report.unknown("UDP out", format!("the proxy setting cannot be read ({why}), so nothing was sent")),
         Ok(None) if !full => report.unknown("UDP out", NOT_PROBED.to_string()),
@@ -88,7 +88,7 @@ pub(super) async fn edge_road(report: &mut Report<'_>, full: bool) {
     }
     let proxy = ProxyChoice::FromEnvironment;
     let found = edge::find(&proxy).await;
-    let first = found.regions.first().map(String::as_str).unwrap_or(edge::REGIONS[0]);
+    let first = found.regions.first().map(String::as_str).unwrap_or(edge::regions()[0]);
     let way = match podssh_ws::dial::proxy_from_env(first) {
         Ok(Some(proxy)) => format!("through the proxy {proxy}"),
         _ => "directly".to_string(),
@@ -167,7 +167,7 @@ pub(super) fn roots_end(report: &mut Report<'_>, end: &str, now: i64) {
 pub(super) fn check(report: &mut Report<'_>) {
     let now =
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    roots_end(report, edge::ROOTS_FIRST_END, now);
+    roots_end(report, &edge::roots_first_end(), now);
 }
 
 #[cfg(test)]

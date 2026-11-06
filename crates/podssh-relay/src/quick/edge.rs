@@ -15,28 +15,54 @@ use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::Instant;
 
+/// The edge of Cloudflare's tunnels: the service `cloudflare-tunnel-edge` of
+/// `pod-services`, which holds its record, its regions, its names and its
+/// roots.
+pub fn service() -> &'static pod_services::Service {
+    pod_services::get("cloudflare-tunnel-edge").expect("pod-services holds the service cloudflare-tunnel-edge")
+}
+
 /// The record whose targets are the edge's regions (cloudflared's
-/// `edgediscovery/allregions/discovery.go`).
-pub const SRV_NAME: &str = "_v2-origintunneld._tcp.argotunnel.com";
-/// The regions and the port when the record names none.
-pub const REGIONS: [&str; 2] = ["region1.v2.argotunnel.com", "region2.v2.argotunnel.com"];
-pub const PORT: u16 = 7844;
-/// The day that the first of cloudflared's roots ends, which doctor names
-/// (a test reads it off the certificates).
-pub const ROOTS_FIRST_END: &str = "2029-08-15";
+/// `edgediscovery/allregions/discovery.go`): the fact `srv-name`.
+pub fn srv_name() -> &'static str {
+    service().text("srv-name").expect("cloudflare-tunnel-edge of pod-services holds the fact srv-name")
+}
+
+/// The regions when the record names none: the endpoints of the role `h2`.
+pub fn regions() -> Vec<&'static str> {
+    service().endpoints_of("h2").map(|e| e.host()).collect()
+}
+
+/// The port when the record names none: the port of the role `h2`.
+pub fn port() -> u16 {
+    service().endpoints_of("h2").next().map_or(7844, |e| e.port())
+}
+
+/// The day that the first of cloudflared's roots ends, which doctor names:
+/// the fact `roots-first-end` (`pod-services` reads it off the certificates).
+pub fn roots_first_end() -> String {
+    service().date("roots-first-end").map(|d| d.to_string()).unwrap_or_default()
+}
+
 /// The name of the edge's certificate for HTTP/2 (cloudflared's
-/// `connection/protocol.go`).
-pub const SERVER_NAME: &str = "h2.cftunnel.com";
+/// `connection/protocol.go`): the SNI of the role `h2`.
+pub fn server_name() -> &'static str {
+    service().endpoints_of("h2").next().map(|e| e.server_name()).expect("cloudflare-tunnel-edge has the role h2")
+}
+
 /// How long each TCP connection and each TLS handshake may take.
 pub const DIAL_LIMIT: Duration = Duration::from_secs(10);
 
-const CLOUDFLARE_ROOTS: &str = include_str!("cloudflare-roots.pem");
+/// cloudflared's three roots: the fact `roots`.
+fn cloudflare_roots() -> &'static str {
+    service().text("roots").expect("cloudflare-tunnel-edge of pod-services holds the fact roots")
+}
 
 /// The roots of the edge's TLS, over either transport: podssh's, and
 /// cloudflared's three.
 pub fn roots() -> Result<podssh_ws::tls::TlsRoots, String> {
     let mut roots = podssh_ws::tls::default_roots();
-    let certs = podssh_ws::bundle::pem_certificates(CLOUDFLARE_ROOTS.as_bytes())?;
+    let certs = podssh_ws::bundle::pem_certificates(cloudflare_roots().as_bytes())?;
     let (added, invalid) = roots.roots.add_parsable_certificates(certs);
     // Three or more: a later release of cloudflared may add one (T-339).
     if added < 3 || invalid != 0 {
@@ -57,7 +83,7 @@ pub struct Edge {
 impl Edge {
     /// The names of Cloudflare's documents, and port 7844, for `why`.
     pub fn fixed(why: String) -> Edge {
-        Edge { regions: REGIONS.iter().map(|r| r.to_string()).collect(), port: PORT, fixed: Some(why) }
+        Edge { regions: regions().into_iter().map(str::to_string).collect(), port: port(), fixed: Some(why) }
     }
 }
 
@@ -77,7 +103,7 @@ pub fn choose(records: &[Srv]) -> Option<(Vec<String>, u16)> {
 /// fixed names when the record is not read, or names no edge that podssh
 /// knows.
 pub async fn find(proxy: &ProxyChoice) -> Edge {
-    match podssh_ws::resolve::doh_srv(SRV_NAME, proxy, Instant::now() + DIAL_LIMIT).await {
+    match podssh_ws::resolve::doh_srv(srv_name(), proxy, Instant::now() + DIAL_LIMIT).await {
         Ok(records) => match choose(&records) {
             Some((regions, port)) => Edge { regions, port, fixed: None },
             None => Edge::fixed(format!(
@@ -108,7 +134,7 @@ pub async fn connect(proxy: &ProxyChoice, edge: &Edge) -> Result<Box<dyn EdgeIo>
                 continue;
             }
         };
-        match podssh_ws::tls::connect_over(tcp, SERVER_NAME, &trust, DIAL_LIMIT).await {
+        match podssh_ws::tls::connect_over(tcp, server_name(), &trust, DIAL_LIMIT).await {
             Ok(tls) => return Ok(Box::new(tls)),
             Err(e) => failed.push(format!("{region}:{port}: {e}")),
         }
@@ -145,62 +171,8 @@ mod tests {
     #[test]
     fn cloudflared_s_three_roots_parse_and_join_podssh_s() {
         assert!(trust().is_ok());
-        let certs = podssh_ws::bundle::pem_certificates(CLOUDFLARE_ROOTS.as_bytes()).unwrap();
+        let certs = podssh_ws::bundle::pem_certificates(cloudflare_roots().as_bytes()).unwrap();
         assert_eq!(certs.len(), 3);
-    }
-
-    /// A DER element at the start of `der`: its tag, its contents, and the
-    /// rest.
-    fn element(der: &[u8]) -> Option<(u8, &[u8], &[u8])> {
-        let (&tag, rest) = der.split_first()?;
-        let (&first, rest) = rest.split_first()?;
-        let (len, rest) = match first {
-            0..0x80 => (first as usize, rest),
-            _ => {
-                let n = (first & 0x7f) as usize;
-                if n == 0 || n > 4 || rest.len() < n {
-                    return None;
-                }
-                (rest[..n].iter().fold(0usize, |len, byte| (len << 8) | *byte as usize), &rest[n..])
-            }
-        };
-        (rest.len() >= len).then(|| (tag, &rest[..len], &rest[len..]))
-    }
-
-    /// A certificate's notAfter as `YYYY-MM-DD` (RFC 5280, 4.1): the
-    /// TBSCertificate, past its version, serial, signature and issuer, to
-    /// the second time of its validity.
-    fn not_after(cert: &[u8]) -> Option<String> {
-        let (_, certificate, _) = element(cert)?;
-        let (_, mut tbs, _) = element(certificate)?;
-        if element(tbs)?.0 == 0xA0 {
-            tbs = element(tbs)?.2;
-        }
-        for _ in 0..3 {
-            tbs = element(tbs)?.2;
-        }
-        let (_, validity, _) = element(tbs)?;
-        let (tag, time, _) = element(element(validity)?.2)?;
-        let text = std::str::from_utf8(time).ok()?;
-        match tag {
-            // UTCTime, YYMMDDHHMMSSZ: 50 to 99 are of the 1900s.
-            0x17 => {
-                let yy: u32 = text.get(0..2)?.parse().ok()?;
-                let year = if yy >= 50 { 1900 + yy } else { 2000 + yy };
-                Some(format!("{year}-{}-{}", text.get(2..4)?, text.get(4..6)?))
-            }
-            0x18 => Some(format!("{}-{}-{}", text.get(0..4)?, text.get(4..6)?, text.get(6..8)?)),
-            _ => None,
-        }
-    }
-
-    #[test]
-    fn the_first_end_of_cloudflared_s_roots_is_the_day_that_doctor_names() {
-        let certs = podssh_ws::bundle::pem_certificates(CLOUDFLARE_ROOTS.as_bytes()).unwrap();
-        let ends: Vec<String> = certs.iter().map(|c| not_after(c.as_ref()).expect("a notAfter")).collect();
-        // The file's comments, read off each certificate by OpenSSL.
-        assert_eq!(ends, ["2029-08-15", "2029-08-15", "2029-11-01"]);
-        assert_eq!(ends.iter().min().map(String::as_str), Some(ROOTS_FIRST_END));
     }
 
     fn srv(priority: u16, port: u16, target: &str) -> Srv {
@@ -226,21 +198,21 @@ mod tests {
             assert_eq!(choose(&odd), None, "{odd:?}");
         }
         let fixed = Edge::fixed("why".into());
-        assert_eq!((fixed.regions.len(), fixed.port, fixed.fixed.as_deref()), (2, PORT, Some("why")));
+        assert_eq!((fixed.regions.len(), fixed.port, fixed.fixed.as_deref()), (2, port(), Some("why")));
     }
 
     #[test]
     fn each_connection_starts_at_its_own_region() {
         let found = Edge::fixed("why".into());
-        assert_eq!(found.for_connection(0).regions, [REGIONS[0], REGIONS[1]]);
-        assert_eq!(found.for_connection(1).regions, [REGIONS[1], REGIONS[0]]);
+        assert_eq!(found.for_connection(0).regions, [regions()[0], regions()[1]]);
+        assert_eq!(found.for_connection(1).regions, [regions()[1], regions()[0]]);
         // The connections that replace them after a GOAWAY, 2 and 3.
         assert_eq!(found.for_connection(2), found.for_connection(0));
         assert_eq!(found.for_connection(3), found.for_connection(1));
-        assert_eq!((found.for_connection(1).port, found.for_connection(1).fixed), (PORT, Some("why".into())));
-        let one = Edge { regions: vec!["only.argotunnel.com".into()], port: PORT, fixed: None };
+        assert_eq!((found.for_connection(1).port, found.for_connection(1).fixed), (port(), Some("why".into())));
+        let one = Edge { regions: vec!["only.argotunnel.com".into()], port: port(), fixed: None };
         assert_eq!(one.for_connection(1).regions, ["only.argotunnel.com"]);
-        let none = Edge { regions: Vec::new(), port: PORT, fixed: None };
+        let none = Edge { regions: Vec::new(), port: port(), fixed: None };
         assert!(none.for_connection(1).regions.is_empty());
     }
 }

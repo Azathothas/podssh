@@ -36,9 +36,13 @@ use iroh_dns::pkarr::SignedPacketVerifyError;
 pub mod record;
 pub use record::{Record, Roads};
 
-/// n0's server of pkarr, as iroh 1.4.1 names it (`N0_DNS_PKARR_RELAY_PROD`);
-/// a test holds it to iroh's.
-pub const N0: &str = "https://dns.iroh.link/pkarr";
+/// n0's server of pkarr, as iroh names it (`N0_DNS_PKARR_RELAY_PROD`): the
+/// endpoint `relay` of `n0-pkarr` (`pod-services`); a test holds it to
+/// iroh's.
+pub fn n0_url() -> String {
+    let service = pod_services::get("n0-pkarr").expect("pod-services holds the service n0-pkarr");
+    service.endpoint("relay").map(|e| e.url()).expect("n0-pkarr of pod-services has the endpoint relay")
+}
 
 /// The variable that names the server: a URL, or `off` for none.
 pub const ENV: &str = "PODSSH_IROH_PKARR";
@@ -92,7 +96,7 @@ impl Server {
 
     /// n0's server.
     pub fn n0() -> Server {
-        Server::parse(N0).expect("n0's server is a server's URL")
+        Server::parse(&n0_url()).expect("n0's server is a server's URL")
     }
 
     pub fn url(&self) -> &Url {
@@ -142,7 +146,7 @@ pub fn choice_from_environment() -> Result<Choice, String> {
 }
 
 /// Whether each relay of `relays` is one of n0's public relays: the table
-/// of [`crate::relays::DEFAULT`], by host, with or without the final dot.
+/// of [`crate::relays::default_urls`], by host, with or without the final dot.
 pub fn n0_relays(relays: &[RelayUrl]) -> bool {
     let normal = |host: &str| host.trim_end_matches('.').to_ascii_lowercase();
     let table: Vec<String> = crate::relays::defaults().iter().filter_map(|r| r.host_str().map(normal)).collect();

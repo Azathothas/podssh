@@ -4647,7 +4647,7 @@ Read again on 2026-11-03 at the cited lines and in the code:
 
 - Approach, item 1: "its record names the road once T-445 is done". T-445 is done, but its record
   names three roads, the iroh home relay, the DERP home and the quick tunnel
-  (`crates/podssh-iroh/src/pkarr_record.rs:50` says "pub struct Roads"), and a member's client
+  (`crates/podssh-iroh/src/pkarr_record.rs:54` says "pub struct Roads"), and a member's client
   races those three alone. Naming the OpenTunnel name there is a new kind of road in that record,
   in its reader and in the client's race: T-611.
 - Approach, item 3: the operator's ruling Q76 answered question 3: the unasked fallback, for a node
@@ -5398,7 +5398,7 @@ proxy that refuses the WebSocket upgrade has no server.
 
 ## Premise
 
-- `crates/podssh-relay/src/piping/server.rs:10` says "DEFAULT_HOST".
+- `PodUtils/podssh:crates/podssh-relay/src/piping/server.rs:10` says "DEFAULT_HOST".
 - Read on 2026-11-02 (docs/carriers.md, the reverse road, item 5): Piping Server's README lists
   `ppng.io`, `piping.onrender.com` and `piping.glitch.me` as public servers;
   `piping.onrender.com/version` answered `1.12.9`, the version of `ppng.io`; `piping.glitch.me`
@@ -5831,8 +5831,8 @@ that they let podssh in.
 ## Premise
 
 - `docs/decisions.md:36` says "Q74: Tailscale's main DERP fleet, after tailcat's".
-- `crates/podssh-relay/src/derp/servers.rs:15` says "The servers of tailcat's map, in the order
-  of its regions: New York,", and `crates/podssh-relay/src/derp/servers.rs:97` says "pub fn
+- `crates/podssh-relay/src/derp/servers.rs:20` says "The servers of tailcat's map, in the order
+  of its regions: New York,", and `crates/podssh-relay/src/derp/servers.rs:106` says "pub fn
   for_client(home: &Server) -> Vec<Server> {": a client tries the ticket's server, then the
   rest of tailcat's four.
 - `docs/carriers.md:485` says "88 servers in 28 regions in Tailscale's map, 85 of which
@@ -7274,7 +7274,7 @@ last fallback whatever its terms, after `ppng.io` and T-497's `piping.onrender.c
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
 - `docs/carriers.md:962` says "The last runs on serv00, whose terms forbid to", of
   `p.kokoro.serv00.net`.
-- `crates/podssh-relay/src/piping/server.rs:10` says "pub const DEFAULT_HOST: &str =".
+- `PodUtils/podssh:crates/podssh-relay/src/piping/server.rs:10` says "pub const DEFAULT_HOST: &str =".
 
 ## Approach
 
@@ -7551,7 +7551,7 @@ the roads over TCP.
   with a request of ID 0x401 and the address; `docs/carriers.md:1143` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
-  packet of a reserved", and `crates/podssh-relay/Cargo.toml:41` says "The quick tunnel over
+  packet of a reserved", and `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over
   QUIC (src/quick/quic.rs, T-301): noq, the QUIC of the": a probe of UDP and a QUIC with no C
   exist.
 
@@ -7617,7 +7617,7 @@ road with no relay. podssh does not speak it (Q82).
 - `docs/carriers.md:1154-1155` says "a token of 32 bytes that the TLS keying material exporter
   derives", and `docs/carriers.md:1157-1158` says "as the server never answers a command";
   `docs/carriers.md:1160` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
-- `crates/podssh-relay/Cargo.toml:41` says "The quick tunnel over QUIC (src/quick/quic.rs,
+- `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 
 ## Approach
@@ -8674,7 +8674,7 @@ way to it: the node's record of pkarr names its other roads alone.
 
 ## Premise
 
-- `crates/podssh-iroh/src/pkarr_record.rs:50` says "pub struct Roads": the iroh home relay, the
+- `crates/podssh-iroh/src/pkarr_record.rs:54` says "pub struct Roads": the iroh home relay, the
   DERP home and the quick tunnel's name, which `crates/podssh-cli/src/node_record.rs` keeps up to
   date (`Tell`, its `derp` and `quick`).
 - `crates/podssh-cli/src/node_opentunnel.rs` knows the node's name once its tunnel is ready.
@@ -9092,8 +9092,8 @@ through an HTTP CONNECT proxy.
   its file crates/podssh-ws/src/turn/mod.rs, and its docs/poc.md: "proxy logs 2 CONNECTs").
   `AGENTS.md:339` says "Make one outbound connection", with five exceptions, none for this road.
 - podssh-ws holds the parts of TURN's long-term credential in pure Rust: `hmac`
-  (`crates/podssh-ws/Cargo.toml:24`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:41-42`);
-  and a resolver order of its own (`crates/podssh-ws/src/resolve.rs:2` says "resolver works. In
+  (`crates/podssh-ws/Cargo.toml:30`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:47-48`);
+  and a resolver order of its own (`PodUtils/podssh:crates/podssh-ws/src/resolve.rs:2` says "resolver works. In
   order"), as a Connect names an address, not a name.
 - No code of podssh names TURN: `crates/podssh-ws/src/forwarder/template.rs:65` says "a
   forwarder's template is a ws:// or wss:// URL".
@@ -9315,7 +9315,7 @@ say of it, need podssh's own number.
 
 - `docs/carriers.md:619` says "Limits: not published, and not determined."
 - `docs/carriers.md:226` says "500kB/s bandwidth", of the demo server, and
-  `crates/podssh-ws/src/forwarder/builtin.rs:43` says "500 kB/s for each address".
+  `PodUtils/podssh:crates/podssh-ws/src/forwarder/builtin.rs:43` says "500 kB/s for each address".
 - Read in the archive, 2026-11-04, through an HTTP CONNECT proxy: through `ppng.io`, with curl,
   1 MiB in 5.08 s, 8 MiB at 0.12 MiB/s, four transfers at once 0.59 MiB/s in all, and one transfer
   of 4 MiB that moved no byte (results/http-piping.json); through the demo server, one stream on
@@ -9536,7 +9536,7 @@ podssh's relay role speaks TCP alone.
 2026-11-05, with the draft (read in noq 1.4.0 and the crates that `Cargo.lock` holds):
 
 1. **QUIC is noq in podssh-relay, behind a feature `quic`.** The quick tunnel's QUIC (T-301) is noq
-   with no ring and no aws-lc (`crates/podssh-relay/Cargo.toml:45`), its TLS on podssh-ws's
+   with no ring and no aws-lc (`crates/podssh-relay/Cargo.toml:49`), its TLS on podssh-ws's
    provider, so rule 4 holds in the library crate, and Approach 3's other branch, a crate of its
    own, is needless; `quic` is `quick` with the role's endpoint and the client's race, and takes its
    noq, its endpoint and its probe. Lost: quinn, which is not in the lock and which noq forks.

@@ -106,7 +106,8 @@ async fn ts_async(
     }
     // The relay and the control server, read before the network as the key
     // and the proxy are (T-334); a refusal names the part, never the URL.
-    let relay = match control::host_port(a.relay.as_deref().unwrap_or("tcp.ts.relay.ajam.dev"), 443) {
+    let (default_host, default_port) = podssh_ts::config::default_relay_endpoint();
+    let relay = match control::host_port(a.relay.as_deref().unwrap_or(default_host), default_port) {
         Ok(r) => r,
         Err(why) => {
             let _ = writeln!(err, "podssh ts: --ts-relay: {why}.");

@@ -70,7 +70,7 @@ async fn a_silent_front_door_is_named_within_the_ceiling() {
     let edge = edge_for(&key).await;
     edge.silence(true);
     let device = edge.device(key);
-    assert_eq!(device.probe, Some(probe::TARGET_V4));
+    assert_eq!(device.probe, Some(probe::target_v4()));
     let start = Instant::now();
     let fault = Warp::open(&device, &ProxyChoice::Direct, LIMIT).await.unwrap_err();
     let took = start.elapsed();
@@ -90,7 +90,7 @@ async fn a_front_door_that_carries_gives_a_road_whose_probe_was_answered() {
     let key = DeviceKey::generate().unwrap();
     let edge = edge_for(&key).await;
     let warp = Warp::open(&edge.device(key), &ProxyChoice::Direct, LIMIT).await.expect("the tunnel opens");
-    assert_eq!(warp.probed, Some(probe::TARGET_V4));
+    assert_eq!(warp.probed, Some(probe::target_v4()));
     assert_eq!(probes_reach(&edge, 1).await, 1);
     let mut stream = warp.connect("192.0.2.10", 22, LIMIT).await.expect("a stream inside");
     stream.write_all(b"proven").await.unwrap();
@@ -140,6 +140,6 @@ async fn a_silent_front_door_is_tried_again() {
     assert!(matches!(first, Fault::Silent(_)), "{first:?}");
     edge.silence(false);
     let warp = Warp::open(&device, &ProxyChoice::Direct, LIMIT).await.expect("the endpoint is tried again");
-    assert_eq!(warp.probed, Some(probe::TARGET_V4));
+    assert_eq!(warp.probed, Some(probe::target_v4()));
     assert_eq!((edge.tunnels(), probes_reach(&edge, 1).await), (2, 1));
 }

@@ -14,23 +14,22 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      (`9d0623d`); the owner's rulings (`eea8c63`, `docs/decisions.md` 2026-11-06); the session
      protocol of PodUtils in `AGENTS.md` (section 2, "Talk with the other sessions of PodUtils").
   2. **T-684 is partial.** Taken by git tag: `pod-todo`, `pod-term`, `pod-identity`, `pod-core`,
-     `pod-testkit` (v0.1.0), `pod-tls` (v0.2.0, `6ece2ff`), `pod-proxy` (v0.3.0, `a791553`). The next
-     hand-off is podcrates' `v0.4.0`: `pod-dns` and `pod-services` in one patch,
-     `adoption/podssh/pod-dns.patch` and `.run` at the tag, rebased on podssh's head; it also brings
-     pod-proxy's fix of vectored writes (podcrates T-065) and removes podssh's workaround
-     `crates/podssh-ws/src/dial/bare.rs` and its use in `ech::open` (T-690): keep the workaround until
-     then. Then `pod-ws`, then the waves of Q101. The steps of a take are those of `AGENTS.md`
+     `pod-testkit` (v0.1.0), `pod-tls` (v0.2.0, `6ece2ff`), `pod-proxy` (v0.3.0, `a791553`), and
+     `pod-dns` with `pod-services` (v0.4.0, taken on 2026-11-06 by the session of podssh's own work, as
+     the owner's prompt asked; T-684's `## Done`), which also brought pod-proxy's fix of vectored
+     writes (podcrates T-065) and removed the workaround `PodUtils/podssh:crates/podssh-ws/src/dial/bare.rs`
+     of T-690. Next `pod-ws`, then the waves of Q101. The steps of a take are those of `AGENTS.md`
      ("Talk with the other sessions", item 4) and T-684's `## Done`: apply with `git apply --3way`,
      run each line of the `.run`, add clippy with the features `ts` and `tor` (podcrates' trial
      builds neither), `cargo todo remap Cargo.lock`, record in T-684 and `docs/STATUS.md`, commit,
      push, and write the commit as a COORD issue `(to podcrates)`. Who takes the hand-offs while no
      migration session runs is the owner's to say; a session of podssh's own work asks the owner.
-  3. **Frozen now (fixes only, each fix written as a COORD issue `(to podcrates)`):** `podssh-ws`'s
-     `resolve.rs`, `resolve/` and the tests `doh_h2.rs`, `doh_names.rs`, `doh_wire.rs`, `live_doh.rs`
-     (`pod-dns`); and each place of other parties' services in podcrates'
-     `PodUtils/podcrates:docs/research/services/podssh.md` (`pod-services`, `docs/decisions.md` 2026-11-05: the lists of
-     hosts, the probes, the live and watch workflows and their scripts and data files). The
-     authoritative list is the `repo PodUtils/podssh` blocks of `crates/*/SOURCES` in podcrates.
+  3. **Taken in v0.4.0, so worked on in PodUtils/podcrates (Rule Q3):** pod-dns (podssh-ws's
+     resolver; `resolve.rs` stays as glue) and pod-services (each place of other parties' services in
+     `PodUtils/podcrates:docs/research/services/podssh.md`: the lists of hosts, the probes, the live
+     and watch workflows and their scripts and data files, `docs/decisions.md` 2026-11-05). Frozen
+     now (fixes only, each written as a COORD issue `(to podcrates)`): what the next releases import,
+     as the `repo PodUtils/podssh` blocks of `crates/*/SOURCES` in podcrates list it.
   4. **CI:** the runs of `a791553` to `eea8c63` are red on the two regressions of T-690 (the step
      `ts`; the step `release`'s interop `resume.cut.up.sftp`) and on one-off failures (T-688). The run
      of `ccfef9e`, which repairs T-690, was running at the checkpoint: read it first. The daily
