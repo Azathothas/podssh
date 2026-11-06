@@ -401,6 +401,23 @@ limit of 1 GiB), `.git/**`, `.work/**`, `.tmp/**`, `.env/**` (live
 credentials) and `.codegraph/**` (a local index). A pattern matches a file of
 that name at any depth.
 
+## A run of GitHub Actions asked of the owner's agent
+
+Where GitHub Actions start no workflow for the account of a session (a cloud session of 2026-11-06),
+the owner's local agent runs them, and it is a smaller model (the owner's rule of 2026-11-06,
+relayed by the podcrates session). So each run is asked like this:
+
+- a NEW issue of PodUtils/podssh, titled exactly `[gh action] requested`, for each run;
+- one line of why, then ONE `sh` block: `set -e` first, each `gh` command in full (`-R OWNER/REPO`
+  and every flag), nothing that needs judgement, and a last line that echoes the run ids;
+- the body ends with: "Run the block as it is, once. Then write here: the output of the last line,
+  or the line where it stopped and its error.";
+- the block of an open request is never amended, and no second block goes in a comment: close it
+  and open a new issue;
+- while a block checks the head of `main`, nothing is pushed to `main` until it ran.
+
+Each such issue is mapped in `TODO/issues.md` and `TODO/github.txt` as any issue.
+
 ## A Linux host, or a cloud session
 
 `sh scripts/cloud-setup.sh` (also `sh scripts/dev.sh setup`) makes a Linux
