@@ -74,6 +74,10 @@ pub fn dialer(proxy: &ProxyChoice, multipath: bool) -> Dialer {
     Dialer::new(settings(proxy, multipath), Arc::new(Resolver))
 }
 
+// The dial of the TLS roads, which gives rustls the bare TCP stream.
+mod bare;
+pub use bare::Bare;
+
 /// The proxy, if any, the process environment selects for `target_host`. A
 /// loopback target never goes through a proxy (as in Go's net/http): the
 /// proxy's loopback is not this host's, and podvm measured a proxy answering

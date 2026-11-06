@@ -185,7 +185,14 @@ impl TsProxy {
     /// written, as podssh reads a URL with none (80, where the fork would
     /// read 8080), and the credentials escaped. Never for a message.
     pub fn url(&self) -> String {
-        self.proxy.url()
+        // pod-proxy writes `socks5://` for a proxy that the user named so,
+        // where podssh resolves the name itself; the fork always sends the
+        // name to a SOCKS5 proxy, and `socks5h://` says so.
+        let url = self.proxy.url();
+        match url.strip_prefix("socks5://") {
+            Some(rest) => format!("socks5h://{rest}"),
+            None => url,
+        }
     }
 }
 

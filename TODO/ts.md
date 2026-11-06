@@ -246,7 +246,7 @@ current node key (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
 1. Probe each mode before `TsNode::start`, through the proxy of T-103, in 8 s per step as
    `podssh doctor` does (`crates/podssh-cli/src/doctor/net.rs:17-18`): for `tcp`, a TLS handshake to
    a stock DERP server on port 443; for `relay`, one to the relay host. Dial with
-   `crates/podssh-ws/src/dial.rs:87-90`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
+   `crates/podssh-ws/src/dial.rs:91-94`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
 2. Add a logout to the fork: a register request with an expiry in the past, a `ControlRunner`
    message and `Device::logout(timeout)`, as a new patch with its row in
    `vendor/tailscale-rs/LOCAL-PATCHES.md`.

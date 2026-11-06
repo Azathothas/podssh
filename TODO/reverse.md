@@ -196,7 +196,7 @@ verified here).
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
 7. A clean stop (SIGTERM or Ctrl-C): `close {id}` with a reason for each session, a Close `1000`, then exit 0.
-8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:90`), which keeps loopback
+8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:94`), which keeps loopback
    off the proxy (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:105-109`).
 9. Record each rule in `docs/reverse.md`, and each measurement in `docs/STATUS.md`.
 10. The runner takes a `RelaySession` over any stream, not only TLS, so that the tests of podbox

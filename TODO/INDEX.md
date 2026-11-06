@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**644 entries: 96 open, 11 partial, 4 blocked, 533 done.**
+**645 entries: 96 open, 11 partial, 4 blocked, 534 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 2 | 0 | 66 | 68 |
+| P1 | 0 | 2 | 0 | 67 | 69 |
 | P2 | 26 | 5 | 1 | 252 | 284 |
 | P3 | 70 | 4 | 3 | 214 | 291 |
-| **All** | 96 | 11 | 4 | 533 | 644 |
+| **All** | 96 | 11 | 4 | 534 | 645 |
 
 ## Entries
 
@@ -720,3 +720,4 @@ repository and CI).
 | [T-687](repo.md) | P2 | M | M10 | feature | blocked | The first crates of podssh on crates.io: which crates, under which names, and with what in the place of the vendored patches and the git sources |
 | [T-688](repo.md) | P2 | S | M10 | defect | open | Three tests failed once on CI's macOS runner at `67c0768`: the pipe's end of input on a Unix socket, and two of `doh_wire` timed out resolving |
 | [T-689](repo.md) | P2 | S | M10 | defect | done | `cargo test -p podssh-relay --test pair_code` overflows its stack on Rust 1.97 in a debug build |
+| [T-690](repo.md) | P1 | S | M10 | defect | done | Two regressions of the adoption of `pod-proxy`: an upload through a relay that cuts lost each answer, and `podssh ts` got `socks5://` for its SOCKS5 proxy |

@@ -73,7 +73,7 @@ pub async fn open(
     let target = Target::new(host, port);
     // The dial's error goes as the cause, so that the road gives it back as
     // it was ([`tls::connect_error`]).
-    let dial = crate::dial::dialer(proxy, false);
+    let dial = crate::dial::Bare(crate::dial::dialer(proxy, false));
     let records = Records(proxy.clone());
     let route =
         pod_tls::ech::Route { target: &target, server_name, trust, dial: &dial, records: &records, limit, alpn };

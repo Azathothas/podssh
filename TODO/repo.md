@@ -5806,3 +5806,59 @@ ports it (Rule Q3, `docs/decisions.md`).
 2026-11-06. Closed as moot by the owner's ruling (`docs/decisions.md`, 2026-11-06): the workspace
 builds on Rust 1.99, the gate's, where `pair_code` passes; 1.97 is no target.
 
+# T-690: Two regressions of the adoption of `pod-proxy`: an upload through a relay that cuts lost each answer, and `podssh ts` got `socks5://` for its SOCKS5 proxy
+
+**Source:** CI at `a791553` (T-684, `pod-proxy` v0.3.0): the gate's steps `release` and `ts`.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After `a791553`, `podssh cp` up through a relay that ends each session after 1,500,000 bytes failed at
+write 0 on each of its five tries (exit 70; the interop check `resume.cut.up.sftp`), where it went on
+at each acknowledged offset before. And `podssh-ts`'s test of a SOCKS5 proxy failed: the fork got
+`socks5://` where it gets `socks5h://`.
+
+## Premise
+
+- Measured here, with the same stand-in relay (`scripts/fake-relay.py`, mode `closeall:1500000:1011`)
+  and a local sshd: the binary of `d3745ab` read the server's answers of five writes (1,233 bytes) at
+  0.53 s and finished; the binary of `a791553` sent the same 1.5 MB and read nothing after 0.12 s
+  until the cut, so no write was acknowledged. Both set the same socket options (`TCP_NODELAY`,
+  `TCP_NOTSENT_LOWAT` 16 KiB).
+- Read: the TLS roads dial through `pod_proxy::Dialer` as `pod_core::Dial`, which gives rustls the
+  connection inside `pod_proxy::Stream`; that type passes no vectored write on (its `WriteLimit` does).
+  With the bare `TcpStream`, as `d3745ab` gave it, the upload goes on at each offset again.
+- Read: `pod-proxy` writes a SOCKS5 proxy that the user named `socks5://` so; the Tailscale fork reads
+  a SOCKS5 proxy by its scheme `socks5h://` and always sends the name.
+
+## Approach
+
+1. `crates/podssh-ws/src/dial/bare.rs`: a `Dial` over podssh's dialer that gives a TCP connection as
+   the bare stream; `ech::open` dials through it. The cause goes to PodUtils/podcrates (a `Stream`
+   that passes vectored writes on), and this way stays until podssh takes that fix.
+2. `podssh-ts`'s `TsProxy::url` writes `socks5h://` for a SOCKS5 proxy: the fork sends the name.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --features plain-ws
+cargo test -p podssh-ts --test config
+sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh release'
+```
+
+The upload through the stand-in that cuts goes on at each offset and its copy is equal; the test of
+the SOCKS5 proxy of `podssh ts` passes.
+
+## Done
+
+2026-11-06. Measured here: with the fix, `podssh cp` up through the stand-in in mode
+`closeall:1500000:1011` went on at 1,305,600, 2,611,200 and 3,916,800 and copied 4.8 MiB, equal, twice
+in a row; without it, exit 70 at write 0 on each try. `cargo test -p podssh-ws --features plain-ws`:
+342 passed; `cargo test -p podssh-ts --test config`: 8 passed; clippy with `ts`, rustfmt. The gate's
+step `release` in the build image runs in CI on the push (Q88).
+
