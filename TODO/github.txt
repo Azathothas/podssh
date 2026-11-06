@@ -154,7 +154,7 @@
 146 issue closed
 147 issue closed
 148 issue closed
-149 pull open
+149 pull closed
 150 pull closed
 151 issue closed
 152 issue closed
