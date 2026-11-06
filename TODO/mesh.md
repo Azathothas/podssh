@@ -4991,6 +4991,9 @@ podssh's; and the one that the stand-in found: russh read an identification line
 `SSH-2.0-` or `SSH-1.99-`, so neither end took chisel's `SSH-chisel-v3-...` and each session ended
 "Disconnected" before its key exchange, against chisel's own server too
 (`vendor/patches/russh/0006-chisel-ssh-id.patch`, with russh's test `test_ssh_id_chisel`).
+The gate of `ea5d4117` (run 42214300946) found that `crates/podssh-cli/tests/chisel.rs` left its
+directories in the temporary directory: each is now a guard that removes it when the test ends,
+failed or not.
 
 - `crates/podssh-ws/src/chisel/`: the server's URL (`https://` or `wss://`; `http://` and `ws://` to
   this host alone), the upgrade with the subprotocol `chisel-v3` (`upgrade.rs`), the refusals in

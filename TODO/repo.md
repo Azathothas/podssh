@@ -2096,7 +2096,7 @@ Read:
   endings have no floor either.
 - `scripts/check-repo.py` lines 230-249 at `e892b0f`: `main` passes when each list of problems is
   empty.
-- The model of a floor: `crates/podssh-relay/tests/default_relay.rs:57`
+- The model of a floor: `crates/podssh-relay/tests/default_relay.rs:61`
   asserts that the sweep read more than 20 files.
   `scripts/check-scripts.py:152-155` already fails when it finds no script.
 - The counts today: 216 tracked Rust files under `crates/`, 24 live Markdown
@@ -2196,7 +2196,7 @@ are the bind probes of `doctor`, which close at once and never listen
 `PodUtils/podssh:crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
 that skips comments and test modules is
-`crates/podssh-relay/tests/default_relay.rs:21-59`.
+`crates/podssh-relay/tests/default_relay.rs:25-63`.
 
 ## Approach
 
@@ -5532,6 +5532,12 @@ Each crate of `v0.1.0` is taken.
   binary with zig and `check-static.sh` (the `.run`'s last two) did not run: neither zig nor
   `cargo-zigbuild` is on this host; the gate's step `release` builds the static musl binary and
   checks it, in CI.
+
+  The gate of `ea5d4117` (run 42214300946) found one test that the `.run` did not name:
+  `crates/podssh-relay/tests/default_relay.rs` wanted the default relay's one literal in
+  `relay.rs`, which now reads it from pod-services (`ajam-relay`). The test now wants no literal of it
+  in podssh's library code, and `relay::default_relay_host()` to give that name; planted, a literal
+  in `relay.rs`'s library part fails it.
 
 Next: `pod-ws`, then the waves of Q101.
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021

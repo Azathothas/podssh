@@ -202,7 +202,7 @@ async fn each_step_before_the_tunnel_says_its_words_and_its_code() {
     let port = stand_in(key).await;
     let url = format!("http://127.0.0.1:{port}");
     let dir = tempfile_dir("chisel");
-    let home = dir.as_path().to_path_buf();
+    let home = dir.to_path_buf();
 
     let right = private(&dir, "right", &format!("auth {USER}:{RIGHT}\nfingerprint {print}\n"));
     let wrong_pass = private(&dir, "wrong-pass", &format!("auth {USER}:not-{RIGHT}\nfingerprint {print}\n"));
@@ -280,9 +280,26 @@ fn a_flag_of_another_road_or_a_server_in_the_clear_is_refused_first() {
 }
 
 /// A new directory of the test under the system's temporary one.
-fn tempfile_dir(tag: &str) -> std::path::PathBuf {
+fn tempfile_dir(tag: &str) -> Scratch {
     let dir = std::env::temp_dir().join(format!("podssh-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    dir
+    Scratch(dir)
+}
+
+/// A test's directory, gone when the test ends, failed or not: the gate
+/// refuses a test that leaves one in the temporary directory.
+struct Scratch(std::path::PathBuf);
+
+impl std::ops::Deref for Scratch {
+    type Target = std::path::Path;
+    fn deref(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }

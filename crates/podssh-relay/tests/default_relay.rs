@@ -1,25 +1,29 @@
-//! The default relay's name is a string literal in exactly one place in
-//! library code, `podssh-relay/src/relay.rs`, so changing relays is a one-line
-//! edit.
+//! The default relay's name is data of `pod-services` (the service
+//! `ajam-relay`, PodUtils/podcrates), which `podssh-relay/src/relay.rs`
+//! reads: no string literal of it in podssh's library code, so changing
+//! relays is a one-line edit there.
 
-/// The default relay is compiled in (operator decision 2026-10-08) and its
-/// name appears as a string literal in exactly one place in library code,
-/// `podssh-relay/src/relay.rs`, so that changing it is a one-line edit. Tests,
-/// examples and documentation may name it freely.
+/// The default relay is compiled in (operator decision 2026-10-08), from
+/// one place: since podcrates v0.4.0, pod-services' data, which
+/// `relay::default_relay_host` reads. Tests, examples and documentation may
+/// name it freely.
 ///
 /// (This replaced a sweep asserting there was no default relay at all; that
 /// sweep skipped any line containing `=`, so it never caught a constant.)
 #[test]
 fn the_default_relay_is_named_in_exactly_one_place() {
     let hits = default_relay_literals_in_library_code();
-    assert_eq!(hits.len(), 1, "expected one definition, in podssh-relay/src/relay.rs; found {hits:?}");
-    assert!(hits[0].starts_with("crates/podssh-relay/src/relay.rs:"), "{hits:?}");
+    assert!(hits.is_empty(), "the default relay is pod-services' data, never a literal of podssh: {hits:?}");
+    assert_eq!(podssh_relay::relay::default_relay_host(), NAME, "relay.rs reads it from pod-services");
 }
+
+/// The default relay's name, as the operator's decision of 2026-10-08 named it.
+const NAME: &str = "tcp.ssh.relay.ajam.dev";
 
 /// Every non-comment line outside test modules, in `crates/*/src/**/*.rs`,
 /// that contains the default relay's name as a string literal.
 fn default_relay_literals_in_library_code() -> Vec<String> {
-    const NEEDLE: &str = "\"tcp.ssh.relay.ajam.dev\"";
+    let needle = format!("\"{NAME}\"");
     let root = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let mut hits = Vec::new();
     let mut files = 0usize;
@@ -48,7 +52,7 @@ fn default_relay_literals_in_library_code() -> Vec<String> {
                 if line.trim_start().starts_with("#[cfg(test)]") {
                     break;
                 }
-                if !line.trim_start().starts_with("//") && line.contains(NEEDLE) {
+                if !line.trim_start().starts_with("//") && line.contains(&needle) {
                     hits.push(format!("{rel}:{}", n + 1));
                 }
             }
