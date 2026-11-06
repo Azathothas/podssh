@@ -104,6 +104,8 @@ pub(crate) enum Kind {
     Record(&'static str),
     /// A leg at a member of the net with the relay role (T-434).
     Member,
+    /// A visit to the node's STCP service at the user's frps (T-498).
+    Frp,
 }
 
 impl Kind {
@@ -117,6 +119,7 @@ impl Kind {
             Kind::Piping => "the Piping Server road",
             Kind::OpenTunnel => "the OpenTunnel road",
             Kind::Member => "a member's relay role",
+            Kind::Frp => "the frp road",
         }
     }
 }
@@ -148,6 +151,7 @@ pub(super) fn order(kinds: &[Kind], unasked: Unasked) -> String {
                 "when each road before it failed (the node's record of pkarr, T-445)".to_string()
             }
             (_, Kind::Member) => "when each road before it failed (a member of the net that relays, T-434)".to_string(),
+            (_, Kind::Frp) => "when each road before it failed (the user's frps, T-498)".to_string(),
             (_, Kind::Piping) if unasked.piping => {
                 "when each road before it failed and one found the WebSocket upgrade refused (Q65)".to_string()
             }

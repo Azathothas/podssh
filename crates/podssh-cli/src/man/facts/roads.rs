@@ -58,6 +58,15 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           does not echo the value.",
     ),
     (
+        &["PODSSH_FRP"],
+        "The file of the frp road (T-498), the user's own frps: a private file with a line each, server \
+          (frp://HOST[:PORT] or wss://HOST[:PORT][/PATH]), token (frps's) and secret (the node's STCP service's), \
+          and name where the service is not the node's NAME. podssh node NAME TARGET serves the road with it when \
+          --frp names no file, and podssh ssh node://NAME races the road once each road before it failed. Unset \
+          or empty: no frp road. A file that does not read is a configuration error (78), which names its line \
+          and never its text.",
+    ),
+    (
         &["PODSSH_RELAY_LAYER"],
         "yes: podssh proxy and podssh ssh, and each command that logs in as podssh ssh does, read the \
           /relays.json of the first relay host, and where it offers the resumable layer (forward.layer, which \

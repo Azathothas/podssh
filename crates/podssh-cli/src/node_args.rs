@@ -26,6 +26,8 @@ pub struct NodeArgs {
     /// Serve the OpenTunnel road (T-531), beside the pair's road when there
     /// is one.
     pub opentunnel: bool,
+    /// The file of the frp road (T-498): frps, its token and the STCP secret.
+    pub frp: Option<String>,
     /// Serve a quick tunnel of Cloudflare's, with no pair (T-300).
     pub quick_tunnel: bool,
     /// Reach the quick tunnel's edge inside WARP's tunnel first (T-374).
@@ -123,6 +125,7 @@ impl NodeArgs {
             derp: matches.get_flag("derp"),
             derp_server: get("derp-server"),
             opentunnel: matches.get_flag("opentunnel"),
+            frp: get("frp"),
             quick_tunnel: matches.get_flag("quick-tunnel"),
             warp: matches.get_flag("warp"),
             relay: matches.get_flag("relay"),

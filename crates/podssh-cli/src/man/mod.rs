@@ -33,6 +33,8 @@ mod notes_dialect;
 mod notes_doctor;
 mod notes_each;
 mod notes_edit;
+// The frp road (T-498).
+mod notes_frp;
 mod notes_grant;
 // The tokens of one leg and the stop token's rotation (T-615).
 mod notes_health;

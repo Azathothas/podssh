@@ -5756,7 +5756,7 @@ takes by the next tag; a test of the moved code then runs there.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5785,6 +5785,26 @@ such a user runs podssh's relay role beside it.
 3. `podssh ssh node://NAME` with the same file visits it as an STCP visitor, one road of the race.
 4. frps's refusals (a wrong token, a wrong secret, a name taken) in its words.
 
+## Decision
+
+- podssh's own client of yamux and its own CFB (`crates/podssh-ws/src/frp/`): no crate of
+  either is in the lock, and each is about 100 lines; `aes` (already in the lock through
+  `aes-gcm`) became a dependency of podssh-ws. Lost: the `yamux` crate (rust-libp2p's, a
+  different window and close behaviour, and a dependency for one road); frp's wire v2 (frpc
+  0.71's option, not its default).
+- TLS of the road is checked with the host's trust or `--ca-file`, as the other roads'. Lost:
+  frp's `tls.disableCustomTLSFirstByte` and frps with no TLS (a road in the clear).
+- The visitor logs in to nothing: frps admits a `NewVisitorConn` with an empty run id as a user
+  `""`, whose STCP service of an empty user allows it. Lost: a visitor's login (a connection
+  that frps keeps, a heartbeat for each visit).
+- frp's own encryption and compression of a service stay off: the end-to-end channel keeps the
+  bytes, and the layer resumes.
+- The road runs alone at the node (no pair beside it); a client races it once each road before
+  it failed, as a member's relay role.
+- The test's frps is a stand-in written in the test (`crates/podssh-cli/tests/frp_support/`),
+  its yamux and framing written there by hand; frps and frpc of frp's release run in an interop
+  script.
+
 ## Prove
 
 ```sh
@@ -5796,6 +5816,56 @@ Against frps and frpc of v0.71.1's release (checked by `frp_sha256_checksums.txt
 containers, through a plain squid: a podssh node reached by `podssh ssh node://NAME` through frps
 over `wss://`; podssh's visitor to a real frpc's STCP service of an sshd; a wrong secret refused
 in frps's words. Planted: the sign key of another timestamp, and the visit is refused.
+
+## Correction
+
+Read on 2026-11-06 in frp's source at v0.71.1 (`pkg/msg`, `pkg/util/net`, `pkg/auth`,
+`client/` and `server/`, with fatedier/golib's `crypto` and `msg/json`):
+
+- The parts that the Premise left unread: frpc's default wire is v1 (a type byte, an i64 length
+  of 8 bytes big-endian, JSON of 10,240 bytes at most); one connection carries fatedier/yamux
+  (hashicorp's), with the client's stream ids odd from 1 and a window of 256 KiB; the login is
+  the first stream's first message, in clear, and so is frps's `LoginResp`; after it the control
+  stream is AES-128-CFB each way, its key PBKDF2-HMAC-SHA1 of the token (salt `frp`, 64 rounds,
+  16 bytes), each side's random IV first; each auth key (`privilege_key`, the visitor's
+  `sign_key`) is hex(MD5(secret + the decimal timestamp)). A work connection and a visitor are
+  each a new stream whose first message (`NewWorkConn`, `NewVisitorConn`) is in clear.
+- frp's own TCP with TLS writes the byte 0x17 before TLS; frps reads a WebSocket's request in
+  clear, so `wss://` needs the user's TLS front end before frps. The road takes `frp://HOST[:PORT]`
+  (frp's TCP with TLS, through `HTTPS_PROXY` as CONNECT) and `wss://HOST[:PORT][/PATH]` (the
+  front end's), and refuses a road in the clear.
+- The Approach's "`--frp URL`, with the token and the STCP secret in a file": the file holds the
+  URL too (`--frp FILE`), so that the client names the same file in `PODSSH_FRP`, and no flag of
+  `ssh` is added beside the other carriers' (T-495 drafts `-J` at the same time).
+
+## Done
+
+Partial, 2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t498`, base `d55ef03c`,
+`6b6654ff`), then merged, built and tested by the main session, with four repairs: the lock's `md5`
+is the crate whose call is `md5::compute`, not RustCrypto's `Md5`; a doubled import of `KeyInit`;
+`is_multiple_of` for clippy; and the one that the test found: the client raced no road when frp's
+was its only one beside the pair's (`ssh/node_roads.rs`, `Chosen::frp`, as T-434's member legs),
+so the session went to the pair's road alone. The notes of `ssh` named `--frp`, a flag of `node`.
+
+- `crates/podssh-ws/src/frp/`: the messages, the CFB, yamux's client, the dial (`frp://` and
+  `wss://`), the control session, the node's road (login, STCP service, heartbeat, work
+  connections, a loss made again from 1 s to 30 s, a refused token that ends it) and the
+  visitor; unit tests against vectors of Python's hashlib and cryptography, and an in-test yamux
+  peer: `cargo test -p podssh-ws --lib frp`, 9 passed; the crate's library, 182.
+- `podssh node NAME TARGET --frp FILE` (`crates/podssh-cli/src/node_frp.rs`, the file in
+  `frp_file.rs`, the flag in `flags/frp.rs`); the client's road in the race
+  (`crates/podssh-cli/src/ssh/road_frp.rs`, `Kind::Frp`); the manual (`man/notes_frp.rs`,
+  `PODSSH_FRP` in `man/facts/roads.rs`); `docs/carriers.md`, `docs/mesh.md`. The CLI's library 996
+  passed, `flag_table` and `net` too; clippy and rustfmt clean.
+- `cargo test -p podssh-cli --test frp_road`: a session through the stand-in frps with the
+  pair's road down, another secret refused in frps's words, another token at the node (69), and
+  the refusals before a connection (64, 78): 3 passed. Planted: the visit's sign key of another
+  second than its timestamp: the stand-in refuses it and the test fails; put back, it passes.
+
+Left, so partial: an interop script against frp's own frps and frpc of v0.71.1 (the
+SHA-256 of each binary from `frp_sha256_checksums.txt`, its ids in `scripts/interop-baseline.txt`),
+the `wss://` road behind a TLS front end, and podssh's visitor to a real frpc's STCP service of an
+sshd; a visitor that logs in, for an frps that names the users allowed to visit (`allowUsers`).
 
 # T-499: IETF's connect-tcp, once it is an RFC
 
@@ -7839,9 +7909,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1153-1154` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1155` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1149` says "UDP alone, which the
+- `docs/carriers.md:1164-1165` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1166` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1160` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over
@@ -7907,9 +7977,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1160-1161` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1163-1164` says "as the server never answers a command";
-  `docs/carriers.md:1166` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1171-1172` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1174-1175` says "as the server never answers a command";
+  `docs/carriers.md:1177` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 
@@ -8237,7 +8307,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:277-287`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:278-288`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -8591,8 +8661,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:286-287`), and needs the net's role exit, signed by
-  its owner (`:284-285`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:287-288`), and needs the net's role exit, signed by
+  its owner (`:285-286`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:111`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

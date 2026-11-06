@@ -121,6 +121,10 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     if args.derp || unasked.is_some() {
         return crate::node_derp::run(args, unasked, err);
     }
+    // The frp road (T-498): the user's own frps, its file named.
+    if let Some(code) = crate::node_frp::dispatch(args, err) {
+        return code;
+    }
     // The OpenTunnel road (T-531): asked, or unasked by a node with no other road (Q76).
     if let Some(code) = crate::node_opentunnel::dispatch(args, err) {
         return code;

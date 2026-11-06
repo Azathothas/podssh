@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:377-445`).
+  row (`crates/podssh-cli/src/flags.rs:378-446`).
 - Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:107-247`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,7 +37,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:377-445`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:378-446`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-275`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:10-225`), a
    dispatch arm, and `pipe` in `DISPATCHED`
@@ -612,7 +612,7 @@ running on the server (`docs/design.md:695-699`).
    cached token. A prompt with no terminal ends the loop
    (`docs/cli.md:5628-5630`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes_ssh.rs:4-497` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-138`), `docs/design.md:695-699`,
+   (`crates/podssh-cli/src/man/notes_ssh.rs:4-498` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-138`), `docs/design.md:695-699`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:24-25`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.

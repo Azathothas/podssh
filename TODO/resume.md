@@ -779,7 +779,7 @@ no `GREETING`, and that the default node greets.
 as they are, with no resumable layer: the node's handler is then the TCP
 handler alone, which dials TARGET at `open`
 (`crates/podssh-cli/src/node.rs`, lines 152-163 at `8e31960`). The node's first line names its
-mode (`crates/podssh-cli/src/node.rs:335`). `--plain` with `--iroh` is
+mode (`crates/podssh-cli/src/node.rs:339`). `--plain` with `--iroh` is
 refused with 64 (`crates/podssh-cli/src/node_flags.rs:106-108`, moved from `node.rs` by T-531): the iroh road
 always runs the layer. The flag's row, the manual's note of `node`,
 `docs/reverse.md` and `docs/cli.md`.
@@ -3454,7 +3454,7 @@ Read while drafting, 2026-11-03:
   Close included; a session cut then is a clean end of a session that the node took, exit 0. A
   signal before the node took the session ends the wait at once, with the session's fault (70).
 - `ssh node://` takes SIGHUP and SIGTERM alone: its Ctrl-C is the remote command's. The same on
-  the road that races the node's roads (`crates/podssh-cli/src/ssh/node_roads.rs:149`, moved from
+  the road that races the node's roads (`crates/podssh-cli/src/ssh/node_roads.rs:155`, moved from
   `crates/podssh-cli/src/ssh/roads.rs` by T-551).
 - The plant of the signals is two plants, one for each test, as a plant runs one check:
   `t586-hangup-not-taken` (the operator's test) and `t586-hangup-not-taken-openssh` (the

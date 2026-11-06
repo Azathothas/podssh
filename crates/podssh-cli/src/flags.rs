@@ -313,6 +313,7 @@ mod keygen;
 mod man;
 mod mcp;
 mod node;
+mod frp;
 mod opentunnel;
 mod operator;
 mod ping;

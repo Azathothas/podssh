@@ -51,6 +51,10 @@ sha1 = { version = "0.11", default-features = false }
 # assembly, and the default build compiles as before. The lock holds 1.8.7
 # already, through iroh.
 blake3 = { version = "1.8.7", default-features = false, features = ["std", "pure"] }
+# frp's control stream (T-498): AES-128 in CFB mode with a key of
+# PBKDF2-HMAC-SHA1 (frp/cfb.rs, with the HMAC and SHA-1 above). The block
+# cipher alone, pure Rust, in the lock already through podssh-ssh.
+aes = { workspace = true }
 
 # The clocks of a host that slept (wake.rs): CLOCK_BOOTTIME beside
 # CLOCK_MONOTONIC, which Linux alone has. libc compiles no C.

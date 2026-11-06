@@ -56,6 +56,10 @@ use pair_links::{pair_link, piping_link};
 #[path = "road_member.rs"]
 pub(crate) mod member;
 
+// A visit to the node's STCP service at the user's frps (T-498).
+#[path = "road_frp.rs"]
+pub(crate) mod frp;
+
 // Each road of the race timed for `podssh ping node://NAME` (T-435).
 #[path = "road_probe.rs"]
 pub(crate) mod probe;
@@ -94,6 +98,8 @@ struct Roads<'a> {
     record: Option<super::iroh::RecordRoads<'a>>,
     /// The legs at the net's relay members (T-434).
     member: Option<member::MemberRoads>,
+    /// The visit at the user's frps that `PODSSH_FRP` names (T-498).
+    frp: Option<frp::FrpRoads>,
     /// A road found the WebSocket upgrade refused on the way: the Piping
     /// Server road's cue, when the user did not ask for it (Q65).
     refused: AtomicBool,
@@ -145,6 +151,9 @@ impl<'a> Roads<'a> {
         if let Some(member) = &self.member {
             member.push(&mut list, &mut kinds);
         }
+        if let Some(frp) = &self.frp {
+            frp.push(&mut list, &mut kinds);
+        }
         if let Some(dialer) = &self.transit {
             // Q65's fallback: only when each road before it failed.
             list.push((Start::WhenAllFailed, Box::pin(async move { dialer.link().await.map(Road::Transit) })));
@@ -186,7 +195,7 @@ impl<'a> Roads<'a> {
     /// there, and there is no DERP road or Piping Server road, whose node
     /// may come back.
     async fn ended_for_good(&self) -> bool {
-        let others = self.opentunnel.is_some() || self.record.is_some() || self.member.is_some();
+        let others = self.opentunnel.is_some() || self.record.is_some() || self.member.is_some() || self.frp.is_some();
         if self.derp.is_some() || others || self.piping_on() {
             return false;
         }
@@ -245,9 +254,14 @@ where
     }
     // The legs at the net's relay members, which need no pair here (T-434).
     let member = member::MemberRoads::new(label, trust);
+    // The visit at the user's frps, which needs no pair either (T-498).
+    let frp = match frp::FrpRoads::new(label, trust) {
+        Ok(frp) => frp,
+        Err(refusal) => return hand(not_reached(&refusal.message, refusal.code)).await,
+    };
     // The pair's road, when this host has the pair; a node that the DERP
-    // road, its record or a relay member reaches may have none here.
-    let others = raced.opentunnel.is_some() || raced.record.is_some() || member.is_some();
+    // road, its record, a relay member or frps reaches may have none here.
+    let others = raced.opentunnel.is_some() || raced.record.is_some() || member.is_some() || frp.is_some();
     let part = match crate::pairs::operator_part(label, pair_file) {
         Ok(part) => Some(part),
         Err(refusal) if (raced.derp.is_some() || others) && pair_file.is_none() => {
@@ -322,7 +336,7 @@ where
     let record = raced.record.map(|ask| super::iroh::RecordRoads::new(ask, trust, &log, &shown));
     let pair = config.as_ref();
     let roads =
-        Roads { iroh, pair, derp, opentunnel, transit, piping, record, member, refused, label, legs, pair_final };
+        Roads { iroh, pair, derp, opentunnel, transit, piping, record, member, frp, refused, label, legs, pair_final };
     let (list, kinds) = roads.race(None);
     log.verbose(&format!("connecting to {shown}: {}", order(&kinds, roads.unasked())));
     let first = match in_turn(list).await {

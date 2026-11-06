@@ -56,6 +56,8 @@ pub mod error;
 // (T-369).
 pub mod forwarder;
 pub mod frame;
+// frp's protocol: a node behind the user's frps, and its visitor (T-498).
+pub mod frp;
 // The WebSocket over HTTP/2's extended CONNECT (T-321).
 pub mod h2_road;
 pub mod handshake;

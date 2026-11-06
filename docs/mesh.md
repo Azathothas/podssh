@@ -462,7 +462,8 @@ on two connections, T-456); wstunnel's
 protocol (T-441); and those that T-442 found: chisel (`--chisel`, T-490), Trojan
 (`--trojan`, T-491), Shadowsocks 2022 (in `--shadowsocks`, T-492), Outline's Shadowsocks in a WebSocket
 and its `ssconf://` keys (in `--shadowsocks`, T-493), NaiveProxy's server through `--via` (T-494), frp for the reverse
-road (T-498), and the IETF's connect-tcp once it is an RFC (T-499).
+road (`node --frp FILE` and `PODSSH_FRP`, an STCP service at the user's own frps, T-498), and the IETF's connect-tcp
+once it is an RFC (T-499).
 [carriers.md](carriers.md) gives each reason, and those that do not fit.
 
 ## 7. Small repairs that the research found

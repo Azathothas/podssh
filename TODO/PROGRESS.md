@@ -249,7 +249,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`draft-t459`, `8c085d46`), merged as partial the same day; and T-490 (`draft-t490`, `15743b03`),
   merged as partial the same day; and T-493 (`draft-t493`, `fb99826c`), merged and closed the same day;
   and T-492 (`draft-t492`, `9c2bf1d5`) and T-491 (`draft-t491`, `e95dd58f`), merged and closed the same day;
-  T-495 (`draft-t495`, `f58eb5b5`), merged and closed the same day; T-498 (`draft-t498`, `6b6654ff`) waits.
+  T-495 (`draft-t495`, `f58eb5b5`), merged and closed the same day; T-498 (`draft-t498`, `6b6654ff`), merged as partial the same day.
 
   On 2026-11-04 an eighth round was drafted, unbuilt, one commit for each entry, each branch pushed
   as `draft/worktree-agent-*`: T-435 (`093970b`, merged and closed, `57faf83`); T-617 (`1cbdc10`,
@@ -325,7 +325,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 648 entries: 86 open, 14 partial, 4 blocked, 544 done.
+`TODO/INDEX.md` holds 648 entries: 85 open, 15 partial, 4 blocked, 544 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

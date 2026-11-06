@@ -118,8 +118,11 @@ pub(crate) async fn measure(
     let pair = config.as_ref();
     // The legs at the net's relay members, as a run races them (T-434).
     let member = crate::ssh::roads::member::MemberRoads::new(label, trust);
+    // The visit at the user's frps, as a run races it (T-498); a file that
+    // does not read leaves the road out of the measure.
+    let frp = crate::ssh::roads::frp::FrpRoads::new(label, trust).ok().flatten();
     let roads =
-        Roads { iroh, pair, derp, opentunnel, transit, piping, record, member, refused, label, legs, pair_final };
+        Roads { iroh, pair, derp, opentunnel, transit, piping, record, member, frp, refused, label, legs, pair_final };
     let (list, kinds) = roads.race(None);
     let order = crate::ssh::road_link::order(&kinds, roads.unasked());
     log.verbose(&format!("measuring the roads to {shown}: {order}"));

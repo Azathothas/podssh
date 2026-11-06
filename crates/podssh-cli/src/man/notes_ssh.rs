@@ -323,6 +323,7 @@ const FIRST: &[&str] = &[
      relay, and --no-e2e leaves it out, as the relay is a stranger's. Each resume races the roads again, \
      so a session whose relay of the pair went away goes on through the transit relay.",
     super::notes_pair::SSH_OPENTUNNEL,
+    super::notes_frp::SSH,
     super::notes_pair::SSH_CARRIER,
     super::notes_grant::SSH,
     super::notes_legs::SSH,

@@ -1120,14 +1120,25 @@ with TCP and TLS alone.
      a type byte and JSON, `Login` with a `privilege_key`; "STCP (Secret
      TCP)", a service with a `secretKey` and no public port, which another
      frpc visits with the same key (`NewVisitorConn`, with a `sign_key` and a
-     timestamp); TLS on by default since 0.50 [S19]. Its other parts, the
-     control connection's cipher and its multiplexing, are for the entry to
-     read in the source.
-   - Passes: over `wss://` on 443, with the upgrade. A reverse road through
-     a server that the user runs: a podssh node logs in as a frpc with an
-     STCP service, and `podssh ssh node://` visits it.
-   - Rust and C: podssh-ws's WebSocket and JSON, and a multiplexer.
-     Effort: L.
+     timestamp); TLS on by default since 0.50 [S19]. Its other parts, read
+     in the source at v0.71.1 for T-498: frpc's default wire v1 (a type
+     byte, an i64 length of 8 bytes big-endian, JSON of 10,240 bytes at
+     most); fatedier/yamux, hashicorp's, inside one connection, the client's
+     stream ids odd from 1, a window of 256 KiB; the login on the first
+     stream in clear, then that stream in AES-128-CFB each way, its key
+     PBKDF2-HMAC-SHA1 of the token (salt `frp`, 64 rounds, 16 bytes), each
+     side's random IV first; each auth key hex(MD5(secret + the decimal
+     timestamp)); frp's TCP with TLS starts with the byte 0x17. frps reads
+     the WebSocket's request in clear: `wss://` needs the user's TLS front
+     end before frps.
+   - Passes: over `wss://` on 443, with the upgrade, or frp's TCP with TLS
+     on frps's port through CONNECT. Done by T-498: `podssh node NAME
+     TARGET --frp FILE` logs in as a frpc with an STCP service of its name,
+     and `podssh ssh node://NAME` with `PODSSH_FRP=FILE` visits it, one road
+     of the race once each road before it failed; the end-to-end channel and
+     the resumable layer run above, and frp's own encryption stays off.
+   - Rust and C: podssh-ws's WebSocket and JSON, its own client of yamux
+     and its own CFB (`crates/podssh-ws/src/frp/`). Effort: L.
 7. **connect-tcp, the IETF's template-driven CONNECT** (waits for its RFC:
    T-499).
    - The draft: version 17 (2026-10-29), an Internet-Draft; a URI template

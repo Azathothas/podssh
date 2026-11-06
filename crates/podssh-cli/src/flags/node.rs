@@ -147,7 +147,7 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or proxy, ssh, cp, scp or sftp --carrier to node://NAME, or for --exit, podssh exit NAME --listen ADDR:PORT --carrier, or ssh, proxy or pipe with --exit NAME --carrier; stdin may not be a terminal", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
-    super::derp::NODE_DERP, super::opentunnel::NODE_OPENTUNNEL,
+    super::derp::NODE_DERP, super::opentunnel::NODE_OPENTUNNEL, super::frp::NODE_FRP,
     row(None, "quick-tunnel", None, FlagKind::Supported,
         "serve TARGET at https://NAME.trycloudflare.com, a quick tunnel of Cloudflare's that podssh makes itself, with no pair and no account; the name, new each run, is the line on stdout; needs --allow, or a key that the net held here names, and TCP port 7844 of Cloudflare's edge, directly or through a proxy that allows it", None),
     row(None, "warp", None, FlagKind::Supported,

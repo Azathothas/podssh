@@ -67,6 +67,9 @@ struct Chosen {
     /// Whether a member of the net with the relay role carries a leg to the
     /// node (T-434): a client with no pair here races those legs alone.
     members: bool,
+    /// Whether `PODSSH_FRP` names a visit to the node at the user's frps
+    /// (T-498), which needs no pair here either.
+    frp: bool,
 }
 
 impl Chosen {
@@ -76,7 +79,7 @@ impl Chosen {
         let piping_asked = self.piping.as_ref().is_some_and(|road| road.asked);
         let others =
             self.derp.is_some() || self.opentunnel.is_some() || self.transit.is_some() || self.record.is_some();
-        dest.race.is_some() || others || piping_asked || self.members
+        dest.race.is_some() || others || piping_asked || self.members || self.frp
     }
 }
 
@@ -105,7 +108,10 @@ fn chosen(dest: &Dest<'_>) -> Result<Chosen, Refusal> {
     // The legs at the net's relay members, never with --no-e2e, as the
     // member would see each byte (T-434).
     let members = !channel.off && super::roads::member::MemberRoads::new(label, trust).is_some();
-    Ok(Chosen { record, derp, opentunnel, transit, piping, members })
+    // A bad PODSSH_FRP is refused here, before anything connects; never with
+    // --no-e2e, as frps would see each byte.
+    let frp = super::roads::frp::FrpRoads::new(label, trust)?.is_some() && !channel.off;
+    Ok(Chosen { record, derp, opentunnel, transit, piping, members, frp })
 }
 
 /// SSH to the node of `dest`: over the race of its roads beside the pair's,

@@ -124,6 +124,9 @@ pub mod node_derp;
 // `podssh node --opentunnel`: the OpenTunnel road, and its fallback of a node
 // with no other road (T-531, Q76).
 pub mod node_opentunnel;
+// The node of the frp road and the file that it shares with its clients (T-498).
+pub mod frp_file;
+pub mod node_frp;
 // The transit relay of Q65 beside a pair's road, for a node and its
 // operators (T-436).
 pub mod node_transit;
