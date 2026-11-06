@@ -16,7 +16,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   2. **T-684 is partial.** Taken by git tag: `pod-todo`, `pod-term`, `pod-identity`, `pod-core`,
      `pod-testkit` (v0.1.0), `pod-tls` (v0.2.0, `6ece2ff`), `pod-proxy` (v0.3.0, `a791553`), and
      `pod-dns` with `pod-services` (v0.4.0, taken on 2026-11-06 by the session of podssh's own work, as
-     the owner's prompt asked; T-684's `## Done`), which also brought pod-proxy's fix of vectored
+     the owner's prompt asked; T-684's `## Done`); each tag at `v0.5.0` since (COORD-007), which also brought pod-proxy's fix of vectored
      writes (podcrates T-065) and removed the workaround `PodUtils/podssh:crates/podssh-ws/src/dial/bare.rs`
      of T-690. Next `pod-ws`, then the waves of Q101. The steps of a take are those of `AGENTS.md`
      ("Talk with the other sessions", item 4) and T-684's `## Done`: apply with `git apply --3way`,

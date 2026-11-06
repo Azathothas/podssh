@@ -15,7 +15,7 @@ publish.workspace = true
 podssh-ws = { path = "../podssh-ws" }
 # The services of other parties: WARP's API, its front door and its
 # versions, the trace of 1.1.1.1.
-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.4.0" }
+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0" }
 tokio = { workspace = true }
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }

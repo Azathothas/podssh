@@ -5539,6 +5539,15 @@ Each crate of `v0.1.0` is taken.
   in podssh's library code, and `relay::default_relay_host()` to give that name; planted, a literal
   in `relay.rs`'s library part fails it.
 
+- podcrates `v0.5.0` (`7e73344`, COORD-007, PodUtils/podcrates#10), on 2026-11-06: each podcrates
+  dependency moved from `v0.4.0` to `v0.5.0` (no API that podssh uses changed; no
+  `pod_proxy::client::Request` is built as a struct literal here, so `body_idle` asks nothing).
+  The 17 commands of v0.4.0's `.run` that run here, and clippy with `ts` and with `tor`: each exit
+  0 (the record, `check-repo.py`, the checks and builds of each feature set, clippy, the tests of
+  podssh-ws with `plain-ws`, podssh-relay, podssh-cli, podssh-warp, podssh-iroh and podssh-ts,
+  rustfmt, the toolchains). On the way, the run found a test of T-491 that waited on itself
+  (`a9418bcb`), and filled the session's disk, which a clean of `target/` freed.
+
 Next: `pod-ws`, then the waves of Q101.
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
 
