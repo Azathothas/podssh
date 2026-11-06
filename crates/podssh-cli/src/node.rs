@@ -375,9 +375,11 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     }
     let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
     let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
-    // The transit relay of Q65 beside the pair's road (T-436), with one
-    // keeper for both; never with --plain or --no-e2e.
-    if let (false, Some(node), Some(url)) = (plain, &channel, crate::node_transit::url()) {
+    // The transit relay of Q65 (T-436) and the pairs at the net's relay
+    // members (T-434) beside the pair's road, with one keeper for all; never
+    // with --plain or --no-e2e.
+    let url = crate::node_transit::url();
+    if let (false, Some(node), true) = (plain, &channel, url.is_some() || crate::node_members::wanted()) {
         let beside = crate::node_transit::Beside { label: &label, stored, trust: &trust, url, say: say.clone() };
         let exit = Box::pin(beside.run(&mut config, tcp, node.clone(), routes)).await;
         expiry.abort();

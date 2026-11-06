@@ -21,6 +21,8 @@ use crate::token::relay_name;
 
 /// A pair that its owner halts and resumes in podssh's relay role (T-647).
 pub mod halt;
+/// A leg to a member's node at a member's relay role, by its key (T-434).
+pub mod leg;
 /// A pair whose connect token takes one upgrade alone (T-226).
 pub mod once;
 /// The operator's part kept under a label on an operator's host (T-086).

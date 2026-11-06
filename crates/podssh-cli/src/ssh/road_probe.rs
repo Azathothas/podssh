@@ -116,7 +116,10 @@ pub(crate) async fn measure(
     let record = raced.record.map(|ask| crate::ssh::iroh::RecordRoads::new(ask, trust, &log, &shown));
     let (legs, pair_final) = (Mutex::new(None), AtomicBool::new(false));
     let pair = config.as_ref();
-    let roads = Roads { iroh, pair, derp, opentunnel, transit, piping, record, refused, label, legs, pair_final };
+    // The legs at the net's relay members, as a run races them (T-434).
+    let member = crate::ssh::roads::member::MemberRoads::new(label, trust);
+    let roads =
+        Roads { iroh, pair, derp, opentunnel, transit, piping, record, member, refused, label, legs, pair_final };
     let (list, kinds) = roads.race(None);
     let order = crate::ssh::road_link::order(&kinds, roads.unasked());
     log.verbose(&format!("measuring the roads to {shown}: {order}"));

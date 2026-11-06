@@ -490,7 +490,7 @@ pub use stop::Stopping;
 // The tokens of one leg and the stop token's rotation (T-615).
 #[path = "legs.rs"]
 mod legs;
-pub use legs::{parse_digest, Leg, LEG_LIFE_MS, MAX_LEGS};
+pub use legs::{parse_digest, Leg, NoLeg, LEG_LIFE_MS, MAX_LEGS};
 
 #[cfg(test)]
 #[path = "pairs_tests.rs"]

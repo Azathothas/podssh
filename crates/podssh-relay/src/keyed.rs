@@ -87,13 +87,37 @@ pub async fn post_query(
     proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<Response, ConnectError> {
+    post_by(None, host, port, path, query, trust, proxy, timeout).await
+}
+
+/// [`post_query`] with the key `identity` when the relay asks for one, else
+/// this client's: a node proves its own key, the one that the net's
+/// document names, so that a member finds its pair by it (T-434).
+#[allow(clippy::too_many_arguments)]
+pub async fn post_by(
+    identity: Option<&crate::identity::Identity>,
+    host: &str,
+    port: u16,
+    path: &str,
+    query: &str,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+) -> Result<Response, ConnectError> {
     let target = format!("{path}{query}");
     let first = https_post_json(host, port, &target, b"{}", trust, proxy, timeout).await?;
     let Some(challenge) = challenge_of(&first) else { return Ok(first) };
-    let key = file::load(&file::client_place(), &mut OsEntropy).map_err(|why| {
-        ConnectError::Config(format!("the relay mints for the keys of its list; this client's key: {why}"))
-    })?;
-    let body = proof(&key.identity, &host_header(host, port), path, &challenge);
+    let loaded;
+    let identity = match identity {
+        Some(identity) => identity,
+        None => {
+            loaded = file::load(&file::client_place(), &mut OsEntropy).map_err(|why| {
+                ConnectError::Config(format!("the relay mints for the keys of its list; this client's key: {why}"))
+            })?;
+            &loaded.identity
+        }
+    };
+    let body = proof(identity, &host_header(host, port), path, &challenge);
     https_post_json(host, port, &target, &body, trust, proxy, timeout).await
 }
 

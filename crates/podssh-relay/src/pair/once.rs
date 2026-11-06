@@ -11,12 +11,24 @@ use super::{now_ms, parse, refused, Pair, PairContext, PairError};
 /// true`). A relay that does not offer it makes a pair of before, which the
 /// caller refuses or keeps. A `409` means "pair again", which is done once.
 pub async fn create_with(ctx: &PairContext<'_>, once: bool) -> Result<(Pair, bool), PairError> {
+    create_by(ctx, once, None).await
+}
+
+/// [`create_with`], proving `identity` where the relay asks for a key, so
+/// that the pair's maker is that key (T-434): a node's pair at a member of
+/// its net, which another member finds by the node's key.
+pub async fn create_by(
+    ctx: &PairContext<'_>,
+    once: bool,
+    identity: Option<&crate::identity::Identity>,
+) -> Result<(Pair, bool), PairError> {
     let query = if once { "?once=1" } else { "" };
     for _ in 0..2 {
         let (host, port) = (&ctx.relay.host, ctx.relay.port);
-        let response = crate::keyed::post_query(host, port, "/v1/pair", query, ctx.trust, ctx.proxy, ctx.timeout)
-            .await
-            .map_err(PairError::Connect)?;
+        let response =
+            crate::keyed::post_by(identity, host, port, "/v1/pair", query, ctx.trust, ctx.proxy, ctx.timeout)
+                .await
+                .map_err(PairError::Connect)?;
         match response.status {
             200..=299 => {
                 let pair = parse(ctx.relay, &response.body, now_ms())?;

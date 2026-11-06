@@ -3018,7 +3018,7 @@ to go on. A feature.
   `2608b91`, `crates/podssh-cli/src/pairs.rs:36-44`); `relay` takes no `--pair-file`, and `--operator-file`
   goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:135-138`).
 - Read: the relay answers `/v1/status/<name>` to the connect token
-  (`crates/podssh-relay/src/pair.rs:200-204`), which the operator's part holds.
+  (`crates/podssh-relay/src/pair.rs:202-206`), which the operator's part holds.
 - Read: `relay pair` prints the label and its expiry and nothing more
   (`crates/podssh-cli/src/relay_cmd.rs:307`); in the last 24 h of a stored pair it makes the next
   one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:235-258`);
@@ -3821,7 +3821,7 @@ so the next member's author copies a neighbour, and an `is_some()` reads a `fals
 
 Read at `2042200`; each reader that exists is right:
 
-- A guarantee asked for: `crates/podssh-relay/src/pair/once.rs:35-38` takes `"once": true` alone, and
+- A guarantee asked for: `crates/podssh-relay/src/pair/once.rs:47-50` takes `"once": true` alone, and
   `crates/podssh-cli/src/relay_cmd.rs:274-275` stops the pair that a relay made with no such word
   before it refuses (`crates/podssh-cli/src/relay_cmd.rs:272` says "A relay that does not offer --once
   made a pair whose token takes each").

@@ -2541,7 +2541,7 @@ and of any length. A relay, or a proxy on the way, can so write to the user's te
 
 ## Premise
 
-- Read: `crates/podssh-relay/src/token.rs:210` and `crates/podssh-relay/src/pair.rs:274` took
+- Read: `crates/podssh-relay/src/token.rs:210` and `crates/podssh-relay/src/pair.rs:276` took
   `response.header("retry-after")` as it was, and the lines of `TokenError::RateLimited` and
   `PairError::RateLimited` print it.
 - Read: the body of a refusal goes through `Response::body_text`, which `one_line` makes safe
@@ -4356,14 +4356,14 @@ Read at `2042200`:
 
 - One counter for both ways: `crates/podssh-relay/src/serve/forward.rs:250` says
   "let moved = Arc::new(AtomicU64::new(0));", and `:330` ends the session at the cap;
-  `crates/podssh-relay/src/serve/mod.rs:84` says "Payload bytes, both ways together." The counter
+  `crates/podssh-relay/src/serve/mod.rs:85` says "Payload bytes, both ways together." The counter
   dies with its session.
 - A token names no key: `crates/podssh-relay/src/serve/tokens.rs:61` MACs the expiry alone under the
   run's secret, which `:52` draws at each start, so a restart ends each token
   (`docs/relay.md:92` says "a token is the contract's form under a secret of the run"). A ledger keyed
   by the token, as the issue first proposes, would count a principal that the next mint or restart
   replaces; the issue's own Risks say so.
-- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:377-381` takes the key that
+- The key is known at the mint: `crates/podssh-relay/src/serve/mod.rs:380-384` takes the key that
   proved itself, and drops it after its line.
 - The role keeps one private file already, by an atomic writer (`crates/podssh-relay/src/serve/reverse/pairs.rs:455`)
   and a SHA-256 of each token (`:452`).
@@ -4635,7 +4635,7 @@ Read at `2042200`:
   takes nothing.
 - So an SSH client, whose version line begins `SSH-`, meets the cleartext road, which reads an HTTP
   head (`crates/podssh-relay/src/serve/cleartext.rs:60`) under the role's 30 s
-  (`crates/podssh-relay/src/serve/mod.rs:69`): the client waits for a banner that never comes, then is
+  (`crates/podssh-relay/src/serve/mod.rs:70`): the client waits for a banner that never comes, then is
   cut (Inferred from the code; not measured). With `--cleartext no` it meets TLS, which fails at once.
 - The node's check of a standard sshd peeks for the version line in the same way
   (`crates/podssh-relay/src/reverse/sshd.rs:1-5`), each 20 ms (`:19`); the word is the node's
@@ -4729,7 +4729,7 @@ listener given no sshd, and OpenSSH's login through the role's port fails.
 
 2026-11-05 (the drafting agent of T-644). Two citations of the Premise name other lines, at
 `2042200` as at this draft. The role's 30 s for a request's head is `HEAD_WAIT`:
-`crates/podssh-relay/src/serve/mod.rs:72` says "const HEAD_WAIT". The policy refuses the loopback
+`crates/podssh-relay/src/serve/mod.rs:73` says "const HEAD_WAIT". The policy refuses the loopback
 as an address that is not public:
 `crates/podssh-relay/src/serve/policy.rs:145` says "self.unlisted(&wanted)", and
 `crates/podssh-relay/src/serve/policy.rs:193` says "ip.is_loopback()". What the Premise says of them
@@ -4803,7 +4803,7 @@ Read at `2042200`:
 - The list is read again for each request: `crates/podssh-relay/src/serve/keys.rs` at `fed191c`, line 80, and
   `crates/podssh-relay/src/serve/keys.rs:87` says "this relay cannot read its list of keys";
   `docs/relay.md` at `fed191c`, line 849, says "read again for each request".
-- `crates/podssh-relay/src/serve/mod.rs:112` holds the list as a path; the net's members are a source
+- `crates/podssh-relay/src/serve/mod.rs:113` holds the list as a path; the net's members are a source
   that the binary gives (`crates/podssh-relay/src/serve/keys.rs:33`), which `--mint net` reads from the
   owner's signed document (T-455): a list that comes from elsewhere and is signed exists already.
 - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB

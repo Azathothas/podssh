@@ -125,6 +125,8 @@ pub mod node_opentunnel;
 // The transit relay of Q65 beside a pair's road, for a node and its
 // operators (T-436).
 pub mod node_transit;
+// A node's pairs at the net's relay members, beside its own (T-434).
+pub mod node_members;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
 #[cfg(feature = "iroh")]
 pub mod node_iroh;

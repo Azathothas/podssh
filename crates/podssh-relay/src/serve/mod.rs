@@ -39,6 +39,7 @@ pub mod http2;
 pub mod ipv6;
 pub mod keys;
 pub mod layer;
+pub mod leg;
 pub mod listener;
 pub mod mailbox;
 pub mod policy;
@@ -257,6 +258,8 @@ where
         (_, p) if probe::serves(p) => probe::request(stream, head, pending).await,
         // The meeting point of the pairing by a short code (T-086).
         (_, p) if mailbox::serves(p) => mailbox::request(stream, head, pending, cfg).await,
+        // A leg for a member of the net, by the node's key (T-434).
+        (_, p) if leg::serves(p) => leg::request(stream, head, pending, cfg, sni).await,
         (_, p) if reverse::serves(p) => reverse::request(stream, head, pending, cfg, sni).await,
         (_, p) => answer(&mut stream, request::refusal(404, &format!("{p}: not found"), &[])).await,
     }

@@ -47,6 +47,15 @@ use super::road_link::Kind;
 pub use super::road_link::Road;
 use super::road_link::{lost_words, order, winner, Handed, Rider, Unasked};
 
+// The links of the pair's road and of the Piping Server road.
+#[path = "road_pair.rs"]
+mod pair_links;
+use pair_links::{pair_link, piping_link};
+
+// A member's relay role between two members (T-434).
+#[path = "road_member.rs"]
+pub(crate) mod member;
+
 // Each road of the race timed for `podssh ping node://NAME` (T-435).
 #[path = "road_probe.rs"]
 pub(crate) mod probe;
@@ -83,6 +92,8 @@ struct Roads<'a> {
     piping: Option<(podssh_relay::piping::Dialer, bool)>,
     /// The roads of the member's record (T-445).
     record: Option<super::iroh::RecordRoads<'a>>,
+    /// The legs at the net's relay members (T-434).
+    member: Option<member::MemberRoads>,
     /// A road found the WebSocket upgrade refused on the way: the Piping
     /// Server road's cue, when the user did not ask for it (Q65).
     refused: AtomicBool,
@@ -131,6 +142,9 @@ impl<'a> Roads<'a> {
             list.push((start, going));
             kinds.push(Kind::Record(name));
         }
+        if let Some(member) = &self.member {
+            member.push(&mut list, &mut kinds);
+        }
         if let Some(dialer) = &self.transit {
             // Q65's fallback: only when each road before it failed.
             list.push((Start::WhenAllFailed, Box::pin(async move { dialer.link().await.map(Road::Transit) })));
@@ -172,7 +186,8 @@ impl<'a> Roads<'a> {
     /// there, and there is no DERP road or Piping Server road, whose node
     /// may come back.
     async fn ended_for_good(&self) -> bool {
-        if self.derp.is_some() || self.opentunnel.is_some() || self.piping_on() || self.record.is_some() {
+        let others = self.opentunnel.is_some() || self.record.is_some() || self.member.is_some();
+        if self.derp.is_some() || others || self.piping_on() {
             return false;
         }
         let pair_done = self.pair.is_none() || self.pair_final.load(Ordering::SeqCst);
@@ -197,52 +212,6 @@ impl<'a> Roads<'a> {
             record.close().await;
         }
     }
-}
-
-/// A new leg of the pair's road, unless the last one ended with a close
-/// that a new leg would only get again.
-async fn pair_link(
-    config: &OperatorConfig<'_>,
-    roads: &Roads<'_>,
-    previous: Option<JoinHandle<LegOutcome>>,
-) -> Result<Road, String> {
-    if let Some(handle) = previous {
-        if let Ok(Ok(outcome)) = tokio::time::timeout(layered::LEG_WAIT, handle).await {
-            if let Some(stop) = layered::stops(&outcome) {
-                roads.pair_final.store(true, Ordering::SeqCst);
-                return Err(stop);
-            }
-        }
-    }
-    if roads.pair_final.load(Ordering::SeqCst) {
-        return Err("the pair's road ended for good".to_string());
-    }
-    let (link, leg_end) = tokio::io::duplex(PIPE);
-    match legs::start(config, leg_end).await {
-        Ok(handle) => {
-            *layered::lock(&roads.legs) = Some(handle);
-            Ok(Road::Pair(link))
-        }
-        Err(e) => {
-            // A proxy's refusal of the upgrade is the Piping Server road's
-            // cue, and no word of the relay's on the pair.
-            if roads.piping.is_some() && podssh_relay::piping::probe::upgrade_refused(&e) {
-                roads.refused.store(true, Ordering::SeqCst);
-            } else if layered::is_final(&e) {
-                roads.pair_final.store(true, Ordering::SeqCst);
-            }
-            Err(crate::pairs::connect_refusal(&e, roads.label).message)
-        }
-    }
-}
-
-/// A link of the Piping Server road: asked, or once a road found the
-/// upgrade refused.
-async fn piping_link(dialer: &podssh_relay::piping::Dialer, asked: bool, refused: &AtomicBool) -> Result<Road, String> {
-    if !asked && !refused.load(Ordering::SeqCst) {
-        return Err("not tried: no road found the WebSocket upgrade refused, and PODSSH_PIPING did not ask".into());
-    }
-    dialer.link().await.map(Road::Piping)
 }
 
 /// The race of the node's roads, then the session in the layer over the
@@ -274,14 +243,14 @@ where
     if let Err(refusal) = crate::pairs::online() {
         return hand(not_reached(&refusal.message, refusal.code)).await;
     }
+    // The legs at the net's relay members, which need no pair here (T-434).
+    let member = member::MemberRoads::new(label, trust);
     // The pair's road, when this host has the pair; a node that the DERP
-    // road or its record reaches may have none here.
+    // road, its record or a relay member reaches may have none here.
+    let others = raced.opentunnel.is_some() || raced.record.is_some() || member.is_some();
     let part = match crate::pairs::operator_part(label, pair_file) {
         Ok(part) => Some(part),
-        Err(refusal)
-            if (raced.derp.is_some() || raced.opentunnel.is_some() || raced.record.is_some())
-                && pair_file.is_none() =>
-        {
+        Err(refusal) if (raced.derp.is_some() || others) && pair_file.is_none() => {
             log.verbose(&format!("{shown}: no pair's road: {}", refusal.message));
             None
         }
@@ -308,6 +277,7 @@ where
     // Whether the channel runs above the layer, for SSH's line of a
     // handshake that does not finish (T-588).
     let channel_runs = channel.is_some();
+    let member = member.map(|member| member.proving(channel.as_ref().map(|c| c.identity.clone())));
     let derp = match &raced.derp {
         Some(road) => match super::derp::dialer(&road.ticket, &road.servers, trust, &log, &shown) {
             Ok(dialer) => Some((dialer, road.asked)),
@@ -351,7 +321,8 @@ where
     let (legs, pair_final) = (Mutex::new(None), AtomicBool::new(false));
     let record = raced.record.map(|ask| super::iroh::RecordRoads::new(ask, trust, &log, &shown));
     let pair = config.as_ref();
-    let roads = Roads { iroh, pair, derp, opentunnel, transit, piping, record, refused, label, legs, pair_final };
+    let roads =
+        Roads { iroh, pair, derp, opentunnel, transit, piping, record, member, refused, label, legs, pair_final };
     let (list, kinds) = roads.race(None);
     log.verbose(&format!("connecting to {shown}: {}", order(&kinds, roads.unasked())));
     let first = match in_turn(list).await {

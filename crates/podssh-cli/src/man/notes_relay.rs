@@ -362,4 +362,5 @@ pub const RELAY: &[&str] = &[
     super::notes_doctor::RELAY_PROBES,
     super::notes_deployments::RELAY,
     super::notes_deployments::MEMBERS,
+    super::notes_deployments::LEGS,
 ];

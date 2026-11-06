@@ -958,6 +958,32 @@ does: the contract's token names no key.
   gets a `403` that names no file, and `podssh net ls` on the host says
   why.
 
+## A leg for a member of the net (T-434)
+
+Two members of a net that reach no common road meet at a third member with
+the relay role ([mesh.md](mesh.md), section 4). The node makes a pair at
+each relay member that the net's document names with a host, at most three,
+by its own key, the one that the document names for it (the pair's maker,
+T-630). A member that reaches the node by no other road asks such a role
+for a leg:
+
+- `POST /v1/leg/<KEY>`, KEY the node's key in 64 hex digits, with the proof
+  of a key as for a mint (the `401` with a challenge, then the signature,
+  T-448), answers `{"name", "token", "expires"}`: the name of the live pair
+  that KEY made there and whose node is joined, and a token of one leg of
+  it that the role draws and registers as a node registers its own (T-615).
+  One upgrade of `/v1/connect/<name>` takes it; the node hears which token
+  was spent, holds none such, and keeps its own window as it was.
+- Only a role that mints for keys (`--mint keys:FILE`, `--mint net`) gives a
+  leg, and only to a key that it mints for: `403` in the role's words else.
+  A key with no pair here, and a pair whose node is not joined, get the same
+  `404` ("no node of that key is joined here"), so that the asker learns
+  nothing of the pairs that no node serves now. Each ask counts in the
+  role's brake, as a mint does.
+- The end-to-end channel and the resumable layer run above the leg: the
+  role sees bytes that it cannot read, and the node's allowlist, or the net
+  that is its door, still decides who gets in.
+
 ## A key's share of the pairs (T-630)
 
 A role that mints for keys (`--mint keys:FILE`, `--mint net`, or both)

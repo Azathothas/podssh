@@ -21,6 +21,12 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use super::{digest, hex, same, Kept, Pair, Pairs};
 
+// A leg for a member of the net, by the node's key (T-434): a token of one
+// leg that the role draws, beside the node's own.
+#[path = "member_leg.rs"]
+mod member_leg;
+pub use member_leg::NoLeg;
+
 /// The tokens of one leg, and the spent ones, that a pair keeps: 64 sessions
 /// of a node, with a window of 4 each.
 pub const MAX_LEGS: usize = 256;

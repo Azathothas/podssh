@@ -126,19 +126,22 @@ where
     }
 }
 
-/// A node's transit road beside the pair's road.
+/// A node's transit road, and its pairs at the net's relay members (T-434),
+/// beside the pair's road.
 pub(crate) struct Beside<'a> {
     pub label: &'a str,
     /// The pair came from the store, whose later pair the node takes.
     pub stored: bool,
     pub trust: &'a Trust,
-    pub url: WsUrl,
+    /// The transit relay, unless `PODSSH_TRANSIT=no` turned it off.
+    pub url: Option<WsUrl>,
     pub say: Say,
 }
 
 impl Beside<'_> {
-    /// The pair's road of `config` and the transit road, with one keeper,
-    /// so that a session resumes on either, until the pair's road ends.
+    /// The pair's road of `config`, the transit road and the roads at the
+    /// net's relay members, with one keeper, so that a session resumes on
+    /// any, until the pair's road ends.
     pub(crate) async fn run(
         self,
         config: &mut NodeConfig<'_>,
@@ -150,11 +153,25 @@ impl Beside<'_> {
         // The upgrade's keeper: the sessions of the binary before this one,
         // and those that go to the next (T-668).
         let keeper = crate::node_upgrade::channel_keeper(&node, settings.resume_deadline);
-        let road = road(self.label, &config.pair, self.stored, self.trust, self.url, self.say);
+        let members = crate::node_members::pairs(&node.identity, &config.pair.relay, self.trust, &self.say).await;
+        let say = self.say.clone();
+        let road = self.url.and_then(|url| road(self.label, &config.pair, self.stored, self.trust, url, say));
         let (host, port, roost) = (tcp.host.clone(), tcp.port, tcp.sshd);
+        // A handler for each road at a relay member, under the same keeper.
+        let member_handler = {
+            let (tcp, node, routes, keeper) = (tcp.clone(), node.clone(), routes.clone(), keeper.clone());
+            move || {
+                let (inner, channel) = (Arc::new(tcp.clone()), Some(node.clone()));
+                let piped = crate::channel::Piped { inner, channel, routes: routes.clone() };
+                Arc::new(Layered::with_keeper(piped, settings, budget, keeper.clone()))
+            }
+        };
         let piped = crate::channel::Piped { inner: Arc::new(tcp), channel: Some(node.clone()), routes: routes.clone() };
         let layered = Layered::with_keeper(piped, settings, budget, keeper.clone());
-        let pair_road = Box::pin(reverse::run(config, Arc::new(layered), crate::node_upgrade::stop()));
+        let own = Box::pin(reverse::run(config, Arc::new(layered), crate::node_upgrade::stop()));
+        let stop = crate::node_upgrade::stop;
+        let pair_road =
+            Box::pin(crate::node_members::alongside(own, members, member_handler, self.trust, &self.say, stop));
         // Each session is a pipe, as on the pair's road (T-164): the target
         // is reached once the operator's key is let in.
         let target = move || {

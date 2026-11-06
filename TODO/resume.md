@@ -986,7 +986,7 @@ The live test needs a node and the layer's client, which are in
 podssh-cli: it is `cargo test -p podssh-cli --test node_live -- --ignored
 move_200mib`, with an echo server on the loopback as the node's TARGET.
 Step 6 needs no ticket of T-163: the operator's part of a pair keeps its
-expiry (`expires_ms`, `crates/podssh-relay/src/pair.rs:341`), and at the
+expiry (`expires_ms`, `crates/podssh-relay/src/pair.rs:343`), and at the
 expiry the relay ends each session of the pair with `1001 pair expired`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:171`), which
 the policy of T-153 does not resume. The repair of T-262 changed step 3:
@@ -3454,7 +3454,7 @@ Read while drafting, 2026-11-03:
   Close included; a session cut then is a clean end of a session that the node took, exit 0. A
   signal before the node took the session ends the wait at once, with the session's fault (70).
 - `ssh node://` takes SIGHUP and SIGTERM alone: its Ctrl-C is the remote command's. The same on
-  the road that races the node's roads (`crates/podssh-cli/src/ssh/node_roads.rs:143`, moved from
+  the road that races the node's roads (`crates/podssh-cli/src/ssh/node_roads.rs:149`, moved from
   `crates/podssh-cli/src/ssh/roads.rs` by T-551).
 - The plant of the signals is two plants, one for each test, as a plant runs one check:
   `t586-hangup-not-taken` (the operator's test) and `t586-hangup-not-taken-openssh` (the

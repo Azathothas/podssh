@@ -312,7 +312,13 @@ once (T-226), a mailbox of the pairing by a short code (T-086, at
 `/v1/mailbox`), resumption for a standard sshd (T-173), and its place in a
 signed list of relays (T-346). A member of a net with the relay role also
 carries sessions between two other members that no other road joins
-(T-434).
+(T-434): a node makes a pair at each relay member that the document names
+with a host, at most three, by its own key; a member with no road to it
+asks such a role for a leg by the node's key (`POST /v1/leg/<KEY>`, with its
+own key's proof), which races once each road before it failed; the
+end-to-end channel and the resumable layer stay above, so that the member
+that relays sees bytes it cannot read ([relay.md](relay.md), "A leg for a
+member of the net").
 
 ## 5. Exit, routes, share and funnel
 

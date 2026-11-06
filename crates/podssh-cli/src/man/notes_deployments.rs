@@ -39,3 +39,16 @@ pub(super) const MEMBERS: &str = "A member of your net with the role relay and a
      asks with PODSSH_RELAY_TOKEN, nor with a list that you name, nor when the cache keeps no file. The asks are \
      kept in the cache (relay-members.json). podssh relay status names each relay member: its host, then its list \
      taken with its serial, or why not, and when it was asked; --json gives them as members.";
+
+/// A member that relays between two others (T-434).
+pub(super) const LEGS: &str = "A member of your net with the role relay and a host in the net's document also \
+     carries sessions between two other members that reach no common road. podssh node makes a pair at each \
+     such member, at most three, the relay of its own pair aside, by its own key, and keeps a socket on each \
+     beside its own road, with the one keeper of its sessions (never for a node with no resumable layer or no \
+     end-to-end channel); each pair made, \
+     or refused, is a line of the node. podssh ssh NAME, NAME a member with its key in the document, asks each \
+     such member for a leg once each road before it failed: POST /v1/leg/KEY, KEY the node's key, with the proof \
+     of the key of the client's end-to-end channel, then the upgrade with the token of one leg that the role \
+     drew; -v names it a member's relay role. No pair of the node's is needed on the client's host. A role \
+     gives a leg only with --mint keys:FILE or --mint net, and only to a key that it mints for; it sees bytes \
+     that it cannot read, and the node's allowlist, or the net, still decides who gets in.";

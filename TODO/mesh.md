@@ -1258,7 +1258,7 @@ start, and the test of an added share fails.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1313,6 +1313,46 @@ cargo test -p podssh-cli --test net
 Three ends offline, the default relay's stand-in refused to two of them: the session goes
 through the third member's relay role, and moves to another road when that one is killed.
 Planted: no registration on member relays, and the session fails.
+
+
+## Done
+
+2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t434`, `09dbd12`), then merged, built and
+tested by the main session, which repaired what the draft could not see.
+
+- The role: `POST /v1/leg/<KEY>` (`crates/podssh-relay/src/serve/leg.rs`), braked as a mint
+  (`serve/brake.rs`), for a role with `--mint keys:FILE` or `--mint net` and a key that it mints
+  for (`serve::proven`, so the net's policy holds a leg as it holds a mint); `Pairs::draw_leg`
+  (`serve/reverse/member_leg.rs`) finds the live pair whose maker is KEY with its node joined, the
+  latest to end, and registers a drawn token of one leg on it; `404` "no node of that key is joined
+  here", `403` for an unproven key.
+- The client's ask: `podssh_relay::pair::leg::ask` (`crates/podssh-relay/src/pair/leg.rs`) with
+  `keyed::post_by`, which proves the client's channel key or this host's client key;
+  `pair::once::create_by` makes a pair proving the node's key.
+- The node: `crates/podssh-cli/src/node_members.rs`: a pair at each relay member of the net with a
+  host (at most three), the own pair's relay aside, by its key, and a node socket on each beside
+  its own road under the one keeper (`node_transit::Beside`). A member's pair is made again at the
+  node's next start, not at its expiry.
+- The client: `crates/podssh-cli/src/ssh/road_member.rs` ("a member's relay role"), each member's
+  leg after each road before it failed, before the transit relay's; a client with no pair here
+  races them alone. Repaired at the merge: the client raced no road when the member legs were its
+  only ones (`ssh/node_roads.rs`, `Chosen::members`); a resume through the other member took the
+  session's next token of one leg, which the node gave for the first member's pair, and was refused
+  for 108 s (`403 reverse: forbidden`) until the session gave up its tokens: a member's leg opens
+  with its own drawn token (`reverse::operator::start`); `doctor`'s measure of the roads
+  (`ssh/road_probe.rs`) races them too; four calls of `relay_name` took a host for a relay.
+- The test: `crates/podssh-cli/tests/net_relay/mod.rs` (a module of `tests/net.rs`): the node's own
+  pair at a role that mints for anyone, two hubs with `--mint net` and their hosts in the document,
+  a client in a home of its own with no pair of `lab`; a line through a hub, the hub `hub2` killed,
+  a second line through `hub3`. `cargo test -p podssh-cli --test net net_relay`: passed, 1.6 s; the
+  test named `tester@lab` where it meant `node://tester@lab`, and now says the client's words at a
+  failure. Planted: `node_members::pairs` returning none: the test fails (the node makes no pair at
+  the hubs within 60 s); put back, it passes.
+- The manual: `notes_deployments::LEGS` in the notes of `podssh relay`; `docs/relay.md`, "A leg
+  for a member of the net"; `docs/mesh.md`, section 4.
+- Decided at the merge: no rule of the net's policy beyond the mint's own holds a leg (the role
+  admits the asker as it admits a mint, and the node's allowlist decides at its door); a line of the
+  member roads in `podssh status --net` is T-435's, with the net's other lines.
 
 # T-435: `status`, `ping` and `doctor` for the net
 
@@ -3626,13 +3666,13 @@ The draft's calls, 2026-11-02:
 
 1. The count: for each address, the times of the requests let through in the last minute, 120 at
    most, so that `Retry-After` is the wait itself and the first request after it passes
-   (`crates/podssh-relay/src/serve/brake.rs:106`). Only a request let through adds a time: a
+   (`crates/podssh-relay/src/serve/brake.rs:109`). Only a request let through adds a time: a
    client that asks again too soon is told the same end, never a later one. Lost: a minute that
    starts again (240 requests across its edge); two counts weighted by their overlap, three
    numbers an address, whose wait is an estimate, so a client told 60 s could meet a second
    `429`.
 2. `/v1/mint` and `/v1/pair` share one count, as on the default relay
-   (`crates/podssh-relay/src/pair.rs:102` says "the brake that pairs share with mints"; the
+   (`crates/podssh-relay/src/pair.rs:104` says "the brake that pairs share with mints"; the
    contract's limits, `docs/relay.md`, "Limits that users see": "mint, pair, upgrades with no
    token"). Each request at the two paths counts, whatever its answer: a keyed mint's `401`
    (T-448), a `403`, `--mint nobody`'s `503`. Lost: a count for each path, which lets one client
@@ -3644,8 +3684,8 @@ The draft's calls, 2026-11-02:
 4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:448`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:202`),
-   with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:53`) from
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:203`),
+   with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:56`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
    switch of `Config` says it sits behind the tunnel, a switch that a listener could be given by
@@ -3664,7 +3704,7 @@ The draft's calls, 2026-11-02:
 7. The bound: 4096 addresses, the bound of the table of pairs, each with 120 times of 8 bytes at
    most (under 4 MiB in all). A new address that meets a full table first forgets each address
    whose minute is over, then the one whose last request let through is the oldest
-   (`crates/podssh-relay/src/serve/brake.rs:187`): a scan of 4096 counts at most, and only then.
+   (`crates/podssh-relay/src/serve/brake.rs:190`): a scan of 4096 counts at most, and only then.
    Lost: a list kept in order, more code for no measured need.
 8. The clock: monotonic, the milliseconds since the role's start, and a `brake::Clock` that a test
    sets by hand, so that no test waits a minute and a step of the wall clock neither frees an
@@ -3699,7 +3739,7 @@ name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:215`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:216`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -9113,7 +9153,7 @@ say of it, need podssh's own number.
   of 4 MiB that moved no byte (results/http-piping.json); through the demo server, one stream on
   port 80 moved 5,054,472 bytes in its window, 903 ms of it the upgrade
   (results/wisp-throughput.json).
-- T-437's live run measured no rate: `TODO/mesh.md:1760` says "carried 64 KiB each way each time
+- T-437's live run measured no rate: `TODO/mesh.md:1800` says "carried 64 KiB each way each time
   (about 4 s)".
 
 ## Approach

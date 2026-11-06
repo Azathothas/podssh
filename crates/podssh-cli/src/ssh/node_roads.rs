@@ -64,6 +64,9 @@ struct Chosen {
     opentunnel: Option<super::opentunnel::Road>,
     transit: Option<WsUrl>,
     piping: Option<crate::piping_road::Race>,
+    /// Whether a member of the net with the relay role carries a leg to the
+    /// node (T-434): a client with no pair here races those legs alone.
+    members: bool,
 }
 
 impl Chosen {
@@ -73,14 +76,14 @@ impl Chosen {
         let piping_asked = self.piping.as_ref().is_some_and(|road| road.asked);
         let others =
             self.derp.is_some() || self.opentunnel.is_some() || self.transit.is_some() || self.record.is_some();
-        dest.race.is_some() || others || piping_asked
+        dest.race.is_some() || others || piping_asked || self.members
     }
 }
 
 /// The roads of a run to the node of `dest` beside the pair's, each checked
 /// before anything connects: a bad variable is refused (78).
 fn chosen(dest: &Dest<'_>) -> Result<Chosen, Refusal> {
-    let Dest { label, pair_file, race, derp, opentunnel, channel, .. } = *dest;
+    let Dest { label, pair_file, trust, race, derp, opentunnel, channel } = *dest;
     // The member's record of pkarr, for each road that no ticket gave
     // (T-445): a bad variable of it is said before anything connects.
     let record = super::iroh::record_ask(label, race.is_some(), derp, channel)?;
@@ -99,7 +102,10 @@ fn chosen(dest: &Dest<'_>) -> Result<Chosen, Refusal> {
     // the upgrade is refused; never with --no-e2e, as its server would
     // see each byte.
     let piping = crate::piping_road::race()?.filter(|_| !channel.off);
-    Ok(Chosen { record, derp, opentunnel, transit, piping })
+    // The legs at the net's relay members, never with --no-e2e, as the
+    // member would see each byte (T-434).
+    let members = !channel.off && super::roads::member::MemberRoads::new(label, trust).is_some();
+    Ok(Chosen { record, derp, opentunnel, transit, piping, members })
 }
 
 /// SSH to the node of `dest`: over the race of its roads beside the pair's,
@@ -118,7 +124,7 @@ pub(super) async fn run(dest: Dest<'_>, opts: &Options, log: Arc<Log>) -> i32 {
         let piping = chosen.piping.as_ref();
         return Box::pin(super::node::connect(label, pair_file, trust, piping, channel, opts, log)).await;
     }
-    let Chosen { record, derp, opentunnel, transit, piping } = chosen;
+    let Chosen { record, derp, opentunnel, transit, piping, .. } = chosen;
     let raced = Raced { iroh: race, derp, opentunnel, transit, piping, record: record.as_ref() };
     Box::pin(connect(label, pair_file, trust, raced, channel, opts, log)).await
 }
@@ -194,7 +200,7 @@ pub(crate) async fn reach(transport: &Transport, log: &Arc<Log>) -> Result<Reach
     let (race, ask, log) = (race.cloned(), channel.clone(), log.clone());
     // A copy's streams go below a terminal's on a shared iroh connection (T-666).
     tokio::spawn(super::iroh::as_bulk(async move {
-        let Chosen { record, derp, opentunnel, transit, piping } = chosen;
+        let Chosen { record, derp, opentunnel, transit, piping, .. } = chosen;
         let raced = Raced { iroh: race.as_ref(), derp, opentunnel, transit, piping, record: record.as_ref() };
         // The copy's SSH runs at the other end of the stream: no code here.
         let hand = move |handed: Result<Handed, NotReached>| {
@@ -229,7 +235,7 @@ pub(crate) async fn measure(
     };
     let chosen = chosen(&dest).map_err(|refusal| NotReached { lines: vec![refusal.message], code: refusal.code })?;
     let Dest { label, pair_file, trust, race, .. } = dest;
-    let Chosen { record, derp, opentunnel, transit, piping } = chosen;
+    let Chosen { record, derp, opentunnel, transit, piping, .. } = chosen;
     let raced = Raced { iroh: race, derp, opentunnel, transit, piping, record: record.as_ref() };
     super::roads::probe::measure(label, pair_file, trust, raced, log.clone()).await
 }
