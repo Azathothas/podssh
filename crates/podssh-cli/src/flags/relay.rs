@@ -131,6 +131,7 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
     super::shadowsocks::PROXY_SHADOWSOCKS,
     super::vless::PROXY_VLESS,
     super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
+    super::via::CHISEL, super::via::CHISEL_AUTH_FILE,
     // The exit of the net (T-431).
     super::node::PROXY_EXIT, super::node::PROXY_CLIENT_KEY,
     // The warning before the relay's idle cut (T-463).

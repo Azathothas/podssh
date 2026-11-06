@@ -2635,7 +2635,7 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
 (`crates/podssh-cli/src/ssh/tokens.rs:235`, `crates/podssh-cli/src/ssh/tokens.rs:252`,
-`crates/podssh-cli/src/ssh/resolve.rs:173`,
+`crates/podssh-cli/src/ssh/resolve.rs:166`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
 
@@ -4369,7 +4369,7 @@ would get no pull request, and maybe no red job.
   checksum, as a path package has none (`vendor/README.md` lines 133-134 at `80e26fc`); Dependabot's file says that
   an update of russh moves the patch by hand (`.github/dependabot.yml` lines 7-9 at `80e26fc`).
 - Read: the copy of russh is the release 0.64.1 (`vendor/README.md` lines 90-92 at `80e26fc`), iroh-relay is 1.4.1
-  (`vendor/README.md:151-155`), and the Tailscale fork is upstream's commit `f4781c4` of
+  (`vendor/README.md:154-158`), and the Tailscale fork is upstream's commit `f4781c4` of
   2026-09-29 with podssh's patch set (`vendor/README.md:12-19`).
 - Read, through fetch.web.pkgforge.dev on 2026-10-31
   (https://github.com/rustsec/advisory-db/blob/main/crates/russh/RUSTSEC-2026-0154.md):
@@ -4922,7 +4922,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 - Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
   after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
-  (`docs/cli.md:2007`) and "did not act on yet" (`docs/cli.md:1634`).
+  (`docs/cli.md:2033`) and "did not act on yet" (`docs/cli.md:1660`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
   (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame

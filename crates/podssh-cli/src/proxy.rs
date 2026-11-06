@@ -56,6 +56,9 @@ pub struct ProxyArgs {
     /// `--wstunnel` and `--wstunnel-secret-file`: a wstunnel server in place
     /// of the relay (T-441).
     pub wstunnel: crate::wstunnel::Flags,
+    /// `--chisel` and `--chisel-auth-file`: a chisel server in place of the
+    /// relay (T-490).
+    pub chisel: crate::chisel::Flags,
     /// `--exit NAME` and `--client-key FILE`: the pipe starts at this exit
     /// of the net, in place of the relay (T-431).
     pub exit: crate::exit::Flags,
@@ -96,13 +99,14 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         return code;
     }
     // A road of its own takes no forwarder (T-369), no Shadowsocks server
-    // (T-373), no second proxy (T-439), no VLESS server (T-440) and no
-    // wstunnel server (T-441).
+    // (T-373), no second proxy (T-439), no VLESS server (T-440), no
+    // wstunnel server (T-441) and no chisel server (T-490).
     let beside = crate::forwarder::pipe::beside(args)
         .and_then(|()| crate::shadowsocks::pipe::beside(args))
         .and_then(|()| crate::via::pipe::beside(args))
         .and_then(|()| crate::vless::pipe::beside(args))
-        .and_then(|()| crate::wstunnel::pipe::beside(args));
+        .and_then(|()| crate::wstunnel::pipe::beside(args))
+        .and_then(|()| crate::chisel::pipe::beside(args));
     if let Err(refusal) = beside.and_then(|()| key_alone(args)) {
         return refusal.report("proxy", err);
     }
@@ -151,7 +155,8 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
                 || args.shadowsocks.is_some()
                 || args.vless.is_some()
                 || args.via != crate::via::Flags::default()
-                || args.wstunnel != crate::wstunnel::Flags::default();
+                || args.wstunnel != crate::wstunnel::Flags::default()
+                || args.chisel != crate::chisel::Flags::default();
             if flags && (args.target.is_none() || args.port.is_none()) {
                 let _ = writeln!(err, "podssh proxy: a HOST that starts with - is read as a flag; put -- before it");
             }
@@ -179,10 +184,19 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         };
     }
     crate::session_log::target(&host, Some(port), "relay");
-    // The VLESS servers of a file (T-440), a wstunnel server (T-441), a forward
-    // proxy over TLS (T-439), the Shadowsocks servers of a file (T-373), then
-    // the forwarders, when the command line or the environment names them
-    // (T-369): then the relay is not asked.
+    // A chisel server (T-490), the VLESS servers of a file (T-440), a
+    // wstunnel server (T-441), a forward proxy over TLS (T-439), the
+    // Shadowsocks servers of a file (T-373), then the forwarders, when the
+    // command line or the environment names them (T-369): then the relay is
+    // not asked.
+    match crate::chisel::pipe::chosen(args) {
+        Ok(Some(road)) => {
+            crate::connect_bound::step("the chisel server did not answer");
+            return crate::chisel::pipe::run(&road, &host, port, err);
+        }
+        Ok(None) => {}
+        Err(refusal) => return refusal.report("proxy", err),
+    }
     if let Some(path) = args.vless.as_deref() {
         crate::connect_bound::step("no VLESS server answered");
         return crate::vless::pipe::run(path, &host, port, args.ca_file.as_deref(), err);
@@ -327,7 +341,8 @@ fn exit_alone(args: &ProxyArgs) -> Result<(), crate::relay_settings::Refusal> {
         || args.shadowsocks.is_some()
         || args.vless.is_some()
         || args.via != crate::via::Flags::default()
-        || args.wstunnel != crate::wstunnel::Flags::default();
+        || args.wstunnel != crate::wstunnel::Flags::default()
+        || args.chisel != crate::chisel::Flags::default();
     if other {
         let why = "--exit takes the relay's place: it goes with no relay host and no server of another road";
         return Err(crate::relay_settings::Refusal::usage(why));

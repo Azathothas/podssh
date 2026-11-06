@@ -28,6 +28,8 @@ pub mod agent;
 pub mod carrier;
 pub mod channel;
 pub mod chat;
+// `--chisel URL`: a chisel server in place of the relay (T-490).
+pub mod chisel;
 pub mod clap_error;
 pub mod config_import;
 // `--ConnectTimeout` of operator, proxy and pipe: one bound on the open (T-589).

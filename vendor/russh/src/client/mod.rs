@@ -199,6 +199,11 @@ pub enum Msg {
         socket_path: String,
         channel_ref: ChannelRef,
     },
+    ChannelOpenRaw {
+        kind: String,
+        extra: Vec<u8>,
+        channel_ref: ChannelRef,
+    },
     TcpIpForward {
         /// Provide a channel for the reply result to request a reply from the server
         reply_channel: Option<oneshot::Sender<Option<u32>>>,
@@ -954,6 +959,31 @@ impl<H: Handler> Handle<H> {
             .await
     }
 
+    /// Open a channel of the type `kind`, its type-specific data `extra`
+    /// verbatim, as Go's `ssh.Conn.OpenChannel` does (podssh's patch,
+    /// vendor/patches/russh/): chisel opens each tunnel so, its target in
+    /// `extra`.
+    pub async fn channel_open_raw<K: Into<String>>(
+        &self,
+        kind: K,
+        extra: &[u8],
+    ) -> Result<Channel<Msg>, crate::Error> {
+        let (sender, receiver) = channel(self.channel_buffer_size);
+        let channel_ref = ChannelRef::new(sender);
+        let window_size_ref = channel_ref.window_size().clone();
+
+        self.sender
+            .send(Msg::ChannelOpenRaw {
+                kind: kind.into(),
+                extra: extra.to_vec(),
+                channel_ref,
+            })
+            .await
+            .map_err(|_| crate::Error::SendError)?;
+        self.wait_channel_confirmation(receiver, window_size_ref)
+            .await
+    }
+
     /// Requests the server to open a TCP/IP forward channel
     ///
     /// If port == 0 the server will choose a port that will be returned, returns 0 otherwise
@@ -1700,6 +1730,14 @@ impl Session {
                 channel_ref,
             } => {
                 let id = self.channel_open_direct_streamlocal(&socket_path)?;
+                self.channels.insert(id, channel_ref);
+            }
+            Msg::ChannelOpenRaw {
+                kind,
+                extra,
+                channel_ref,
+            } => {
+                let id = self.channel_open_raw(&kind, &extra)?;
                 self.channels.insert(id, channel_ref);
             }
             Msg::TcpIpForward {

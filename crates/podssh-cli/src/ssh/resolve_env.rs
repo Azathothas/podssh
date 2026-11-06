@@ -266,3 +266,12 @@ pub(super) fn ca_file(args: &SshArgs, env: &Env) -> Option<String> {
 #[cfg(test)]
 #[path = "resolve_env_tests.rs"]
 mod tests;
+
+/// The trust of an `ssh+tls://` hop's TLS (T-372): `--ca-file`, else
+/// `SSL_CERT_FILE` or `CaFile`, else podssh's default stores.
+pub(super) fn tls_trust(args: &SshArgs, env: &Env) -> podssh_ws::Trust {
+    match ca_file(args, env) {
+        Some(file) => podssh_ws::Trust::File(file.into()),
+        None => podssh_ws::Trust::Default,
+    }
+}

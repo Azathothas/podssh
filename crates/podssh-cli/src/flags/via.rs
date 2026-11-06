@@ -3,8 +3,9 @@
 //! that reaches its server as `ssh` does, for `proxy` and `pipe`, and for
 //! `doctor`, which checks it. And those of `--wstunnel` and
 //! `--wstunnel-secret-file` (T-441), a wstunnel server that the user runs,
-//! for `ssh`, the commands of its road and `proxy`: both are roads of Q66 to
-//! a server of the user's own.
+//! for `ssh`, the commands of its road and `proxy`; and those of `--chisel`
+//! and `--chisel-auth-file` (T-490), a chisel server that the user runs, for
+//! the same commands: each is a road of Q66 to a server of the user's own.
 
 use super::{row, FlagKind, FlagRow};
 
@@ -63,5 +64,29 @@ pub const WSTUNNEL_SECRET_FILE: FlagRow = row(
     "what the server of --wstunnel checks, in FILE, a private file: path-prefix PREFIX, credentials \
      USER[:PASSWORD] or authorization VALUE, or the prefix alone; never in the URL; also env \
      PODSSH_WSTUNNEL_SECRET_FILE",
+    None,
+);
+
+/// `ssh`, `cp`, `each`, `proxy` and the others of `ssh`'s road (T-490).
+pub const CHISEL: FlagRow = row(
+    None,
+    "chisel",
+    Some("https://HOST[:PORT][/PATH]"),
+    FlagKind::Supported,
+    "reach the first hop through a chisel server that you run (chisel server --port 443 --auth USER:PASS), \
+     in place of the relay: its WebSocket, through HTTPS_PROXY when one is set, then SSH inside it and a \
+     channel to the target; http:// to this host alone; also env PODSSH_CHISEL",
+    None,
+);
+
+/// The same commands.
+pub const CHISEL_AUTH_FILE: FlagRow = row(
+    None,
+    "chisel-auth-file",
+    Some("FILE"),
+    FlagKind::Supported,
+    "what the server of --chisel takes and shows, in FILE, a private file: auth USER:PASSWORD, as chisel's \
+     --auth, and fingerprint BASE64, the key that chisel server prints, which podssh then checks; never in \
+     the URL; also env PODSSH_CHISEL_AUTH_FILE",
     None,
 );

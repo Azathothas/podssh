@@ -32,6 +32,8 @@
 //! check that could not run, which is never reported as passing.
 
 pub mod bundle;
+// chisel's WebSocket, to a server that the user runs (T-490).
+pub mod chisel;
 // The cleartext road on the relay's port, and the probe of GitHub #56 (T-326).
 pub mod cleartext;
 pub mod client;

@@ -99,6 +99,17 @@ impl Session {
         })
     }
 
+    /// A channel of any type, its type-specific data `extra` as given, with
+    /// no length before it: Go's `ssh.Conn.OpenChannel` sends it so, and
+    /// chisel's tunnels are such channels (podssh's patch,
+    /// vendor/patches/russh/).
+    pub fn channel_open_raw(&mut self, kind: &str, extra: &[u8]) -> Result<ChannelId, crate::Error> {
+        self.channel_open_generic(kind.as_bytes(), |write| {
+            write.extend_from_slice(extra);
+            Ok(())
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn request_pty(
         &mut self,

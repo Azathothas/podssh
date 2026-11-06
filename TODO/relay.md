@@ -161,7 +161,7 @@ token header (`PodUtils/podssh:crates/podssh-ws/src/client.rs:294-305`); `https_
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags/relay.rs:9-106`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:351-372` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:353-374` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -790,8 +790,8 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:116-291`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:183-222`); the variable to VARIABLES and the modes to THE
+   (`crates/podssh-cli/src/flags.rs:116-292`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/ssh/args.rs:188-229`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:46-301`, 170-183); both to `docs/relay.md:107-152`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
@@ -2835,7 +2835,7 @@ session on 2026-11-03.
 - `crates/podssh-cli/src/relay_ends.rs`: what a cut is (`cut_by`, `cut`), and `Told`, the relay
   stream that tells the record how its session ended once SSH lets it go, which
   `crates/podssh-cli/src/ssh/transport.rs:225` spawns. `podssh proxy`
-  (`crates/podssh-cli/src/proxy.rs:411`) and the relay's end of `podssh pipe` (`carry_opened`)
+  (`crates/podssh-cli/src/proxy.rs:426`) and the relay's end of `podssh pipe` (`carry_opened`)
   tell it at their end (`crates/podssh-cli/src/pipe/relay.rs:210-212`).
 - `podssh status`: `relay_failures` names the road, and `relay_opened` gives the hosts that opened
   lately (`crates/podssh-cli/src/status.rs:225-232`); `podssh doctor`'s line `failed relays` says
@@ -3162,7 +3162,7 @@ URL written into each result, and a download target that is no test target of `A
   (`crates/podssh-cli/src/ping/mod.rs:167-172`), with `--json`.
 - Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
   (`crates/podssh-cli/src/doctor/relay_checks.rs:199-230`); `--quick` keeps the relay's sections and
-  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:162-166`).
+  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:163-167`).
 - Read: `podssh relay trace` asks the relay to dial a target and gives its own times
   (`crates/podssh-cli/src/relay_diag.rs:182-185`); `relay info` gives the pool
   (`crates/podssh-cli/src/relay_diag.rs:133-135`).
@@ -3831,7 +3831,7 @@ changes with the edge", which is not true of the role: it has no edge and gives 
   did not change.
 - Read: the manual's note of `relay info` names `relay status` and `ping` alone
   (`crates/podssh-cli/src/man/notes_relay.rs`, lines 72-78 at `366f511`), and so does
-  `docs/cli.md:3300-3306`.
+  `docs/cli.md:3326-3332`.
 - Read: `relay status` and `ping` time the hosts of the run's list, the default host and three
   others at most (`crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize =
   3;"; `crates/podssh-cli/src/relay_diag.rs:88-97`, `crates/podssh-cli/src/ping/mod.rs:167-172`),
@@ -3895,7 +3895,7 @@ info` with `--relay-host` reads the order named, and `--json` has `relay_order` 
 
 - 2026-11-04: the Premise cites the note of `relay info` in `docs/cli.md` at lines 3241-3247 at
   `366f511`, which hold `relay join` and `relay spec`; the note was at lines 3281-3287 at
-  `366f511`, where its words were as the Premise says, and it begins at `docs/cli.md:3342`. Each
+  `366f511`, where its words were as the Premise says, and it begins at `docs/cli.md:3368`. Each
   other citation of the Premise holds. The Premise's citations of the lines that this change
   rewrote read at `366f511` now, as they no longer name those words.
 - The approach's test of the role's document (`serve::docs::relays`) needs a `Config` of the role,
@@ -3906,7 +3906,7 @@ info` with `--relay-host` reads the order named, and `--json` has `relay_order` 
 
 2026-11-04, drafted, then merged; the results below were measured at the merge:
 
-- `crates/podssh-cli/src/relay_rank_auto.rs:101-132`: `RunOrder` (the word of `podssh status`, or
+- `crates/podssh-cli/src/relay_rank_auto.rs:105-136`: `RunOrder` (the word of `podssh status`, or
   `named` for a list that the user named; its words; the list in that order) and `run_order`, read
   from the cache by `order_now` and `placed_now` with no connection, and `order_words`, the words
   that `doctor/relay_checks.rs` had, with the background rank's; `doctor_line` takes the list alone

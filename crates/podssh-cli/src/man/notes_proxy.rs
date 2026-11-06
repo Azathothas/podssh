@@ -61,6 +61,7 @@ pub const PROXY: &[&str] = &[
      tunnel's half-close (the end of the stream, on HTTP/2): the target's bytes come until it closes.",
     super::notes_vless::PROXY_VLESS,
     super::notes_roads::PROXY_WSTUNNEL,
+    super::notes_roads::PROXY_CHISEL,
     super::notes_roads::PROXY_CLEARTEXT,
     "podssh proxy node://NAME[/ROUTE] is the pipe of podssh operator NAME[/ROUTE] (see its notes): stdin to \
      the node of the pair under the label NAME, and the bytes of its TARGET, or of its ROUTE, to stdout, with \

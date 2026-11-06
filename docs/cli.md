@@ -1422,6 +1422,32 @@ that read a client as wstunnel's server does
 of the pinned release in a container, with OpenSSH's sshd as the target
 (`scripts/interop-wstunnel.sh`, `.github/workflows/wstunnel-interop.yml`).
 
+## A chisel server: `--chisel URL`
+
+T-490, the operator's ruling Q66: a server of jpillora/chisel that the user
+runs (`chisel server --port 443 --auth USER:PASS`), one static binary that
+takes the destination from its client, is the road in place of the relay.
+`--chisel https://HOST[:PORT][/PATH]` makes it the road for `ssh`, each
+command that reaches its server as `ssh` does, and `proxy`; `PODSSH_CHISEL`
+names it where the command line names no other road.
+
+- podssh opens the WebSocket to it with the subprotocol `chisel-v3`, through
+  `HTTPS_PROXY` when one is set, its TLS checked for HOST with podssh's
+  trust (`--ca-file`); `http://` goes to this host alone (64).
+- Inside, SSH as chisel's client speaks it: the version
+  `SSH-chisel-v3-client`, the password of `auth USER:PASSWORD`, the
+  server's key checked against `fingerprint BASE64` when the file names
+  one, the global request `config` with the one remote, then a channel
+  `chisel` to the first hop for each session, the sessions of one run on
+  one connection; chisel's `ping` each 25 s.
+- `--chisel-auth-file FILE` (`PODSSH_CHISEL_AUTH_FILE`): a private file of
+  `auth USER:PASSWORD` and `fingerprint BASE64`; never the URL or argv.
+- The refusals: a 404 "Not found" in chisel's words (69); a wrong password,
+  a key that is not the file's fingerprint, and a target that the server's
+  authfile does not allow (77).
+- russh's client opens a channel of a type of its own with
+  `vendor/patches/russh/0005-channel-open-raw.patch`.
+
 ## Going to the background: `--detach` and `-f`
 
 T-380, after the study of `docs/detach.md`: a run that must outlive its

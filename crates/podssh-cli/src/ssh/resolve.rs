@@ -73,6 +73,8 @@ pub enum Transport {
     Vless { servers: crate::vless::Servers, trust: Trust },
     /// Through a wstunnel server that the user runs (`--wstunnel`, T-441).
     Wstunnel { road: crate::wstunnel::Road },
+    /// Through a chisel server that the user runs (`--chisel`, T-490).
+    Chisel { road: crate::chisel::Road },
 }
 
 /// A command line, resolved.
@@ -115,16 +117,7 @@ pub struct Resolved {
 }
 
 // The environment, in its own file for the length of this one (T-379).
-pub(super) use super::resolve_env::ca_file;
-
-/// The trust of an `ssh+tls://` hop's TLS (T-372): `--ca-file`, else
-/// `SSL_CERT_FILE` or `CaFile`, else podssh's default stores.
-pub(super) fn tls_trust(args: &SshArgs, env: &Env) -> podssh_ws::Trust {
-    match ca_file(args, env) {
-        Some(file) => podssh_ws::Trust::File(file.into()),
-        None => podssh_ws::Trust::Default,
-    }
-}
+pub(super) use super::resolve_env::{ca_file, tls_trust};
 pub use super::resolve_env::{local_user, Env, LocalUser, UserFrom, USER_VARIABLES};
 
 /// Resolve `args`; `Err` is the message of a refusal.

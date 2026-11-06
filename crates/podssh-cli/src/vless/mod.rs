@@ -109,6 +109,7 @@ pub fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
         Transport::Cloudflare { .. } => "a cf://HOST destination or first hop",
         Transport::Cloud { .. } => "an iap://, eice://, warp:// or tor:// destination or first hop",
         Transport::Derp { .. } => "a derp: destination",
+        Transport::Chisel { .. } => "--chisel",
     };
     Err(Refusal::usage(format!("--vless cannot go with {other}, which is a road of its own; a run has one road")))
 }

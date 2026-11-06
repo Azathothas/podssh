@@ -65,7 +65,7 @@ pub mod result;
 pub(crate) mod road_link;
 pub(crate) mod roads;
 // The roads of servers that take the relay's place (T-369 to T-441).
-mod servers;
+pub(crate) mod servers;
 pub mod tokens;
 pub mod transport;
 mod upgrade;
@@ -300,6 +300,7 @@ pub(crate) fn road(transport: &Transport) -> &'static str {
         Transport::Via { .. } => "via",
         Transport::Vless { .. } => "vless",
         Transport::Wstunnel { .. } => "wstunnel",
+        Transport::Chisel { .. } => "chisel",
     }
 }
 

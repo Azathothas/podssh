@@ -1,0 +1,43 @@
+name: chisel interop
+
+# `--chisel`, a chisel server in place of the relay (T-490, the
+# operator's ruling Q66), against jpillora/chisel's own server of a pinned
+# release (checked by its SHA-256), in containers of the runner's Docker,
+# with OpenSSH's sshd as the target and a plain squid as the host's proxy:
+# scripts/interop-chisel.sh. The password of its authfile is made for the
+# run and never printed. Started by hand, and on a push that changes the road;
+# it publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-ws/src/chisel/**"
+      - "crates/podssh-cli/src/chisel/**"
+      - "scripts/interop-chisel.sh"
+      - ".github/workflows/chisel-interop.yml"
+      - "vendor/patches/russh/0005-channel-open-raw.patch"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: chisel's own server
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 1500 sh scripts/interop-chisel.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > chisel.log 2>&1 || rc=$?
+          cat chisel.log
+          [ "$rc" = 0 ] || { echo "interop-chisel exited $rc"; exit 1; }

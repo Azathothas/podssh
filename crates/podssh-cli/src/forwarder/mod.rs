@@ -176,6 +176,7 @@ pub fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
         Transport::Cloudflare { .. } => "a cf://HOST destination or first hop",
         Transport::Cloud { .. } => "an iap://, eice:// or warp:// destination or first hop",
         Transport::Derp { .. } => "a derp: destination",
+        Transport::Chisel { .. } => "--chisel",
         Transport::Shadowsocks { .. } => "--shadowsocks",
         Transport::Via { .. } => "--via",
         Transport::Vless { .. } => "--vless",

@@ -42,4 +42,5 @@ pub const EDIT_FLAGS: &[FlagRow] = &[
     super::shadowsocks::SHADOWSOCKS,
     super::vless::VLESS,
     super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
+    super::via::CHISEL, super::via::CHISEL_AUTH_FILE,
 ];

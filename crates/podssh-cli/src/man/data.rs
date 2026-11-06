@@ -177,7 +177,7 @@ pub fn files() -> Vec<(Vec<String>, String)> {
          $XDG_RUNTIME_DIR/podssh, else podssh-UID in $TMPDIR (else $TMP, $TEMP, and only then /tmp and \
          /dev/shm), else ./.podssh"
     };
-    let rows = vec![
+    let mut rows = vec![
         (
             paths(podssh_ssh::options::default_identity_files(home)),
             "The identity files tried, in this order, when no -i or IdentityFile is given.".to_string(),
@@ -490,5 +490,6 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
     ];
+    rows.push(super::notes_roads::chisel_file());
     rows
 }

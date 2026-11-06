@@ -201,6 +201,19 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
       private file of path-prefix PREFIX, credentials USER[:PASSWORD] or authorization VALUE (see FILES).",
     ),
     (
+        &["PODSSH_CHISEL"],
+        "The chisel server of podssh ssh, of each command that reaches its server as podssh ssh does, and of \
+      podssh proxy, as --chisel: https://HOST[:PORT][/PATH], in place of the relay. The flag wins, and so do \
+      --relay-host, --relay-failover, --forwarder, --shadowsocks, --via, --vless and --wstunnel; beside \
+      PODSSH_RELAY, PODSSH_FORWARDER, PODSSH_VIA or PODSSH_WSTUNNEL, or with a URL that cannot be read, it is a \
+      configuration error (78). An empty value is no value.",
+    ),
+    (
+        &["PODSSH_CHISEL_AUTH_FILE"],
+        "The file of the server of --chisel or PODSSH_CHISEL, as --chisel-auth-file, which wins: a private file \
+      of auth USER:PASSWORD and fingerprint BASE64 (see FILES).",
+    ),
+    (
         &["PODSSH_STUN"],
         "The STUN servers of podssh doctor's line nat (T-641), in place of stun.cloudflare.com:3478 and \
       stun.l.google.com:19302: HOST[:PORT], 2 to 4 of them separated by commas, the port 3478 when none is \

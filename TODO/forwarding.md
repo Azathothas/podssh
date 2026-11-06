@@ -59,7 +59,7 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:375-381`), with the
+   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:379-385`), with the
    limit of 20 s (`crates/podssh-relay/src/open.rs:31-33`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
@@ -207,7 +207,7 @@ remote host that must use the key, such as `git` on a build host.
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
    (`crates/podssh-cli/src/ssh/keywords.rs:25-132`). Change the help of `-a`
-   (`crates/podssh-cli/src/flags.rs:234-235`, the row `no-agent-forwarding`).
+   (`crates/podssh-cli/src/flags.rs:235-236`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
    before the shell or exec request (`crates/podssh-ssh/src/session.rs:127-153`).
    Never to a jump hop.
@@ -368,7 +368,7 @@ X11 channel.
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
-   (`crates/podssh-cli/src/flags.rs:229-230`).
+   (`crates/podssh-cli/src/flags.rs:230-231`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
    agent's connection is (`crates/podssh-ssh/src/keys.rs:410-447`, `connect_agent`).
@@ -431,7 +431,7 @@ swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
 channel when the destination's run asked
 (`crates/podssh-ssh/src/handler.rs:304-317`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
-`crates/podssh-cli/src/flags.rs:285-288`, and the keywords, honoured now, at
+`crates/podssh-cli/src/flags.rs:286-289`, and the keywords, honoured now, at
 `crates/podssh-cli/src/ssh/keywords.rs:49-51` and
 `crates/podssh-cli/src/ssh/keywords.rs:96`.
 - `cargo test -p podssh-ssh --lib -- x11`: 4 passed: `DISPLAY` as Xlib reads
@@ -1584,7 +1584,7 @@ a session with a pty:
 - `crates/podssh-cli/src/ssh/local_bind.rs`: the TCP listener and the
   socket of `-L` and `-D` can be closed (`crates/podssh-cli/src/ssh/local_bind.rs:137`
   and `crates/podssh-cli/src/ssh/local_bind.rs:184`), and the `Forwarder`
-  of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:350` gives to
+  of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:351` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
   (`crates/podssh-cli/src/man/notes_ssh.rs:463`); `docs/cli.md` ("`~C`

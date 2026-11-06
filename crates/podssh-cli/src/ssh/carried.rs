@@ -53,6 +53,7 @@ pub(super) fn flags(args: &SshArgs) -> Result<(), String> {
         (args.via.is_some(), "--via"),
         (args.vless.is_some(), "--vless"),
         (args.wstunnel.is_some(), "--wstunnel"),
+        (args.chisel.is_some(), "--chisel"),
         (args.upgrade, "--upgrade"),
     ];
     if let Some((_, flag)) = refused.into_iter().find(|(given, _)| *given) {

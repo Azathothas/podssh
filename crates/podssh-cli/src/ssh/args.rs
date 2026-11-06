@@ -58,6 +58,11 @@ pub struct SshArgs {
     /// in place of the relay, and what it checks of a client (T-441).
     pub wstunnel: Option<String>,
     pub wstunnel_secret_file: Option<String>,
+    /// `--chisel URL` and `--chisel-auth-file FILE`: a chisel server in
+    /// place of the relay, its user and password and its key's fingerprint
+    /// (T-490).
+    pub chisel: Option<String>,
+    pub chisel_auth_file: Option<String>,
     /// `--exit NAME`: the road starts at this exit of the net, in place of
     /// the relay (T-431).
     pub exit: Option<String>,
@@ -194,6 +199,8 @@ pub const ONCE: &[(&str, &str)] = &[
     ("vless", "give one file, with a line for each server"),
     ("wstunnel", "give one server"),
     ("wstunnel-secret-file", "give one file"),
+    ("chisel", "give one server"),
+    ("chisel-auth-file", "give one file"),
     ("exit", "give one exit"),
     ("pair-file", "give one file"),
     ("iroh-key", "give one file"),
@@ -324,6 +331,8 @@ impl SshArgs {
             vless: one("vless"),
             wstunnel: one("wstunnel"),
             wstunnel_secret_file: one("wstunnel-secret-file"),
+            chisel: one("chisel"),
+            chisel_auth_file: one("chisel-auth-file"),
             exit: one("exit"),
             pair_file: one("pair-file"),
             iroh_key: one("iroh-key"),

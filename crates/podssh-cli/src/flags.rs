@@ -187,6 +187,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
          relay host failed (env PODSSH_DIRECT=no turns that off)", None),
     forwarder::FORWARDER, shadowsocks::SHADOWSOCKS, vless::VLESS,
     via::VIA, via::VIA_AUTH_FILE, via::WSTUNNEL, via::WSTUNNEL_SECRET_FILE,
+    via::CHISEL, via::CHISEL_AUTH_FILE,
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
     row(None, "client-key", Some("FILE"), FlagKind::Supported,

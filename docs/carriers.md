@@ -1036,6 +1036,13 @@ with TCP and TLS alone.
    - Rust and C: podssh-ws's WebSocket with russh's client inside it. russh
      links aws-lc, so this client lives in the binary's crates, not in
      podssh-ws (rule 4 of [AGENTS.md](../AGENTS.md), section 5). Effort: M.
+   - Read again at v1.13.0 for T-490 (2026-11-06): the server's upgrader
+     names no subprotocol in its 101, so the 101 alone proves no chisel; an
+     upgrade that it does not take gets its reverse proxy or a 404 "Not
+     found"; the server checks a user's authfile again at each channel, and
+     answers the client's `ping` with `pong`, and its own `ping` takes any
+     answer. podssh speaks it as `--chisel` (T-490), with russh's channel
+     of any type (`vendor/patches/russh/0005-channel-open-raw.patch`).
 2. **Trojan** (fits: T-491).
    - The protocol: after a real TLS handshake, `hex(SHA224(password))`,
      CRLF, a request of SOCKS5's shape (CONNECT, an address's type, the

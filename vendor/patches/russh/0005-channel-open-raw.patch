@@ -1,0 +1,85 @@
+diff --git a/src/client/mod.rs b/src/client/mod.rs
+index 44fd5ace..c47c724f 100644
+--- a/src/client/mod.rs
++++ b/src/client/mod.rs
+@@ -199,6 +199,11 @@ pub enum Msg {
+         socket_path: String,
+         channel_ref: ChannelRef,
+     },
++    ChannelOpenRaw {
++        kind: String,
++        extra: Vec<u8>,
++        channel_ref: ChannelRef,
++    },
+     TcpIpForward {
+         /// Provide a channel for the reply result to request a reply from the server
+         reply_channel: Option<oneshot::Sender<Option<u32>>>,
+@@ -954,6 +959,31 @@ impl<H: Handler> Handle<H> {
+             .await
+     }
+ 
++    /// Open a channel of the type `kind`, its type-specific data `extra`
++    /// verbatim, as Go's `ssh.Conn.OpenChannel` does (podssh's patch,
++    /// vendor/patches/russh/): chisel opens each tunnel so, its target in
++    /// `extra`.
++    pub async fn channel_open_raw<K: Into<String>>(
++        &self,
++        kind: K,
++        extra: &[u8],
++    ) -> Result<Channel<Msg>, crate::Error> {
++        let (sender, receiver) = channel(self.channel_buffer_size);
++        let channel_ref = ChannelRef::new(sender);
++        let window_size_ref = channel_ref.window_size().clone();
++
++        self.sender
++            .send(Msg::ChannelOpenRaw {
++                kind: kind.into(),
++                extra: extra.to_vec(),
++                channel_ref,
++            })
++            .await
++            .map_err(|_| crate::Error::SendError)?;
++        self.wait_channel_confirmation(receiver, window_size_ref)
++            .await
++    }
++
+     /// Requests the server to open a TCP/IP forward channel
+     ///
+     /// If port == 0 the server will choose a port that will be returned, returns 0 otherwise
+@@ -1702,6 +1732,14 @@ impl Session {
+                 let id = self.channel_open_direct_streamlocal(&socket_path)?;
+                 self.channels.insert(id, channel_ref);
+             }
++            Msg::ChannelOpenRaw {
++                kind,
++                extra,
++                channel_ref,
++            } => {
++                let id = self.channel_open_raw(&kind, &extra)?;
++                self.channels.insert(id, channel_ref);
++            }
+             Msg::TcpIpForward {
+                 reply_channel,
+                 address,
+diff --git a/src/client/session.rs b/src/client/session.rs
+index b18c0528..14acd5a8 100644
+--- a/src/client/session.rs
++++ b/src/client/session.rs
+@@ -99,6 +99,17 @@ impl Session {
+         })
+     }
+ 
++    /// A channel of any type, its type-specific data `extra` as given, with
++    /// no length before it: Go's `ssh.Conn.OpenChannel` sends it so, and
++    /// chisel's tunnels are such channels (podssh's patch,
++    /// vendor/patches/russh/).
++    pub fn channel_open_raw(&mut self, kind: &str, extra: &[u8]) -> Result<ChannelId, crate::Error> {
++        self.channel_open_generic(kind.as_bytes(), |write| {
++            write.extend_from_slice(extra);
++            Ok(())
++        })
++    }
++
+     #[allow(clippy::too_many_arguments)]
+     pub fn request_pty(
+         &mut self,

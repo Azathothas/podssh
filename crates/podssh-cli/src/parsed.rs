@@ -89,6 +89,8 @@ pub enum Parsed {
         vless: Option<String>,
         /// `--wstunnel` and `--wstunnel-secret-file` (T-441).
         wstunnel: crate::wstunnel::Flags,
+        /// `--chisel` and `--chisel-auth-file` (T-490).
+        chisel: crate::chisel::Flags,
         /// `--exit NAME` and `--client-key FILE`: the pipe starts at this
         /// exit of the net (T-431).
         exit: crate::exit::Flags,

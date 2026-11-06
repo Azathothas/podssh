@@ -3585,7 +3585,7 @@ The copies do ask the net (read 2026-11-02). Each reads its operand with its own
 (`crates/podssh-cli/src/cp/operand.rs:114`), and hands the server to `ssh`'s resolution
 (`crates/podssh-cli/src/cp/mod.rs:299`, `crates/podssh-cli/src/sftp/mod.rs:216`,
 `crates/podssh-cli/src/edit/mod.rs:153`), which reads the destination's node before its host
-(`crates/podssh-cli/src/ssh/resolve.rs:146`), and a name alone there in the net
+(`crates/podssh-cli/src/ssh/resolve.rs:139`), and a name alone there in the net
 (`crates/podssh-cli/src/ssh/node.rs:44` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
 (`crates/podssh-cli/src/cp/link.rs`, lines 161-162 at `6a62cdc`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
 already resolve to the member's node. What was missing: a test that proves it, the manual's and
@@ -4896,7 +4896,7 @@ needs").
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4916,7 +4916,7 @@ that takes the destination from its client; podssh cannot use it.
   remotes; a channel `chisel` for each tunnel, its extra data `HOST:PORT`, which the server dials
   before it accepts; `ping` requests both ways.
 - The roads of servers that the user names in place of the relay are chained in one place:
-  `crates/podssh-cli/src/ssh/servers.rs:15` says "pub(super) fn or_relay".
+  `crates/podssh-cli/src/ssh/servers.rs:17` says "pub(super) fn or_relay".
 - russh links aws-lc, which rule 4 of `AGENTS.md` (section 5) keeps out of podssh-ws.
 
 ## Approach
@@ -4931,6 +4931,22 @@ that takes the destination from its client; podssh cannot use it.
 3. The server's refusals in their words: a 101 with no `chisel-v3`, a wrong password, a
    fingerprint that does not match (77), the authfile's "access denied" for the target, and the
    dial's failure in the channel's refusal.
+
+## Decision
+
+2026-11-06 (the drafting agent). The fingerprint is optional, as chisel's own `--fingerprint` is: with
+none, `-v` says that the server's key is not checked, as TLS names the server and the first hop's host
+key protects the session; with one, a key that is not it ends the run before the login (77). Lost: a
+fingerprint required, which would refuse each user who runs `chisel server` with no key file, whose
+key changes at each start. The `chisel` channel needs a channel of a type that russh's client does not
+know, its data verbatim: a fifth patch of the vendored russh
+(`vendor/patches/russh/0005-channel-open-raw.patch`, `Handle::channel_open_raw`). Lost: a direct-tcpip
+channel, which chisel's server rejects as an unknown type; a client of SSH of podssh's own, for one
+road. One SSH connection to a server is kept for the process, its `config` made with the first
+target, as chisel checks a user's authfile again at each channel. The stand-in of the tests is
+russh's SSH server inside a WebSocket of the test: russh's server rejects a channel of a type it does
+not know, so the stand-in runs each step up to the `config` request, which it refuses as an authfile
+refuses a remote; the tunnel itself runs against chisel's own server (`scripts/interop-chisel.sh`).
 
 ## Prove
 
@@ -4955,6 +4971,63 @@ server that the user runs is a `Dial` of `pod-egress` (PodUtils/podcrates, Q101,
 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh makes
 fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which podssh
 takes by the next tag; a test of the moved code then runs there.
+
+2026-11-06 (the drafting agent), chisel's source read again at v1.13.0: item 3 of the Approach expects
+a 101 with `chisel-v3`, but the server's upgrader (`server/server.go`, `upgrader`) is built with no
+subprotocol, so its 101 names none; an upgrade that it does not take falls through to its reverse
+proxy or a 404 "Not found" (`server/server_handler.go`). podssh so takes a 101 with no subprotocol, and
+reads the 404 in chisel's words. The server checks the user's authfile again at each channel
+(`share/tunnel/tunnel_out_ssh.go`, `ACL`, "access denied"), and the failure of `config` carries its
+words in its data, which russh drops (patch 0001): podssh says that the authfile does not let the user
+reach the target, and the server's log names which. The server's own `ping` takes any answer, and
+russh's client answers an unknown global request with a failure.
+
+## Done
+
+Partial, 2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t490`, `15743b03`), then merged,
+built and tested by the main session, with three repairs: a call of `config` that a local binding
+of the same name hid (`link.rs`); the notes of `ssh`, which named chisel's own `--auth` as if it were
+podssh's; and the one that the stand-in found: russh read an identification line only when it began
+`SSH-2.0-` or `SSH-1.99-`, so neither end took chisel's `SSH-chisel-v3-...` and each session ended
+"Disconnected" before its key exchange, against chisel's own server too
+(`vendor/patches/russh/0006-chisel-ssh-id.patch`, with russh's test `test_ssh_id_chisel`).
+
+- `crates/podssh-ws/src/chisel/`: the server's URL (`https://` or `wss://`; `http://` and `ws://` to
+  this host alone), the upgrade with the subprotocol `chisel-v3` (`upgrade.rs`), the refusals in
+  chisel's words, and the WebSocket as a stream of bytes, its frames masked. Unit tests: the URLs, the
+  request, the words of a 404, a 101 with no subprotocol taken: `cargo test -p podssh-ws --lib`, 181 passed.
+- `vendor/russh` with `vendor/patches/russh/0005-channel-open-raw.patch`: `Handle::channel_open_raw`.
+  `vendor/README.md` and `AGENTS.md` (section 7) name it, and `0006-chisel-ssh-id.patch`.
+- `crates/podssh-cli/src/chisel/`: `--chisel`, `--chisel-auth-file`, `PODSSH_CHISEL` and
+  `PODSSH_CHISEL_AUTH_FILE` (`mod.rs`, the file of `auth USER:PASSWORD` and `fingerprint BASE64`);
+  the SSH inside (`link.rs`: the client's version, the fingerprint, the password, `config`, the
+  channel `chisel`, the pings, one connection for the process); `reach.rs` for `ssh` and the commands
+  of its road; `pipe.rs` for `proxy`. The road is chained first in `ssh/servers.rs` (`or_relay`, and
+  `road_name` for the refusals) and in `proxy.rs`; `Transport::Chisel` in each match of the roads;
+  `ssh/resolve.rs`'s `tls_trust` moved to `resolve_env.rs` to keep the file at 500 lines. Unit tests
+  (`chisel/tests.rs`): the file, the URL's refusals, the JSON of `config`, an IPv6 target: in the CLI's library, 990 passed.
+- The flags (`flags/via.rs`, `CHISEL` and `CHISEL_AUTH_FILE`, in each list that has `--wstunnel`),
+  the manual (`man/notes_roads.rs`: the note of `ssh`, `PROXY_CHISEL`, the FILES entry;
+  `man/facts/roads.rs`: the two variables), `docs/cli.md` ("A chisel server"), `docs/carriers.md`,
+  `docs/mesh.md`; clippy and rustfmt clean.
+- `crates/podssh-cli/tests/chisel.rs`: against the stand-in, the right password and key reach the
+  `config` request, which the stand-in refuses (77, "refused the tunnel to sshd.test:22"); a wrong
+  password (77); a wrong fingerprint (77, the plant of the Prove: the fingerprint not checked passes
+  it); no file (77, "asks for a user and password"); a server that answers chisel's 404 (69); `--vless`
+  beside it and `http://` to another host (64); a file that others may read (78):
+  `cargo test -p podssh-cli --test chisel`, 3 passed. Planted: the server's key not checked: the
+  wrong fingerprint's case fails (the stand-in refuses the tunnel, 77, without the fingerprint's
+  words); put back, it passes.
+- `scripts/interop-chisel.sh` with `.github/workflows/chisel-interop.yml` and its ids in
+  `scripts/interop-baseline.txt`: chisel v1.13.0's own server, its binary checked by
+  `chisel_1.13.0_checksums.txt`, behind TLS with an authfile, sshd's banner and a session, 1 MiB each
+  way, a wrong password, a wrong fingerprint, a target that the authfile does not allow, the host's
+  squid, no output with the password. Run here with Docker: `chisel.version` passed (chisel 1.13.0
+  runs on Alpine), then exit 71: the container reaches no package mirror, for squid. It waits for a
+  runner (`chisel-interop.yml`), and with it the proof of the tunnel itself, as russh's server, the
+  stand-in's, refuses a channel `chisel`: the entry stays partial for that run.
+- Not done: `doctor --chisel` (the other roads of Q66 have a line of `doctor`; this entry asks for
+  none); `docs/STATUS.md`'s row, which the merge writes.
 
 # T-491: Trojan over TLS and over a WebSocket
 
@@ -7473,9 +7546,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1140-1141` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1142` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1136` says "UDP alone, which the
+- `docs/carriers.md:1147-1148` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1149` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1143` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:41` says "The quick tunnel over
@@ -7541,9 +7614,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1147-1148` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1150-1151` says "as the server never answers a command";
-  `docs/carriers.md:1153` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1154-1155` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1157-1158` says "as the server never answers a command";
+  `docs/carriers.md:1160` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:41` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 

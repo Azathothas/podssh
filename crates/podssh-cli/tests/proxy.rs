@@ -52,6 +52,7 @@ fn the_positionals_and_options_reach_the_verb() {
             via: Default::default(),
             vless: None,
             wstunnel: Default::default(),
+            chisel: Default::default(),
             exit: Default::default(),
             idle_warn: None,
             node: Default::default(),

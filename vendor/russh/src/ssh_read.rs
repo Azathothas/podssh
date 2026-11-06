@@ -190,7 +190,9 @@ impl<R: AsyncRead + Unpin> SshRead<R> {
                     // Check if we have a valid SSH protocol identifier
                     #[allow(clippy::indexing_slicing)]
                     if let Ok(s) = std::str::from_utf8(&ssh_id.buf[..i])
-                        && (s.starts_with("SSH-1.99-") || s.starts_with("SSH-2.0-"))
+                        // chisel's ends name their protocol in the place of the
+                        // version (`SSH-chisel-v3-client`), which Go's SSH takes.
+                        && (s.starts_with("SSH-1.99-") || s.starts_with("SSH-2.0-") || s.starts_with("SSH-chisel-"))
                     {
                         ssh_id.sshid_len = i;
                         return Ok(ssh_id.id());
@@ -217,6 +219,15 @@ impl<R: AsyncRead + Unpin> SshRead<R> {
 mod tests {
     use super::*;
     use std::iter;
+
+    #[tokio::test]
+    async fn test_ssh_id_chisel() {
+        let data = "SSH-chisel-v3-server\r\n";
+        let mut read = SshRead::new(data.as_bytes());
+
+        let received = read.read_ssh_id().await.unwrap();
+        assert_eq!(received, b"SSH-chisel-v3-server");
+    }
 
     #[tokio::test]
     async fn test_ssh_id_openssh() {

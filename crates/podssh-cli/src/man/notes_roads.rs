@@ -1,5 +1,5 @@
 //! The notes of `podssh ssh` on the roads of Q66 to a server of the user's
-//! own (T-441), apart from `notes_ssh`, which is full: [`SSH`] is its notes,
+//! own (T-441, T-490), apart from `notes_ssh`, which is full: [`SSH`] is its notes,
 //! then these, joined when the binary is built; and the note of `proxy` on
 //! the same road, as `notes` is full too. The cleartext road on the relay's
 //! port (T-326), and the WebSocket over HTTP/2 (T-321), are here for the same
@@ -25,6 +25,7 @@ const ROADS: &[&str] = &[
      sftp take it too.",
     CLEARTEXT,
     H2,
+    CHISEL,
     "--wstunnel wss://HOST[:PORT] reaches the first hop through a server of erebe/wstunnel that you run \
      (wstunnel server wss://[::]:443), in place of the relay: podssh opens the WebSocket to it, through \
      HTTPS_PROXY when one is set, checked for HOST with podssh's trust (--ca-file), and its token names the \
@@ -73,6 +74,45 @@ const H2: &str =
      TLS chooses http/1.1, the upgrade goes as before; where its HTTP/2 offers no extended CONNECT, the upgrade \
      goes on a new connection, and the run asks that host for no HTTP/2 for 10 minutes. PODSSH_H2=no keeps each \
      session on its own connection; yes offers the road to the default relay too.";
+
+/// The road through a chisel server of the user's (T-490).
+const CHISEL: &str =
+    "--chisel https://HOST[:PORT][/PATH] reaches the first hop through a server of jpillora/chisel that you run \
+     (chisel server on port 443 with a user and a password), in place of the relay: podssh opens its WebSocket, \
+     through HTTPS_PROXY when one is set, checked for HOST with podssh's trust (--ca-file), with the subprotocol \
+     chisel-v3; then SSH inside it as chisel's client speaks it (chisel 1.8 and later), its configuration of one \
+     remote, and a channel to the first hop, which the server dials. The sessions of one run are channels of one \
+     connection. What the server takes and shows comes from --chisel-auth-file FILE (or PODSSH_CHISEL_AUTH_FILE), a \
+     file of yours that others cannot read: auth USER:PASSWORD, as chisel's own auth option and its authfile's keys; \
+     fingerprint BASE64, the fingerprint that chisel server prints, which podssh then checks before it logs in. With \
+     no fingerprint, -v says that the server's key is not checked: TLS names the server, and the first hop's own host \
+     key protects the session. http:// goes to this host alone (64), as the password would cross the network in the \
+     clear. A wrong password, a key that is not the file's fingerprint, and a target that the server's authfile does \
+     not allow are refused with their words (77); an answer that is not chisel's is said so (69), its 404 Not found \
+     named as the words of a chisel server that did not take the upgrade. PODSSH_CHISEL names the server where the \
+     command line names no other road; beside PODSSH_RELAY, PODSSH_FORWARDER, PODSSH_VIA or PODSSH_WSTUNNEL it is \
+     refused (78). A run has one road: --relay-host, --relay-failover, --direct, --forwarder, --shadowsocks, --via, \
+     --vless, --wstunnel, -4, -6, and a destination with a road of its own cannot go with it (64).";
+
+/// The note of `podssh proxy --chisel`.
+pub const PROXY_CHISEL: &str =
+    "podssh proxy --chisel https://HOST[:PORT] carries the pipe through a chisel server that you run, with no \
+     relay, as podssh ssh does (see its notes), and as chisel client URL stdio:HOST:PORT serves it; PODSSH_CHISEL \
+     names it too. The end of stdin ends the channel's way up alone: the target's bytes come until it closes.";
+
+/// The FILES entry of `--chisel-auth-file`, as `data` is full.
+pub fn chisel_file() -> (Vec<String>, String) {
+    (
+        vec!["the file of --chisel-auth-file".to_string()],
+        "What the chisel server of --chisel takes and shows: auth USER:PASSWORD, the user and password of chisel's \
+         auth option (the password may hold colons), and fingerprint BASE64, the SHA-256 of the server's key in \
+         base64, 44 characters, as chisel server prints it; each once, either or both. # starts a comment. podssh \
+         reads it only as a regular file of yours that others cannot read (on Windows, as its access list says), as a \
+         pair file; else, and for a line that cannot be read, the run is refused (78), by the line's number and never \
+         its text. podssh never writes it."
+            .to_string(),
+    )
+}
 
 /// The note of `podssh proxy` on the cleartext road.
 pub const PROXY_CLEARTEXT: &str =

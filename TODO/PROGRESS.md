@@ -247,7 +247,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-a28220759deade9a5`, branch `draft-t434`, `09dbd12`), merged and closed the same
   day; its worktree and branch are gone. Then T-456 (`draft-t456`, `34d1459`), merged and closed the
   same day; and T-180 (`draft-t180`, `7da08fe`), merged and closed the same day; then T-459
-  (`draft-t459`, `8c085d46`), merged as partial the same day; T-490 (`draft-t490`) is drafting.
+  (`draft-t459`, `8c085d46`), merged as partial the same day; and T-490 (`draft-t490`, `15743b03`),
+  merged as partial the same day.
 
   On 2026-11-04 an eighth round was drafted, unbuilt, one commit for each entry, each branch pushed
   as `draft/worktree-agent-*`: T-435 (`093970b`, merged and closed, `57faf83`); T-617 (`1cbdc10`,
@@ -323,7 +324,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 646 entries: 90 open, 13 partial, 4 blocked, 539 done.
+`TODO/INDEX.md` holds 646 entries: 89 open, 14 partial, 4 blocked, 539 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

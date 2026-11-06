@@ -266,6 +266,8 @@ pub fn flags(ssh: &SshArgs) -> Vec<String> {
         ("--vless", &ssh.vless),
         ("--wstunnel", &ssh.wstunnel),
         ("--wstunnel-secret-file", &ssh.wstunnel_secret_file),
+        ("--chisel", &ssh.chisel),
+        ("--chisel-auth-file", &ssh.chisel_auth_file),
     ];
     for (flag, value) in named {
         if let Some(value) = value {
