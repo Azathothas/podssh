@@ -925,7 +925,8 @@ Ruled out:
   refuses to start with no `--auth-secret`, and "The Management server
   provides the tokens for the peers" [W16], so each peer needs an account.
   Firezone's relays are TURN on UDP, behind an account; ZeroTier's roots
-  use UDP 9993; croc's relay uses TCP 9009; the bootstrap nodes of
+  use UDP 9993; croc's relay uses TCP 9009, and getcroc.com bridges it
+  to a WebSocket on 443 (T-541, below); the bootstrap nodes of
   HyperDHT, Cabal and Hyphanet use UDP or other ports [W1]. Tox's TCP relays
   try port 443 first [W17], and 4 of the 28 nodes of its list listen there
   [W1], but they speak Tox's own handshake, not TLS, so a proxy that waits
@@ -999,6 +1000,57 @@ Ruled out:
   between the peers, or WebRTC over UDP (Inferred). The default WebTorrent
   tracker's domain is "Questionable Content" in an anti-piracy list
   (Verified [N8]).
+- **croc** (T-541; read on 2026-11-06 in croc's source at v11.6.4, through
+  forge.web.pkgforge.dev and fetch.web.pkgforge.dev; no croc server was
+  contacted). Its public relays are `1.getcroc.com` to `4.getcroc.com`, port
+  9009, and the SHA-256 of the code picks one of them [Y1]; a relay listens on
+  9009 to 9013 by default [Y2]. croc's client takes a SOCKS5 proxy for the
+  relay, and its README names no HTTP proxy [Y1]: from a host with 443 alone the relay's port
+  is refused (Inferred, as for any port but 443). But `croc-web`, the server
+  of `https://getcroc.com`, has a path `/ws?relay=N&port=P` that upgrades to a
+  WebSocket and pipes its binary messages to relay N's port P, with P in an
+  allowlist of 9009 to 9017; the Origin is checked only when a client sends
+  one [Y3], and croc's README says that `/ws` "bridges to the code-selected
+  public relay" [Y1]. So croc's relay is reachable on 443, through a proxy of
+  443 and by name (Read; that it passes a given proxy is Inferred). The
+  relay's protocol [Y2]: frames of `croc` and a 4-byte little-endian length;
+  a PAKE (schollz/pake v3, its curve SIEC, a fixed weak key) that the client
+  opens; a key of PBKDF2-SHA256 (100 rounds) and AES-GCM; then the relay's
+  password (`pass123` by default) and the room's name, encrypted; the relay
+  answers `ok`, keeps a lone first member with frames of one byte, and pipes
+  the raw bytes of the room's two members once the second joins. Its limits:
+  a room lives 3 h, 128 rooms open, 64 handshakes pending (32 from one
+  source), a first frame within 60 s, joins limited per minute [Y2]. Verdict:
+  croc's relay carries a podssh pair from a host with 443 alone, as a road of
+  bytes with podssh's own end-to-end channel and resumable layer above it,
+  and as a meeting point; the cost is croc's frame and relay handshake in
+  Rust, with schollz/pake's SIEC curve, which no Rust crate implements
+  (Inferred: none was found in the read). Its feature entry: T-694.
+- **The trackers' protocols** (T-546; read on 2026-11-06 [Y4] [Y5] [Y6]
+  [Y7]). An HTTP tracker (BEP 3) and a UDP tracker (BEP 15) take an
+  `info_hash`, a `peer_id` and a port, and answer a list of peers (address
+  and port): no message passes, so they carry a node's address alone, which
+  a host with 443 alone cannot use (Inferred). WebTorrent's tracker is JSON
+  in WebSocket messages: an `announce` with `info_hash` and `peer_id` (20
+  characters each) and `offers`, each an `offer` and an `offer_id`; the
+  tracker sends each offer at once to one random peer of that `info_hash`
+  (as many as offers, up to its cap), keeps none, and sends an `answer`
+  with a `to_peer_id` and an `offer_id` to that peer [Y5]. It reads no field
+  of an offer or an answer: any JSON passes (Read [Y5]; that public trackers
+  run this code unchanged is Inferred). So two ends meet by an `info_hash`
+  derived from the code's nameplate: the first announces with no offer and
+  waits, the second announces with T-086's first message as an offer, and
+  the answers and later offers carry the rest. A message that reaches no
+  peer is lost, and a stranger in the swarm may get an offer, so the pairing
+  must hold against both, as on Nostr's relays. WebTorrent's default trackers
+  on 443 are `wss://tracker.openwebtorrent.com`, `wss://tracker.webtorrent.dev`
+  and `wss://tracker.btorrent.xyz` [Y8]; their operators were not read, and
+  each of the three is "Questionable Content" in hagezi's anti-piracy list,
+  and `btorrent.xyz` in UT1's warez list too, so a filter of piracy refuses
+  them (Verified [N8], 2026-11-06). `getcroc.com` has no category there
+  (Verified [N8], 2026-11-06). Verdict: WebTorrent's
+  trackers can be meeting points of the pairing, after Nostr's (Q77); the
+  HTTP and UDP trackers cannot. Its feature entry: T-695.
 - **SSH tunnel providers of the sweep**: `ssh-j.com`, a public SSH jump
   and forwarding server with no account [W22], and `tunnl.gg` take raw SSH
   on port 22 in their own commands [W22] [W26], which the measured cage
@@ -1579,3 +1631,23 @@ from a project's own repository or document.
   `HyNetworks/hysteria` (MIT; its old name `apernet/hysteria`),
   `Itsusinn/tuic` (GPL-3.0), `quic-go/connect-ip-go` (MIT),
   `localtunnel/server` (MIT) and `ekzhang/bore` (MIT)
+
+Read on 2026-11-06 through the services of web.pkgforge.dev (forge, fetch,
+read and domain), for T-541 and T-546. No croc relay and no tracker was
+contacted: each fact is from a project's own repository or specification.
+
+- [Y1] `schollz/croc:README.md` and `schollz/croc:src/publicrelay/publicrelay.go`
+  at v11.6.4 (released 2026-11-05); the README's "Use a Proxy" (`--socks5`
+  alone)
+- [Y2] `schollz/croc:src/tcp/tcp.go`, `src/comm/comm.go`,
+  `src/crypt/crypt.go` and `src/tcp/defaults.go` at v11.6.4
+- [Y3] `schollz/croc:src/webrelay/webrelay.go` at v11.6.4 (`/ws`, its
+  allowlist of ports, `OriginPatterns`)
+- [Y4] https://www.bittorrent.org/beps/bep_0003.html (the tracker's
+  request and its answer)
+- [Y5] `webtorrent/bittorrent-tracker:server.js` and
+  `lib/server/parse-websocket.js` at 11.2.3 (the offers, the answer,
+  `numwant`)
+- [Y6] https://www.bittorrent.org/beps/bep_0015.html (the UDP tracker)
+- [Y7] `webtorrent/bittorrent-tracker:README.md` at 11.2.3, as [W21]
+- [Y8] `webtorrent/create-torrent:index.js` (its default `announceList`)

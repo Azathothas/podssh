@@ -330,7 +330,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 648 entries: 78 open, 15 partial, 4 blocked, 551 done.
+`TODO/INDEX.md` holds 650 entries: 78 open, 15 partial, 4 blocked, 553 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -408,7 +408,8 @@ this order:
    (done 2026-11-03); T-532 is parked; then what the rulings Q74, Q75, Q77, Q78 and Q82 filed (2026-11-02),
    the P2 ones first: Tailscale's main DERP fleet after tailcat's (done), the public Wisp servers
    made for it (T-535), Pinggy (T-548) and the public proxy nodes (T-574); then the research of the
-   overlay networks (NetBird, Firezone, Cabal and Hyphanet are done; T-538 to T-542), of the trackers (T-546) and of the pub/sub networks (T-547),
+   overlay networks (NetBird, Firezone, Cabal, Hyphanet and croc are done; T-538 to T-542), of the trackers (done) and of the pub/sub networks (T-547),
+   then what they filed: croc's relay as a road and a meeting point (T-694) and WebTorrent's trackers (T-695),
    and Nostr's meeting point (T-545, parked); the other last fallbacks of Q78 (T-549, T-565 to
    T-573 and T-575 to T-579; T-566, T-567 and T-575 parked); and the roads over UDP (T-580, T-581,
    T-582). These are features of a tester's report and of the sweep, done after the defects (Q85).

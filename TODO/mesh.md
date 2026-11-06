@@ -6617,7 +6617,7 @@ account, and carry a session, was not read.
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
 - `docs/carriers.md:927-928` says "ZeroTier's roots use UDP 9993", and
-  `docs/carriers.md:934-935` says "ZeroTier Inc. runs a TCP relay that ZeroTier One falls back
+  `docs/carriers.md:935-936` says "ZeroTier Inc. runs a TCP relay that ZeroTier One falls back
   to where it cannot use UDP": an IP literal on port 443, which its document calls slow.
 
 ## Approach
@@ -6665,8 +6665,8 @@ read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:929-930` says "Tox's TCP relays try port 443 first", and
-  `docs/carriers.md:931` says "but they speak Tox's own handshake, not TLS".
+- `docs/carriers.md:930-931` says "Tox's TCP relays try port 443 first", and
+  `docs/carriers.md:932` says "but they speak Tox's own handshake, not TLS".
 
 ## Approach
 
@@ -6751,7 +6751,7 @@ library linked statically": a C library may carry the work if its size and its l
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6789,6 +6789,31 @@ may be used in each crate, and the one rule of the build is a statically compile
 (`docs/decisions.md`, 2026-11-05). Where the Approach asks for "pure Rust", read "in Rust, or in a C
 library linked statically": a C library may carry the work if its size and its license are better.
 
+## Done
+
+2026-11-06 (a draft; the main session checks it and closes the entry). Read, through the services
+of <https://web.pkgforge.dev/llms.txt> (forge, fetch, domain), croc's source at v11.6.4: its README,
+`src/publicrelay/publicrelay.go`, `src/tcp/tcp.go`, `src/tcp/defaults.go`, `src/comm/comm.go`,
+`src/crypt/crypt.go` and `src/webrelay/webrelay.go`. No croc server was contacted. Found (each fact
+with its source in `docs/carriers.md`, "croc", sources [Y1] to [Y3]):
+
+1. The public relays are `1.getcroc.com` to `4.getcroc.com` on TCP 9009, the code's SHA-256 picking
+   one; a relay listens on 9009 to 9013. But `https://getcroc.com/ws?relay=N&port=P` (`croc-web`)
+   upgrades to a WebSocket and pipes binary messages to relay N's port P (9009 to 9017), with the
+   Origin checked only when one is sent: croc's relay is reachable on 443 by name.
+2. croc's client takes a SOCKS5 proxy alone (its README); podssh would reach `/ws` through its own
+   HTTPS road and the host's proxy.
+3. The relay's protocol: frames of `croc` and a little-endian u32 length; a PAKE (schollz/pake v3,
+   curve SIEC, a fixed weak key) opened by the client, PBKDF2-SHA256 of 100 rounds and AES-GCM; the
+   relay's password (`pass123` by default) and the room, encrypted; then raw bytes between the
+   room's two members. Limits: 3 h a room, 128 rooms, 64 pending handshakes (32 from a source).
+4. Verdict: passes, as a road of bytes and a meeting point, with podssh's channel and layer above;
+   the cost is the SIEC curve in Rust. Filed T-694. `getcroc.com` has no category in the filter
+   lists (Verified, domain.web.pkgforge.dev, 2026-11-06).
+
+Merged and checked 2026-11-06: `cargo todo check` agrees, `python scripts/check-repo.py` passed
+(doc links, the source labels [Y1] to [Y8] each defined once in `docs/carriers.md`).
+
 # T-542: HyperDHT: whether Holepunch's DHT and its relays reach a podssh end by its key
 
 **Source:** the operator's ruling Q77 (2026-11-02).
@@ -6807,7 +6832,7 @@ any part of it answers over TCP on 443, was not read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:928-929` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+- `docs/carriers.md:929-930` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
   or other ports".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved": podssh probes UDP before a road over it.
@@ -6855,7 +6880,7 @@ a host with 443 alone, or only what HyperDHT gives (T-542), was not read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:928-929` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+- `docs/carriers.md:929-930` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
   or other ports".
 
 ## Approach
@@ -6905,7 +6930,7 @@ from a host with 443 alone, or where UDP passes, was not read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:928-929` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+- `docs/carriers.md:929-930` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
   or other ports".
 
 ## Approach
@@ -7021,7 +7046,7 @@ PodUtils/podcrates, which podssh takes by the next tag; a test of the moved code
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7034,7 +7059,7 @@ node's roads, from a host with 443 alone, was not read.
 
 - `docs/decisions.md:33` says "Nostr's ephemeral events and the trackers become meeting points of
   the pairing, in the same order".
-- `docs/carriers.md:997-998` says "a tracker gives a peer list, or passes WebRTC's offers between
+- `docs/carriers.md:998-999` says "a tracker gives a peer list, or passes WebRTC's offers between
   the peers of one torrent".
 
 ## Approach
@@ -7065,6 +7090,31 @@ The verdict and its sources in `docs/carriers.md`; a feature entry filed where a
 podssh makes fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates,
 which podssh takes by the next tag; a test of the moved code then runs there.
 
+## Done
+
+2026-11-06 (a draft; the main session checks it and closes the entry). Read, through the services
+of <https://web.pkgforge.dev/llms.txt> (read, fetch, domain): BEP 3 and BEP 15 on bittorrent.org;
+`webtorrent/bittorrent-tracker` 11.2.3 (`server.js`, `lib/server/parse-websocket.js`, README); and
+`webtorrent/create-torrent:index.js`. No tracker was contacted. Found (`docs/carriers.md`, "The
+trackers' protocols", sources [Y4] to [Y8]):
+
+1. HTTP and UDP trackers answer peer lists alone (address and port): no message passes.
+2. WebTorrent's tracker sends each `offer` of an announce at once to one random peer of the
+   `info_hash`, keeps none, and sends an `answer` to its `to_peer_id`; it reads no field of either,
+   so any JSON passes. `info_hash` and `peer_id` are 20 characters.
+3. So two ends meet by an `info_hash` derived from the nameplate: the waiting end announces with no
+   offer, the other sends T-086's first message as an offer, and answers and later offers carry the
+   rest. A lost message and a stranger of the swarm are cases the pairing must hold against.
+4. WebTorrent's default trackers on 443: `tracker.openwebtorrent.com`, `tracker.webtorrent.dev`,
+   `tracker.btorrent.xyz`; each is "Questionable Content" (hagezi's anti-piracy list; UT1's warez
+   list too for `btorrent.xyz`), read on domain.web.pkgforge.dev on 2026-11-06. Their operators were
+   not read.
+5. Verdict: WebTorrent's trackers pass as meeting points, after Nostr's; HTTP and UDP trackers do
+   not. Filed T-695.
+
+Merged and checked 2026-11-06: `cargo todo check` agrees, `python scripts/check-repo.py` passed
+(doc links, the source labels [Y1] to [Y8] each defined once in `docs/carriers.md`).
+
 # T-547: The pub/sub networks and the public MQTT brokers, as carriers or meeting points
 
 **Source:** the operator's ruling Q77 (2026-11-02).
@@ -7084,11 +7134,11 @@ read in part; which of them carries a message from one podssh end to another wit
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:986-987` says "relays send each record to each consumer, and a record is
-  written to a PDS by an account"; `docs/carriers.md:987` says "ActivityPub's relays take a
-  server's posts"; `docs/carriers.md:990` says "takes a message from a member alone" (the Waku
-  Network); `docs/carriers.md:994` says "an inbox that a wallet's signature registered" (XMTP);
-  `docs/carriers.md:994-995` says "The Farcaster hubs of the sweep were gone".
+- `docs/carriers.md:987-988` says "relays send each record to each consumer, and a record is
+  written to a PDS by an account"; `docs/carriers.md:988` says "ActivityPub's relays take a
+  server's posts"; `docs/carriers.md:991` says "takes a message from a member alone" (the Waku
+  Network); `docs/carriers.md:995` says "an inbox that a wallet's signature registered" (XMTP);
+  `docs/carriers.md:995-996` says "The Farcaster hubs of the sweep were gone".
 - `docs/carriers.md:879` says "none is reachable on 443 in practice" (the public MQTT brokers).
 
 ## Approach
@@ -7331,8 +7381,8 @@ a client that knows the node's key could know its name. podssh does not use it.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:1010` says "derived from your SSH key", with no account and with a key
-  required; `docs/carriers.md:1004` says "on port 22 in their own commands" of the SSH tunnel
+- `docs/carriers.md:1062` says "derived from your SSH key", with no account and with a key
+  required; `docs/carriers.md:1056` says "on port 22 in their own commands" of the SSH tunnel
   providers of the sweep.
 
 ## Approach
@@ -7377,8 +7427,8 @@ shape of localhost.run's tunnel; podssh does not use it.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:1004` says "on port 22 in their own commands", and
-  `docs/carriers.md:1006` says "gives HTTPS URLs alone".
+- `docs/carriers.md:1056` says "on port 22 in their own commands", and
+  `docs/carriers.md:1058` says "gives HTTPS URLs alone".
 
 ## Approach
 
@@ -7431,8 +7481,8 @@ visitor's HTTP. A client in a cage reaches the name on 443. podssh does not use 
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:1012` says "a port and a URL, then opens raw TCP to that port", and
-  `docs/carriers.md:1013` says "request meets a reminder page unless it carries the header".
+- `docs/carriers.md:1064` says "a port and a URL, then opens raw TCP to that port", and
+  `docs/carriers.md:1065` says "request meets a reminder page unless it carries the header".
 - `crates/podssh-relay/src/serve/behind.rs:1` says "The relay role behind a node's quick tunnel
   (T-428): the role's routes as".
 
@@ -7462,7 +7512,7 @@ client meets the reminder page (the test names it).
 
 ## Correction
 
-2026-11-04 (the drafting agent). `docs/carriers.md:1013` says "request meets a reminder page unless
+2026-11-04 (the drafting agent). `docs/carriers.md:1065` says "request meets a reminder page unless
 it carries the header", which the operator's archive `ff-relay` of 2026-11-04 contradicts for one
 client (`docs/research/forward-carriers.md`, section 3.6): through `loca.lt`, curl fetched a file of
 16 MiB of random bytes with no `Bypass-Tunnel-Reminder` and got `200` and exactly 16,777,216
@@ -7544,8 +7594,8 @@ that restarts makes the node register again. Live, short, through bore.pub (T-54
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:1002-1003` says "a public SSH jump and forwarding server with no account", and
-  `docs/carriers.md:1004` says "on port 22 in their own commands".
+- `docs/carriers.md:1054-1055` says "a public SSH jump and forwarding server with no account", and
+  `docs/carriers.md:1056` says "on port 22 in their own commands".
 - `crates/podssh-cli/src/ssh/jump.rs:100` says "The first hop's tunnel".
 
 ## Approach
@@ -7819,7 +7869,7 @@ last fallback whatever its terms, after `ppng.io` and T-497's `piping.onrender.c
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:1018` says "The last runs on serv00, whose terms forbid to", of
+- `docs/carriers.md:1070` says "The last runs on serv00, whose terms forbid to", of
   `p.kokoro.serv00.net`.
 - `PodUtils/podssh:crates/podssh-relay/src/piping/server.rs:10` says "pub const DEFAULT_HOST: &str =".
 
@@ -7851,7 +7901,7 @@ T-497 is done: the road has public servers in order.
 
 2026-11-04 (the drafting agent), from the operator's archive `ff-relay` of 2026-11-04
 (`docs/research/forward-carriers.md`, section 3.3). The archive reached serv00's Piping Server at
-the name with `www.` before the Premise's (`docs/carriers.md:1018` says "The last runs on serv00,
+the name with `www.` before the Premise's (`docs/carriers.md:1070` says "The last runs on serv00,
 whose terms forbid to"), and read that it completes transfers and holds a streamed body until its
 end (Read in its docs/carriers.md, "Pairing carriers", and its results/http-relay-hunt.json). So
 step 1's "whether it streams" has the archive's answer, no: the road there runs in numbered pieces,
@@ -8093,9 +8143,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1220-1221` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1222` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1216` says "UDP alone, which the
+- `docs/carriers.md:1272-1273` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1274` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1268` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over
@@ -8161,9 +8211,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1227-1228` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1230-1231` says "as the server never answers a command";
-  `docs/carriers.md:1233` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1279-1280` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1282-1283` says "as the server never answers a command";
+  `docs/carriers.md:1285` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 
@@ -10442,3 +10492,92 @@ So the pins are what this host downloaded on that day, not the releases' own wor
 NaiveProxy server of T-494; trojan-gfw's may also be checked by its signature once its key is
 read from the project's own page. The Approach takes these pins.
 
+# T-694: croc's relay through `wss://getcroc.com/ws` as a road and a meeting point of a podssh pair
+
+**Source:** T-541 (2026-11-06).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-541 read that `croc-web` bridges a WebSocket on 443 to croc's public relays, which pipe the raw
+bytes of a room's two members once each passed the relay's handshake. podssh speaks none of it, so
+a pair of ends whose only way out is 443 cannot use croc's public relays.
+
+## Premise
+
+- `docs/carriers.md:1010-1011` says "has a path `/ws?relay=N&port=P` that upgrades to a WebSocket and
+  pipes its binary messages to relay N's port P".
+- `docs/carriers.md:1024-1025` says "croc's relay carries a podssh pair from a host with 443 alone, as
+  a road of bytes".
+
+## Approach
+
+1. In Rust: croc's frame (`croc`, a little-endian u32 length), its relay handshake (schollz/pake v3
+   on SIEC with croc's fixed weak key, PBKDF2-SHA256 of 100 rounds, AES-GCM), the relay's password
+   and the room; the SIEC curve ported from schollz/pake (or a C library linked statically, rule 4),
+   checked against vectors that croc's own Go code computes.
+2. The WebSocket to `getcroc.com/ws` through podssh's HTTPS road and the host's proxy, the relay
+   picked as croc picks it (the SHA-256 of the room modulo the pool); a direct TCP 9009 where a
+   probe allows it.
+3. The room's name derived from the pairing code (T-086), so that both ends meet; podssh's own
+   end-to-end channel and resumable layer above the piped bytes; a room's 3 h, the relay's limits
+   and a full room named in a line.
+4. Decision first: whether a non-browser client of `croc-web`'s bridge is within its use; read its
+   terms or ask its operator by an issue, and write the call in a `## Decision`.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay croc
+```
+
+The handshake against croc's own relay (`croc relay`, a pinned release) in a harness on a runner;
+then one short live session through `wss://getcroc.com/ws` from GitHub Actions, if the Decision
+allows it.
+
+# T-695: WebTorrent's trackers as a meeting point of the pairing, after Nostr's
+
+**Source:** T-546 (2026-11-06).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-546 read that a WebTorrent tracker passes any JSON as offers and answers between the peers of one
+`info_hash`, and the operator ruled that the trackers become meeting points of the pairing after
+Nostr's (Q77). The pairing has no such meeting point yet.
+
+## Premise
+
+- `docs/carriers.md:1051-1052` says "Verdict: WebTorrent's trackers can be meeting points of the
+  pairing, after Nostr's (Q77)".
+- `docs/carriers.md:1039` says "any JSON passes".
+
+## Approach
+
+1. A meeting point of the pairing on a WebTorrent tracker: the `info_hash` derived from the code's
+   nameplate (20 characters), a random `peer_id`; the waiting end announces with no offer and
+   re-announces each interval; the other end sends T-086's messages as offers, and the answers
+   carry the replies.
+2. Hold against a message that reaches no peer (no copy is kept) and a stranger of the swarm: each
+   message carries the nameplate's tag, and a lost one is sent again.
+3. The trackers in `pod-services`, not hardcoded (AGENTS.md, the migration); tried after Nostr's.
+   Each default tracker is "Questionable Content" in a filter list (T-546): say so in the manual.
+4. The code of the meeting points moved to PodUtils/podcrates (`pod-wormhole`, Q101): where podssh
+   took it, ask there as an issue (Rule Q3) and write the step in a `## Correction`.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay tracker
+```
+
+Against `webtorrent/bittorrent-tracker`'s own server (a pinned release) in a harness; then one
+short live pairing through a public tracker from GitHub Actions.
