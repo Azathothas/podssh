@@ -5159,6 +5159,12 @@ baseline's test.
   ("Trojan servers"), `docs/carriers.md`, `docs/mesh.md`.
 - Not done: `doctor --trojan` (the entry asks for none).
 
+Later the same day, in the crate's whole run with `plain-ws`, `a_session_goes_in_tls_alone_and_in_a_websocket`
+timed out once: its `carries` wrote the 300 kB whole before it read the echo, so the buffers on the
+way filled and both ends waited. It reads the echo while it writes now, and so does VLESS's
+`carries` in `crates/podssh-ws/tests/vless.rs`, which had the same pattern with 2.5 MB; 3 runs of
+each passed.
+
 # T-492: Shadowsocks 2022 (SIP022) for `--shadowsocks`
 
 **Source:** T-442 (2026-11-02); the operator's ruling Q66.

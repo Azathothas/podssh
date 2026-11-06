@@ -210,8 +210,15 @@ async fn carries(opened: &mut Opened, sent: &[u8]) {
     let mut back = vec![0u8; sent.len()];
     let both = async {
         opened.stream.read_exact(&mut banner).await.unwrap();
-        opened.stream.write_all(sent).await.unwrap();
-        opened.stream.read_exact(&mut back).await.unwrap();
+        // The echo is read while the bytes go: written whole first, they
+        // filled each buffer on the way and both ends waited (seen once in
+        // the crate's whole run).
+        let (mut read, mut write) = tokio::io::split(&mut opened.stream);
+        let up = async {
+            write.write_all(sent).await.unwrap();
+            write.flush().await.unwrap();
+        };
+        tokio::join!(up, async { read.read_exact(&mut back).await.unwrap() });
     };
     tokio::time::timeout(LIMIT * 2, both).await.expect("the bytes within the limit");
     assert_eq!(banner, BANNER);
