@@ -44,7 +44,8 @@ impl<'a> Order<'a> {
             }
             if let Some(list) = self.refetch.take() {
                 say(&format!(
-                    "each server of the kept list of the subscription {} failed; podssh fetches it again",
+                    "each server of the kept list of {} {} failed; podssh fetches it again",
+                    list.what(),
                     list.shown()
                 ));
                 self.fetch(list, None, say).await;
@@ -81,7 +82,8 @@ impl<'a> Order<'a> {
                 say(&why);
                 if let Some(nodes) = older.filter(|nodes| !nodes.is_empty()) {
                     say(&format!(
-                        "podssh tries the list of the subscription {} that it kept more than a day ago",
+                        "podssh tries the list of {} {} that it kept more than a day ago",
+                        list.what(),
                         list.shown()
                     ));
                     self.enqueue(nodes);

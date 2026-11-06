@@ -2,8 +2,10 @@
 //! servers that the user names, in place of the relay. FILE is private, as a
 //! pair file is (`podssh_relay::cache::read_private`): its `ss://` lines hold
 //! passwords, which never go to argv, a log or a message. Each line is an
-//! `ss://` URI, or `subscription URL`, a list that a provider serves over
-//! TLS ([`subscription`]); `#` starts a comment. The servers are tried in
+//! `ss://` URI, `subscription URL`, a list that a provider serves over
+//! TLS ([`subscription`]), or an Outline access key (T-493): `ssconf://...`,
+//! or `key https://...`, whose server may be in a WebSocket over TLS, as
+//! Outline's servers serve it; `#` starts a comment. The servers are tried in
 //! the order of the file, as the relay hosts are (T-220), and a
 //! subscription's list in its own order ([`order`]). The host key of SSH
 //! protects the session, as on each road: the server sees the target's
@@ -61,17 +63,30 @@ pub fn parse(text: &str, file: &str) -> Result<Servers, String> {
             entries.push(Entry::Node(Node::parse(line).map_err(|why| format!("{at}: {why}"))?));
             continue;
         }
+        if line.get(..9).is_some_and(|scheme| scheme.eq_ignore_ascii_case("ssconf://")) {
+            let key = Subscription::key(line).map_err(|why| format!("{at}: {why}"))?;
+            entries.push(Entry::Subscription(key));
+            continue;
+        }
         let mut words = line.split_whitespace();
         match (words.next(), words.next(), words.next()) {
             (Some(word), Some(url), None) if word.eq_ignore_ascii_case("subscription") => {
                 let list = Subscription::parse(url).map_err(|why| format!("{at}: {why}"))?;
                 entries.push(Entry::Subscription(list));
             }
-            _ => return Err(format!("{at}: a line is ss://..., subscription https://..., or a # comment")),
+            (Some(word), Some(url), None) if word.eq_ignore_ascii_case("key") => {
+                let key = Subscription::key(url).map_err(|why| format!("{at}: {why}"))?;
+                entries.push(Entry::Subscription(key));
+            }
+            _ => {
+                return Err(format!(
+                    "{at}: a line is ss://..., ssconf://..., subscription https://..., key https://..., or a # comment"
+                ))
+            }
         }
     }
     if entries.is_empty() {
-        return Err(format!("--shadowsocks {file}: it has no ss:// line and no subscription"));
+        return Err(format!("--shadowsocks {file}: it has no ss:// line, no access key and no subscription"));
     }
     Ok(Servers { entries })
 }
@@ -162,5 +177,21 @@ mod tests {
         assert!(parse("# only\n", "f").unwrap_err().contains("no ss:// line"));
         let plain = parse("subscription http://sub.example/list\n", "f").unwrap_err();
         assert!(plain.contains("over TLS"), "{plain}");
+    }
+
+    #[test]
+    fn an_access_key_is_an_ssconf_line_or_key_https_and_shows_its_host_alone() {
+        let text = "ssconf://keys.example/a1b2SECRET.yml#My%20Server\nkey https://k.example:8443/SECRET\n";
+        let servers = parse(text, "f").unwrap();
+        let Entry::Subscription(key) = &servers.entries[0] else { panic!("{servers:?}") };
+        assert_eq!((key.kind, key.shown()), (subscription::Kind::Key, "https://keys.example/...".to_string()));
+        assert_eq!((key.what(), key.tag.as_deref()), ("the access key", Some("My Server")));
+        let Entry::Subscription(other) = &servers.entries[1] else { panic!("{servers:?}") };
+        assert_eq!(other.shown(), "https://k.example:8443/...");
+        assert!(!format!("{servers:?}").contains("SECRET"));
+        let plain = parse("key http://k.example/SECRET\n", "f").unwrap_err();
+        assert!(plain.contains("an access key is fetched over TLS") && !plain.contains("SECRET"), "{plain}");
+        let list = Subscription::parse("https://keys.example/a1b2SECRET.yml").unwrap();
+        assert_ne!(list.file_name(), key.file_name(), "a key and a list of one URL are two files");
     }
 }

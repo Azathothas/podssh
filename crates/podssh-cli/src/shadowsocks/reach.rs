@@ -35,6 +35,7 @@ pub async fn reach(
     }
     let dial = Dial {
         proxy: &ProxyChoice::FromEnvironment,
+        trust,
         timeout: podssh_relay::open::CONNECT_TIMEOUT,
         answer: Some(shadowsocks::ANSWER_WAIT),
         silence_is_ready: false,

@@ -460,7 +460,7 @@ HTTP/2 (T-439); VLESS over a WebSocket and over XHTTP (T-440; over HTTP/1.1
 on two connections, T-456); wstunnel's
 protocol (T-441); and those that T-442 found: chisel (`--chisel`, T-490), Trojan
 (T-491), Shadowsocks 2022 (T-492), Outline's Shadowsocks in a WebSocket
-(T-493), NaiveProxy's server through `--via` (T-494), frp for the reverse
+and its `ssconf://` keys (in `--shadowsocks`, T-493), NaiveProxy's server through `--via` (T-494), frp for the reverse
 road (T-498), and the IETF's connect-tcp once it is an RFC (T-499).
 [carriers.md](carriers.md) gives each reason, and those that do not fit.
 

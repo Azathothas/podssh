@@ -11,8 +11,8 @@ pub const SHADOWSOCKS: FlagRow = row(
     Some("FILE"),
     FlagKind::Supported,
     "reach the first hop through Shadowsocks servers, in order, in place of the relay: FILE is private, with \
-     ss:// lines (chacha20-ietf-poly1305, aes-256-gcm, aes-128-gcm; no plugin) and subscription https://URL \
-     lines",
+     ss:// lines (chacha20-ietf-poly1305, aes-256-gcm, aes-128-gcm; no plugin), subscription https://URL lines, \
+     and Outline access keys (ssconf://URL, or key https://URL), whose server may be in a WebSocket over TLS",
     None,
 );
 
@@ -22,8 +22,8 @@ pub const PROXY_SHADOWSOCKS: FlagRow = row(
     "shadowsocks",
     Some("FILE"),
     FlagKind::Supported,
-    "reach the target through the Shadowsocks servers of FILE, in order, in place of the relay: ss:// lines and \
-     subscription https://URL lines, in a private file",
+    "reach the target through the Shadowsocks servers of FILE, in order, in place of the relay: ss:// lines, \
+     subscription https://URL lines and Outline access keys (ssconf://URL), in a private file",
     None,
 );
 

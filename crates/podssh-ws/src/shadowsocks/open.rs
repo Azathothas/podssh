@@ -5,16 +5,19 @@
 //! limit. That answer tells a server that took the key from one that did
 //! not: a server is silent to a stream that it cannot open, and a proxy
 //! that waits for TLS on port 443 carries nothing and says nothing either
-//! (T-317), so silence names both.
+//! (T-317), so silence names both. A server of a key that names a
+//! WebSocket (T-493) is reached in it ([`super::ws`]), and the stream is the
+//! same inside.
 
 use std::time::Duration;
 
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::time::Instant;
 
 use super::codec::{self, ChunkError, Decoder, Encoder};
 use super::{carry, Carried, Node};
 use crate::dial::{DialError, ProxyChoice};
+use crate::tls::Trust;
 
 /// How long the server's first chunk may take, after the salt and the
 /// target went: the SSH server behind it speaks at once, as T-363's road
@@ -24,6 +27,8 @@ pub const ANSWER_WAIT: Duration = Duration::from_secs(10);
 /// What the dial of a server needs, beside the server and the target.
 pub struct Dial<'a> {
     pub proxy: &'a ProxyChoice,
+    /// The trust of a WebSocket's TLS, for a server in one (T-493).
+    pub trust: &'a Trust,
     /// Bound on the TCP dial, and on the send of the first chunk.
     pub timeout: Duration,
     /// How long to wait for the server's first chunk; `None` waits for
@@ -52,6 +57,9 @@ pub enum OpenError {
     Target(String),
     /// The TCP connection to the server, directly or through the proxy.
     Dial(DialError),
+    /// The WebSocket to a server in one: TLS, a refused upgrade or a wrong
+    /// path, in its words, which show no path (T-493).
+    WebSocket(String),
     /// Sending the salt and the target failed.
     Send(String),
     /// Nothing came back: through the wait (`ended` is `None`), or before
@@ -71,6 +79,7 @@ impl OpenError {
         match self {
             OpenError::Target(why) => format!("{target} cannot go in a Shadowsocks address: {why}"),
             OpenError::Dial(e) => format!("the Shadowsocks server {shown}: {e}"),
+            OpenError::WebSocket(why) => format!("the Shadowsocks server {shown}: {why}"),
             OpenError::Send(why) => {
                 format!("the Shadowsocks server {shown}: sending the salt and {target} failed: {why}")
             }
@@ -109,13 +118,25 @@ fn seconds(wait: Duration) -> String {
 /// A stream to `host:port` through `node`.
 pub async fn open(node: &Node, host: &str, port: u16, dial: &Dial<'_>) -> Result<Opened, OpenError> {
     let header = codec::address(host, port).map_err(OpenError::Target)?;
-    let proxy = match dial.proxy {
-        ProxyChoice::Direct => None,
-        ProxyChoice::Via(proxy) => Some(proxy.to_string()),
-        ProxyChoice::FromEnvironment => crate::dial::proxy_from_env(&node.host).ok().flatten().map(|p| p.to_string()),
+    // A proxy is named in a silence's words only for raw TCP: a WebSocket's
+    // upgrade proved that the bytes pass.
+    let proxy = match (dial.proxy, &node.ws) {
+        (_, Some(_)) | (ProxyChoice::Direct, None) => None,
+        (ProxyChoice::Via(proxy), None) => Some(proxy.to_string()),
+        (ProxyChoice::FromEnvironment, None) => {
+            crate::dial::proxy_from_env(&node.host).ok().flatten().map(|p| p.to_string())
+        }
     };
     let started = Instant::now();
-    let mut tcp = crate::dial::dial(&node.host, node.port, dial.proxy, dial.timeout).await.map_err(OpenError::Dial)?;
+    let mut tcp: Box<dyn Io> = match &node.ws {
+        Some(url) => {
+            let carried = super::ws::open(url, dial.trust, dial.proxy, dial.timeout).await;
+            Box::new(carried.map_err(OpenError::WebSocket)?)
+        }
+        None => {
+            Box::new(crate::dial::dial(&node.host, node.port, dial.proxy, dial.timeout).await.map_err(OpenError::Dial)?)
+        }
+    };
     let master = node.master_key();
     let mut encoder = Encoder::new(node.method, &master).map_err(|e| OpenError::Send(e.to_string()))?;
     let mut first = Vec::new();
@@ -142,6 +163,11 @@ pub async fn open(node: &Node, host: &str, port: u16, dial: &Dial<'_>) -> Result
     };
     Ok(Opened { carried: carry::spawn(tcp, encoder, decoder, early), answered_in })
 }
+
+/// The server's connection: TCP, or the bytes of a WebSocket.
+trait Io: AsyncRead + AsyncWrite + Unpin + Send {}
+
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> Io for T {}
 
 /// How the wait for the first chunk failed.
 enum Waited {

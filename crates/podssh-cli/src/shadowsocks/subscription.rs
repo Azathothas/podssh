@@ -6,6 +6,11 @@
 //! after that, and when each of its servers failed ([`super::order`]). The
 //! URL's path and query may hold the provider's token: a line shows the
 //! host alone.
+//!
+//! An Outline access key (T-493), `ssconf://HOST/PATH` (`https://` in its
+//! place, as Outline's client reads it), is fetched and kept the same way:
+//! its body is one server ([`shadowsocks::access_key`]), and a server in a
+//! WebSocket keeps its URL in the kept file beside its `ss://` line.
 
 use std::fmt;
 use std::time::Duration;
@@ -27,6 +32,15 @@ const REDIRECTS: usize = 3;
 /// less room for the time and the brackets.
 const MAX_KEPT: usize = 60 * 1024;
 
+/// What a URL serves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    /// A list of servers.
+    List,
+    /// An Outline access key: one server (T-493).
+    Key,
+}
+
 /// A subscription's URL: `https://HOST[:PORT]/PATH?QUERY`.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Subscription {
@@ -34,6 +48,9 @@ pub struct Subscription {
     pub port: u16,
     /// The path and its query, as the request line carries them.
     target: Zeroizing<String>,
+    pub kind: Kind,
+    /// An access key's name after `#`, for its server's lines.
+    pub tag: Option<String>,
 }
 
 impl fmt::Debug for Subscription {
@@ -68,7 +85,28 @@ impl Subscription {
         // A byte that is not ASCII goes percent-encoded, as a browser sends it.
         let target: String =
             target.bytes().map(|b| if b < 0x80 { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
-        Ok(Subscription { host, port, target: Zeroizing::new(target) })
+        Ok(Subscription { host, port, target: Zeroizing::new(target), kind: Kind::List, tag: None })
+    }
+
+    /// An access key's URL: `ssconf://...`, read as `https://...`, or an
+    /// `https://` URL; its fragment is the name of its server.
+    pub fn key(url: &str) -> Result<Subscription, String> {
+        let url = url.trim();
+        let https = match url.get(..9) {
+            Some(scheme) if scheme.eq_ignore_ascii_case("ssconf://") => format!("https://{}", &url[9..]),
+            _ => url.to_string(),
+        };
+        let tag = https.split_once('#').map(|(_, tag)| tag.replace("%20", " ")).filter(|t| !t.trim().is_empty());
+        let parsed = Subscription::parse(&https).map_err(|why| why.replace("a subscription", "an access key"))?;
+        Ok(Subscription { kind: Kind::Key, tag: tag.map(|t| t.chars().take(64).collect()), ..parsed })
+    }
+
+    /// The words that name it in a line: `the subscription` or `the access key`.
+    pub fn what(&self) -> &'static str {
+        match self.kind {
+            Kind::List => "the subscription",
+            Kind::Key => "the access key",
+        }
     }
 
     /// The URL with its host alone: `https://HOST/...`.
@@ -84,6 +122,10 @@ impl Subscription {
     /// lists of one host are two files, and no part of it shows.
     pub fn file_name(&self) -> String {
         let mut hash = Sha256::new();
+        // A key and a list at one URL are two files.
+        if self.kind == Kind::Key {
+            hash.update(b"key ");
+        }
         hash.update(format!("{}:{}", self.host, self.port).as_bytes());
         hash.update(self.target.as_bytes());
         let digest = hash.finalize();
@@ -127,11 +169,33 @@ pub fn kept(list: &Subscription) -> Option<Kept> {
     let doc: serde_json::Value = serde_json::from_str(&text).ok()?;
     let fetched = doc.get("fetched").and_then(|f| f.as_i64())?;
     let lines = doc.get("nodes").and_then(|n| n.as_array())?;
-    let nodes: Vec<Node> = lines.iter().filter_map(|l| l.as_str()).filter_map(|l| Node::parse(l).ok()).collect();
+    let nodes: Vec<Node> = lines.iter().filter_map(kept_node).collect();
     let age = crate::pairs::now_ms() / 1000 - fetched;
     // A time ahead of the clock by more than a minute is not trusted.
     let fresh = (-60..KEEP.as_secs() as i64).contains(&age);
     Some(Kept { nodes, fresh })
+}
+
+/// Each string of `value`, zeroized: a kept line holds a password.
+fn zeroize_value(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::String(text) => zeroize::Zeroize::zeroize(text),
+        serde_json::Value::Object(map) => map.values_mut().for_each(zeroize_value),
+        _ => {}
+    }
+}
+
+/// A kept server: its `ss://` line, or `{"uri", "ws"}` for one in a
+/// WebSocket (T-493).
+fn kept_node(entry: &serde_json::Value) -> Option<Node> {
+    if let Some(line) = entry.as_str() {
+        return Node::parse(line).ok();
+    }
+    let node = Node::parse(entry.get("uri")?.as_str()?).ok()?;
+    match entry.get("ws").and_then(|ws| ws.as_str()) {
+        Some(url) => node.with_websocket(podssh_ws::url::WsUrl::parse(url).ok()?).ok(),
+        None => Some(node),
+    }
 }
 
 /// A list as it came, and what to say of it.
@@ -143,12 +207,19 @@ pub struct Fetched {
 
 /// Fetch `list` through the proxy over TLS, read it, and keep it.
 pub async fn fetch(list: &Subscription, trust: &Trust) -> Result<Fetched, String> {
-    let shown = list.shown();
-    let body = get(list, trust).await.map_err(|why| format!("the subscription {shown}: {why}"))?;
-    let listed = shadowsocks::subscription(&body).map_err(|why| format!("the subscription {shown}: {why}"))?;
+    let (what, shown) = (list.what(), list.shown());
+    let body = get(list, trust).await.map_err(|why| format!("{what} {shown}: {why}"))?;
+    let listed = match list.kind {
+        Kind::List => shadowsocks::subscription(&body),
+        Kind::Key => shadowsocks::access_key(&body).map(|mut node| {
+            node.tag = node.tag.take().or_else(|| list.tag.clone());
+            shadowsocks::Listed { nodes: vec![node], ..shadowsocks::Listed::default() }
+        }),
+    };
+    let listed = listed.map_err(|why| format!("{what} {shown}: {why}"))?;
     let mut notes = Vec::new();
     if !listed.refused.is_empty() {
-        notes.push(format!("the subscription {shown}: left out, {}", listed.refused.join("; ")));
+        notes.push(format!("{what} {shown}: left out, {}", listed.refused.join("; ")));
     }
     if listed.nodes.is_empty() {
         let others = match listed.others {
@@ -158,7 +229,7 @@ pub async fn fetch(list: &Subscription, trust: &Trust) -> Result<Fetched, String
         return Err(format!("the subscription {shown} holds no Shadowsocks server that podssh can use{others}"));
     }
     if let Some(note) = keep(list, &listed.nodes) {
-        notes.push(format!("the subscription {shown}: {note}"));
+        notes.push(format!("{what} {shown}: {note}"));
     }
     Ok(Fetched { nodes: listed.nodes, notes })
 }
@@ -214,22 +285,27 @@ fn failed(e: &ConnectError, host: &str) -> String {
 /// Keep `nodes` as the list of `list`, with the time; what to say when the
 /// cache took less than all, or none.
 fn keep(list: &Subscription, nodes: &[Node]) -> Option<String> {
-    let mut lines: Vec<String> = Vec::new();
+    let mut lines: Vec<serde_json::Value> = Vec::new();
     let mut size = 0;
     for node in nodes {
         let uri = node.to_uri();
-        if size + uri.len() + 4 > MAX_KEPT {
+        let ws = node.websocket_text();
+        let len = uri.len() + ws.as_ref().map_or(0, |w| w.len() + 16) + 4;
+        if size + len > MAX_KEPT {
             break;
         }
-        size += uri.len() + 4;
-        lines.push(uri.as_str().to_string());
+        size += len;
+        lines.push(match ws {
+            Some(ws) => serde_json::json!({ "uri": uri.as_str(), "ws": ws.as_str() }),
+            None => serde_json::Value::String(uri.as_str().to_string()),
+        });
     }
     let doc = serde_json::json!({ "fetched": crate::pairs::now_ms() / 1000, "nodes": lines });
     let body = Zeroizing::new(doc.to_string());
     let left = nodes.len() - lines.len();
     // The lines held passwords; their copies go with the body.
     for line in &mut lines {
-        zeroize::Zeroize::zeroize(line);
+        zeroize_value(line);
     }
     match podssh_relay::cache::store_file(&list.file_name(), body.as_bytes()) {
         Ok(_) if left == 0 => None,

@@ -270,6 +270,7 @@ const FIRST: &[&str] = &[
      bytes. A published key is shared with strangers, has no operator who answers for it, and changes: \
      podssh names no server and no list. A run has one road: --relay-host, --relay-failover, --direct, \
      --forwarder, -4, -6, and a destination with a road of its own cannot go with it (64).",
+    super::notes_outline::OUTLINE,
     "--via https://[USER@]HOST[:PORT] reaches the first hop through a forward proxy over TLS that you run \
      (Caddy's forwardproxy, squid's https_port, h2o), in place of the relay; the port is 443 when none is \
      named. podssh opens TLS to it, through HTTPS_PROXY when one is set, checked for HOST with podssh's \

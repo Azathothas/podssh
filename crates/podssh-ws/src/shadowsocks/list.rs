@@ -84,7 +84,7 @@ fn sip008(text: &str) -> Result<Listed, String> {
     Ok(listed)
 }
 
-fn sip008_node(server: &serde_json::Value) -> Result<Node, String> {
+pub(super) fn sip008_node(server: &serde_json::Value) -> Result<Node, String> {
     let text = |key: &str| server.get(key).and_then(|v| v.as_str());
     if let Some(plugin) = text("plugin").filter(|p| !p.trim().is_empty()) {
         return Err(plugin_refusal(&plugin_name(plugin)));

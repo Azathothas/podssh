@@ -1092,6 +1092,10 @@ with TCP and TLS alone.
      not pass a proxy that waits for TLS.
    - Rust and C: T-373's codec and podssh-ws's WebSocket; a reader of the
      key's YAML. Effort: M.
+   - Built (T-493): `ssconf://` and `key https://` lines of `--shadowsocks`,
+     a server in a WebSocket. outline-ss-server dials no private address
+     (`onet.RequirePublicIP` in `service/tcp.go` at v1.9.2), so its interop
+     reaches GitHub's SSH endpoint.
 5. **NaiveProxy's server** (fits, through `--via`: T-494).
    - What it is: Caddy with klzgrad's fork of forwardproxy, Apache-2.0,
      release v2.11.7-naive2 (2026-10-22): an HTTP/2 CONNECT proxy over TLS

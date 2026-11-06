@@ -66,6 +66,7 @@ harness via via 11 scripts/interop-via.sh
 harness vless vless 15 scripts/interop-vless.sh
 harness wstunnel wstunnel 12 scripts/interop-wstunnel.sh
 harness chisel chisel 9 scripts/interop-chisel.sh
+harness outline outline 8 scripts/interop-outline.sh
 harness acme acme 8 scripts/interop-acme.sh
 harness go-ssh go-ssh 8 scripts/interop-go-ssh.sh
 harness cgroup cgroup 5 scripts/interop-cgroup.sh
@@ -880,6 +881,15 @@ chisel.wrong-fingerprint pass
 chisel.denied pass
 chisel.hop pass
 chisel.secret pass
+# scripts/interop-outline.sh
+outline.version pass
+outline.banner pass
+outline.private pass
+outline.wrong-path pass
+outline.refused pass
+outline.wrong-secret pass
+outline.hop pass
+outline.secret pass
 # scripts/interop-acme.sh
 acme.issued pass
 acme.private pass

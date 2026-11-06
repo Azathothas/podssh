@@ -47,6 +47,7 @@ mod notes_pipe;
 mod notes_play;
 mod notes_proxy;
 // ssh's note on the public services that podssh tries last (T-533).
+mod notes_outline;
 mod notes_public;
 // relay's and node's notes on a name published by its ClientHello (T-649).
 mod notes_publish;

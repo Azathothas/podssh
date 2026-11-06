@@ -1,0 +1,43 @@
+name: outline interop
+
+# `--shadowsocks` with an Outline access key (T-493, the operator's ruling
+# Q66), against OutlineFoundation's own outline-ss-server of a pinned
+# release (checked by its SHA-256), its listener websocket-stream behind
+# nginx with TLS, in containers of the runner's Docker, with a plain squid
+# as the host's proxy: scripts/interop-outline.sh. The server dials no
+# private address, so the target is GitHub's SSH endpoint. The secret and
+# the path are made for the run and never printed. Started by hand, and on
+# a push that changes the road; it publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-ws/src/shadowsocks/**"
+      - "crates/podssh-cli/src/shadowsocks/**"
+      - "scripts/interop-outline.sh"
+      - ".github/workflows/outline-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: outline-ss-server's own release
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 1500 sh scripts/interop-outline.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > outline.log 2>&1 || rc=$?
+          cat outline.log
+          [ "$rc" = 0 ] || { echo "interop-outline exited $rc"; exit 1; }

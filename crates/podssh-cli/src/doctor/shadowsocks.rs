@@ -34,6 +34,7 @@ pub(super) async fn check(report: &mut Report<'_>, servers: &Servers, trust: &Tr
     let shown = node.shown();
     let road = Dial {
         proxy: &ProxyChoice::FromEnvironment,
+        trust,
         timeout: TIMEOUT,
         answer: Some(shadowsocks::ANSWER_WAIT),
         silence_is_ready: false,

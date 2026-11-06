@@ -5103,9 +5103,9 @@ The servers of shadowsocks-rust, sing-box and Xray-core give out keys of the 202
 
 ## Premise
 
-- `crates/podssh-ws/src/shadowsocks/mod.rs:110` says "which podssh does not speak", for a method
+- `crates/podssh-ws/src/shadowsocks/mod.rs:116` says "which podssh does not speak", for a method
   of `2022-blake3-`, and a test holds that refusal:
-  `crates/podssh-cli/tests/shadowsocks_cli.rs:75` says "a_plugin_shadowsocks_2022".
+  `crates/podssh-cli/tests/shadowsocks_cli.rs:78` says "a_plugin_shadowsocks_2022".
 - Read at <https://shadowsocks.org/doc/sip022.html> (2026-11-02): a pre-shared key of 16 or 32
   bytes in base64; each stream's key by BLAKE3's `derive_key` with the context "shadowsocks 2022
   session subkey" over the key and the salt; a request of a salt, a fixed header (a type, a
@@ -5154,7 +5154,7 @@ moved code then runs there.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5173,7 +5173,7 @@ keys that name it; podssh reads neither.
   a dynamic key is `ssconf://` read as `https://`, its body JSON (`server`, `server_port`,
   `password`, `method`) or a YAML whose TCP part names `$type: websocket` and a `wss://` URL.
 - `--shadowsocks` already fetches a subscription:
-  `crates/podssh-cli/src/shadowsocks/subscription.rs:30` says "A subscription's URL".
+  `crates/podssh-cli/src/shadowsocks/subscription.rs:44` says "A subscription's URL".
 
 ## Approach
 
@@ -5183,6 +5183,25 @@ keys that name it; podssh reads neither.
 2. An endpoint `$type: websocket`: the AEAD stream in binary messages of podssh-ws's WebSocket to
    its `wss://` URL. A key with no WebSocket stays raw TCP.
 3. A refused upgrade, a wrong path and a wrong key, each named.
+
+## Decision
+
+2026-11-06 (the drafting agent). Three calls:
+
+1. The key's YAML is read by a reader of its own (`crates/podssh-ws/src/shadowsocks/yaml.rs`, into
+   `serde_json`'s values): block mappings and lists, plain and quoted scalars, comments, `---`,
+   anchors and aliases, which Outline's examples use; flow collections, block scalars, tags and
+   merge keys are refused by name. Lost: a YAML crate (`serde_norway`, `saphyr`), which reads all of
+   YAML but adds a crate and a change of `Cargo.lock` for a subset that keys use; it can take the
+   reader's place if a key in the field needs more.
+2. An `https://` URL is marked as a key by the word `key` (`key https://URL`), as a list is by
+   `subscription`: a bare `https://` line would be neither. `ssconf://` needs no word.
+3. A key is fetched and kept as a subscription is, a list of one server: the kept file holds an
+   object `{"uri", "ws"}` for a server in a WebSocket, and a plain `ss://` line for the others, so a
+   file kept before reads as it did. A salt's `prefix`, a WebSocket with its own `endpoint` (a dial
+   to another address than its URL's) and the other types of Outline's configuration are refused by
+   name; `first-supported` takes the first option that podssh reads. Lost: the prefix, which needs
+   the first bytes of the salt chosen, for a later entry if a server needs it.
 
 ## Prove
 
@@ -5206,6 +5225,57 @@ licensed and small enough. The module is `podssh-ws`'s `shadowsocks/`, which goe
 PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
 crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
 moved code then runs there.
+
+2026-11-06 (the drafting agent). The Prove's run cannot reach its sshd: outline-ss-server dials no
+private address (`OutlineFoundation/outline-ss-server:service/tcp.go:175` at v1.9.2,
+`MakeValidatingTCPStreamDialer(onet.RequirePublicIP, 0)`; `cmd/outline-ss-server/main.go:303` sets
+the same, and no flag or key of its configuration turns it off), and a container's sshd is on a
+private network. `scripts/interop-outline.sh` reaches GitHub's SSH endpoint through it (its banner, a
+target that `AGENTS.md` allows) and checks that a private target is refused and named; the session
+with 1 MiB each way is the stand-in's, in `crates/podssh-cli/tests/shadowsocks_cli.rs`, behind the
+test's TLS proxy. Approach item 1's "https:// ones marked as a key" is `key https://URL` (Decision).
+
+## Done
+
+2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t493`, `fb99826c`), then merged, built and
+tested by the main session after the take of podcrates v0.4.0: it built and passed with no repair.
+
+- `crates/podssh-ws/src/shadowsocks/`: `Node` gains `ws`, the `wss://` URL of a WebSocket that carries
+  its stream (`Node::over_websocket`, `with_websocket`, `websocket_text`; `shown()` is
+  `wss://HOST/...`, with no path); `ws.rs` opens podssh's WebSocket to it (`url::dial`, TLS with the
+  `Dial`'s new `trust`, through the proxy) and carries the bytes in binary messages
+  (`forwarder::carry`); `open.rs` reaches a server in one by it, the stream the same, and names a
+  failure of the WebSocket (`OpenError::WebSocket`: a 404 as a path that is not the server's,
+  another refusal by its status), and no proxy in a silence's words, as the upgrade proved that bytes
+  pass. `key.rs` reads a key's body (`access_key`): an `ss://` link, JSON, or Outline's YAML;
+  `yaml.rs` the subset of YAML. Unit tests: each form, `first-supported`, the refusals, no secret in
+  a message; the reader's anchors, lists, quotes and refusals; a WebSocket's failure shows no path:
+  `cargo test -p podssh-ws --lib`, 158 passed.
+- `crates/podssh-cli/src/shadowsocks/`: `ssconf://...` and `key https://...` lines
+  (`Subscription::key`, `Kind::Key`, its `#` name the server's tag); a key is fetched, kept (in a
+  file of its own, the kept entry `{"uri", "ws"}` for a server in a WebSocket) and ordered as a
+  subscription is; the lines say "the access key" (`what()`); the three `Dial`s pass their trust.
+  Unit test of the lines: the CLI's library, 990 passed; clippy and rustfmt clean.
+- `crates/podssh-cli/tests/shadowsocks_cli.rs`,
+  `an_outline_key_carries_the_session_in_a_websocket_and_each_failure_is_named`, with a stand-in of
+  outline-ss-server's listener behind the test's TLS proxy (`tests/shadowsocks_support/outline.rs`):
+  an `ssconf://` key in YAML whose endpoint is a WebSocket on a secret path; 1 MiB each way through
+  it, equal digests, one stream, no text message; then a wrong path (404), a refused upgrade (403)
+  and a wrong secret, each named (exit 255); no secret, path or key path in the words. It needs no
+  program of another party, so it always runs: `cargo test -p podssh-cli --test shadowsocks_cli`, 8
+  passed. Planted: text
+  messages in place of binary ones (`send_binary` as `send_text` in
+  `crates/podssh-ws/src/forwarder/carry.rs`'s up task): the stand-in closes the stream as
+  `gorillaConn` does, and the test failed (no answer to the salt); put back, it passes.
+- `scripts/interop-outline.sh` with `.github/workflows/outline-interop.yml` and its 8 ids in
+  `scripts/interop-baseline.txt` (the harness `outline`, floor 8): outline-ss-server v1.9.2's own
+  release by the SHA-256 of its `checksums.txt`, behind nginx with TLS, the keys served by nginx;
+  GitHub's banner through it, a private target refused, a wrong path, a refused upgrade, a wrong
+  secret, the host's squid by name, no output with the secret or the path. It waits for a runner
+  (this host's containers reach no package mirror and no outside SSH, as `interop-chisel.sh` found);
+  `cargo test -p podssh-todo --test interop`, which reads the baseline, passed.
+- The flags' words (`flags/shadowsocks.rs`), the manual (`man/notes_outline.rs`, after the note of
+  `--shadowsocks`; FILES of `man/data.rs`), `docs/cli.md`, `docs/carriers.md`, `docs/mesh.md`.
 
 # T-494: `--via` against NaiveProxy's server, and the words of a probe-resistant proxy
 
@@ -7546,9 +7616,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1147-1148` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1149` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1143` says "UDP alone, which the
+- `docs/carriers.md:1151-1152` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1153` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1147` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over
@@ -7614,9 +7684,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1154-1155` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1157-1158` says "as the server never answers a command";
-  `docs/carriers.md:1160` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1158-1159` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1161-1162` says "as the server never answers a command";
+  `docs/carriers.md:1164` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 

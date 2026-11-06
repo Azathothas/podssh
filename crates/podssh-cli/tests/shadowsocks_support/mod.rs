@@ -3,9 +3,12 @@
 //! server, a stand-in subscription behind the proxy of `cloud_support`, a
 //! CONNECT proxy that maps each name to the loopback (or takes each byte
 //! and carries none), and the run of `podssh` with its stdin, within a
-//! limit.
+//! limit. Behind the same proxy, a stand-in of Outline's server in a
+//! WebSocket ([`outline`], T-493).
 
 #![allow(dead_code)]
+
+pub mod outline;
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -80,6 +83,10 @@ pub struct Served {
     pub body: Vec<u8>,
     pub asked: usize,
     pub paths: Vec<String>,
+    /// The stand-in of Outline's server that an upgrade reaches, when one
+    /// is set (T-493).
+    pub outline: Option<outline::Outline>,
+    pub seen: Arc<outline::Seen>,
 }
 
 /// The test's SSH server, the proxy with the stand-in subscription behind
@@ -119,6 +126,14 @@ impl World {
         self.served.lock().unwrap().clone()
     }
 
+    /// The stand-in of Outline's server that each upgrade reaches from now
+    /// on, and what it saw.
+    pub fn serve_outline(&self, outline: outline::Outline) -> Arc<outline::Seen> {
+        let mut served = self.served.lock().unwrap();
+        served.outline = Some(outline);
+        served.seen.clone()
+    }
+
     /// `podssh ssh` to the test's server with `road`, running `remote`,
     /// through the world's proxy, with no other road of the environment, no
     /// settings file and a cache of its own.
@@ -150,6 +165,20 @@ fn handler(served: Arc<Mutex<Served>>) -> Handler {
 
 async fn serve_list(served: Arc<Mutex<Served>>, mut stream: Stream) {
     let Ok(head) = cloud_support::read_head(&mut stream).await else { return };
+    let upgrade = cloud_support::header(&head, "Upgrade").is_some_and(|v| v.eq_ignore_ascii_case("websocket"));
+    if upgrade {
+        let (outline, seen) = {
+            let served = served.lock().unwrap();
+            (served.outline.clone(), served.seen.clone())
+        };
+        match outline {
+            Some(outline) => outline::serve(&head, stream, &outline, seen).await,
+            None => {
+                let _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n").await;
+            }
+        }
+        return;
+    }
     let path = head.split_whitespace().nth(1).unwrap_or_default().to_string();
     let body = {
         let mut served = served.lock().unwrap();

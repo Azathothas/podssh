@@ -11,19 +11,25 @@
 //! with the ciphers of podssh's own TLS (`crypto/aead.rs`). Shadowsocks 2022
 //! (SIP022) is refused by its name, and so is a plugin, another program
 //! that podssh does not start. The server is reached as each road reaches
-//! its first host: TCP through the proxy of the environment ([`open`]).
+//! its first host: TCP through the proxy of the environment ([`open`]), or,
+//! for a server of an Outline access key that names one, a WebSocket over
+//! TLS (T-493, [`ws`], [`key`]).
 //!
 //! The password goes into the master key and nowhere else: no message, no
 //! `Debug` and no line of a log holds it.
 
 mod carry;
 pub mod codec;
+mod key;
 mod list;
 mod open;
 mod uri;
+mod ws;
+mod yaml;
 
 pub use carry::{Carried, Ended, Status};
 pub use codec::{address, parse_address, ChunkError, Decoder, Encoder, MAX_PAYLOAD};
+pub use key::access_key;
 pub use list::{subscription, Listed};
 pub use open::{open, Dial, OpenError, Opened, ANSWER_WAIT};
 pub use uri::Node;

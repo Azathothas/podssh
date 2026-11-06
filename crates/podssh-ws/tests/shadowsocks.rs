@@ -301,8 +301,9 @@ async fn stand_in(method: Method, password: &[u8], banner: &'static [u8]) -> (u1
 
 fn dial(answer: Duration) -> shadowsocks::Dial<'static> {
     static DIRECT: ProxyChoice = ProxyChoice::Direct;
+    static TRUST: podssh_ws::Trust = podssh_ws::Trust::Default;
     let timeout = Duration::from_secs(10);
-    shadowsocks::Dial { proxy: &DIRECT, timeout, answer: Some(answer), silence_is_ready: false }
+    shadowsocks::Dial { proxy: &DIRECT, trust: &TRUST, timeout, answer: Some(answer), silence_is_ready: false }
 }
 
 #[tokio::test]

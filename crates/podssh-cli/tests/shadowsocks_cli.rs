@@ -12,7 +12,10 @@
 //! `sslocal`'s client. `ssserver` and `sslocal` come from
 //! `PODSSH_TEST_SSSERVER` and `PODSSH_TEST_SSLOCAL` (the gate names them, so
 //! that a missing one fails), else the path; with neither, a test says that
-//! it did not run. The refusals need no server and always run.
+//! it did not run. The refusals need no server and always run, and so does
+//! the access key of Outline (T-493): an `ssconf://` key served over TLS
+//! whose server is in a WebSocket, a stand-in of outline-ss-server's
+//! listener behind the same proxy; its failures each named.
 #![cfg(unix)]
 
 mod cloud_support;
@@ -200,4 +203,54 @@ fn the_bytes_that_sslocal_sends_open_and_its_client_hears_the_answer() {
         assert_eq!(heard.first, b"hello from sslocal", "{method}");
         assert_eq!(heard.answer, b"hello back", "{method}");
     }
+}
+
+/// An Outline access key (T-493) whose YAML names a WebSocket on a secret
+/// path, with `secret`.
+fn outline_key(url: &str, secret: &str) -> Vec<u8> {
+    format!(
+        "transport:\n  $type: tcpudp\n  tcp:\n    $type: shadowsocks\n    endpoint:\n      $type: websocket\n      \
+         url: {url}\n    cipher: chacha20-ietf-poly1305\n    secret: {secret}\n  udp: null\n"
+    )
+    .into_bytes()
+}
+
+#[test]
+fn an_outline_key_carries_the_session_in_a_websocket_and_each_failure_is_named() {
+    use std::sync::atomic::Ordering::SeqCst;
+    let w = World::new("outline");
+    let outline = shadowsocks_support::outline::Outline {
+        path: "/SECRET-PATH/tcp".into(),
+        method: podssh_ws::shadowsocks::Method::Chacha20IetfPoly1305,
+        password: "outline-password".into(),
+    };
+    let seen = w.serve_outline(outline);
+    w.serve(outline_key("wss://ss.test/SECRET-PATH/tcp", "outline-password"));
+    let file = private_file(&w.dir, "outline.list", "ssconf://keys.test/KEY-SECRET.yml#Outline\n");
+    let data = shadowsocks_support::mebibyte();
+    let (code, out, err) = run(w.ssh(&["--shadowsocks", &file.display().to_string()], "echo"), data.clone());
+    assert_eq!(code, Some(0), "{err}");
+    assert_eq!(out.len(), MIB, "{err}");
+    assert_eq!(shadowsocks_support::digest(&out), shadowsocks_support::digest(&data), "a mebibyte each way");
+    assert_eq!((seen.streams.load(SeqCst), seen.texts.load(SeqCst)), (1, 0), "one stream, in binary messages");
+    assert_eq!(w.served().paths, vec!["/KEY-SECRET.yml".to_string()], "the key fetched by its path");
+    for secret in ["outline-password", "SECRET-PATH", "KEY-SECRET"] {
+        assert!(!err.contains(secret), "{secret} in: {err}");
+    }
+
+    // Each failure, with a key of its own URL, as a kept key is read for a day.
+    let cases = [
+        ("wrong-path", "wss://ss.test/WRONG/tcp", "outline-password", "has no WebSocket at the key's path (HTTP 404)"),
+        ("refused", "wss://ss.test/forbidden/tcp", "outline-password", "refused the upgrade: HTTP 403"),
+        ("wrong-key", "wss://ss.test/SECRET-PATH/tcp", "not-the-password", "the password or the method may not be"),
+    ];
+    for (name, url, secret, words) in cases {
+        w.serve(outline_key(url, secret));
+        let file = private_file(&w.dir, &format!("{name}.list"), &format!("ssconf://keys.test/{name}.yml\n"));
+        let (code, _, err) = run(w.ssh(&["--shadowsocks", &file.display().to_string()], "greet"), Vec::new());
+        assert_eq!(code, Some(255), "{name}: {err}");
+        assert!(err.contains("the Shadowsocks server wss://ss.test/...") && err.contains(words), "{name}: {err}");
+        assert!(!err.contains(secret) && !err.contains("SECRET-PATH"), "{name}: {err}");
+    }
+    assert!(seen.unopened.load(SeqCst) >= 1, "the wrong key's stream did not open at the server");
 }

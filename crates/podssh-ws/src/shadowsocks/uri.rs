@@ -26,6 +26,10 @@ pub struct Node {
     pub port: u16,
     /// The key's own name for the server, after `#`.
     pub tag: Option<String>,
+    /// The `wss://` URL of a WebSocket that carries the stream, as Outline's
+    /// servers serve it (T-493); `None` for raw TCP to `host:port`. Its path
+    /// is often the server's secret: no line shows it.
+    pub ws: Option<crate::url::WsUrl>,
 }
 
 impl fmt::Debug for Node {
@@ -36,6 +40,7 @@ impl fmt::Debug for Node {
             .field("host", &self.host)
             .field("port", &self.port)
             .field("tag", &self.tag)
+            .field("websocket", &self.ws.as_ref().map(|ws| ws.host.clone()))
             .finish()
     }
 }
@@ -52,7 +57,7 @@ impl Node {
             return Err("its port is 0".into());
         }
         let password = Zeroizing::new(password.to_string());
-        Ok(Node { method, password, host: host.to_string(), port, tag: None })
+        Ok(Node { method, password, host: host.to_string(), port, tag: None, ws: None })
     }
 
     /// An `ss://` URI. A plugin is refused, as it is another program that
@@ -88,19 +93,51 @@ impl Node {
         Ok(node)
     }
 
-    /// The server in a line: `ss://HOST:PORT`, and its tag in parentheses.
-    /// Never its password.
+    /// A server whose stream goes in the WebSocket at `url`: its host and
+    /// port are the URL's. `ws://` goes to this host alone, as the path would
+    /// cross in the clear.
+    pub fn over_websocket(method: Method, password: &str, url: crate::url::WsUrl) -> Result<Node, String> {
+        Node::new(method, password, &url.host, url.port)?.with_websocket(url)
+    }
+
+    /// This server's key in the WebSocket at `url`, as [`Node::over_websocket`]
+    /// takes it: for a node read back from a kept list.
+    pub fn with_websocket(mut self, url: crate::url::WsUrl) -> Result<Node, String> {
+        if !url.tls && !is_loopback(&url.host) {
+            return Err("its WebSocket is ws://, which goes to this host alone; give its wss:// URL".into());
+        }
+        crate::names::check_target(&url.host)?;
+        (self.host, self.port) = (url.host.clone(), url.port);
+        self.ws = Some(url);
+        Ok(self)
+    }
+
+    /// The WebSocket's URL as a key names it, for a private file, never for
+    /// a message: its path is often the server's secret.
+    pub fn websocket_text(&self) -> Option<Zeroizing<String>> {
+        let ws = self.ws.as_ref()?;
+        let scheme = if ws.tls { "wss" } else { "ws" };
+        Some(Zeroizing::new(format!("{scheme}://{}{}", ws.host_header(), ws.target)))
+    }
+
+    /// The server in a line: `ss://HOST:PORT`, or `wss://HOST[:PORT]/...`
+    /// for one in a WebSocket, and its tag in parentheses. Never its
+    /// password, nor the WebSocket's path.
     pub fn shown(&self) -> String {
-        let at = crate::dial::authority(&self.host, self.port);
+        let at = match &self.ws {
+            Some(ws) => format!("{}://{}/...", if ws.tls { "wss" } else { "ws" }, ws.host_header()),
+            None => format!("ss://{}", crate::dial::authority(&self.host, self.port)),
+        };
         match &self.tag {
-            Some(tag) => format!("ss://{at} ({tag})"),
-            None => format!("ss://{at}"),
+            Some(tag) => format!("{at} ({tag})"),
+            None => at,
         }
     }
 
     /// Whether `other` is this server with this key, whatever its tag.
     pub fn same_server(&self, other: &Node) -> bool {
-        (self.method, &self.password, &self.host, self.port) == (other.method, &other.password, &other.host, other.port)
+        (self.method, &self.password, &self.host, self.port, &self.ws)
+            == (other.method, &other.password, &other.host, other.port, &other.ws)
     }
 
     /// The master key of its password and method.
@@ -117,6 +154,11 @@ impl Node {
         let at = crate::dial::authority(&self.host, self.port);
         Zeroizing::new(format!("ss://{}@{at}{tag}", encoded.as_str()))
     }
+}
+
+/// Whether `host` is this host: `localhost`, or a loopback address.
+fn is_loopback(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost") || host.parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback())
 }
 
 /// `method` and `password` of a user part: percent-encoded when it holds
@@ -141,7 +183,7 @@ fn older(encoded: &str) -> Result<(String, Zeroizing<String>, String, u16), Stri
 }
 
 /// `HOST:PORT` or `[IPV6]:PORT`; the port is required.
-fn authority_of(text: &str) -> Result<(String, u16), String> {
+pub(super) fn authority_of(text: &str) -> Result<(String, u16), String> {
     let (host, port) = match text.strip_prefix('[') {
         Some(inner) => {
             let (host, after) = inner.split_once(']').ok_or("its host has a [ and no ]")?;

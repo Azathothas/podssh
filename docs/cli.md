@@ -1218,6 +1218,29 @@ and `proxy`:
   day, and fetched again when each kept server failed. At most 16 servers of
   a list are tried. A line shows a subscription by its host alone, as its
   path may hold the provider's token.
+- An Outline access key (T-493): `ssconf://HOST[:PORT]/PATH` (read as
+  `https://`, as Outline's client reads it) or `key https://URL`, with a
+  name after `#`. It is fetched and kept as a subscription is (a file of its
+  own in the cache, as a key and a list of one URL are two), and its body is
+  one server: an `ss://` link, JSON with `server`, `server_port`,
+  `password` and `method`, or the YAML of Outline's configuration
+  (`transport`, `tcpudp`'s `tcp` part or a `shadowsocks` one, with `cipher`,
+  `secret` and `endpoint`: `HOST:PORT`, a `websocket` with its `wss://` URL,
+  or `first-supported` with its `options`, the first that podssh reads). A
+  reader of the subset of YAML that the keys use
+  (`crates/podssh-ws/src/shadowsocks/yaml.rs`): block mappings and lists,
+  plain and quoted scalars, comments, anchors; flow collections, block
+  scalars, tags and merge keys are refused by name. A salt's `prefix`, a
+  WebSocket with an `endpoint` of its own, and Outline's other types are
+  refused by name; the UDP part is not read.
+- Shadowsocks in a WebSocket (`crates/podssh-ws/src/shadowsocks/ws.rs`), as
+  outline-ss-server's listener `websocket-stream` serves it behind a TLS
+  front: podssh's WebSocket to the `wss://` URL (TLS checked for its host,
+  through `HTTPS_PROXY`), then the same stream in binary messages, as the
+  Outline SDK's client writes it. A 404 names a path that is not the
+  server's, another refused upgrade its status, and a closed or silent
+  stream the key; no line shows the URL's path, often the server's secret.
+  `ws://` goes to this host alone.
 - A run has one road: `--relay-host`, `--relay-failover`, `--direct`,
   `--forwarder`, `-4`, `-6` and a destination with a road of its own are
   refused beside it (64). The host key of SSH protects the session, as on
@@ -1232,7 +1255,12 @@ and `proxy`:
 Tested against `ssserver` and `sslocal` of shadowsocks-rust
 (`crates/podssh-cli/tests/shadowsocks_cli.rs`), and against a codec written
 from the specification with known answers that OpenSSL computed
-(`crates/podssh-ws/tests/shadowsocks.rs`).
+(`crates/podssh-ws/tests/shadowsocks.rs`). The access keys and the WebSocket are tested
+against a stand-in of outline-ss-server's listener in the same test, and
+against outline-ss-server's own release behind nginx by
+`scripts/interop-outline.sh` (`.github/workflows/outline-interop.yml`),
+whose target is GitHub's SSH endpoint, as the server dials no private
+address.
 
 ## A forward proxy over TLS: `--via URL`
 

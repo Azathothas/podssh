@@ -378,9 +378,9 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         ),
         (
             vec!["the file of --shadowsocks".to_string()],
-            "The Shadowsocks servers of --shadowsocks: ss:// lines and subscription https://URL lines (see podssh \
-             ssh). Its keys hold passwords, so podssh reads it only as a regular file of yours that others cannot \
-             read (on Windows, as its access list says), as a pair file; else, and for a line that cannot be \
+            "The Shadowsocks servers of --shadowsocks: ss:// lines, subscription lines and access keys (see \
+             podssh ssh). Its keys hold passwords, so podssh reads it only as a regular file of yours that others \
+             cannot read (on Windows, as its access list says), as a pair file; else, and for a line that cannot be \
              read, the run is refused (78). podssh never writes it."
                 .to_string(),
         ),
@@ -414,9 +414,10 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         ),
         (
             vec!["shadowsocks-HASH.json".to_string()],
-            "The list of each subscription of --shadowsocks, in the cache, under a hash of its URL, which it \
-             does not show: the time it came and its ss:// lines, which hold passwords; mode 0600. Read for a \
-             day, then fetched again, and fetched again too when each of its servers failed."
+            "The list of each subscription and access key of --shadowsocks, in the cache, under a hash of its \
+             URL, which it does not show: the time it came and its ss:// lines, with a WebSocket's URL beside \
+             each server in one; they hold passwords; mode 0600. Read for a day, then fetched again, and fetched \
+             again too when each of its servers failed."
                 .to_string(),
         ),
         (

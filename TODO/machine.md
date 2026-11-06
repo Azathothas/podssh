@@ -146,7 +146,7 @@ manual do not keep the kind and the `instead` of a flag.
    (`crates/podssh-cli/src/man/mod.rs` lines 73-78 at `332ee58`).
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:41-42`).
 6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:390-397`), the field to
-   `man::Request` (`crates/podssh-cli/src/man/mod.rs:75-82`), and the parse
+   `man::Request` (`crates/podssh-cli/src/man/mod.rs:76-83`), and the parse
    (`crates/podssh-cli/src/tree.rs:243-251`). JSON for `--help` stays with T-010.
 
 ## Prove
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5528-5556`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:5556-5584`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:284-301`), and stdio needs no listener.
