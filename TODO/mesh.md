@@ -3585,7 +3585,7 @@ The copies do ask the net (read 2026-11-02). Each reads its operand with its own
 (`crates/podssh-cli/src/cp/operand.rs:114`), and hands the server to `ssh`'s resolution
 (`crates/podssh-cli/src/cp/mod.rs:299`, `crates/podssh-cli/src/sftp/mod.rs:216`,
 `crates/podssh-cli/src/edit/mod.rs:153`), which reads the destination's node before its host
-(`crates/podssh-cli/src/ssh/resolve.rs:139`), and a name alone there in the net
+(`crates/podssh-cli/src/ssh/resolve.rs:141`), and a name alone there in the net
 (`crates/podssh-cli/src/ssh/node.rs:44` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
 (`crates/podssh-cli/src/cp/link.rs`, lines 161-162 at `6a62cdc`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
 already resolve to the member's node. What was missing: a test that proves it, the manual's and
@@ -5039,7 +5039,7 @@ failed or not.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5069,6 +5069,30 @@ VLESS (T-440) but not Trojan, whose request is smaller.
 3. A wrong password: the server's fallback answers with an `HTTP/` line, or closes; podssh names
    that (77), and never shows the password or its hash.
 
+## Decision
+
+2026-11-06 (the drafting agent).
+
+- Trojan has no answer, so the first bytes of the target tell a session that went from one whose
+  password the server did not take: a fallback answers the request's bytes with an `HTTP/` line
+  (77), a server with no fallback (Xray-core's default) ends the connection, said as such (69). A
+  session whose server speaks first (SSH) waits up to 10 s for them; a pipe takes the stream after
+  3 s of silence, as `--vless` does. No target speaks `HTTP/` first. Lost: a probe of the password
+  before the session (Trojan has none), and reading a fallback's page (its status line is enough).
+- `security=none` is refused: Trojan is TLS, and the password's hash would cross in the clear; no
+  server of the protocol serves it plain. `allowInsecure` is refused: podssh checks each server's
+  certificate (`--ca-file` names a CA of the user's). `fp` and `alpn` pass: they shape a ClientHello
+  that a Trojan server does not read, and nearly each link that panels give holds `fp`. Lost:
+  refusing them, which would refuse most links for a setting with no effect on the bytes.
+- The WebSocket's pump is VLESS's (`crate::vless::ws::spawn`, now `pub(crate)`), and so are the
+  settings of a dial (`podssh_ws::trojan::Dial` is `vless::Dial`): both roads dial alike. Lost: a
+  copy of the pump. The flag's rows sit beside VLESS's (`flags/vless.rs`), as `flags.rs` is at 499
+  lines; the notes in `man/notes_vless.rs`, and the FILES entry is VLESS's, extended.
+- The interop runs Xray-core's own trojan inbound, the release that `scripts/interop-vless.sh`
+  pins; trojan-gfw 1.16.0 and trojan-go 0.10.6 need their releases' SHA-256 read from their pages
+  (`PODSSH_TROJAN_GFW_SHA256`, `PODSSH_TROJAN_GO_SHA256`), and say env until then. Lost: a pin
+  typed with no read of its release.
+
 ## Prove
 
 ```sh
@@ -5089,6 +5113,51 @@ module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`
 PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
 crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
 moved code then runs there.
+
+2026-11-06 (the drafting agent). Read again: the Premise holds (`crates/podssh-ws/src/vless/link.rs:3`).
+`vless/` is not yet in a `repo PodUtils/podssh` block of podcrates' `crates/*/SOURCES`, so this work
+is still podssh's; the Trojan road sits beside it and moves with it.
+
+## Done
+
+2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t491`, `e95dd58f`), then merged, built and
+tested by the main session, with two repairs: the openers returned an `impl Duplex` that took each
+argument's lifetime (edition 2024), so `open` could not box the stream: `use<>`; a re-export of the
+test's VLESS stand-in that the Trojan test does not use, allowed for each binary that takes the
+module. trojan-gfw's and trojan-go's own servers, whose digests no one has read yet, left the
+script and the baseline for T-693, as a placeholder id that never prints `ok` nor `FAIL` fails the
+baseline's test.
+
+- `crates/podssh-ws/src/trojan/`: `link.rs` (the share link: `Password`, the hex of SHA-224 in lower
+  case, the password dropped; `Server`, `Transport::Tls` and `Transport::Ws`; the refusals by name;
+  unit tests in `link_tests.rs`, with SHA-224's published vector), `request.rs` (the request: the
+  hash, CRLF, CONNECT, the SOCKS5 address, the port, CRLF; unit tests of each address type),
+  `answer.rs` (the first bytes: the target's, a fallback's `HTTP/` line, or the end; unit tests),
+  `ws.rs` (the upgrade, then the request in the first binary message, the pump of
+  `crate::vless::ws`), `mod.rs` (`open`, `TrojanError` and its lines, which hold neither the
+  password nor its hash): `cargo test -p podssh-ws --lib`, 170 passed.
+- `crates/podssh-cli/src/trojan/`: the private file (`read`, `parse`), `or_relay` and `check`,
+  `reach.rs` for `ssh` and the commands of its road, `pipe.rs` for `proxy`; `Transport::Trojan` in
+  `ssh/resolve.rs` and each `check` of the other roads (one line in `shadowsocks/mod.rs`, which
+  T-492's draft also changes); `--trojan` beside `--vless` in each list of flags, in `ssh/args.rs`,
+  `parsed.rs`, `tree.rs`, `dispatch.rs`, `proxy.rs`, `proxy_node.rs`, `containers/list.rs`,
+  `ssh/carried.rs`; `--trojan` wins over `PODSSH_CHISEL` as the other flags do: the CLI's library, 992 passed;
+  clippy and rustfmt clean.
+- The test: `crates/podssh-ws/tests/trojan.rs`, stand-ins of trojan-gfw's behaviour in TLS alone and
+  in a WebSocket at `/tr` (a wrong hash to a fallback that answers `400`): a session each way, 300 kB
+  echoed; a wrong password said as the fallback's answer, with no password in the words; a wrong
+  path, a 404; a pipe whose target waits: `cargo test -p podssh-ws --test trojan`, 3 passed. Planted:
+  the hash in upper case (`link.rs`'s `HEX`): the stand-ins hand both sessions to the fallback, and
+  the tests fail; put back, they pass.
+- `scripts/interop-trojan.sh` with `.github/workflows/trojan-interop.yml` and its ids in
+  `scripts/interop-baseline.txt` (the harness `trojan`, floor 7; trojan-gfw's and trojan-go's are T-693's): Xray-core's trojan inbound in TLS and in a WebSocket,
+  sshd's banner through `proxy`, another password, another path, the host's squid, no output with
+  the password or its hash. It waits for a runner (this host's containers reach no package mirror);
+  `cargo test -p podssh-todo --test interop`, which reads the baseline, passed.
+- The manual (`man/notes_vless.rs`: `SSH_TROJAN`, `PROXY_TROJAN`; FILES in `man/data.rs`;
+  `PODSSH_CHISEL`'s words in `man/facts/roads.rs`), the flags' rows (`flags/vless.rs`), `docs/cli.md`
+  ("Trojan servers"), `docs/carriers.md`, `docs/mesh.md`.
+- Not done: `doctor --trojan` (the entry asks for none).
 
 # T-492: Shadowsocks 2022 (SIP022) for `--shadowsocks`
 
@@ -7695,9 +7764,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1152-1153` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1154` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1148` says "UDP alone, which the
+- `docs/carriers.md:1153-1154` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1155` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1149` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over
@@ -7763,9 +7832,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1159-1160` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1162-1163` says "as the server never answers a command";
-  `docs/carriers.md:1165` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1160-1161` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1163-1164` says "as the server never answers a command";
+  `docs/carriers.md:1166` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 
@@ -9994,3 +10063,38 @@ alone, and the test of a grant at the gate fails.
   `crates/podssh-cli/src/node_derp.rs`, `crates/podssh-cli/src/node_iroh.rs`,
   `crates/podssh-cli/src/chat/listen.rs`); a live run of a node of `--ask` on a pair's road
   (Q88).
+
+# T-693: `--trojan` against trojan-gfw's and trojan-go's own servers
+
+**Source:** the merge of T-491 (2026-11-06).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-491's Prove names trojan-gfw 1.16.0 (TLS) and trojan-go 0.10.6 (a WebSocket) beside Xray-core's
+trojan inbound, and `scripts/interop-trojan.sh` runs Xray-core's alone: nobody has read the SHA-256
+of those two releases from their own pages, which a pinned download needs.
+
+## Premise
+
+- Read: `scripts/interop-trojan.sh` fetches Xray-core by a pinned digest and says that the other
+  two are this entry's; `scripts/interop-baseline.txt` holds the ids of Xray-core's checks alone.
+
+## Approach
+
+1. Read each release's digest from its own page (a checksum file, or a signed one), through the
+   services of <https://web.pkgforge.dev/llms.txt>.
+2. Add trojan-gfw's server in TLS and trojan-go's in a WebSocket to the script, each with its
+   ids, a line for `ok` and one for `FAIL`, and the harness's floor raised to match.
+
+## Prove
+
+```sh
+sh scripts/interop-trojan.sh target/debug/podssh
+```
+
+On a runner (`trojan-interop.yml`): a session through each server, and a wrong password named.

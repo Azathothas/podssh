@@ -301,6 +301,7 @@ pub(crate) fn road(transport: &Transport) -> &'static str {
         Transport::Vless { .. } => "vless",
         Transport::Wstunnel { .. } => "wstunnel",
         Transport::Chisel { .. } => "chisel",
+        Transport::Trojan { .. } => "trojan",
     }
 }
 

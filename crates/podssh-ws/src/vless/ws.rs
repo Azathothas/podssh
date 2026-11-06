@@ -88,7 +88,7 @@ fn failed(e: ConnectError, path: &str) -> VlessError {
 /// binary messages, the binary messages in as bytes. A text message is no
 /// part of VLESS's stream and is passed over. The server's Close, or a
 /// failure, ends the pipe's reading side, which the answer's reader sees.
-fn spawn<S>(session: RelaySession<S>, close_at_end: bool) -> DuplexStream
+pub(crate) fn spawn<S>(session: RelaySession<S>, close_at_end: bool) -> DuplexStream
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + 'static,
 {

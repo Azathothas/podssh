@@ -130,6 +130,7 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
     super::forwarder::PROXY_FORWARDER,
     super::shadowsocks::PROXY_SHADOWSOCKS,
     super::vless::PROXY_VLESS,
+    super::vless::PROXY_TROJAN,
     super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
     super::via::CHISEL, super::via::CHISEL_AUTH_FILE,
     // The exit of the net (T-431).

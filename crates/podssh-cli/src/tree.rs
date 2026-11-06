@@ -263,6 +263,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             shadowsocks: get("shadowsocks"),
             via: crate::via::Flags { url: get("via"), auth_file: get("via-auth-file") },
             vless: get("vless"),
+            trojan: get("trojan"),
             wstunnel: crate::wstunnel::Flags { url: get("wstunnel"), secret_file: get("wstunnel-secret-file") },
             chisel: crate::chisel::Flags { url: get("chisel"), auth_file: get("chisel-auth-file") },
             exit: crate::exit::Flags { name: get("exit"), client_key: get("client-key") },

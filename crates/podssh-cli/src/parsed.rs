@@ -87,6 +87,8 @@ pub enum Parsed {
         via: crate::via::Flags,
         /// `--vless` (T-440).
         vless: Option<String>,
+        /// `--trojan` (T-491).
+        trojan: Option<String>,
         /// `--wstunnel` and `--wstunnel-secret-file` (T-441).
         wstunnel: crate::wstunnel::Flags,
         /// `--chisel` and `--chisel-auth-file` (T-490).

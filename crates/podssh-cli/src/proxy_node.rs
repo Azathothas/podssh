@@ -183,6 +183,7 @@ fn beside(args: &ProxyArgs) -> Option<(&'static str, &'static str)> {
         (args.shadowsocks.is_some(), "--shadowsocks", ROAD),
         (args.via != crate::via::Flags::default(), "--via", ROAD),
         (args.vless.is_some(), "--vless", ROAD),
+        (args.trojan.is_some(), "--trojan", ROAD),
         (args.wstunnel != crate::wstunnel::Flags::default(), "--wstunnel", ROAD),
         (args.chisel != crate::chisel::Flags::default(), "--chisel", ROAD),
         (args.exit.name.is_some(), "--exit", ROAD),

@@ -236,6 +236,8 @@ mod upgrade_line;
 pub mod version;
 // `--via URL`: a forward proxy over TLS in place of the relay (T-439).
 pub mod via;
+// `--trojan FILE`: Trojan servers in place of the relay (T-491).
+pub mod trojan;
 // `--vless FILE`: VLESS servers in place of the relay (T-440).
 pub mod vless;
 // `--wstunnel URL`: a wstunnel server in place of the relay (T-441).

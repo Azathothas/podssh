@@ -1043,7 +1043,8 @@ with TCP and TLS alone.
      answers the client's `ping` with `pong`, and its own `ping` takes any
      answer. podssh speaks it as `--chisel` (T-490), with russh's channel
      of any type (`vendor/patches/russh/0005-channel-open-raw.patch`).
-2. **Trojan** (fits: T-491).
+2. **Trojan** (fits: T-491; podssh speaks it as `--trojan`, in TLS alone
+   and in a WebSocket over TLS).
    - The protocol: after a real TLS handshake, `hex(SHA224(password))`,
      CRLF, a request of SOCKS5's shape (CONNECT, an address's type, the
      address, the port), CRLF, then the payload, in one write; a server that

@@ -20,7 +20,8 @@ mod header;
 pub mod link;
 mod packet;
 mod split;
-mod ws;
+// Its pump of binary messages serves the Trojan road too (T-491).
+pub(crate) mod ws;
 mod xhttp;
 
 use std::time::Duration;

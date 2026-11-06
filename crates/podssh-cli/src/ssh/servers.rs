@@ -1,7 +1,7 @@
 //! The roads of servers that the user names in place of the relay: the
 //! forwarders (T-369), Shadowsocks servers (T-373), a forward proxy over TLS
-//! (T-439), VLESS servers (T-440), a wstunnel server (T-441) and a chisel
-//! server (T-490). Each takes
+//! (T-439), VLESS servers (T-440), a wstunnel server (T-441), a chisel
+//! server (T-490) and Trojan servers (T-491). Each takes
 //! the relay's place when named, and each refuses the others, as a run has
 //! one road; here so that the resolver stays one file. An exit of the net
 //! (T-431, `super::exit_road`) takes it first.
@@ -19,6 +19,7 @@ pub(super) fn or_relay(args: &SshArgs, env: &Env, relay: Transport) -> Result<Tr
         return super::exit_road::or_exit(args, env, relay);
     }
     let relay = crate::chisel::or_relay(args, env, relay)?;
+    let relay = crate::trojan::or_relay(args, relay)?;
     let relay = crate::vless::or_relay(args, relay)?;
     let relay = crate::via::or_relay(args, env, crate::wstunnel::or_relay(args, env, relay)?)?;
     crate::shadowsocks::or_relay(args, crate::forwarder::or_relay(args, env, relay)?)
@@ -37,6 +38,7 @@ pub(super) fn check(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refus
         .and_then(|()| crate::vless::check(args, resolved))
         .and_then(|()| crate::wstunnel::check(args, resolved))
         .and_then(|()| crate::chisel::check(args, resolved))
+        .and_then(|()| crate::trojan::check(args, resolved))
 }
 
 /// The words of a run's road, for the refusal of a flag of another road
@@ -51,6 +53,7 @@ pub(crate) fn road_name(transport: &Transport) -> &'static str {
         Transport::Vless { .. } => "--vless",
         Transport::Wstunnel { .. } => "--wstunnel",
         Transport::Chisel { .. } => "--chisel",
+        Transport::Trojan { .. } => "--trojan",
         Transport::Node { .. } => "a node:// destination",
         Transport::Iroh { .. } => "an iroh: destination",
         Transport::Cloudflare { .. } => "a cf://HOST destination or first hop",

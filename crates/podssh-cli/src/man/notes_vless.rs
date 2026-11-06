@@ -1,5 +1,6 @@
 //! The notes of `--vless` (T-440) for `podssh ssh`, `podssh proxy` and
-//! `podssh doctor`, apart from the others so that each file stays short.
+//! `podssh doctor`, and of `--trojan` (T-491) for `podssh ssh` and `podssh
+//! proxy`, apart from the others so that each file stays short.
 
 pub const SSH_VLESS: &str = "--vless FILE reaches the first hop through VLESS servers that you run (Xray-core, \
      shoes, sing-box), in place of the relay: a server that takes the target in a short header and dials it, with \
@@ -39,3 +40,30 @@ pub const DOCTOR_VLESS: &str = "With --vless FILE, the section vless gives a lin
      that carried the TCP to it, if one did, the transport that carried the session and the time of VLESS's \
      answer, then a session to github.com port 22 through it, whose host key must be one that GitHub publishes. \
      A server that ends the session before its answer refused the ID, or could not reach the target.";
+
+pub const SSH_TROJAN: &str = "--trojan FILE reaches the first hop through Trojan servers that you run \
+     (trojan-gfw, trojan-go, Xray-core, sing-box), in place of the relay: after a real TLS handshake the server \
+     takes the SHA-224 of a password and the target in a short request, and dials it. FILE must be yours and \
+     closed to others (chmod 600), as a pair file is: each line is a share link as panels and clients give it, \
+     trojan://PASSWORD@HOST[:PORT] (443 when none), then ?type=tcp or type=ws, sni=, host= and path=, joined by &, \
+     and #TAG; # starts a comment. type=tcp, the default, carries Trojan in TLS alone; type=ws in a WebSocket over \
+     TLS at the path, which passes through a CDN or a front end that serves other paths. TLS goes to HOST:PORT, \
+     through HTTPS_PROXY when one is set, checked for sni (else host, else HOST) with podssh's trust \
+     (--ca-file); host gives the upgrade's Host. fp and alpn shape a ClientHello that a Trojan server does not \
+     read, and pass; a flow, REALITY, security=none (the password would cross in the clear), a certificate that \
+     is not checked (allowInsecure), and another type are refused by their names (78), and so is a line that \
+     cannot be read, by its number and never its text. Trojan has no answer: the servers are tried in the order \
+     of the file, and each waits up to 10 s for the target's version line. A server that does not take the \
+     password hands the bytes to its fallback, an HTTP server, whose answer is said with its status line \
+     (proxy exits 77; ssh 255, as for each first hop that it does not reach); one that ends the session first \
+     has no fallback, or could not reach the target; each gives way to the next, and -v says what carried the \
+     session. The host key of SSH protects the session, as on each road: the server sees the target's name and \
+     SSH's encrypted bytes. A run has one road: --relay-host, --relay-failover, --direct, --forwarder, \
+     --shadowsocks, --via, --vless, --wstunnel, --chisel, -4, -6, and a destination with a road of its own \
+     cannot go with it (64).";
+
+pub const PROXY_TROJAN: &str = "podssh proxy --trojan FILE carries the pipe through the Trojan servers of FILE, \
+     in order, with no relay, as podssh ssh does (see its notes). A pipe's client may speak first, so a server \
+     that says nothing for 3 s is taken; one whose fallback answers, or that ends the session, within them gives \
+     way to the next. In TLS alone the end of stdin closes the stream's way up; a WebSocket has no half-close, \
+     and the target's bytes come until the server ends.";

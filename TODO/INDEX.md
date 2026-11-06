@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**647 entries: 87 open, 14 partial, 4 blocked, 542 done.**
+**648 entries: 87 open, 14 partial, 4 blocked, 543 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 68 | 70 |
 | P2 | 22 | 6 | 1 | 255 | 284 |
-| P3 | 65 | 6 | 3 | 218 | 292 |
-| **All** | 87 | 14 | 4 | 542 | 647 |
+| P3 | 65 | 6 | 3 | 219 | 293 |
+| **All** | 87 | 14 | 4 | 543 | 648 |
 
 ## Entries
 
@@ -555,7 +555,7 @@ repository and CI).
 | [T-488](machine.md) | P3 | L | none | feature | done | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
 | [T-489](irc.md) | P3 | S | none | feature | done | `chat --listen --linger`: a listener that stays for each peer after its input ended |
 | [T-490](mesh.md) | P2 | M | M10 | feature | partial | chisel's protocol: a chisel server as the road |
-| [T-491](mesh.md) | P3 | M | M10 | feature | open | Trojan over TLS and over a WebSocket |
+| [T-491](mesh.md) | P3 | M | M10 | feature | done | Trojan over TLS and over a WebSocket |
 | [T-492](mesh.md) | P3 | M | M10 | feature | done | Shadowsocks 2022 (SIP022) for `--shadowsocks` |
 | [T-493](mesh.md) | P2 | M | M10 | feature | done | Shadowsocks in a WebSocket, as Outline's servers serve it, and `ssconf://` keys |
 | [T-494](mesh.md) | P3 | S | M10 | measurement | open | `--via` against NaiveProxy's server, and the words of a probe-resistant proxy |
@@ -723,3 +723,4 @@ repository and CI).
 | [T-690](repo.md) | P1 | S | M10 | defect | done | Two regressions of the adoption of `pod-proxy`: an upload through a relay that cuts lost each answer, and `podssh ts` got `socks5://` for its SOCKS5 proxy |
 | [T-691](repo.md) | P3 | S | none | chore | done | Dependabot's updates of 2026-11-06: taiki-e/install-action 2.90.0 and aes 0.9.4 |
 | [T-692](robustness.md) | P1 | S | none | defect | done | Two background probes of the relay rank met the relay 439 ms apart on Windows, under a gap of 1.2 s |
+| [T-693](mesh.md) | P3 | S | M10 | feature | open | `--trojan` against trojan-gfw's and trojan-go's own servers |

@@ -67,6 +67,7 @@ harness vless vless 15 scripts/interop-vless.sh
 harness wstunnel wstunnel 12 scripts/interop-wstunnel.sh
 harness chisel chisel 9 scripts/interop-chisel.sh
 harness outline outline 8 scripts/interop-outline.sh
+harness trojan trojan 7 scripts/interop-trojan.sh
 harness acme acme 8 scripts/interop-acme.sh
 harness go-ssh go-ssh 8 scripts/interop-go-ssh.sh
 harness cgroup cgroup 5 scripts/interop-cgroup.sh
@@ -890,6 +891,14 @@ outline.refused pass
 outline.wrong-secret pass
 outline.hop pass
 outline.secret pass
+# scripts/interop-trojan.sh
+trojan.xray.tls pass
+trojan.xray.ws pass
+trojan.xray.banner pass
+trojan.xray.wrong-password pass
+trojan.xray.path pass
+trojan.hop pass
+trojan.secret pass
 # scripts/interop-acme.sh
 acme.issued pass
 acme.private pass

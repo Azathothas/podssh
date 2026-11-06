@@ -291,6 +291,7 @@ const FIRST: &[&str] = &[
      a destination with a road of its own cannot go with it (64). The host key of SSH protects the \
      session, as on each road.",
     super::notes_vless::SSH_VLESS,
+    super::notes_vless::SSH_TROJAN,
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

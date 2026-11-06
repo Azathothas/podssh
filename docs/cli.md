@@ -1485,6 +1485,32 @@ names it where the command line names no other road.
 - russh's client opens a channel of a type of its own with
   `vendor/patches/russh/0005-channel-open-raw.patch`.
 
+## Trojan servers: `--trojan FILE`
+
+T-491, the operator's ruling Q66: a Trojan server that the user runs
+(trojan-gfw, trojan-go, Xray-core, sing-box), behind a real certificate on
+port 443, takes the destination from its client and is the road in place of
+the relay. `--trojan FILE` makes it the road for `ssh`, each command that
+reaches its server as `ssh` does, and `proxy`.
+
+- FILE is private (as a pair file): a share link on each line,
+  `trojan://PASSWORD@HOST[:PORT]?type=tcp|ws&sni=&host=&path=#TAG`, tried in
+  order; the password never goes to argv, a log or a message, and podssh
+  keeps only the hex of its SHA-224.
+- `type=tcp` (the default): Trojan's request is the first bytes of TLS to
+  HOST:PORT; `type=ws`: the first message of a WebSocket over TLS at the
+  path, where a CDN or a front end serves other paths. TLS goes through
+  `HTTPS_PROXY` when one is set, checked for `sni` with podssh's trust
+  (`--ca-file`).
+- Trojan has no answer: a session waits up to 10 s for the target's first
+  bytes (SSH's version line), and a pipe takes the stream after 3 s of
+  silence. A wrong password gets the server's fallback, an HTTP server,
+  whose `HTTP/` line is said (77); a server with no fallback ends the
+  session, said as such.
+- Refused by name (78): a flow, REALITY, `security=none`, `allowInsecure`,
+  another `type`. `fp` and `alpn` pass: a Trojan server does not read the
+  ClientHello.
+
 ## Going to the background: `--detach` and `-f`
 
 T-380, after the study of `docs/detach.md`: a run that must outlive its

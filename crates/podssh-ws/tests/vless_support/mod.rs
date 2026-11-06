@@ -29,6 +29,8 @@ mod xhttp;
 // The XHTTP stand-in of HTTP/1.1, on the same table of sessions (T-456).
 mod xhttp1;
 
+// Each test binary that takes this module uses a part of it.
+#[allow(unused_imports)]
 pub use xhttp1::CLOSE_AFTER;
 
 pub const NAME: &str = "vless.test";

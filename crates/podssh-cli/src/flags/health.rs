@@ -43,6 +43,7 @@ pub const HEALTH_FLAGS: &[FlagRow] = &[
     super::forwarder::FORWARDER,
     super::shadowsocks::SHADOWSOCKS,
     super::vless::VLESS,
+    super::vless::TROJAN,
     super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
     super::via::CHISEL, super::via::CHISEL_AUTH_FILE,
     row(None, "json", None, FlagKind::Supported,

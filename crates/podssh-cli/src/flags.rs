@@ -185,7 +185,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "connect without the relay: TCP, through HTTPS_PROXY when one is set; a proxy that takes the CONNECT \
          and sends nothing back is named as the cause; with no relay named, this road is tried once after each \
          relay host failed (env PODSSH_DIRECT=no turns that off)", None),
-    forwarder::FORWARDER, shadowsocks::SHADOWSOCKS, vless::VLESS,
+    forwarder::FORWARDER, shadowsocks::SHADOWSOCKS, vless::VLESS, vless::TROJAN,
     via::VIA, via::VIA_AUTH_FILE, via::WSTUNNEL, via::WSTUNNEL_SECRET_FILE,
     via::CHISEL, via::CHISEL_AUTH_FILE,
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,

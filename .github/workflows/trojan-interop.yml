@@ -1,0 +1,42 @@
+name: trojan interop
+
+# `--trojan`, Trojan servers in place of the relay (T-491, the
+# operator's ruling Q66), against Xray-core's own trojan inbound of the
+# release that interop-vless.sh pins, in containers of the runner's Docker,
+# with OpenSSH's sshd as the target and a plain squid as the host's proxy:
+# scripts/interop-trojan.sh. The password is made for the
+# run and never printed. Started by hand, and on a push that changes the road;
+# it publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-ws/src/trojan/**"
+      - "crates/podssh-cli/src/trojan/**"
+      - "scripts/interop-trojan.sh"
+      - ".github/workflows/trojan-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: Xray-core's trojan inbound
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 1500 sh scripts/interop-trojan.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > trojan.log 2>&1 || rc=$?
+          cat trojan.log
+          [ "$rc" = 0 ] || { echo "interop-chisel exited $rc"; exit 1; }

@@ -53,6 +53,8 @@ pub struct ProxyArgs {
     pub via: crate::via::Flags,
     /// `--vless`: the file of VLESS servers in place of the relay (T-440).
     pub vless: Option<String>,
+    /// `--trojan`: the file of Trojan servers in place of the relay (T-491).
+    pub trojan: Option<String>,
     /// `--wstunnel` and `--wstunnel-secret-file`: a wstunnel server in place
     /// of the relay (T-441).
     pub wstunnel: crate::wstunnel::Flags,
@@ -106,7 +108,8 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         .and_then(|()| crate::via::pipe::beside(args))
         .and_then(|()| crate::vless::pipe::beside(args))
         .and_then(|()| crate::wstunnel::pipe::beside(args))
-        .and_then(|()| crate::chisel::pipe::beside(args));
+        .and_then(|()| crate::chisel::pipe::beside(args))
+        .and_then(|()| crate::trojan::pipe::beside(args));
     if let Err(refusal) = beside.and_then(|()| key_alone(args)) {
         return refusal.report("proxy", err);
     }
@@ -154,6 +157,7 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
                 || args.forwarder.is_some()
                 || args.shadowsocks.is_some()
                 || args.vless.is_some()
+                || args.trojan.is_some()
                 || args.via != crate::via::Flags::default()
                 || args.wstunnel != crate::wstunnel::Flags::default()
                 || args.chisel != crate::chisel::Flags::default();
@@ -196,6 +200,10 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         }
         Ok(None) => {}
         Err(refusal) => return refusal.report("proxy", err),
+    }
+    if let Some(path) = args.trojan.as_deref() {
+        crate::connect_bound::step("no Trojan server answered");
+        return crate::trojan::pipe::run(path, &host, port, args.ca_file.as_deref(), err);
     }
     if let Some(path) = args.vless.as_deref() {
         crate::connect_bound::step("no VLESS server answered");
@@ -340,6 +348,7 @@ fn exit_alone(args: &ProxyArgs) -> Result<(), crate::relay_settings::Refusal> {
         || args.forwarder.is_some()
         || args.shadowsocks.is_some()
         || args.vless.is_some()
+        || args.trojan.is_some()
         || args.via != crate::via::Flags::default()
         || args.wstunnel != crate::wstunnel::Flags::default()
         || args.chisel != crate::chisel::Flags::default();

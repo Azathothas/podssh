@@ -75,6 +75,8 @@ pub enum Transport {
     Wstunnel { road: crate::wstunnel::Road },
     /// Through a chisel server that the user runs (`--chisel`, T-490).
     Chisel { road: crate::chisel::Road },
+    /// Through the Trojan servers of a file, in order (`--trojan`, T-491).
+    Trojan { servers: crate::trojan::Servers, trust: Trust },
 }
 
 /// A command line, resolved.

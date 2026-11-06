@@ -298,6 +298,10 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
         Transport::Wstunnel { road } => {
             crate::wstunnel::reach::reach(road, &first.host, first.port, resolved.connection_attempts, log).await
         }
+        // The Trojan servers of a file, in order (T-491).
+        Transport::Trojan { servers, trust } => {
+            crate::trojan::reach::reach(servers, trust, &first.host, first.port, log).await
+        }
         // A chisel server that the user runs (T-490).
         Transport::Chisel { road } => {
             crate::chisel::reach::reach(road, &first.host, first.port, resolved.connection_attempts, log).await

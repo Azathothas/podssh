@@ -54,6 +54,8 @@ pub struct SshArgs {
     pub via_auth_file: Option<String>,
     /// `--vless FILE`: VLESS servers in place of the relay (T-440).
     pub vless: Option<String>,
+    /// `--trojan FILE`: Trojan servers in place of the relay (T-491).
+    pub trojan: Option<String>,
     /// `--wstunnel URL` and `--wstunnel-secret-file FILE`: a wstunnel server
     /// in place of the relay, and what it checks of a client (T-441).
     pub wstunnel: Option<String>,
@@ -197,6 +199,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("via", "give one proxy"),
     ("via-auth-file", "give one file"),
     ("vless", "give one file, with a line for each server"),
+    ("trojan", "give one file, with a line for each server"),
     ("wstunnel", "give one server"),
     ("wstunnel-secret-file", "give one file"),
     ("chisel", "give one server"),
@@ -329,6 +332,7 @@ impl SshArgs {
             via: one("via"),
             via_auth_file: one("via-auth-file"),
             vless: one("vless"),
+            trojan: one("trojan"),
             wstunnel: one("wstunnel"),
             wstunnel_secret_file: one("wstunnel-secret-file"),
             chisel: one("chisel"),

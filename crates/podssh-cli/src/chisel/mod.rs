@@ -194,6 +194,7 @@ fn other_road(args: &SshArgs) -> Option<&'static str> {
         ("--shadowsocks", args.shadowsocks.is_some()),
         ("--via", args.via.is_some()),
         ("--vless", args.vless.is_some()),
+        ("--trojan", args.trojan.is_some()),
         ("--wstunnel", args.wstunnel.is_some()),
     ];
     flags.into_iter().find(|(_, given)| *given).map(|(flag, _)| flag)
