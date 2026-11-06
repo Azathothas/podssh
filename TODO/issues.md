@@ -229,6 +229,8 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597. Dependabot's #149 an
 | #159 | COORD-005: Tailscale's main DERP fleet in pod-services, after tailcat's (to podcrates) | closed 2026-11-06, delivered in podcrates v0.6.0 | T-534 (done 2026-11-06) |
 | #160 | `[gh action] requested`: the gate on `main` after `db1e6307` | closed 2026-11-06: the gate passed each job (run 42254589426, `285b0562`) | T-684 (the gate after the takes of v0.4.0 and v0.5.0, and the drafts of the day) |
 | #161 | COORD-006: podssh moved each podcrates tag to v0.6.0 (to podcrates) | open | T-684 (the move at `28fa1170`, written to the podcrates session) |
+| #162 | `[gh action] requested`: the gate on `main` at `8c7519c0` | open | T-684 (the gate after the take of v0.6.0, T-497 and T-534) |
+| #163 | `[gh action] requested`: `derp-main-live.yml`, the main DERP fleet from GitHub Actions | open | T-534 (step 1's run from Actions) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,

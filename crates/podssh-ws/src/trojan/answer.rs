@@ -55,14 +55,33 @@ impl<S: AsyncRead + Unpin> Answered<S> {
             let seen = &self.first[..self.first.len().min(HTTP.len())];
             if self.first.len() >= HTTP.len() && seen.eq_ignore_ascii_case(HTTP) {
                 let line = self.first.split(|b| *b == b'\n').next().unwrap_or_default();
-                let line = String::from_utf8_lossy(line).trim().chars().take(80).collect();
-                return Err(FirstError::Fallback(line));
+                return Err(FirstError::Fallback(status_of(&String::from_utf8_lossy(line))));
             }
             if !HTTP[..seen.len()].eq_ignore_ascii_case(seen) || self.first.len() >= HTTP.len() {
                 return Ok(());
             }
         }
     }
+}
+
+/// A fallback's status line as a line may show it: a fallback can quote
+/// the request it could not read (Python's `http.server` says "Bad request
+/// syntax ('...')"), and the request begins with the hash of the link's
+/// password. So the line ends before a quote or a bracket, and a long run
+/// of hex digits is left out (T-693).
+fn status_of(line: &str) -> String {
+    let line = line.trim();
+    let cut = line.find(['\'', '"', '(', '[', '{', '<']).unwrap_or(line.len());
+    let mut shown = String::new();
+    for word in line[..cut].split_whitespace() {
+        let hex = word.chars().filter(char::is_ascii_hexdigit).count();
+        let word = if hex >= 16 { "..." } else { word };
+        if !shown.is_empty() {
+            shown.push(' ');
+        }
+        shown.push_str(word);
+    }
+    shown.chars().take(80).collect()
 }
 
 impl<S: AsyncRead + Unpin> AsyncRead for Answered<S> {
@@ -123,5 +142,22 @@ mod tests {
             other => panic!("{other:?}"),
         }
         assert!(matches!(first_of(&[]).await.0, Err(FirstError::Ended)));
+    }
+
+    /// trojan-gfw's and trojan-go's fallback, Python's `http.server` here,
+    /// quotes the request, whose first bytes are the hash of the password:
+    /// the line keeps the status and leaves the hash out (T-693).
+    #[tokio::test]
+    async fn a_fallback_that_quotes_the_request_shows_no_hash() {
+        let hash = "eee932074e9cd0e99fecc0017f0e1974863359ea66c840aabbccdd";
+        let answer = format!("HTTP/1.0 400 Bad request syntax ('{hash}\\r\\n')\r\n\r\n");
+        match first_of(&[answer.as_bytes()]).await.0 {
+            Err(FirstError::Fallback(line)) => {
+                assert_eq!(line, "HTTP/1.0 400 Bad request syntax");
+                assert!(!line.contains("eee932"), "{line}");
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(super::status_of("HTTP/1.1 400 eee932074e9cd0e99fecc001 x"), "HTTP/1.1 400 ... x");
     }
 }

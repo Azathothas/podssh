@@ -10450,7 +10450,7 @@ alone, and the test of a grant at the gate fails.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10491,6 +10491,35 @@ On a runner (`trojan-interop.yml`): a session through each server, and a wrong p
 So the pins are what this host downloaded on that day, not the releases' own word, as for the
 NaiveProxy server of T-494; trojan-gfw's may also be checked by its signature once its key is
 read from the project's own page. The Approach takes these pins.
+
+## Done
+
+Partial, 2026-11-06.
+
+- `scripts/interop-trojan.sh`: trojan-gfw 1.16.0 (TLS) and trojan-go 0.10.6 (a WebSocket at `/tr`),
+  each fetched by the pin of the Correction, run on the host's loopback beside the containers
+  (trojan-gfw's release is built for glibc, which the run's Alpine lacks), with sshd's port
+  published to them and Python's `http.server` as their fallback, which each needs (trojan-go
+  refuses to start without one). Four ids: `trojan.gfw.session`, `trojan.gfw.wrong-password`,
+  `trojan.go.session`, `trojan.go.wrong-password`; the floor of the harness is 11
+  (`scripts/interop-baseline.txt`); `trojan.secret` also looks for the other password's hash.
+- A defect found on the way, repaired: a fallback that quotes the request it could not read
+  (Python's `http.server`: "Bad request syntax ('...')") showed the start of the request, the
+  SHA-224 of the link's password, in podssh's line of the refusal, which holds a credential's
+  equivalent. `crates/podssh-ws/src/trojan/answer.rs`, `status_of`: the line ends before a quote or
+  a bracket, and a run of 16 hex digits or more is left out; the test
+  `a_fallback_that_quotes_the_request_shows_no_hash`.
+
+Measured here: both releases' SHA-256 equal the pins (downloaded again); on the loopback, with
+OpenSSH's sshd, `podssh ssh --trojan` through trojan-gfw (TLS) and trojan-go (a WebSocket over
+TLS) each ran a session (exit 0, `-v` naming what carried it); another password exited 255 with
+the fallback named, and after the repair no output held either password or its hash. `cargo test
+-p podssh-ws --lib`: 184 passed; planted, the whole status line again, the new test fails.
+`cargo todo interop`: 775 ids meet the baseline. The whole script here stops at its squid (exit
+71, "squid did not answer"), as it did before this change: this host's containers reach no
+package mirror (T-490 found the same). It waits for a runner (`trojan-interop.yml`), which
+the next gate request asks.
+
 
 # T-694: croc's relay through `wss://getcroc.com/ws` as a road and a meeting point of a podssh pair
 

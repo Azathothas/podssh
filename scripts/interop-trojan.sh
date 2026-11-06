@@ -4,17 +4,23 @@
 # not write, each in a container on a network of the run: Xray-core's own
 # trojan inbound in TLS alone and in a WebSocket over TLS, OpenSSH's sshd as
 # the target, and a plain squid as the host's own proxy (HTTPS_PROXY), which
-# carries the TCP to a server by name. trojan-gfw's and trojan-go's own servers
-# are T-693's, once their releases' SHA-256 are read from their pages.
+# carries the TCP to a server by name. Then trojan-gfw's own server in TLS and
+# trojan-go's in a WebSocket (T-693), on this host's loopback: trojan-gfw's
+# release is built for glibc, which the run's Alpine lacks, so both run beside
+# the containers, with sshd's port published to them and Python's http.server
+# as their fallback, which each needs.
 #
 #   sh scripts/interop-trojan.sh PODSSH_BINARY
 #
 # Xray-core is the release that scripts/interop-vless.sh pins, by its
-# SHA-256. images/box's Alpine runs it, and squid and sshd from its packages.
+# SHA-256. trojan-gfw 1.16.0 and trojan-go 0.10.6 publish no checksum (the
+# first signs its archive): their pins are the SHA-256 of the files that this
+# project downloaded on 2026-11-06 (T-693). images/box's Alpine runs it, and squid and sshd from its packages.
 # The CA, the certificate, the key of the session and the password are made
 # for the run in a directory that the run removes; the password goes to
 # podssh in files of mode 0600 alone, and no output may show it or its hash
-# (trojan.secret).
+# (trojan.secret), nor the hash of the other password, which a fallback that
+# quotes its request would show (T-693).
 #
 # The checks: a session in TLS alone and in a WebSocket, each with -v naming
 # what carried it; sshd's banner through `podssh proxy`; another password,
@@ -26,7 +32,8 @@
 #
 # Needs podman or docker (PODSSH_ENGINE names one), openssl, python3, curl and
 # timeout; the ports PODSSH_TROJAN_PORT (18470) to PODSSH_TROJAN_PORT+4 of
-# the loopback free; and the releases on GitHub, through HTTPS_PROXY when it
+# the loopback free, and PODSSH_TROJAN_PORT+5 and +6; trojan-gfw's server needs
+# glibc on this host; and the releases on GitHub, through HTTPS_PROXY when it
 # is set.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -41,11 +48,19 @@ PORT=${PODSSH_TROJAN_PORT:-18470}
 XRAY_TLS=$PORT
 XRAY_WS=$((PORT + 1))
 HOP=$((PORT + 2))
+GFW=$((PORT + 3))
+GO=$((PORT + 4))
+SSHD=$((PORT + 5))
+FALLBACK=$((PORT + 6))
 NET=podssh-trojan-net
 NAMES="podssh-trojan-sshd podssh-trojan-xray podssh-trojan-hop"
 # The release of Xray-core that interop-vless.sh pins, read from it.
 XRAY_RELEASE=$(sed -n 's/^XRAY_RELEASE=//p' "$HERE/interop-vless.sh")
 XRAY_SHA256=$(sed -n 's/^XRAY_SHA256=//p' "$HERE/interop-vless.sh")
+TROJAN_GFW_RELEASE=v1.16.0
+TROJAN_GFW_SHA256=daad1ab6edd3f89066c5e1f42c6618b2f8cb59b7ba375dfb043d0c62c9e254ea
+TROJAN_GO_RELEASE=v0.10.6
+TROJAN_GO_SHA256=764480722783a6d76ed8401f6d2f1d87d8df7e60bf261f69c67eb94b77e732af
 
 die() {
     echo "interop-trojan: $*" >&2
@@ -72,7 +87,12 @@ remove_all() {
     done
     timeout 60 "$ENGINE" network rm "$NET" >/dev/null 2>&1
 }
+# The servers on this host, each stopped by its pid.
+PIDS=
 cleanup() {
+    for _p in $PIDS; do
+        kill "$_p" 2>/dev/null
+    done
     remove_all
     rm -rf "$W"
 }
@@ -98,6 +118,18 @@ fetch "https://github.com/XTLS/Xray-core/releases/download/$XRAY_RELEASE/Xray-li
 python3 -I -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extract("xray", sys.argv[2])' "$W/dl/xray.zip" "$W/xray" ||
     die "the zip of Xray-core holds no xray"
 chmod 755 "$W/xray/xray"
+mkdir -p "$W/gfw" "$W/go" "$W/www"
+fetch "https://github.com/trojan-gfw/trojan/releases/download/$TROJAN_GFW_RELEASE/trojan-${TROJAN_GFW_RELEASE#v}-linux-amd64.tar.xz" \
+    "$TROJAN_GFW_SHA256" "$W/dl/gfw.tar.xz"
+python3 -I -c 'import sys, tarfile; tarfile.open(sys.argv[1]).extract("trojan/trojan", sys.argv[2], filter="data")' "$W/dl/gfw.tar.xz" "$W/gfw" ||
+    die "the archive of trojan-gfw holds no trojan/trojan"
+fetch "https://github.com/p4gefau1t/trojan-go/releases/download/$TROJAN_GO_RELEASE/trojan-go-linux-amd64.zip" \
+    "$TROJAN_GO_SHA256" "$W/dl/go.zip"
+python3 -I -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extract("trojan-go", sys.argv[2])' "$W/dl/go.zip" "$W/go" ||
+    die "the zip of trojan-go holds no trojan-go"
+chmod 755 "$W/gfw/trojan/trojan" "$W/go/trojan-go"
+timeout 30 "$W/gfw/trojan/trojan" --version >"$W/gfw-version.log" 2>&1 ||
+    die "trojan-gfw's server does not run on this host (it needs glibc): $(tail -3 "$W/gfw-version.log")"
 
 # The CA of the run, and a certificate for the server's name.
 printf '%s\n' '[req]' 'distinguished_name = dn' 'x509_extensions = ca_ext' 'prompt = no' '[dn]' \
@@ -153,11 +185,27 @@ printf '%s\n' 'http_port 3128' 'http_access allow all' 'cache deny all' 'access_
     'cache_log /tmp/cache.log' 'pid_filename none' 'logfile_rotate 0' 'coredump_dir /tmp' >"$W/hop/squid.conf"
 chmod 644 "$W/hop/squid.conf"
 
+# trojan-gfw and trojan-go on this host: each sends a request that is not
+# Trojan's, or another password's, to its fallback, Python's http.server.
+python3 -I - "$W" "$GFW" "$GO" "$FALLBACK" <<'EOF'
+import json, sys
+w, gfw, go, fallback = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
+password = open(w + "/password").read().strip()
+common = {"run_type": "server", "local_addr": "127.0.0.1", "remote_addr": "127.0.0.1", "remote_port": fallback,
+          "password": [password], "log_level": 1}
+json.dump(dict(common, local_port=gfw, ssl={"cert": w + "/server.pem", "key": w + "/server.key", "alpn": ["http/1.1"]},
+               tcp={"no_delay": True}), open(w + "/gfw.json", "w"), indent=1)
+json.dump(dict(common, local_port=go, ssl={"cert": w + "/server.pem", "key": w + "/server.key", "sni": "trojan.test"},
+               websocket={"enabled": True, "path": "/tr"}), open(w + "/go.json", "w"), indent=1)
+EOF
+python3 -I -m http.server "$FALLBACK" --bind 127.0.0.1 --directory "$W/www" >"$W/fallback.log" 2>&1 &
+PIDS="$PIDS $!"
+
 timeout 120 "$ENGINE" run --rm -v "$W/xray:/etc/xray:ro" "$ALPINE" /etc/xray/xray run -test -c /etc/xray/config.json \
     >"$W/xray-test.log" 2>&1 || die "Xray-core refused its configuration: $(tail -8 "$W/xray-test.log")"
 timeout 60 "$ENGINE" network create "$NET" >/dev/null || die "the network $NET could not be made"
 timeout 300 "$ENGINE" run -d --name podssh-trojan-sshd --network "$NET" --network-alias sshd.test \
-    -v "$W/key:/k:ro" "$ALPINE" sh -c 'apk add --no-cache openssh-server >/dev/null &&
+    -p "127.0.0.1:$SSHD:22" -v "$W/key:/k:ro" "$ALPINE" sh -c 'apk add --no-cache openssh-server >/dev/null &&
     ssh-keygen -A >/dev/null && mkdir -p /root/.ssh && cp /k/id.pub /root/.ssh/authorized_keys &&
     chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys && sed -i "s/^root:[^:]*:/root:*:/" /etc/shadow &&
     exec /usr/sbin/sshd -D -e' >/dev/null || die "sshd did not start"
@@ -196,6 +244,26 @@ for p in "$XRAY_TLS" "$XRAY_WS"; do
         { timeout 30 "$ENGINE" logs podssh-trojan-xray 2>&1 | tail -20; die "Xray-core did not answer TLS on $p"; }
 done
 ready podssh-trojan-hop "$HOP" 300 http || die "squid did not answer"
+# ready_host PORT SECONDS: TLS with the run's CA on PORT of this host.
+ready_host() {
+    _t0=$(date +%s)
+    while :; do
+        timeout 10 python3 -I -c 'import socket, ssl, sys
+try:
+    s = socket.create_connection(("127.0.0.1", int(sys.argv[1])), 5)
+    ssl.create_default_context(cafile=sys.argv[2]).wrap_socket(s, server_hostname="trojan.test").close()
+except (OSError, ssl.SSLError):
+    sys.exit(1)' "$1" "$W/ca.pem" && return 0
+        [ $(($(date +%s) - _t0)) -lt "$2" ] || return 1
+        sleep 1
+    done
+}
+"$W/gfw/trojan/trojan" -c "$W/gfw.json" >"$W/gfw.log" 2>&1 &
+PIDS="$PIDS $!"
+"$W/go/trojan-go" -config "$W/go.json" >"$W/go.log" 2>&1 &
+PIDS="$PIDS $!"
+ready_host "$GFW" 60 || { tail -20 "$W/gfw.log"; die "trojan-gfw did not answer TLS on $GFW"; }
+ready_host "$GO" 60 || { tail -20 "$W/go.log"; die "trojan-go did not answer TLS on $GO"; }
 
 PINS="trojan.test=127.0.0.1"
 SSH_OPTS="-i $W/key/id -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$W/kh -o BatchMode=yes"
@@ -211,6 +279,10 @@ links xray-ws "$(cat "$W/password")" "trojan.test:$XRAY_WS" 'type=ws&path=%2Ftr'
 links xray-other "$(cat "$W/other")" "trojan.test:$XRAY_TLS" 'type=tcp'
 links xray-path "$(cat "$W/password")" "trojan.test:$XRAY_WS" 'type=ws&path=%2Fnot-tr'
 links hop "$(cat "$W/password")" "trojan.test:8443" 'type=tcp'
+links gfw "$(cat "$W/password")" "trojan.test:$GFW" 'type=tcp'
+links go "$(cat "$W/password")" "trojan.test:$GO" 'type=ws&path=%2Ftr'
+links gfw-other "$(cat "$W/other")" "trojan.test:$GFW" 'type=tcp'
+links go-other "$(cat "$W/other")" "trojan.test:$GO" 'type=ws&path=%2Ftr'
 
 # session NAME: podssh ssh through the link NAME, its outputs in $W/NAME.*.
 session() {
@@ -267,14 +339,41 @@ asked=$(timeout 30 "$ENGINE" exec podssh-trojan-hop cat /tmp/access.log 2>/dev/n
     ok trojan.hop "HTTPS_PROXY carries the TCP to Xray-core by its name; Trojan runs inside" ||
     bad trojan.hop "through the host's proxy: exit $rc, $asked CONNECTs" "$W/hop.err"
 
-# trojan-gfw and trojan-go are T-693's: their releases' digests are not read yet.
+echo
+echo "== --trojan: trojan-gfw and trojan-go (T-693)"
+
+# host_session NAME: podssh ssh through the link NAME to sshd's port that
+# the run published, as the servers on this host reach it.
+host_session() {
+    # shellcheck disable=SC2086  # the options are words
+    env PODSSH_RELAY_ADDR="$PINS" timeout 120 "$BIN" ssh -v --ca-file "$W/ca.pem" --trojan "$W/$1.links" $SSH_OPTS \
+        -p "$SSHD" root@127.0.0.1 "echo through-$1" </dev/null >"$W/$1.out" 2>"$W/$1.err"
+}
+for srv in gfw:TLS go:'a WebSocket over TLS'; do
+    name=${srv%%:*}
+    how=${srv#*:}
+    host_session "$name"
+    rc=$?
+    [ "$rc" = 0 ] && [ "$(cat "$W/$name.out")" = "through-$name" ] &&
+        grep -q "carries the session to 127.0.0.1:$SSHD in $how" "$W/$name.err" &&
+        ok "trojan.${srv%%:*}.session" "a session to trojan-$name's own server in $how" ||
+        bad "trojan.${srv%%:*}.session" "trojan-$name: exit $rc" "$W/$name.err"
+    # Another password goes to the server's fallback, whose answer is named.
+    host_session "$name-other"
+    rc=$?
+    [ "$rc" = 255 ] && grep -q 'handed the session to its fallback' "$W/$name-other.err" &&
+        ok "trojan.${srv%%:*}.wrong-password" "another password: trojan-$name's fallback is named (exit 255)" ||
+        bad "trojan.${srv%%:*}.wrong-password" "another password: exit $rc" "$W/$name-other.err"
+done
 
 # Neither the password nor its hash in any output of podssh.
 python3 -I -c 'import hashlib, sys; print(hashlib.sha224(open(sys.argv[1]).read().strip().encode()).hexdigest())' \
     "$W/password" >"$W/hash"
+python3 -I -c 'import hashlib, sys; print(hashlib.sha224(open(sys.argv[1]).read().strip().encode()).hexdigest())' \
+    "$W/other" >>"$W/hash"
 cat "$W/password" >>"$W/hash"
 leaked=$(grep -l -F -f "$W/hash" "$W"/*.out "$W"/*.err 2>/dev/null | wc -l)
-[ "$leaked" = 0 ] && ok trojan.secret "no output of podssh holds the password or its hash" ||
+[ "$leaked" = 0 ] && ok trojan.secret "no output of podssh holds the password, its hash or the other password's hash" ||
     bad trojan.secret "$leaked outputs hold the password or its hash"
 
 echo "interop-trojan: $pass passed, $fail failed, $unmet without what they need"
