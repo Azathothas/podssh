@@ -5876,7 +5876,7 @@ in a row; without it, exit 70 at write 0 on each try. `cargo test -p podssh-ws -
 step `release` in the build image runs in CI on the push (Q88).
 
 
-# T-691: Dependabot's updates of 2026-11-06: taiki-e/install-action 2.89.1 and aes 0.9.4
+# T-691: Dependabot's updates of 2026-11-06: taiki-e/install-action 2.90.0 and aes 0.9.4
 
 **Source:** PodUtils/podssh#149 (`taiki-e/install-action` v2.88.1 to v2.89.1, the actions group)
 and #150 (aes 0.9.3 to 0.9.4, the minor and patch group), Dependabot, 2026-11-06; the operator's
@@ -5926,3 +5926,7 @@ the lock holds aes 0.9.4. `cargo test -p podssh-ssh -p podssh-relay`: each targe
 `cargo todo remap Cargo.lock` found four citations of the lock that were stale before this change
 (noq, ssh-key, rustls-native-certs, rustls), moved by hand to their packages' lines. cargo-deny is
 not on this host: deny's job runs it in CI on the push.
+
+Later the same day: Dependabot moved #149 to v2.90.0 (`b80e2bb`) and closed #150 once `main` held
+aes 0.9.4. The gate (run 42174686787) and deny (run 42174686830) passed on #149's branch, whose base
+is `75a0596` (this entry's aes 0.9.4 and its pins) with v2.90.0; the three pins move to it.

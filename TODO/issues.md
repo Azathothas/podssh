@@ -135,7 +135,7 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 (the tailscale image, the minor and patch group, rand 0.10, sha2 0.11 and hmac 0.13) are T-386;
 Dependabot's #119, #120, #122 and #123 of 2026-11-02 (Python 3.15 for the box's proxy, the build
 image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597. Dependabot's #149 and #150 of 2026-11-06
-(taiki-e/install-action 2.89.1 and aes 0.9.4) are T-691.
+(taiki-e/install-action 2.90.0 and aes 0.9.4) are T-691.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
@@ -219,7 +219,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597. Dependabot's #149 an
 | #147 | `relay serve` routes a published name by its ClientHello, TLS at the node | closed 2026-11-05, its entry done | T-649 (the listener moved to `podssh-relay`; funnel at the edge is T-180) |
 | #148 | A pool of sessions opened ahead for each node | closed 2026-11-05, its entry done | T-650 (only for a node that asks, by its own flag) |
 | #151 | COORD-001: a test of the fallback channel | closed 2026-11-05, its entry partial | T-684 (the first message of the protocol of PodUtils' sessions, a test that the watcher sees it) |
-| #152 | `[gh action] requested`: the gate, cargo-deny and the Piping Server tests on `main` | open | T-684 (Actions start no workflow for this account on 2026-11-06; the owner's agent runs the commands; T-691's deny and T-451's piping.yml read the runs) |
+| #152 | `[gh action] requested`: the gate on `main` | open | T-684 (Actions start no workflow for this account on 2026-11-06; the owner's agent runs the commands; T-691's deny and T-451's piping.yml read the runs) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
