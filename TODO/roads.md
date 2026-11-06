@@ -1136,7 +1136,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
 (`docs/relay.md:1-21`, `README.md:36-39`). The stand-in serves the forward
-path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:152-170`). The
+path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:157-175`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
 reverse path and its close table
@@ -1194,8 +1194,8 @@ read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 Lifted on 2026-11-02 by Q63: see below.
 
 The Premise is stale in one sentence: the stand-in serves more than "the forward path,
-`/v1/mint` and `/health` only". At `scripts/fake-relay.py:162-166` it also serves `/relays.json`
-and `/trace`, and `scripts/fake-relay.py:148` hands the whole reverse road to
+`/v1/mint` and `/health` only". At `scripts/fake-relay.py:167-171` it also serves `/relays.json`
+and `/trace`, and `scripts/fake-relay.py:153` hands the whole reverse road to
 `scripts/fake_reverse.py`, which is as strict as the live relay for an id that it forgot, and
 tells a frame in flight apart (`scripts/fake_reverse.py:293-305`). The rest holds; the ruling of
 2026-10-08 that it cites is changed.

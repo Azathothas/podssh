@@ -24,6 +24,8 @@ Modes:
                    ALLOW list`, as the relay refuses a target of its policy,
                    and dial no target (T-367)
   blackhole        accept TCP and never start TLS
+  noupgrade        answer each WebSocket upgrade 403 in a proxy's words, as
+                   a proxy that ends TLS and refuses upgrades does (T-451)
   fault1003        behave, but close the first socket of each pair's node
                    with 1003 "unknown session id" (T-409)
   noready          behave, but take each operator's socket and never send
@@ -145,7 +147,10 @@ async def handle(reader, writer):
             if ":" in line:
                 k, v = line.split(":", 1)
                 headers[k.strip().lower()] = v.strip()
-        if await fake_reverse.handle(method, path, headers, reader, writer):
+        if args.mode == "noupgrade" and headers.get("upgrade", "").lower() == "websocket":
+            event(f"upgrade refused {path}")
+            writer.write(response(403, "Forbidden", b"Forbidden: WebSocket upgrades are not allowed by policy"))
+        elif await fake_reverse.handle(method, path, headers, reader, writer):
             pass
         elif await fake_stream.handle(method, path, headers, reader, writer):
             pass

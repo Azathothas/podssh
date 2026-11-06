@@ -1052,8 +1052,8 @@ Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
 killed in a session gives exit 255 (`scripts/interop-faults.sh:265-283`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:152-170`),
-and its `stall` mode never ends (`scripts/fake-relay.py:373-376`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:157-175`),
+and its `stall` mode never ends (`scripts/fake-relay.py:378-381`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).

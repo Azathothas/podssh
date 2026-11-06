@@ -3277,7 +3277,7 @@ moved code then runs there.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3320,6 +3320,26 @@ module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`
 PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
 crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
 moved code then runs there.
+
+
+## Done
+
+2026-11-06. `crates/podssh-cli/tests/node_piping.rs` runs the commands: the stand-in relay's new mode
+`noupgrade` (`scripts/fake-relay.py`) answers each WebSocket upgrade 403 in a proxy's words ("Forbidden:
+WebSocket upgrades are not allowed by policy"), as a proxy that ends TLS does, and serves the pair's
+POST as before; piping-server-rust v0.18.0 serves HTTPS on the loopback with a certificate of `ppng.io`
+from the stand-in's CA, and the stand-in proxies of the node and of the client map `ppng.io` to it, so
+that the road is the unasked one (`PODSSH_PIPING` unset, Q65) and its own server is the one dialed.
+`podssh relay pair`, then `podssh node`: "serving ... over the Piping Server road through
+https://ppng.io" and "the WebSocket upgrade to relay-a.test was refused on the way ...; so the node
+serves the Piping Server road alone, unasked"; then `podssh ssh -v node://tester@lab echo` carries a
+line, the Piping Server is killed and started again on its port, and a second line comes back; the
+client's proxy carried `CONNECT ppng.io:443`. `PODSSH_TEST_PIPING_RUST=... cargo test -p podssh-cli
+--test node_piping`: 2 passed, 4 runs in a row, about 3 s each; with no server named it says "did not
+run". Planted: `upgrade_refused` false for each refusal: the node serves the pair's road, and the test
+fails at its first line; put back, it passes. `.github/workflows/piping.yml` runs it with the
+release's binary and fails a run that did not run it. The box with a proxy that ends TLS (Approach,
+item 3) is a run in the build image, which waits for the checks of the release (T-251, Q88).
 
 # T-452: A node of the DERP road whose key is a member of the net starts with no `--allow`
 

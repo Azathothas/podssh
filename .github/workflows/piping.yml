@@ -4,6 +4,8 @@ name: piping
 # the loopback (piping-server 1.12.9 from npm, the server of ppng.io; and
 # piping-server-rust v0.18.0's binary, by the SHA-256 that its release
 # publishes in sha256sums.txt), where no test may say that it did not run;
+# `podssh node` and `podssh ssh node://` with the Rust server, behind a
+# stand-in relay that refuses each upgrade (T-451);
 # then a short live session through https://ppng.io, as the operator's
 # ruling Q65 allows: once directly, once through the box's proxy of names
 # (scripts/box/proxy.py), which carries CONNECT to port 443 alone. Started
@@ -52,6 +54,19 @@ jobs:
           # Each server was here, so each test ran.
           if grep -q "did not run" "$RUNNER_TEMP/loopback.log"; then
             echo "FAIL a test did not run"
+            exit 1
+          fi
+          exit $rc
+      - name: the commands behind a proxy that refuses the upgrade (T-451)
+        run: |
+          set +e
+          timeout 1800 cargo test --locked -p podssh-cli --test node_piping -- --nocapture \
+            >"$RUNNER_TEMP/commands.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/commands.log"
+          if grep -q "did not run" "$RUNNER_TEMP/commands.log"; then
+            echo "FAIL the test of the commands did not run"
             exit 1
           fi
           exit $rc

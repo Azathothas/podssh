@@ -188,7 +188,7 @@ sh scripts/dev.sh check                                   # interop: the stand-i
 cargo test -p podssh-cli --test relay_live -- --ignored   # the live relay, on request
 ```
 
-`scripts/fake-relay.py` (it serves `/health` and the mint: `:152-161`) gets `/relays.json`,
+`scripts/fake-relay.py` (it serves `/health` and the mint: `:157-166`) gets `/relays.json`,
 `/trace` and `/llms-full.txt`. In the gate, `relay status` exits 0 with the stand-in's version;
 `relay trace` sends `X-Relay-Token`, which the stand-in requires; a HOST of `a&b` exits 64 before
 any connection. Planted defect: leave the header out; the stand-in answers 403, the test fails.
