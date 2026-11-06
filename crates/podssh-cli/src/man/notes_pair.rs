@@ -286,8 +286,11 @@ pub(super) const NODE: &[&str] = &[
      with one address that fails is refused whole. The net must give the node the role exit, signed by its \
      owner, else the node does not start (78); a key of --allow, or an operator of the connect token alone, \
      never reaches the exit. TARGET is then optional. It goes on the pair's, the iroh, the DERP, the transit and \
-     the Piping Server roads, and on a carrier (--carrier); --no-e2e, --quick-tunnel, --temporary and a udp: \
-     TARGET are refused with it (64).",
+     the Piping Server roads, on a carrier (--carrier), and behind a quick tunnel (--quick-tunnel), whose \
+     visitors are the keys of --allow or, with none, the net's members: podssh ssh --exit cf://HOST and the \
+     copies reach it by the tunnel's name, which the node prints; podssh exit, proxy --exit and pipe --exit \
+     reach an exit by its pair, iroh, DERP or a carrier, and refuse a cf:// name (64). --no-e2e, --temporary \
+     and a udp: TARGET are refused with it (64).",
     "With --carrier ADDR, the node's one road is a stream that exists already, for a host whose every road out \
      is closed but that grants one channel, such as the exec channel of a platform's own SSH: stdio (or -), \
      the stdin and stdout that such a channel gives the program that it starts; fd:N, a descriptor that the \

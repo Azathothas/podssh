@@ -6,8 +6,11 @@
 //! channel's word names the first hop, `HOST:PORT`, in place of a route, and
 //! the SSH client checks that host's key under its own name, as on the
 //! relay. With `--carrier ADDR` (T-614), the exit is the node at the other
-//! end of that stream, its one road, as for `node://NAME --carrier`. Here so
-//! that the resolver stays one file.
+//! end of that stream, its one road, as for `node://NAME --carrier`. With
+//! `--exit cf://HOST` (T-459), the exit is the node behind the quick tunnel
+//! HOST (`podssh node NAME --exit --quick-tunnel`), its one road, as for
+//! `cf://HOST`, with the channel's word naming the first hop. Here so that
+//! the resolver stays one file.
 
 use podssh_ws::Trust;
 
@@ -28,6 +31,9 @@ pub(super) fn or_exit(args: &SshArgs, env: &Env, relay: Transport) -> Result<Tra
     if matches!(relay, Transport::Relay { family: Some(_), .. }) {
         let why = "-4 and -6 choose the family that the relay dials; an exit resolves its target itself";
         return Err(Refusal::usage(why));
+    }
+    if name.starts_with(super::cloudflare::SCHEME) {
+        return quick(args, env, name);
     }
     crate::pairs::check_label(name)?;
     crate::exit::auto::flags(name, args.pair_file.as_deref(), args.carrier.as_deref())?;
@@ -83,6 +89,33 @@ fn carried(args: &SshArgs, name: &str, text: &str) -> Result<Transport, Refusal>
     })
 }
 
+/// The exit behind the quick tunnel of `--exit cf://HOST` (T-459): the
+/// tunnel's WebSocket is its one road, so a pair, a carrier or `auto` is
+/// refused, and the channel's word is filled once the first hop is known.
+fn quick(args: &SshArgs, env: &Env, name: &str) -> Result<Transport, Refusal> {
+    let host = match super::cloudflare::destination(name) {
+        Ok(Some((None, host))) => host,
+        Ok(Some((Some(_), _))) => return Err(Refusal::usage(format!("--exit {name}: an exit takes no user name"))),
+        Ok(None) => return Err(Refusal::usage(format!("--exit {name}: not a cf:// name"))),
+        Err(why) => return Err(Refusal::usage(format!("--exit {why}"))),
+    };
+    let why = if args.carrier.is_some() {
+        Some("--carrier is another road: the quick tunnel's name is the exit's one road")
+    } else if args.pair_file.is_some() {
+        Some("--pair-file names a pair's road: a quick tunnel's node has no pair")
+    } else if args.no_e2e {
+        Some("--no-e2e turns off the channel, whose word names the exit's target")
+    } else {
+        None
+    };
+    if let Some(why) = why {
+        return Err(Refusal::usage(format!("--exit {name}: {why}")));
+    }
+    let trust = super::resolve::ca_file(args, env).map_or(Trust::Default, |file| Trust::File(file.into()));
+    let channel = super::iroh::channel_ask(args).map_err(Refusal::usage)?;
+    Ok(Transport::Cloudflare { host, trust, channel })
+}
+
 /// The exit's word, the first hop of the run (`-J`'s first, else the
 /// destination, with its `HostName` and port), once the resolver knows it;
 /// `--exit` beside a road of its own is refused.
@@ -91,8 +124,10 @@ pub(super) fn fill(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refusa
     let opts = &resolved.options;
     let first = opts.jump.first().unwrap_or(&opts.destination);
     let (host, port) = (first.host.clone(), first.port);
-    // A node's own destination is shown as node://NAME, never a host.
-    let to_node = opts.destination.host.starts_with(super::node::SCHEME);
+    // A node's own destination is shown as node://NAME, never a host; a
+    // tunnel's as cf://HOST.
+    let to_node = opts.destination.host.starts_with(super::node::SCHEME)
+        || opts.destination.host.starts_with(super::cloudflare::SCHEME);
     let mut name = asked.to_string();
     if let (true, false, Transport::Node { label, .. }) =
         (crate::exit::auto::is_auto(asked), to_node, &mut resolved.transport)
@@ -109,6 +144,16 @@ pub(super) fn fill(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refusa
             *channel = channel.clone().to_exit(&host, port).map_err(Refusal::usage)?;
             Ok(())
         }
+        // The exit behind a quick tunnel (T-459), named by its cf://HOST.
+        Transport::Cloudflare { host: tunnel, channel, .. }
+            // A host name is the same in any case; the resolver keeps it lower.
+            if name.strip_prefix(super::cloudflare::SCHEME).is_some_and(|asked| asked.eq_ignore_ascii_case(tunnel))
+                && channel.route.is_none()
+                && !to_node =>
+        {
+            *channel = channel.clone().to_exit(&host, port).map_err(Refusal::usage)?;
+            Ok(())
+        }
         _ => Err(Refusal::usage(ITS_OWN)),
     }
 }
@@ -116,7 +161,11 @@ pub(super) fn fill(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refusa
 /// Whether the road of `transport` starts at an exit: a node's, whose word
 /// is a target (it holds a ':', which no route's name does).
 pub fn is_exit(transport: &Transport) -> bool {
-    matches!(transport, Transport::Node { channel, .. } if channel.route.as_deref().is_some_and(|w| w.contains(':')))
+    let word = |channel: &crate::channel::Ask| channel.route.as_deref().is_some_and(|w| w.contains(':'));
+    match transport {
+        Transport::Node { channel, .. } | Transport::Cloudflare { channel, .. } => word(channel),
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -173,6 +222,25 @@ mod tests {
             let refusal = on(carrier, pair_file).unwrap_err();
             assert!(refusal.code == 64 && refusal.message.contains(says), "{carrier}: {}", refusal.message);
         }
+    }
+
+    /// `--exit cf://HOST` (T-459): the quick tunnel of the exit's node is
+    /// its one road, and the channel's word is the first hop.
+    #[test]
+    fn the_exit_behind_a_quick_tunnel_takes_its_name_as_the_road() {
+        let env = Env { home: None, user: Some("me".into()), ..Env::default() };
+        let mut args = SshArgs { destination: Some("u@h.example".into()), ..SshArgs::default() };
+        args.exit = Some("cf://Lab-One.trycloudflare.com".into());
+        let r = super::super::resolve::resolve_or_refuse(&args, &env).unwrap();
+        assert!(is_exit(&r.transport));
+        match &r.transport {
+            Transport::Cloudflare { host, channel, .. } => {
+                let word = channel.route.as_deref();
+                assert_eq!((host.as_str(), word), ("lab-one.trycloudflare.com", Some("h.example:22")))
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(r.options.destination.host, "h.example", "the host key is looked up under the host");
     }
 
     #[test]

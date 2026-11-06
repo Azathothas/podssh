@@ -200,6 +200,12 @@ pub(super) async fn reach(
             let line = format!("{shown}: --node-key names a podssh node, but the far end greets with no layer");
             return Err(NotReached { lines: vec![line], code: sysexits::EX_NOPERM });
         }
+        // An exit's word goes in the channel, which only a podssh node runs
+        // (T-459): a service of cloudflared would take the session with no exit.
+        if ask.route.as_deref().is_some_and(|word| word.contains(':')) {
+            let line = format!("{shown}: --exit names a podssh node, but the far end greets with no layer");
+            return Err(NotReached { lines: vec![line], code: sysexits::EX_NOPERM });
+        }
         return Ok(Reached { stream: Box::new(greeted.rewound()), relay: None, direct_proxy: None, layer: None });
     }
     log.verbose(&format!("{shown}: the far end greets with the resumable layer: a podssh node"));

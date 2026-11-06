@@ -78,8 +78,22 @@ enum Road {
     Carrier(Arc<crate::carrier::Client>),
 }
 
+/// An exit named by its quick tunnel (`cf://HOST`, T-459) is a road of
+/// `podssh ssh` and the copies, whose client carries the layer over the
+/// tunnel's WebSocket; a session here is carried by a relay's legs.
+pub fn not_a_tunnel(name: &str) -> Result<(), Refusal> {
+    match name.starts_with(crate::ssh::cloudflare::SCHEME) {
+        true => Err(Refusal::usage(format!(
+            "--exit {name}: an exit behind a quick tunnel is reached by podssh ssh, cp, sftp and the other copies; \
+             podssh exit, proxy --exit and pipe --exit reach an exit by its pair, iroh, DERP or a carrier"
+        ))),
+        false => Ok(()),
+    }
+}
+
 impl Road {
     fn of(to: &To) -> Result<Road, Refusal> {
+        not_a_tunnel(&to.name)?;
         if let Some(text) = to.carrier.as_deref() {
             return crate::carrier::shared(text).map(Road::Carrier);
         }

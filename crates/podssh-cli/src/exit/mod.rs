@@ -101,6 +101,7 @@ pub fn run_exit(args: &ExitArgs, err: &mut dyn Write) -> i32 {
 /// allowed here.
 fn prepare(args: &ExitArgs) -> Result<(open::To, Address), Refusal> {
     let name = args.name.clone().ok_or("missing NAME: the exit node of your net (podssh node NAME --exit)")?;
+    open::not_a_tunnel(&name)?;
     crate::pairs::check_label(&name)?;
     auto::flags(&name, args.pair_file.as_deref(), args.carrier.as_deref())?;
     let text = args.listen.as_deref().ok_or("--listen ADDR:PORT is where the proxy listens, as 127.0.0.1:1080")?;

@@ -349,7 +349,13 @@ member of the net").
   so are `ssh`, `proxy` and `pipe` with `--exit NAME --carrier ADDR`
   (T-614), each session a leg of the command's own stream. `podssh doctor
   --exit NAME` (T-458) says what the net held lets this client, the pair,
-  and one session from the exit, with whose a refusal is.
+  and one session from the exit, with whose a refusal is. Behind a quick
+  tunnel (T-459), `podssh node NAME --exit --quick-tunnel` serves its
+  visitors through the exit's routes, its door the keys of `--allow` or the
+  net's members; `podssh ssh --exit cf://HOST` and the copies reach it by
+  the tunnel's name, the channel's word naming the first hop, while `podssh
+  exit`, `proxy --exit` and `pipe --exit`, whose sessions ride a relay's
+  legs, refuse a `cf://` name.
 - **Routes** (T-432). `--routes CIDR,...` lets the net's members reach the
   private networks that the node reaches, within the policy, as a Tailscale
   subnet router does; the node's own host (its loopback and its own

@@ -4236,9 +4236,9 @@ Read at `2042200`:
   (`crates/podssh-relay/src/serve/http_road/mod.rs:142`) and `/trace`
   (`crates/podssh-relay/src/serve/docs.rs:132`); one change there serves each.
 - podssh has this list already for an exit: `podssh node --exit --routes` takes ranges
-  (`crates/podssh-cli/src/node_exit.rs:93`), each a `Range` of `ADDR/BITS` or one address
+  (`crates/podssh-cli/src/node_exit.rs:91`), each a `Range` of `ADDR/BITS` or one address
   (`crates/podssh-cli/src/net/policy_words.rs`, lines 123 at `c3a9b89` and on), and an address that is not public is let
-  through only inside one (`crates/podssh-cli/src/node_exit.rs:215-219`). `Range::parse` takes a
+  through only inside one (`crates/podssh-cli/src/node_exit.rs:213-217`). `Range::parse` takes a
   prefix with host bits and reads it as its network (the same file, lines 131 to 147 at `c3a9b89`):
   `10.0.0.5/8` is `10.0.0.0/8`, with no word.
 

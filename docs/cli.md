@@ -4383,9 +4383,14 @@ own, and the forward road starts at the node.
   nobody out at the next session. TARGET is optional: with none, the node
   is an exit alone. `--routes RANGES` (`ADDR/BITS` or one address, apart by
   commas) names the private ranges that it dials too. `--no-e2e`,
-  `--quick-tunnel`, `--temporary` and a `udp:` TARGET are refused with it
-  (64), as the target travels in the end-to-end channel; `--routes` with no
-  `--exit` is refused too. `--install` keeps both flags.
+  `--temporary` and a `udp:` TARGET are refused with it (64), as the target
+  travels in the end-to-end channel; `--routes` with no `--exit` is refused
+  too. `--install` keeps both flags. Behind a quick tunnel (`--exit
+  --quick-tunnel`, T-459) its visitors go through the exit's routes, and its
+  door is the keys of `--allow` or the net's members; `podssh ssh --exit
+  cf://HOST` and the copies reach it by the name that it prints, and
+  `podssh exit`, `proxy --exit` and `pipe --exit` refuse a `cf://` name
+  (64), as their sessions ride a relay's legs.
 - **Who.** A member that the net's policy (T-430) lets reach `exit:NODE`,
   `exit:*` or `*`, for a public address; for an address of a range, a rule
   that reaches that address (`ADDR/BITS`). With no policy, each member. A key

@@ -25,7 +25,6 @@ fn the_exit_s_flags_go_with_a_road_of_the_channel() {
     assert!(check(&NodeArgs { relay: true, ..routes.clone() }).is_ok());
     for (args, words) in [
         (NodeArgs { no_e2e: true, ..exit.clone() }, "--no-e2e"),
-        (NodeArgs { quick_tunnel: true, ..exit.clone() }, "quick tunnel"),
         (NodeArgs { temporary: Some("k".into()), ..exit.clone() }, "--temporary"),
         (NodeArgs { targets: vec!["dns=udp:127.0.0.1:53".into()], ..exit.clone() }, "udp:"),
         (NodeArgs { routes: Some("10.0.0.0/8,nope".into()), ..exit.clone() }, "\"nope\" is not a range"),

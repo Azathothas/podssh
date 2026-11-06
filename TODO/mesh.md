@@ -4279,7 +4279,7 @@ Waits: a run against the live relay and an exit with a public egress, from a run
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4332,6 +4332,55 @@ waves are in Q101 of `TODO/PROGRESS.md`, and the module map is `PodUtils/podcrat
 Rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh
 makes fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which
 podssh takes by the next tag; a test of the moved code then runs there.
+
+2026-11-06 (the drafting agent). No module of this entry is imported by podcrates yet (the frozen
+files are pod-dns's and pod-services'), so the work is podssh's. The Approach's item 2 is met
+for `podssh ssh --exit cf://HOST` and the copies, whose client of `cf://` carries the layer and
+the channel over the tunnel's WebSocket; `podssh exit`, `proxy --exit` and `pipe --exit` carry
+each session by a relay's legs (`exit::open`, `layered::carry_through`), which a tunnel's
+WebSocket does not fit, so they refuse a `cf://` name (64) with that reason. The Prove's test runs
+in podssh-relay, against its stand-in edge, as the CLI's node cannot be pointed at one: the node's
+handler as `node_quick` builds it, with a dial that stands for the binary's exit dial, whose
+checks of each address `node_exit`'s own tests hold.
+
+## Done
+
+Partial, 2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t459`, `8c085d46`, the WIP of
+`draft/wip-459` (`b5f9a50`) redone on `main`), then merged, built and tested by the main session,
+with two repairs: a temporary that the test's `client::start` borrowed past its statement
+(`quick_exit.rs`), and `--exit cf://HOST` compared with the tunnel's host in its own case, where
+the resolver keeps it lower, so `cf://Lab-One...` was refused (`exit_road.rs`).
+
+- The node: `crates/podssh-cli/src/node_exit.rs` no longer refuses `--quick-tunnel` with `--exit`;
+  `crates/podssh-cli/src/node_quick.rs` takes no TARGET with `--exit`, says the exit's line before
+  it connects (`node_exit::ready`), and serves each visitor through `Routed` with the exit's dial
+  and the door's grant (the keys of `--allow`, or the net's policy for its members), under the
+  layer and the upgrade's keeper; with no route and no exit, its one TARGET as before. A role of
+  `--relay` beside it keeps its paths.
+- The client: `crates/podssh-cli/src/ssh/exit_road.rs` reads `--exit cf://HOST` as the exit behind
+  that quick tunnel (`Transport::Cloudflare`, its one road; `--pair-file`, `--carrier`, `--no-e2e`
+  and a user name refused), and fills the channel's word with the first hop; `is_exit` knows it.
+  `crates/podssh-cli/src/ssh/cloudflare.rs` refuses an exit's word where the far end greets with
+  no layer (cloudflared's own service), as it would take the session with no exit.
+  `crates/podssh-cli/src/exit/open.rs` (`not_a_tunnel`) and `exit/mod.rs`: `podssh exit`,
+  `proxy --exit` and `pipe --exit` refuse a `cf://` name (64): their sessions ride a relay's legs
+  (`layered::carry_through`), which a tunnel's WebSocket does not fit yet. That is what stays open
+  of Approach item 2: the entry stays partial for a client of the quick tunnel's road in them.
+- Tests: `crates/podssh-relay/tests/quick_exit.rs` (features `quick` and `pair`), through the
+  stand-in edge with WebSocket frames both ways: a member's session to a target inside the lent
+  range reads the service's word, one dial; a target of no range is refused with the exit's words
+  and never dialled. The resolver's `the_exit_behind_a_quick_tunnel_takes_its_name_as_the_road`;
+  `crates/podssh-cli/tests/exit.rs`, four rows of refusals of `cf://` and the row of
+  `--quick-tunnel` gone (also in `node_exit_tests.rs`). `cargo test -p podssh-relay --features quick,quic,pair --test quick_exit`:
+  2 passed; `cargo test -p podssh-cli --test exit`: 7 passed; the CLI's library: 984 passed; clippy
+  and rustfmt clean. Planted: the node with no exit (`exit: None` in the test's routes): both tests
+  fail ("this node is no exit"); put back, they pass.
+- The manual (the notes of `podssh node`, `crates/podssh-cli/src/man/notes_pair.rs`), `docs/cli.md`
+  ("The exit of the net") and `docs/mesh.md` section 5.
+- For the merge: `cargo todo remap` of each changed file (the citations of `docs/cli.md`,
+  `docs/mesh.md`, `node_quick.rs` and `exit_road.rs` may move). A live run (a node with `--exit`
+  behind a quick tunnel, and `podssh ssh --exit cf://HOST` through it) belongs in
+  `quick-tunnel-live.yml`; this host's proxy refuses port 7844, and waits.
 
 # T-530: OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road
 
@@ -5453,7 +5502,7 @@ the net that already names them.
 
 ## Premise
 
-- `crates/podssh-cli/src/node_quick.rs:148`, where the node with no `--allow` was refused: its
+- `crates/podssh-cli/src/node_quick.rs:151`, where the node with no `--allow` was refused: its
   name is public, so only the operator keys of the file came in.
 - `crates/podssh-cli/src/node_derp.rs:117` says "pub(crate) fn door(allow: Option<&Path>, place: &Place) -> Result<Door, Refusal>",
   the door of T-452 that the quick tunnel's node can take too.

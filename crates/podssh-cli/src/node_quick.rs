@@ -18,7 +18,9 @@
 //! connection to the edge is made again, with the same name, until Ctrl-C.
 //! With `--relay`, the node is its owner's relay too, behind the tunnel and
 //! with no listener (T-428, `crate::node_quick_relay`), and TARGET may be
-//! left out.
+//! left out. With `--exit` (T-459), its sessions go through the routes of an
+//! exit as on each other road (`crate::node_exit`): a member's word names a
+//! target of its own, and TARGET may be left out too.
 //! In a build with the iroh road, the node's record of pkarr names the
 //! tunnel, at n0's server unless `PODSSH_IROH_PKARR` names another or `off`
 //! (Q81), for a client with the node's key alone (T-445, `node_record`).
@@ -43,7 +45,7 @@ use podssh_relay::quick::register::Connector;
 use podssh_relay::quick::roads::{self, Link, Road};
 use podssh_relay::quick::{api, edge};
 use podssh_relay::reverse::framing::SessionId;
-use podssh_relay::reverse::routes::Route;
+use podssh_relay::reverse::routes::{Route, Routed};
 use podssh_relay::reverse::{self, E2e, Handler, Layered, TcpHandler};
 use podssh_ws::ProxyChoice;
 use tokio::io::DuplexStream;
@@ -135,9 +137,10 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     if args.targets.iter().any(|t| t.starts_with("udp:")) {
         return Err(Refusal::usage("a udp: TARGET goes on the pair's road: a quick tunnel carries TCP only"));
     }
-    // With --relay and no TARGET, the node is the relay alone (T-428).
+    // With --relay and no TARGET, the node is the relay alone (T-428); with
+    // --exit and none, the exit alone (T-459).
     let words = crate::node::words_of(args);
-    let targets = match words.is_empty() && args.relay {
+    let targets = match words.is_empty() && (args.relay || args.exit) {
         true => Vec::new(),
         false => crate::node::targets_of(&words, false)?,
     };
@@ -155,6 +158,8 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     let record = crate::node_record::named()?;
     // One for this run only stays across an upgrade in place (T-679).
     let key = crate::node_upgrade::parts::node_key(&place)?;
+    // An exit says its net, or why it cannot be one, before it connects (T-431).
+    crate::node_exit::ready(&label, &key.identity.public())?;
     // After the key: the net's `relay:NAME` names the node by it (T-455).
     let relay = crate::node_quick_relay::role(args, &label, &door, key.identity.public())?;
     Ok(Ready { label, targets, key, door, sshd: args.sshd, warp: args.warp, relay, record })
@@ -195,8 +200,10 @@ pub(crate) fn arch() -> String {
 
 async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     let Ready { label, targets, key, door, sshd: roost, warp, relay, record } = ready;
-    // TARGET first, when there is one; with none, the node is the relay alone.
-    let target = match targets.is_empty() {
+    // TARGET first, when there is one; with none, the node is the relay
+    // alone, or an exit's routes alone (T-459).
+    let exit = crate::node_exit::asked();
+    let target = match targets.is_empty() && !exit {
         true => None,
         false => match crate::node::probe(&targets, roost).await {
             Ok(versions) => Some(crate::node::serving(&targets, &versions)),
@@ -280,18 +287,35 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     };
     let (_record, tell) = crate::node_record::alone(record, &key.identity, &trust, say.clone(), line);
     tell.quick(&tunnel.hostname);
-    // As the pair's road does: the layer, the channel above it, then TARGET; the edge keeps no bound of the relay's.
-    let handler = match targets.first() {
-        Some(first) => {
+    // As the pair's road does: the layer, the channel above it, then TARGET,
+    // or an exit's routes (T-459); the edge keeps no bound of the relay's.
+    let handler: Option<Arc<dyn Handler<Stream = DuplexStream>>> = match targets.is_empty() && !exit {
+        true => None,
+        false => {
+            let me = key.identity.public();
+            // Which routes each visitor may use: the keys of --allow, or the
+            // net's policy for its members, as on the DERP road (T-550).
+            let allow = match &door {
+                Door::Allow(path) => Some(path.clone()),
+                Door::Net(_) => None,
+            };
             let channel = channel_of(&label, key, door, err);
-            let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
             let (settings, budget) = (crate::layered::settings().off_the_pair(), reverse::layered::NODE_BUDGET);
             // The upgrade's keeper: the sessions of the binary before this
             // one, and those that go to the next (T-679).
             let keeper = crate::node_upgrade::channel_keeper(&channel, settings.resume_deadline);
-            Some(Arc::new(Layered::with_keeper(E2e::new(tcp, channel), settings, budget, keeper)))
+            let grant = crate::net::admit::grant(allow, Some(me));
+            match crate::node::routes_of(&targets, grant, roost, Some(me)) {
+                Some(routes) => {
+                    Some(Arc::new(Layered::with_keeper(Routed::new(routes, channel), settings, budget, keeper)))
+                }
+                None => {
+                    let first = crate::node_exit::first(&targets);
+                    let tcp = TcpHandler { host: first.host, port: first.port, timeout: DIAL_LIMIT, sshd: roost };
+                    Some(Arc::new(Layered::with_keeper(E2e::new(tcp, channel), settings, budget, keeper)))
+                }
+            }
         }
-        None => None,
     };
     // The name is the node's answer: the one line on stdout.
     podssh_ssh::out_line!("{url}");
@@ -309,7 +333,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     // The relay's paths go to the role, in place of the 404 (T-428).
-    let origin = relay.as_ref().map(|relay| relay.origin(&tunnel.hostname, targets.is_empty()));
+    let origin = relay.as_ref().map(|relay| relay.origin(&tunnel.hostname, targets.is_empty() && !exit));
     let visit = Visitors { visit, origin };
     // The tunnel's credentials, and this run's id, version and system, as
     // each connection registers them.
