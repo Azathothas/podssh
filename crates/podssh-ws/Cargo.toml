@@ -10,18 +10,18 @@ publish.workspace = true
 [dependencies]
 # TLS: the trust, the configurations, the pure-Rust crypto provider, the
 # server's side and Encrypted Client Hello, with podssh's settings (tls.rs).
-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0" }
-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0", features = ["pure", "rsa", "ech"] }
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0" }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0", features = ["pure", "rsa", "ech"] }
 # The dial, the proxies, the race of addresses, Multipath TCP, the HTTP/1.1
 # heads, the GET client (sealed with ECH where asked) and STUN's codec, with
 # podssh's settings (dial.rs).
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0", features = ["ech"] }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0", features = ["ech"] }
 # The resolver: an IP literal, the pins, the system, the cache of addresses
 # and DNS over HTTPS, the SRV and HTTPS records (resolve.rs), with its reader
 # of ECH lists for pod-tls.
-pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0", features = ["ech"] }
+pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0", features = ["ech"] }
 # The services of other parties: the forwarders of `--via` (forwarder/builtin.rs).
-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0" }
+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0" }
 tokio = { workspace = true }
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }
@@ -68,7 +68,7 @@ libc = { workspace = true }
 plain-ws = []
 
 [dev-dependencies]
-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0", features = ["screen"] }
+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0", features = ["screen"] }
 # The doctor is async because it may be asked to perform a handshake, and
 # the plants that assert `????` rather than `ok` have to drive it as a caller
 # would. `macros` is what makes `#[tokio::test]` exist.

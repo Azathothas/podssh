@@ -288,7 +288,8 @@ async fn refusal_text(mut body: RecvStream) -> String {
     };
     let _ = tokio::time::timeout(REFUSAL_WAIT, read).await;
     got.truncate(REFUSAL_BODY);
-    crate::http::Response { status: 0, reason: String::new(), headers: Vec::new(), body: got }.body_text(200)
+    crate::http::Response { status: 0, reason: String::new(), headers: Vec::new(), body: got, url: String::new() }
+        .body_text(200)
 }
 
 /// The upgrade of HTTP/1.1 on `tls`, a connection to `peer` whose TLS chose

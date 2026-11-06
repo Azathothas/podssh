@@ -272,7 +272,13 @@ mod tests {
     }
 
     fn answer(status: u16, body: &str) -> Response {
-        Response { status, reason: String::new(), headers: Vec::new(), body: body.as_bytes().to_vec() }
+        Response {
+            status,
+            reason: String::new(),
+            headers: Vec::new(),
+            body: body.as_bytes().to_vec(),
+            url: String::new(),
+        }
     }
 
     /// A token of one session is taken; a token of 72 h, an answer that

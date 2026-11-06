@@ -3903,10 +3903,10 @@ Read at `2042200`:
 
 - `crates/podssh-relay/src/reverse/control.rs` at `78b5fc8`, line 70, holds the version, and
   `crates/podssh-relay/src/reverse/control.rs:104-108` reads the two limits alone;
-  `crates/podssh-relay/src/reverse/serve.rs:195` is its one call. The role sends `"version": 1`
+  `crates/podssh-relay/src/reverse/serve.rs:198` is its one call. The role sends `"version": 1`
   (`crates/podssh-relay/src/serve/reverse/mod.rs:351-360`), as the default relay does
   (`crates/podssh-relay/src/reverse/control.rs:64-65`). The issue's line numbers are of an older tree.
-- `crates/podssh-relay/src/reverse/serve.rs:236` says "Ok(NodeInbound::Unknown) | Err(_) => {}".
+- `crates/podssh-relay/src/reverse/serve.rs:239` says "Ok(NodeInbound::Unknown) | Err(_) => {}".
 - `crates/podssh-relay/src/reverse/node.rs:306` says "Next::Exit(_) => Next::Reconnect,", and
   `crates/podssh-relay/src/reverse/node.rs:118` says "A reconnection would" of `Exit::Unusable`.
 - The channel: an operator offers only with a document (`crates/podssh-relay/src/e2e/handshake.rs:113`),
@@ -4227,12 +4227,12 @@ Read at `2042200`:
   bytes in order with its close; `crates/podssh-relay/src/reverse/serve.rs` said
   "mpsc::channel(1024), mpsc::channel(256)" at line 145 at `2042200`: one queue of data for all the
   sessions of the socket.
-- Each item is one read of up to `CHUNK_BYTES` (`crates/podssh-relay/src/reverse/serve.rs:370`), which
+- Each item is one read of up to `CHUNK_BYTES` (`crates/podssh-relay/src/reverse/serve.rs:373`), which
   `crates/podssh-relay/src/reverse/framing/legs.rs:51` says is 65504: up to 16 MiB of one session ahead
   of another's (arithmetic on the two constants, not a measurement).
-- The writer is `biased`, control first (`crates/podssh-relay/src/reverse/serve.rs:409`), then the data
+- The writer is `biased`, control first (`crates/podssh-relay/src/reverse/serve.rs:412`), then the data
   queue in order, each item's frames awaited before the next
-  (`crates/podssh-relay/src/reverse/serve.rs:432-439`); it chooses among no sessions.
+  (`crates/podssh-relay/src/reverse/serve.rs:435-442`); it chooses among no sessions.
 - The relay role's own socket has one bound for each socket too
   (`crates/podssh-relay/src/serve/reverse/outbox.rs:27`), a change of its own (the issue says so).
 

@@ -11,7 +11,7 @@ publish.workspace = true
 # their order (T-103).
 podssh-ws = { path = "../podssh-ws" }
 # The services of other parties: the default relay of Tailscale's road.
-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0" }
+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0" }
 tokio.workspace = true
 zeroize.workspace = true
 tailscale = { path = "../../vendor/tailscale-rs" }

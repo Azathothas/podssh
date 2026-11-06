@@ -57,7 +57,7 @@ podssh-ws = { path = "../podssh-ws" }
 # The services of other parties: the facts of doctor's checks, STUN, the
 # DERP map, the zone of OpenTunnel, the ACME directory, the relay of
 # `podssh ts`.
-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0" }
+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0" }
 # The leaf of a release's Sigstore bundle, read (T-375): no C, as its
 # feature `verify` (ring) is off; the signatures are podssh-ws's own.
 x509-parser = { version = "0.18", default-features = false }
@@ -115,7 +115,7 @@ zeroize = { workspace = true }
 futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
 # `podssh session` (T-186): where a kept stream of output may start, and its
 # ring (the grammar of T-221), and when the output has stopped.
-pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0" }
+pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0" }
 # `podssh session capture`: the screen that a terminal shows after the
 # session's output. The model of the terminal oracle (T-200), pure Rust over
 # vte, with no build script that compiles C; the lock has it already.
@@ -167,7 +167,7 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.5.0", features = ["screen"] }
+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.6.0", features = ["screen"] }
 # `test-util` gives the tests a paused clock: the limit of a stuck write is
 # 60 s (tests/direct_write_limit.rs).
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }

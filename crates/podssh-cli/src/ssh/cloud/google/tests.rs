@@ -125,7 +125,13 @@ fn google_a_key_of_another_kind_or_endpoint_is_refused() {
 }
 
 fn answer(status: u16, body: &str) -> podssh_ws::http::Response {
-    podssh_ws::http::Response { status, reason: String::new(), headers: Vec::new(), body: body.as_bytes().to_vec() }
+    podssh_ws::http::Response {
+        status,
+        reason: String::new(),
+        headers: Vec::new(),
+        body: body.as_bytes().to_vec(),
+        url: String::new(),
+    }
 }
 
 #[test]

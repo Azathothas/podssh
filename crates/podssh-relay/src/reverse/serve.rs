@@ -177,7 +177,10 @@ where
     let end = loop {
         let frame = tokio::select! {
             frame = session.read_frame() => frame,
-            dead = &mut liveness => break End::Failed(dead),
+            dead = &mut liveness => match super::closes::pending(&session).await {
+                Some(close) => break End::Closed(close),
+                None => break End::Failed(dead),
+            },
             () = &mut *stop => {
                 let _ = tx.send(Out::Stop).await;
                 break End::Stopped;

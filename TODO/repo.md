@@ -5548,6 +5548,18 @@ Each crate of `v0.1.0` is taken.
   rustfmt, the toolchains). On the way, the run found a test of T-491 that waited on itself
   (`a9418bcb`), and filled the session's disk, which a clean of `target/` freed.
 
+- podcrates `v0.6.0` (`4aa2ee0`), on 2026-11-06: each podcrates dependency moved from `v0.5.0` to
+  `v0.6.0`. Its `pod_proxy`'s `Response` gained `url` (the address of the last answer, after
+  redirects, T-076): each literal of a `Response` in podssh's code and tests names `url:
+  String::new()`. Its `pod-services` holds `onrender-piping` (COORD-004) and `tailscale-derp` and
+  `tailscale-derp-map` (COORD-005). Under load, the run found a race of the node (T-684's
+  `node_cut` test of a strict relay's 1003): a ping whose write broke on the closed socket ended
+  the link before the node read the relay's Close, already sent; `reverse::closes::pending` now
+  reads, for at most 200 ms and 8 frames, a Close that waits, and prefers it. The commands of
+  v0.4.0's `.run` that run here, and clippy with `ts` and with `tor`: each exit 0;
+  after the repair, `cargo test -p podssh-cli` (2,015 passed) and `cargo test -p podssh-relay`
+  (466 passed), `node_cut` 6 runs alone and 3 under four busy cores, each passed.
+
 Next: `pod-ws`, then the waves of Q101.
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
 

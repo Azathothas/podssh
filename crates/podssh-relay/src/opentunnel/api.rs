@@ -350,13 +350,20 @@ mod tests {
             reason: "Too Many Requests".into(),
             headers: vec![("retry-after".into(), "1800".into())],
             body: br#"{"_tag":"RateLimitedError","message":"Too many tunnels created from this address; try again in 30 minutes"}"#.to_vec(),
+            url: String::new(),
         };
         let refused = refusal(&limited);
         assert_eq!(refused.status(), Some(429));
         let text = refused.to_string();
         assert!(text.starts_with("OpenTunnel answered 429 (RateLimitedError): Too many tunnels"), "{text}");
         assert!(text.ends_with("(Retry-After: 1800 s)"), "{text}");
-        let cloudflare = Response { status: 525, reason: String::new(), headers: Vec::new(), body: b"<html>".to_vec() };
+        let cloudflare = Response {
+            status: 525,
+            reason: String::new(),
+            headers: Vec::new(),
+            body: b"<html>".to_vec(),
+            url: String::new(),
+        };
         assert_eq!(
             refusal(&cloudflare).to_string(),
             "OpenTunnel answered 525: Cloudflare 525: the SSL handshake with the server failed"

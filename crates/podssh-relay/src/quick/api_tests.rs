@@ -28,7 +28,7 @@ const AT_42: i64 = 1_793_459_820;
 
 fn answer(status: u16, retry: Option<&str>, body: &[u8]) -> Response {
     let headers = retry.map(|r| vec![("retry-after".to_string(), r.to_string())]).unwrap_or_default();
-    Response { status, reason: String::new(), headers, body: body.to_vec() }
+    Response { status, reason: String::new(), headers, body: body.to_vec(), url: String::new() }
 }
 
 fn tunnel() -> Response {

@@ -156,6 +156,7 @@ mod tests {
             reason: String::new(),
             headers: Vec::new(),
             body: body.as_bytes().to_vec(),
+            url: String::new(),
         };
         assert_eq!(challenge_of(&answer(401, r#"{"challenge":"c1.abc"}"#)).as_deref(), Some("c1.abc"));
         assert_eq!(challenge_of(&answer(200, r#"{"challenge":"c1.abc"}"#)), None);

@@ -9,6 +9,7 @@ fn answer(status: u16, headers: &[(&str, &str)], body: &str) -> Response {
         reason: "Reason".into(),
         headers: headers.iter().map(|(n, v)| (n.to_ascii_lowercase(), v.to_string())).collect(),
         body: body.as_bytes().to_vec(),
+        url: String::new(),
     }
 }
 

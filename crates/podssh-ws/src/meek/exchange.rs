@@ -185,6 +185,7 @@ mod tests {
             reason: "OK".into(),
             headers: headers.iter().map(|(n, v)| (n.to_string(), v.to_string())).collect(),
             body: Vec::new(),
+            url: String::new(),
         };
         assert!(kept(&answer(&[("content-length", "0")])));
         assert!(kept(&answer(&[("transfer-encoding", "chunked")])));
