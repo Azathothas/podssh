@@ -1854,3 +1854,46 @@ display did not change). Planted: a warning copied at INFO's priority, and the C
 - Planted: `t674-warning-at-info` and `t674-file-log-copied` caught.
 - Clippy and rustfmt clean (rustfmt rewrapped one line of the draft's tests).
 - Not measured here: a unit of systemd with `journalctl -p warning`; T-640's is not measured either.
+
+# T-692: Two background probes of the relay rank met the relay 439 ms apart on Windows, under a gap of 1.2 s
+
+**Source:** the gate of `0fc03e7` (run 42203919941, the job `windows`), 2026-11-06.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`rank_background::background_probes_come_one_at_a_time_inside_the_session_and_once_a_day` of
+`podssh-cli`'s test `relay_rank` failed once on Windows: "439 ms between two probes", where the test
+sets a gap of 1,200 ms and allows 200 less. Q89 bounds the background rank to one probe each gap: a
+relay that saw two of them closer than that saw more than the ruling allows.
+
+## Premise
+
+- Read: `crates/podssh-cli/src/relay_rank_auto.rs` kept the time of a probe when it started, and the
+  next one slept until that time and the gap. The relay's lines of that run: connects at 3,922,
+  5,125, 7,108 and 7,547 ms: the third probe's connection reached it about 0.8 s after the probe
+  started, and the fourth's at once.
+
+## Approach
+
+Time the gap from the end of a probe, so that a slow dial of one probe never brings the next one
+nearer than the gap at the relay; the test as it is.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_rank
+```
+
+It passes here; the job `windows` of the gate passes it.
+
+## Done
+
+2026-11-06: `crates/podssh-cli/src/relay_rank_auto.rs` keeps the time when a probe ended (or was
+dropped for a race), and the next probe waits the gap from it. `cargo test -p podssh-cli --test
+relay_rank`: 6 passed. The job `windows` of the next gate reads it again.

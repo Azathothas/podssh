@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**646 entries: 89 open, 14 partial, 4 blocked, 539 done.**
+**647 entries: 89 open, 14 partial, 4 blocked, 540 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 2 | 0 | 67 | 69 |
+| P1 | 0 | 2 | 0 | 68 | 70 |
 | P2 | 23 | 6 | 1 | 254 | 284 |
 | P3 | 66 | 6 | 3 | 217 | 292 |
-| **All** | 89 | 14 | 4 | 539 | 646 |
+| **All** | 89 | 14 | 4 | 540 | 647 |
 
 ## Entries
 
@@ -722,3 +722,4 @@ repository and CI).
 | [T-689](repo.md) | P2 | S | M10 | defect | done | `cargo test -p podssh-relay --test pair_code` overflows its stack on Rust 1.97 in a debug build |
 | [T-690](repo.md) | P1 | S | M10 | defect | done | Two regressions of the adoption of `pod-proxy`: an upload through a relay that cuts lost each answer, and `podssh ts` got `socks5://` for its SOCKS5 proxy |
 | [T-691](repo.md) | P3 | S | none | chore | done | Dependabot's updates of 2026-11-06: taiki-e/install-action 2.90.0 and aes 0.9.4 |
+| [T-692](robustness.md) | P1 | S | none | defect | done | Two background probes of the relay rank met the relay 439 ms apart on Windows, under a gap of 1.2 s |

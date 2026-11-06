@@ -67,9 +67,13 @@ async fn run(trust: podssh_ws::Trust, egress: String) {
             return;
         };
         let Ok(relay) = podssh_relay::relay::parse_relay(host) else { return };
-        last = Some(tokio::time::Instant::now());
         let leg = crate::ping::relay::leg_with(&relay, &trust, REFERENCE, rank_auto::LAZY, rank_auto::PINGS);
-        let Some(leg) = rank_auto::unless_a_race(leg).await else { continue };
+        let done = rank_auto::unless_a_race(leg).await;
+        // The gap runs from the probe's end: timed from its start, a slow
+        // dial of one probe brought the next one's connection nearer to it
+        // at the relay than the gap (439 ms of 1.2 s, once on Windows).
+        last = Some(tokio::time::Instant::now());
+        let Some(leg) = done else { continue };
         let probe = crate::relay_rank::probe_of(&leg);
         let at = rank_auto::Run { egress: &egress, target: &target, now_ms: crate::pairs::now_ms() };
         let made = rank_auto::with_probe(rank::load(), &at, host, probe, plan.len() > 1);
