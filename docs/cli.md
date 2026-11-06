@@ -1201,7 +1201,16 @@ and `proxy`:
   payload's length sealed on its own and the sealed payload; the master key
   by `EVP_BytesToKey` with MD5, each stream's key by HKDF-SHA1 with
   `ss-subkey`; the nonce a counter of 12 bytes, little-endian, that each seal
-  and each open takes. Shadowsocks 2022 (`2022-blake3-...`) and a key that
+  and each open takes. And Shadowsocks 2022 (SIP022, T-492):
+  `2022-blake3-aes-128-gcm`, `2022-blake3-aes-256-gcm` and
+  `2022-blake3-chacha20-poly1305`, whose key is a pre-shared key of 16 or 32
+  bytes in base64 (`shadowsocks/sip022.rs`): each stream's key by BLAKE3's
+  `derive_key` with the context `shadowsocks 2022 session subkey`; the
+  request's fixed header (its type, the timestamp, the length of the next)
+  and its variable header (the address and 1 to 900 bytes of random
+  padding); the response's fixed header, whose type, timestamp (30 s at most
+  from this host's clock, which the refusal names) and request's salt are
+  checked. A key of several users (`iPSK:uPSK`, SIP023) and a key that
   names a plugin, another program, are refused by name (78).
 - The servers are tried in the order of the file, as the relay hosts are:
   TCP to the server, through `HTTPS_PROXY` when one is set, then the salt and

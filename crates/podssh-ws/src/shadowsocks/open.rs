@@ -101,6 +101,9 @@ impl OpenError {
                 };
                 format!("the Shadowsocks server {shown}: {what}: {cause}")
             }
+            OpenError::Chunk(
+                e @ (ChunkError::Header | ChunkError::Kind(_) | ChunkError::Clock { .. } | ChunkError::Salt),
+            ) => format!("the Shadowsocks server {shown}: its answer was refused: {e}"),
             OpenError::Chunk(e) => format!("the Shadowsocks server {shown}: its first chunk did not open: {e}"),
             OpenError::Cut(why) => format!("the Shadowsocks server {shown}: {why}"),
         }
@@ -140,7 +143,8 @@ pub async fn open(node: &Node, host: &str, port: u16, dial: &Dial<'_>) -> Result
     let master = node.master_key();
     let mut encoder = Encoder::new(node.method, &master).map_err(|e| OpenError::Send(e.to_string()))?;
     let mut first = Vec::new();
-    encoder.seal(&header, &mut first).map_err(|e| OpenError::Send(e.to_string()))?;
+    // The address in the first chunk, or in SIP022's headers.
+    encoder.first(&header, &mut first).map_err(|e| OpenError::Send(e.to_string()))?;
     let sent = async {
         tcp.write_all(&first).await?;
         tcp.flush().await
@@ -150,7 +154,8 @@ pub async fn open(node: &Node, host: &str, port: u16, dial: &Dial<'_>) -> Result
         Ok(Err(e)) => return Err(OpenError::Send(e.to_string())),
         Err(_) => return Err(OpenError::Send(format!("no progress in {} s", dial.timeout.as_secs()))),
     }
-    let mut decoder = Decoder::new(node.method, &master);
+    // A response of SIP022 names this request's salt.
+    let mut decoder = Decoder::answer(node.method, &master, encoder.request_salt());
     let (early, answered_in) = match dial.answer {
         Some(wait) => match first_chunk(&mut tcp, &mut decoder, wait, dial.silence_is_ready).await {
             Ok(Some(plain)) => (plain, Some(started.elapsed())),

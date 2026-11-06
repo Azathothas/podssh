@@ -12,7 +12,10 @@
 //! `sslocal`'s client. `ssserver` and `sslocal` come from
 //! `PODSSH_TEST_SSSERVER` and `PODSSH_TEST_SSLOCAL` (the gate names them, so
 //! that a missing one fails), else the path; with neither, a test says that
-//! it did not run. The refusals need no server and always run, and so does
+//! it did not run. Shadowsocks 2022 (T-492): each of its methods against
+//! `ssserver`, with a key of the method's length in base64, a session and
+//! 1 MiB each way, and a wrong key named. The refusals need no server and
+//! always run, and so does
 //! the access key of Outline (T-493): an `ssconf://` key served over TLS
 //! whose server is in a WebSocket, a stand-in of outline-ss-server's
 //! listener behind the same proxy; its failures each named.
@@ -52,6 +55,46 @@ fn each_method_carries_a_session_a_mebibyte_each_way() {
     assert!(w.proxy.connects.lock().unwrap().is_empty(), "no relay and no proxy was asked");
 }
 
+/// A key of `len` bytes for a 2022 method, in base64, and its `ss://` line
+/// with the user part percent-encoded, as SIP002 asks of those methods.
+fn key_2022(method: &str, len: usize, seed: u8, port: u16) -> (String, String) {
+    let key: Vec<u8> = (0..len).map(|i| seed.wrapping_add(i as u8 * 7)).collect();
+    let text = base64::engine::general_purpose::STANDARD.encode(key);
+    let encoded = text.replace('+', "%2B").replace('/', "%2F").replace('=', "%3D");
+    let line = ["ss://", method, ":", &encoded, "@127.0.0.1:", &port.to_string(), "#test"].concat();
+    (text, line)
+}
+
+/// Shadowsocks 2022 (T-492) against `ssserver`, for each method: a session
+/// with 1 MiB each way and equal digests; a wrong key ends with the server
+/// named, and no key in the words.
+#[test]
+fn each_2022_method_carries_a_session_and_a_wrong_key_names_the_server() {
+    let Some(ssserver) = program("PODSSH_TEST_SSSERVER", "ssserver") else { return };
+    let w = World::new("sip022");
+    let methods =
+        [("2022-blake3-aes-128-gcm", 16), ("2022-blake3-aes-256-gcm", 32), ("2022-blake3-chacha20-poly1305", 32)];
+    for (method, len) in methods {
+        let (key, _) = key_2022(method, len, 11, 0);
+        let (_server, port) = start_server(&ssserver, &w.dir, method, &key);
+        let (_, right) = key_2022(method, len, 11, port);
+        let file = private_file(&w.dir, &format!("{method}.list"), &right);
+        let data = shadowsocks_support::mebibyte();
+        let (code, out, err) = run(w.ssh(&["--shadowsocks", &file.display().to_string()], "echo"), data.clone());
+        assert_eq!(code, Some(0), "{method}: {err}");
+        assert_eq!(out.len(), MIB, "{method}: {err}");
+        assert_eq!(shadowsocks_support::digest(&out), shadowsocks_support::digest(&data), "{method}");
+        assert!(!err.contains(&key), "{err}");
+        let (wrong_key, wrong) = key_2022(method, len, 99, port);
+        let file = private_file(&w.dir, &format!("{method}-wrong.list"), &wrong);
+        let (code, _, err) = run(w.ssh(&["--shadowsocks", &file.display().to_string()], "greet"), Vec::new());
+        assert_eq!(code, Some(255), "{method}: {err}");
+        assert!(err.contains(&format!("the Shadowsocks server ss://127.0.0.1:{port} (test)")), "{method}: {err}");
+        assert!(!err.contains(&wrong_key) && !err.contains(&key), "{method}: {err}");
+    }
+    assert!(w.proxy.connects.lock().unwrap().is_empty(), "no relay and no proxy was asked");
+}
+
 #[test]
 fn a_wrong_password_ends_at_the_first_chunk_with_the_server_named() {
     let Some(ssserver) = program("PODSSH_TEST_SSSERVER", "ssserver") else { return };
@@ -75,17 +118,19 @@ fn a_wrong_password_ends_at_the_first_chunk_with_the_server_named() {
 }
 
 #[test]
-fn a_plugin_shadowsocks_2022_an_open_file_and_a_second_road_are_refused_before_anything_connects() {
+fn a_plugin_a_key_of_several_users_an_open_file_and_a_second_road_are_refused_before_anything_connects() {
     let w = World::new("refused");
     // A user part as percent-encoded text, built from its parts: a secret
     // scanner takes a URI with a user and a password, written whole in a
     // source, for a credential.
     let plain = |method: &str, password: &str, rest: &str| ["ss://", method, ":", password, "@", rest].concat();
     let plugin = plain("aes-256-gcm", "hunter2", "127.0.0.1:8388/?plugin=obfs-local%3Bobfs%3Dhttp");
-    let sip022 = plain("2022-blake3-aes-256-gcm", "aHVudGVyMmh1bnRlcjJodW50ZXIy", "127.0.0.1:8388");
+    // A key of several users of Shadowsocks 2022 (SIP023): iPSK:uPSK.
+    let both = "aHVudGVyMmh1bnRlcjJodW50ZXIy%3AaHVudGVyMmh1bnRlcjJodW50ZXIy";
+    let users = plain("2022-blake3-aes-128-gcm", both, "127.0.0.1:8388");
     let cases = [
         ("plugin", plugin, "plugin obfs-local"),
-        ("sip022", sip022, "Shadowsocks 2022"),
+        ("sip023", users, "several users (iPSK:uPSK, SIP023)"),
         ("garbled", "# a comment\nss://hunter2!".to_string(), "garbled.list:2: it is neither"),
     ];
     for (name, text, why) in cases {

@@ -291,7 +291,7 @@ The candidates, ranked:
    pages; a key that VPNBook published took the salt and the header and gave
    no byte back. The AEAD form is small, and podssh-ws has its ciphers: the
    road is `--shadowsocks FILE` (T-373), of `ss://` lines and subscriptions,
-   with no plugin and no Shadowsocks 2022. A proxy that waits for TLS on
+   with no plugin, and with Shadowsocks 2022 since T-492. A proxy that waits for TLS on
    port 443 carries no Shadowsocks (Inferred, as for SSH, T-317), and a
    public key has no operator who answers for it, so podssh names none.
 
@@ -1067,15 +1067,16 @@ with TCP and TLS alone.
      response's header holds the request's salt; a timestamp more than 30 s
      off is a replay; `2022-blake3-aes-128-gcm` and `2022-blake3-aes-256-gcm`
      are mandatory, `2022-blake3-chacha20-poly1305` is optional [S16].
-     `--shadowsocks` refuses each 2022 method by its name today (T-373).
+     `--shadowsocks` speaks the three since T-492, and refuses a key of several
+     users (SIP023's `iPSK:uPSK`) by its name.
    - Passes: as T-373's AEAD form, raw TCP to the server's port, so a proxy
      that waits for TLS on 443 carries none (Inferred, as for SSH, T-317).
    - The server: shadowsocks-rust, MIT, v1.25.0 (2026-08-26) with a
      `.sha256` for each file [S16]; the gate's image installs its `ssserver`
      for T-373's tests.
    - Rust and C: `blake3` 1.8.7 with its feature `pure` builds no C and no
-     assembly [S16]; AES-GCM and ChaCha20-Poly1305 are in podssh-ws.
-     Effort: M.
+     assembly [S16], and podssh-ws takes it so (T-492); AES-GCM and
+     ChaCha20-Poly1305 are in podssh-ws. Effort: M.
 4. **Shadowsocks in a WebSocket, Outline's** (fits: T-493).
    - What it is: Outline's server, outline-ss-server (Apache-2.0), serves
      Shadowsocks in a WebSocket by a path since 1.9.0 (2025-02-11):

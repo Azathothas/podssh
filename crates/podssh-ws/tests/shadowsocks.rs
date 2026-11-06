@@ -55,6 +55,8 @@ impl Spec {
             Method::Chacha20IetfPoly1305 => Spec::Chacha(Box::new(ChaCha20Poly1305::new_from_slice(&key).unwrap())),
             Method::Aes256Gcm => Spec::Aes256(Box::new(Aes256Gcm::new_from_slice(&key).unwrap())),
             Method::Aes128Gcm => Spec::Aes128(Box::new(Aes128Gcm::new_from_slice(&key).unwrap())),
+            // SIP022's streams are read in tests/shadowsocks_2022.rs.
+            other => panic!("{other:?} is a method of Shadowsocks 2022"),
         }
     }
 
@@ -371,7 +373,11 @@ fn sip002_uris_are_read_and_their_password_never_shown() {
     assert_eq!(Node::parse(&older.to_uri()).unwrap(), older, "a node written out reads back");
     // Each refusal says why, never the password.
     for (line, why) in [
-        (plain("2022-blake3-aes-256-gcm", "c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0", "h.example:443"), "Shadowsocks 2022"),
+        // A 2022 method's key is base64 of its length (24 bytes here, not 32).
+        (
+            plain("2022-blake3-aes-256-gcm", "c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0", "h.example:443"),
+            "not the base64 of 32 bytes",
+        ),
         (plain("aes-256-gcm", "hunter2", "h.example"), "no port"),
         (plain("aes-256-gcm", "hunter2", "h.example:0"), "not a port"),
         (plain("aes-256-gcm", "", "h.example:443"), "password is empty"),
@@ -408,7 +414,8 @@ fn a_subscription_s_list_comes_as_lines_as_base64_or_as_sip008() {
         {"server":"g.example","server_port":8388,"password":"pw","method":"2022-blake3-aes-128-gcm"}]}"#;
     let sip008 = shadowsocks::subscription(json.as_bytes()).unwrap();
     assert_eq!(sip008.nodes[0].shown(), "ss://h.example:8388 (tag)");
-    assert!(sip008.refused[0].starts_with("server 2: the method 2022-blake3-aes-128-gcm"), "{:?}", sip008.refused);
+    // "pw" is no key of 16 bytes in base64, as 2022-blake3-aes-128-gcm takes.
+    assert!(sip008.refused[0].starts_with("server 2: its key is not the base64 of 16 bytes"), "{:?}", sip008.refused);
     for bad in ["", "   ", "<html>not a list</html>", "{\"servers\":3}"] {
         assert!(shadowsocks::subscription(bad.as_bytes()).is_err(), "{bad}");
     }

@@ -247,7 +247,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   day; its worktree and branch are gone. Then T-456 (`draft-t456`, `34d1459`), merged and closed the
   same day; and T-180 (`draft-t180`, `7da08fe`), merged and closed the same day; then T-459
   (`draft-t459`, `8c085d46`), merged as partial the same day; and T-490 (`draft-t490`, `15743b03`),
-  merged as partial the same day; and T-493 (`draft-t493`, `fb99826c`), merged and closed the same day.
+  merged as partial the same day; and T-493 (`draft-t493`, `fb99826c`), merged and closed the same day;
+  and T-492 (`draft-t492`, `9c2bf1d5`), merged and closed the same day.
 
   On 2026-11-04 an eighth round was drafted, unbuilt, one commit for each entry, each branch pushed
   as `draft/worktree-agent-*`: T-435 (`093970b`, merged and closed, `57faf83`); T-617 (`1cbdc10`,
@@ -323,7 +324,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 647 entries: 88 open, 14 partial, 4 blocked, 541 done.
+`TODO/INDEX.md` holds 647 entries: 87 open, 14 partial, 4 blocked, 542 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -394,7 +395,7 @@ this order:
    T-459 (the funnel and a member that relays between two members are done; the status of the net, `ping` of a node and doctor's sections are done).
 4. The public carriers of Q65 (the Piping Server road from end to end is done; T-450 from the runs of `transit-live.yml`; the
    protocols of Q66 are done), XHTTP over HTTP/1.1 (Q67, done), then what the research of more services (done) filed: the protocols of
-   servers that a user runs (T-490, partial; Outline's servers are done; then T-491, T-492, T-494 and T-498), upterm's door
+   servers that a user runs (T-490, partial; Outline's servers are done; Shadowsocks 2022 is done; then T-491, T-494 and T-498), upterm's door
    (T-495) and a second Piping Server (T-497), T-496 and T-499 parked; then what the triage of the sweep of public relays
    (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's road (Q76; done 2026-11-03),
    and the manual's word on the public services that podssh uses and the ones it never names

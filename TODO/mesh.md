@@ -5097,7 +5097,7 @@ moved code then runs there.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5106,9 +5106,10 @@ The servers of shadowsocks-rust, sing-box and Xray-core give out keys of the 202
 
 ## Premise
 
-- `crates/podssh-ws/src/shadowsocks/mod.rs:116` says "which podssh does not speak", for a method
-  of `2022-blake3-`, and a test holds that refusal:
-  `crates/podssh-cli/tests/shadowsocks_cli.rs:78` says "a_plugin_shadowsocks_2022".
+- `PodUtils/podssh:crates/podssh-ws/src/shadowsocks/mod.rs:116` said "which podssh does not
+  speak", for a method of `2022-blake3-`, and a test held that refusal:
+  `PodUtils/podssh:crates/podssh-cli/tests/shadowsocks_cli.rs:78` said "a_plugin_shadowsocks_2022",
+  each as of `e630ee26`, before this entry.
 - Read at <https://shadowsocks.org/doc/sip022.html> (2026-11-02): a pre-shared key of 16 or 32
   bytes in base64; each stream's key by BLAKE3's `derive_key` with the context "shadowsocks 2022
   session subkey" over the key and the salt; a request of a salt, a fixed header (a type, a
@@ -5127,11 +5128,36 @@ The servers of shadowsocks-rust, sing-box and Xray-core give out keys of the 202
 3. SIP023's identity headers, for a server of several users (`IPSK:UPSK`), read and made, or
    refused by their name, as the entry decides.
 
+## Decision
+
+2026-11-06 (the drafting agent).
+
+- SIP023's keys of several users are refused by their name (78): "its key is one of several users
+  (iPSK:uPSK, SIP023), which podssh does not speak". Lost: the identity headers made, which need
+  an extra AES block of each identity key over a hash of the next, for AES methods alone; the
+  servers of the one user that each key gives out are the common case, and a server of several
+  users gives each its own key of one user too.
+- `blake3` with its feature `pure`, in spite of the Correction's leave: the stream's key is
+  derived once for each stream, so BLAKE3's SIMD buys nothing, and the default build keeps no C.
+  Lost: the default features, which build C and assembly where a compiler is found.
+- The request carries no payload with its header: the target's address, then 1 to 900 bytes of
+  random padding (`sip022::padding`), as SIP022 asks when no payload goes with it and
+  shadowsocks-rust sends. Lost: the first bytes of the session in the header, which would save
+  nothing here, as the SSH server behind speaks first.
+- A response's header is checked for its type, its timestamp (30 s at most either way from this
+  host's clock) and the request's salt; a client keeps no table of salts, as a replay to it
+  would have to name this request's salt, which no other stream has.
+- The key in an `ss://` line is read as SIP002 gives it (percent-encoded; base64url is read too),
+  and a kept list writes it percent-encoded, as SIP002 asks of the 2022 methods.
+- SIP022 has no published test vectors of TCP: the stand-in of `tests/shadowsocks_2022.rs`,
+  written from the specification with the AEAD crates and BLAKE3 themselves, and shadowsocks-rust's
+  `ssserver` are the readers of record.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-ws --test shadowsocks
+cargo test -p podssh-ws --test shadowsocks --test shadowsocks_2022 --lib shadowsocks
 PODSSH_TEST_SSSERVER=/usr/bin/ssserver cargo test -p podssh-cli --test shadowsocks_cli
 ```
 
@@ -5150,6 +5176,56 @@ PodUtils/podcrates") applies: from the import podssh makes fixes only, and once 
 crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
 moved code then runs there.
 
+2026-11-06 (the drafting agent). The Premise held at `e630ee26`: `mod.rs:116` and the test of
+`shadowsocks_cli.rs:78` refused the 2022 methods. `shadowsocks/` was not yet imported by
+podcrates (its `SOURCES` named no file of it after v0.4.0), so the change is podssh's. The Prove
+adds `tests/shadowsocks_2022.rs` and the library's tests, where the 2022 stream is read by a
+stand-in of the specification; `tests/shadowsocks.rs` stays the AEAD form's.
+
+## Done
+
+2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t492`, `9c2bf1d5`), then merged, built and
+tested by the main session. Two tests of before used a 2022 method as the example of a refused
+method; it is a method now, and they want the refusal of a key that is not base64 of its length
+(`crates/podssh-ws/tests/shadowsocks.rs`).
+
+- `crates/podssh-ws/src/shadowsocks/mod.rs`: `Method` gains `Blake3Aes128Gcm`, `Blake3Aes256Gcm`
+  and `Blake3Chacha20Poly1305` (`Method::SIP022`, `is_2022`), read by their names;
+  `stream_key` gives each stream's key by HKDF-SHA1 or by BLAKE3.
+- `crates/podssh-ws/src/shadowsocks/sip022.rs` (new): `session_key` (BLAKE3's `derive_key`, its
+  first 16 bytes for AES-128), `psk` (base64 of the method's length; SIP023 refused by name),
+  the request's fixed and variable headers, random padding of 1 to 900 bytes, the response's
+  header read and checked (type, timestamp within 30 s, the request's salt), and its server's
+  side for the tests. Unit tests: the key against BLAKE3's stream, the keys and their refusals,
+  the checks of a response, the headers' layout.
+- `crates/podssh-ws/src/shadowsocks/codec.rs`: `Encoder::first` (the address in the first chunk,
+  or SIP022's headers), `first_at`, `request_salt`; `Decoder::answer`, which reads a response's
+  header before the first payload and takes lengths up to 0xFFFF; `ChunkError::Header`, `Kind`,
+  `Clock` (the skew, and this host's clock in HTTP's date) and `Salt`. Unit test: a request read
+  by the server's side and its answer read back, for each method, and another key refused at the
+  header: `cargo test -p podssh-ws --lib`, 163 passed.
+- `crates/podssh-ws/src/shadowsocks/open.rs`: the first request by `Encoder::first`, the answer by
+  `Decoder::answer`; a refused header said as "its answer was refused". `uri.rs`: a 2022 key
+  checked in `Node::new`, the pre-shared key as the master key, a kept URI percent-encoded.
+  `crates/podssh-ws/Cargo.toml`: `blake3` 1.8.7 with `std` and `pure`, and its line in
+  `Cargo.lock`'s list of podssh-ws (`cargo metadata --locked` takes the lock as it is).
+- `crates/podssh-ws/tests/shadowsocks_2022.rs` (new): a stand-in of SIP022 written from the
+  specification; with each method, `open` names the target and carries 100,000 bytes each way;
+  a wrong key ends in silence naming the server and not the key; a server 60 s off and one that
+  names another salt refused with their words; a 2022 key read from a percent-encoded `ss://` line
+  and kept, SIP023 and a key too short refused: 4 passed. Planted: the timestamp in milliseconds
+  (`sip022::now_secs` times 1,000): the stand-in closes, and two tests fail; put back, they pass.
+- `crates/podssh-cli/tests/shadowsocks_cli.rs`: each 2022 method against `ssserver` (a session,
+  1 MiB each way, equal digests; a wrong key named, exit 255, no key in the words); the refusal
+  test now refuses a key of several users (78), renamed
+  `a_plugin_a_key_of_several_users_an_open_file_and_a_second_road_are_refused_before_anything_connects`.
+  Run here against shadowsocks-rust's own `ssserver` 1.24.0 (its musl release, checked by the
+  SHA-256 that the release publishes, as `PODSSH_TEST_SSSERVER`): 9 passed, the three 2022 methods
+  among them; clippy and rustfmt clean.
+- The manual (the note of `--shadowsocks`, `crates/podssh-cli/src/man/notes_ssh.rs`),
+  `docs/cli.md`, `docs/carriers.md` and `docs/mesh.md` say the 2022 methods and the refusal of
+  SIP023.
+
 # T-493: Shadowsocks in a WebSocket, as Outline's servers serve it, and `ssconf://` keys
 
 **Source:** T-442 (2026-11-02); the operator's ruling Q66.
@@ -5167,7 +5243,7 @@ keys that name it; podssh reads neither.
 
 ## Premise
 
-- `crates/podssh-ws/src/shadowsocks/mod.rs:14` says "TCP through the proxy of the environment".
+- `crates/podssh-ws/src/shadowsocks/mod.rs:19` says "through the proxy of the environment".
 - Read on 2026-11-02 (docs/carriers.md, "Servers that a user runs"): outline-ss-server since
   1.9.0 has the listeners `websocket-stream` and `websocket-packet`, each on a path of a web server
   of its own that a TLS front such as Caddy covers
@@ -7619,9 +7695,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1151-1152` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1153` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1147` says "UDP alone, which the
+- `docs/carriers.md:1152-1153` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1154` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1148` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over
@@ -7687,9 +7763,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1158-1159` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1161-1162` says "as the server never answers a command";
-  `docs/carriers.md:1164` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1159-1160` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1162-1163` says "as the server never answers a command";
+  `docs/carriers.md:1165` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 

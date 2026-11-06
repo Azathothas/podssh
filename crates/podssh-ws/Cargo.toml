@@ -46,6 +46,11 @@ serde_json = { workspace = true }
 # No `asm` of sha1, which would compile assembly.
 md5 = { version = "0.8", default-features = false }
 sha1 = { version = "0.11", default-features = false }
+# Shadowsocks 2022 (T-492): each stream's key is BLAKE3's derive_key, once
+# for each stream, so its SIMD buys nothing: `pure` builds no C and no
+# assembly, and the default build compiles as before. The lock holds 1.8.7
+# already, through iroh.
+blake3 = { version = "1.8.7", default-features = false, features = ["std", "pure"] }
 
 # The clocks of a host that slept (wake.rs): CLOCK_BOOTTIME beside
 # CLOCK_MONOTONIC, which Linux alone has. libc compiles no C.

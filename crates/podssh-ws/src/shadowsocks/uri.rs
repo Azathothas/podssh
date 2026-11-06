@@ -56,12 +56,18 @@ impl Node {
         if port == 0 {
             return Err("its port is 0".into());
         }
+        // A key of Shadowsocks 2022 is checked once, here, so that the
+        // master key that each stream takes is never short.
+        if method.is_2022() {
+            super::sip022::psk(password, method)?;
+        }
         let password = Zeroizing::new(password.to_string());
         Ok(Node { method, password, host: host.to_string(), port, tag: None, ws: None })
     }
 
     /// An `ss://` URI. A plugin is refused, as it is another program that
-    /// podssh does not start, and so is Shadowsocks 2022.
+    /// podssh does not start, and so is a key of several users of
+    /// Shadowsocks 2022.
     pub fn parse(text: &str) -> Result<Node, String> {
         let text = text.trim();
         let rest = match text.get(..5) {
@@ -140,16 +146,27 @@ impl Node {
             == (other.method, &other.password, &other.host, other.port, &other.ws)
     }
 
-    /// The master key of its password and method.
+    /// The master key of its password and method: the pre-shared key itself
+    /// in Shadowsocks 2022, which [`Node::new`] checked.
     pub fn master_key(&self) -> Zeroizing<Vec<u8>> {
+        if self.method.is_2022() {
+            return super::sip022::psk(&self.password, self.method).unwrap_or_default();
+        }
         super::master_key(self.password.as_bytes(), self.method.key_len())
     }
 
     /// The server as an `ss://` URI, its user part in base64url as SIP002
-    /// recommends: for a private file, never for a message.
+    /// recommends, or percent-encoded for Shadowsocks 2022, as SIP002 asks
+    /// of those methods: for a private file, never for a message.
     pub fn to_uri(&self) -> Zeroizing<String> {
         let userinfo = Zeroizing::new(format!("{}:{}", self.method.name(), self.password.as_str()));
-        let encoded = Zeroizing::new(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(userinfo.as_bytes()));
+        let encoded = match self.method.is_2022() {
+            true => {
+                let key = Zeroizing::new(percent_encode(self.password.as_str()));
+                Zeroizing::new(format!("{}:{}", self.method.name(), key.as_str()))
+            }
+            false => Zeroizing::new(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(userinfo.as_bytes())),
+        };
         let tag = self.tag.as_deref().map(|t| format!("#{}", percent_encode(t))).unwrap_or_default();
         let at = crate::dial::authority(&self.host, self.port);
         Zeroizing::new(format!("ss://{}@{at}{tag}", encoded.as_str()))

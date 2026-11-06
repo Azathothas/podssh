@@ -255,9 +255,13 @@ const FIRST: &[&str] = &[
      yours and closed to others (chmod 600), as a pair file is: each line is an ss:// URI of SIP002, \
      ss://USERINFO@HOST:PORT#TAG, its USERINFO method:password in base64url or percent-encoded (the older \
      form, all of it in base64, is read too); or subscription https://URL, a list that a provider serves; # \
-     starts a comment. The methods are the AEAD ones, chacha20-ietf-poly1305, aes-256-gcm and aes-128-gcm; \
-     Shadowsocks 2022 (2022-blake3-...) and a key that names a plugin, another program, are refused (78), \
-     and so is a line that cannot be read, by its number and never its text. The servers are tried in the \
+     starts a comment. The methods are the AEAD ones, chacha20-ietf-poly1305, aes-256-gcm and aes-128-gcm, \
+     whose key is a password; and those of Shadowsocks 2022 (SIP022), 2022-blake3-aes-128-gcm, \
+     2022-blake3-aes-256-gcm and 2022-blake3-chacha20-poly1305, whose key is the base64 of 16 or 32 bytes \
+     that the server's operator gives, and whose header holds this host's clock: a server more than 30 s \
+     off is named, with this host's clock. A key of several users (iPSK:uPSK, SIP023) and a key that \
+     names a plugin, another program, are refused (78), and so is a line that cannot be read, by its \
+     number and never its text. The servers are tried in the \
      order of the file: TCP to the server, through HTTPS_PROXY when one is set, then the salt and the \
      target; a server that does not answer with its salt and its first chunk within 10 s, that closes, \
      or whose chunk does not open gives way to the next. Silence names the proxy as the likely cause when \
