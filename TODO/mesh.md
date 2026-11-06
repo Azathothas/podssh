@@ -5165,6 +5165,10 @@ way filled and both ends waited. It reads the echo while it writes now, and so d
 `carries` in `crates/podssh-ws/tests/vless.rs`, which had the same pattern with 2.5 MB; 3 runs of
 each passed.
 
+The gate of `8f21bf9a` (run 42248490766, its step `libs`) found that the Trojan test left its roots'
+directories in the temporary directory: `root_file` of the tests' VLESS support, which both tests
+take, gives a guard now that removes its directory when the test ends, failed or not.
+
 # T-492: Shadowsocks 2022 (SIP022) for `--shadowsocks`
 
 **Source:** T-442 (2026-11-02); the operator's ruling Q66.

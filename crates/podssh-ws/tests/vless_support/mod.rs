@@ -54,13 +54,32 @@ pub fn pins() {
     podssh_ws::resolve::set_pins(vec![(NAME.into(), lo)]);
 }
 
-pub fn root_file(tag: &str) -> PathBuf {
+pub fn root_file(tag: &str) -> Root {
     let dir = std::env::temp_dir().join(format!("podssh-vless-{}-{tag}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("root.pem");
     let der = cert::encoding::self_signed_inner(&cert::encoding::anchor_name(NAME), true).der;
     std::fs::write(&path, cert::encoding::pem(&der)).unwrap();
-    path
+    Root(path)
+}
+
+/// The root's file, its directory gone when the test ends, failed or not:
+/// the gate refuses a test that leaves one in the temporary directory.
+pub struct Root(PathBuf);
+
+impl std::ops::Deref for Root {
+    type Target = std::path::Path;
+    fn deref(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl Drop for Root {
+    fn drop(&mut self) {
+        if let Some(dir) = self.0.parent() {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
 }
 
 /// The target: its version line first when `speaks_first`, then an echo.
