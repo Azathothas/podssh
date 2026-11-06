@@ -45,10 +45,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      PodUtils/podcrates (Q101, Rule Q3): `pod-todo` (`crates/podssh-todo` is a wrapper, with
      `TODO/todo.toml`), `pod-term` (`podssh-terminal` is gone), `pod-identity` and `pod-core`
      (`podssh-relay`'s `identity` re-exports them) are taken; `pod-tls` (`podssh-ws`'s TLS, with thin
-     wrappers) is taken; `pod-proxy` is being imported into podcrates, so its files of `podssh-ws`
-     (`dial.rs`, `proxy.rs`, `proxy_auth.rs`, `socks5.rs`, `mptcp.rs`, `race.rs`, `cut.rs`, `lowat.rs`,
-     `write_limit.rs`, `stun.rs`, `http.rs`, `http/`, the GET client of `client.rs`) take fixes only;
-     next `pod-dns` and `pod-ws`, then the waves of Q101. An
+     wrappers) is taken; `pod-proxy` (`v0.3.0`) is taken too; `pod-dns` is being imported into podcrates, so
+     `podssh-ws`'s `resolve.rs`, `resolve/` and its tests `doh_h2.rs`, `doh_names.rs`, `doh_wire.rs`,
+     `live_doh.rs` take fixes only (each told to the podcrates session); next `pod-dns` and `pod-ws`, then the waves of Q101. An
      open entry whose code is in such a module has a `## Correction` of 2026-11-05 that names the
      crate. Blocked: T-687 (Q102, the owner). Asked: Q103 (the facade for podvm, T-085) and Q104 (the
      version of the next release, T-446). podbox is podvm.
