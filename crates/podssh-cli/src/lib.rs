@@ -214,6 +214,8 @@ pub mod sftp;
 pub mod shadowsocks;
 // `podssh share`: a running node's local services by name, for its net (T-433).
 pub mod share;
+// `podssh funnel`: a local HTTP service at a public name (T-180).
+pub mod funnel;
 // Commands of the settings file, shown and asked before they run (T-187).
 pub mod snippets;
 pub mod ssh;

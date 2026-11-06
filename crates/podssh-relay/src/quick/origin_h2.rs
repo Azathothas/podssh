@@ -29,6 +29,11 @@ pub async fn serve(
 ) {
     let (parts, mut recv) = request.into_parts();
     let asked = asked(&parts, websocket);
+    // A funnel's TARGET takes the body as it comes, of any size (T-180).
+    if !websocket && server.streams() {
+        let length = super::origin_stream::length_h2(&parts.headers, &recv);
+        return super::origin_stream::h2(server, asked, length, recv, respond).await;
+    }
     // The body of a request that is no upgrade comes whole before the origin
     // reads it, and the edge's end of the stream ends it.
     let body = match websocket {
@@ -91,7 +96,7 @@ async fn read_body(recv: &mut RecvStream) -> Result<Vec<u8>, StatusCode> {
 
 /// The answer to the edge for the origin's `answer`; `None` for a status or
 /// a length that HTTP/2 cannot carry.
-fn edge_answer(answer: &Answer) -> Option<Response<()>> {
+pub(super) fn edge_answer(answer: &Answer) -> Option<Response<()>> {
     let status = if answer.switched() { 200 } else { answer.status };
     let mut reply = Response::builder()
         .status(StatusCode::from_u16(status).ok()?)
@@ -106,14 +111,14 @@ fn edge_answer(answer: &Answer) -> Option<Response<()>> {
 }
 
 /// The node's own answer `status`, with no body.
-fn refuse(mut respond: SendResponse<Bytes>, status: StatusCode) {
+pub(super) fn refuse(mut respond: SendResponse<Bytes>, status: StatusCode) {
     let answer = Response::builder().status(status).header(headers::RESPONSE_META, headers::META_CONNECTOR);
     let _ = respond.send_response(answer.body(()).expect("a valid answer"), true);
 }
 
 /// The origin's body to the edge, until the origin closes; an origin that
 /// stalls past [`origin::ANSWER_WAIT`] resets the stream.
-async fn body_to_edge(send: &mut SendStream<Bytes>, rest: Vec<u8>, mut from_origin: ReadHalf<DuplexStream>) {
+pub(super) async fn body_to_edge(send: &mut SendStream<Bytes>, rest: Vec<u8>, mut from_origin: ReadHalf<DuplexStream>) {
     if send_all(send, &rest).await.is_err() {
         return;
     }

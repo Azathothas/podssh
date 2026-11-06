@@ -400,6 +400,9 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     if verb.name == "share" {
         return Parsed::Share(Box::new(crate::share::ShareArgs::from_matches(&matches, refused)));
     }
+    if verb.name == "funnel" {
+        return Parsed::Funnel(Box::new(crate::funnel::FunnelArgs::from_matches(&matches, refused)));
+    }
 
     // The command of `job start` must follow `--` (T-193).
     if verb.name == "job" {

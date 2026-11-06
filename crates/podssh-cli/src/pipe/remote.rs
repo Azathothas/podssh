@@ -196,7 +196,7 @@ async fn tcp(host: &str, port: u16, say: &mut dyn FnMut(&str)) -> Result<End, i3
 
 /// The stream of `tcp:HOST:PORT`, or the error of its dial: `None` when
 /// `PODSSH_OFFLINE` forbids each connection.
-pub(super) async fn tcp_dial(host: &str, port: u16) -> Result<End, Option<podssh_ws::DialError>> {
+pub(crate) async fn tcp_dial(host: &str, port: u16) -> Result<End, Option<podssh_ws::DialError>> {
     if podssh_relay::open::offline() {
         return Err(None);
     }
@@ -208,7 +208,7 @@ pub(super) async fn tcp_dial(host: &str, port: u16) -> Result<End, Option<podssh
 }
 
 /// The line of a dial of `tcp:` that failed, or that `PODSSH_OFFLINE` forbade.
-pub(super) fn tcp_failure(host: &str, port: u16, e: Option<&podssh_ws::DialError>) -> String {
+pub(crate) fn tcp_failure(host: &str, port: u16, e: Option<&podssh_ws::DialError>) -> String {
     match e {
         None => format!("{} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV),
         Some(e) => format!("could not connect to {}: {e}", podssh_ws::dial::authority(host, port)),

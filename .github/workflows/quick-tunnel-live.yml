@@ -61,6 +61,33 @@ jobs:
           timeout 1200 cargo build -p podssh-cli --locked
           target/debug/podssh --version
 
+      # T-180: podssh funnel publishes a server of the runner at the quick
+      # tunnel's name; curl at that name gets its body, and the funnel's
+      # stderr says who reads the traffic.
+      - name: podssh funnel, a server of the runner at a public name
+        run: |
+          mkdir -p "$RUNNER_TEMP/site"
+          echo "hello through the funnel $GITHUB_RUN_ID" > "$RUNNER_TEMP/site/index.html"
+          python3 -m http.server 18431 --bind 127.0.0.1 --directory "$RUNNER_TEMP/site" >/dev/null 2>&1 &
+          echo $! > "$RUNNER_TEMP/site.pid"
+          timeout 180 target/debug/podssh funnel 127.0.0.1:18431 >"$RUNNER_TEMP/funnel.url" 2>"$RUNNER_TEMP/funnel.err" &
+          echo $! > "$RUNNER_TEMP/funnel.pid"
+          url=""
+          for _ in $(seq 1 60); do url=$(head -n 1 "$RUNNER_TEMP/funnel.url" 2>/dev/null); [ -n "$url" ] && break; sleep 1; done
+          [ -n "$url" ] || { cat "$RUNNER_TEMP/funnel.err"; echo "FAIL the funnel printed no URL"; exit 1; }
+          got=""
+          # The edge takes some seconds to route a new quick tunnel's name.
+          for _ in $(seq 1 30); do
+            got=$(curl -sS --max-time 15 "$url/index.html" 2>/dev/null || true)
+            case $got in "hello through the funnel $GITHUB_RUN_ID") break ;; esac
+            sleep 3
+          done
+          kill -TERM "$(cat "$RUNNER_TEMP/funnel.pid")" "$(cat "$RUNNER_TEMP/site.pid")" 2>/dev/null || true
+          sed 's/^/funnel: /' "$RUNNER_TEMP/funnel.err"
+          [ "$got" = "hello through the funnel $GITHUB_RUN_ID" ] || { echo "FAIL curl at the funnel's name got: $got" | head -c 400; exit 1; }
+          grep -q "Cloudflare can read this traffic" "$RUNNER_TEMP/funnel.err" || { echo "FAIL no line of who reads the traffic"; exit 1; }
+          echo "ok    curl at the funnel's name got the runner's page"
+
       # T-359, T-400: doctor's UDP out sends the node's probe of UDP, then
       # makes its QUIC handshake with the edge, closed at once with nothing
       # registered; here UDP reaches it. A short hold of --full's quiet socket

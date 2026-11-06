@@ -204,6 +204,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Share(args) if refusals("share", &args.refused, s.err) => EXIT_USAGE,
         // A list on stdout; each change said on stderr.
         Parsed::Share(args) => crate::share::run(args, s.out, s.err),
+        Parsed::Funnel(args) if refusals("funnel", &args.refused, s.err) => EXIT_USAGE,
+        // The URL on stdout; each line on stderr.
+        Parsed::Funnel(args) => crate::funnel::run(args, s.out, s.err),
         Parsed::Agent(args) if refusals("agent", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Agent(args) => crate::agent::run(args, s.out, s.err),
         Parsed::Status { refused, .. } if refusals("status", refused, s.err) => EXIT_USAGE,

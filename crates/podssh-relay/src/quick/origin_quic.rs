@@ -27,6 +27,11 @@ where
     W: AsyncWrite + Unpin + Send + 'static,
 {
     let asked = asked(request);
+    // A funnel's TARGET takes the body as it comes, of any size (T-180).
+    if !asked.websocket && server.streams() {
+        let Some(length) = super::origin_stream::length_quic(request) else { return refuse(&mut to_edge, 400).await };
+        return super::origin_stream::quic(server, asked, length, from_edge, to_edge).await;
+    }
     let body = match asked.websocket {
         true => Vec::new(),
         false => match tokio::time::timeout(origin::BODY_WAIT, read_body(request, &mut from_edge)).await {
@@ -46,13 +51,7 @@ where
     let Ok(Ok((answer, rest))) = tokio::time::timeout(origin::ANSWER_WAIT, answered).await else {
         return refuse(&mut to_edge, 502).await;
     };
-    let passed = answer.passed();
-    let status = answer.status.to_string();
-    let keys: Vec<String> = passed.iter().map(|(name, _)| format!("{}{name}", connect::HEADER)).collect();
-    let mut metadata = vec![(connect::STATUS, status.as_str())];
-    metadata.extend(keys.iter().zip(&passed).map(|(key, (_, value))| (key.as_str(), *value)));
-    let answered = [connect::preamble().to_vec(), connect::response("", &metadata)].concat();
-    if to_edge.write_all(&answered).await.is_err() {
+    if to_edge.write_all(&answer_frame(&answer)).await.is_err() {
         return;
     }
     let (from_origin, to_origin) = tokio::io::split(conn);
@@ -62,6 +61,17 @@ where
         drop(from_edge);
         body_to_edge(to_edge, rest, from_origin).await;
     }
+}
+
+/// The node's `ConnectResponse` for the origin's `answer`, after the
+/// preamble: its status and each header that the edge takes.
+pub(super) fn answer_frame(answer: &origin::Answer) -> Vec<u8> {
+    let passed = answer.passed();
+    let status = answer.status.to_string();
+    let keys: Vec<String> = passed.iter().map(|(name, _)| format!("{}{name}", connect::HEADER)).collect();
+    let mut metadata = vec![(connect::STATUS, status.as_str())];
+    metadata.extend(keys.iter().zip(&passed).map(|(key, (_, value))| (key.as_str(), *value)));
+    [connect::preamble().to_vec(), connect::response("", &metadata)].concat()
 }
 
 /// The request as the origin takes it: its target from the visitor's URL,
@@ -133,7 +143,7 @@ async fn read_body<R: AsyncRead + Unpin>(request: &ConnectRequest, from_edge: &m
 
 /// The node's own answer `status`, with why, as cloudflared answers a
 /// request that its origin did not take.
-async fn refuse<W: AsyncWrite + Unpin>(to_edge: &mut W, status: u16) {
+pub(super) async fn refuse<W: AsyncWrite + Unpin>(to_edge: &mut W, status: u16) {
     let status = status.to_string();
     let why = "podssh's origin did not take the request";
     let answer = [connect::preamble().to_vec(), connect::response(why, &[(connect::STATUS, status.as_str())])];
@@ -143,7 +153,11 @@ async fn refuse<W: AsyncWrite + Unpin>(to_edge: &mut W, status: u16) {
 
 /// The origin's body to the edge, until the origin closes; an origin that
 /// stalls past [`origin::ANSWER_WAIT`] ends the stream there.
-async fn body_to_edge<W: AsyncWrite + Unpin>(mut to_edge: W, rest: Vec<u8>, mut from_origin: ReadHalf<DuplexStream>) {
+pub(super) async fn body_to_edge<W: AsyncWrite + Unpin>(
+    mut to_edge: W,
+    rest: Vec<u8>,
+    mut from_origin: ReadHalf<DuplexStream>,
+) {
     if to_edge.write_all(&rest).await.is_err() {
         return;
     }

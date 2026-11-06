@@ -161,7 +161,7 @@ token header (`PodUtils/podssh:crates/podssh-ws/src/client.rs:294-305`); `https_
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags/relay.rs:9-106`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:348-369` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:351-372` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:212-226`,
    `crates/podssh-cli/src/man/data.rs:171-179`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:253-337`).
+   notes (`crates/podssh-cli/src/man/notes.rs:255-339`).
 
 ## Decision
 
@@ -3604,7 +3604,7 @@ to hosts that the session does not use.
 
 ## Premise
 
-- Read: `AGENTS.md:334-344`, rule 2: one outbound connection, and its four exceptions (a listener
+- Read: `AGENTS.md:335-345`, rule 2: one outbound connection, and its four exceptions (a listener
   that the user asks for, the race between relay hosts, the split HTTP road of Q44, the quick
   tunnel's second connection of Q62); `docs/decisions.md:41` adds XHTTP's second connection (Q67).
   None covers a probe of a host that the session does not use.
@@ -3721,7 +3721,7 @@ once; the test of the overlap fails.
   unasked only with `RelayRank auto`, at most once a day for each egress, 8 hosts, one probe each
   10 s at most, each with `?dial=lazy`. Item 1 no longer waits on a default.
 - 2026-11-03, the draft: the Premise's lines moved before it was read. Rule 2 begins at
-  `AGENTS.md:338`, and the rows of Q89 and Q90 came above the others: Q67 is at
+  `AGENTS.md:339`, and the rows of Q89 and Q90 came above the others: Q67 is at
   `docs/decisions.md:43`, Q83 at `docs/decisions.md:27` and Q73 at `docs/decisions.md:37`. Rule 2
   had four exceptions, and Q67's XHTTP is not among them; the draft adds Q89's as the fifth.
 - The settings file's `RelayRank` took yes or no alone (`crates/podssh-cli/src/settings.rs`, its

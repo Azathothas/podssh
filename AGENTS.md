@@ -12,7 +12,8 @@ HTTPS, often through an HTTP CONNECT proxy.
 
 These commands work: `podssh ssh`, `podssh each`, `podssh run`, `podssh job`, `podssh session`,
 `podssh containers`,
-`podssh proxy`, `podssh pipe`, `podssh cp`, `podssh mv`, `podssh scp`,
+`podssh proxy`, `podssh pipe`, `podssh funnel` (a local HTTP service at a
+public name), `podssh cp`, `podssh mv`, `podssh scp`,
 `podssh sftp` and `podssh edit` (files), `podssh doctor`, `podssh keygen`,
 `podssh agent`, `podssh man`, `podssh status`, `podssh ping`,
 `podssh health`, `podssh node`, `podssh operator`, `podssh relay`,

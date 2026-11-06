@@ -71,7 +71,7 @@ server listens, and the client connects out for each connection.
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs`, lines 82-101 at `a9299c4`).
    Update `docs/cli.md`, lines 146-160 at `a9299c4` (correct line 78 at `e8bbd4d`) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
-   under the proxy rule of `AGENTS.md:338-344`; say so in the help. The relay's
+   under the proxy rule of `AGENTS.md:339-345`; say so in the help. The relay's
    64 MiB and 12 h cover all the forwarded connections of a session
    together.
 
@@ -364,7 +364,7 @@ X11 channel.
    spoofed cookie, put the real cookie in its place, then copy bytes.
 4. `-Y` (trusted) uses the real cookie. `-X` (untrusted) needs a cookie that
    the X server makes (`xauth generate ... untrusted`): run `xauth` only when
-   a probe finds it (`XAuthLocation`, or `PATH`), as `AGENTS.md:359-365`
+   a probe finds it (`XAuthLocation`, or `PATH`), as `AGENTS.md:360-366`
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
@@ -491,8 +491,8 @@ AF_UNIX.
   "podssh never binds a listener", exit 64
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
-- Read: `AGENTS.md:338-344` (no bind, no listen),
-  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:246-281` ("Nothing
+- Read: `AGENTS.md:339-345` (no bind, no listen),
+  `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:258-293` ("Nothing
   listens") and `README.md:44-53` state the rule from before the ruling.
   `docs/design.md:1149-1151` already allows a local listener for `pipe` after
   a probe.
@@ -588,8 +588,8 @@ box fails.
 (`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
-`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:246-281` and
-`README.md:44-53` state the ruling now, as `AGENTS.md:338-344` and
+`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:258-293` and
+`README.md:44-53` state the ruling now, as `AGENTS.md:339-345` and
 `docs/target-environment.md:99-103` did already.
 
 ## Done
@@ -674,7 +674,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   accepted with no effect; only `-v` says so
   (`crates/podssh-cli/src/ssh/keywords.rs`, line 78 at `5fb9c1e`). A script that sets them still
   works, with one connection for each run.
-- Read: a control socket is a listener. `AGENTS.md:338-344` forbids it in the
+- Read: a control socket is a listener. `AGENTS.md:339-345` forbids it in the
   words from before the ruling. Sandbox A allowed a bind for AF_UNIX
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).

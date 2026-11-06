@@ -1554,7 +1554,7 @@ chosen by such a probe.
   answer of `/anything` adds the time of each part, which go-httpbin's echo has not. Lost: shapes of
   podssh's own (a second client for go-httpbin), and a response in chunked encoding, as the node of a
   quick tunnel passes an origin's body as it comes and drops its `Transfer-Encoding`
-  (`crates/podssh-relay/src/quick/origin.rs:181`), so a visitor would read the chunks' framing.
+  (`crates/podssh-relay/src/quick/origin.rs:206`), so a visitor would read the chunks' framing.
 - **They are the role's**, and a node serves them behind its tunnel when it runs the role
   (`--relay`), as T-428 gives each path under `/v1/` to the role; `quick/serve.rs` is unchanged.
   Lost: the probes at the tunnel of each node, also with no `--relay`: each node would answer
@@ -1602,7 +1602,7 @@ the time. Planted: the chunk times ignored; the buffering test fails.
 
 2026-11-03 (the drafting agent): the node of a quick tunnel, behind which the role serves the
 probes, takes a request's body whole before it gives it to the role, 32 KiB at most
-(`crates/podssh-relay/src/quick/origin_h2.rs:32`, `crates/podssh-relay/src/quick/origin.rs:26`),
+(`crates/podssh-relay/src/quick/origin_h2.rs:37`, `crates/podssh-relay/src/quick/origin.rs:26`),
 and ends an answer whose bytes stop for 60 s (`crates/podssh-relay/src/quick/origin.rs:32`). Behind
 it, the probes of a body and of a quiet stream measure the node first; the role's `/relays.json`
 there names those limits as the node's, and the lines say them so. Of #54's defaults, Cloudflare's

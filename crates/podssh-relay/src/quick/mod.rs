@@ -41,10 +41,15 @@
 //!   that its Version Negotiation answers, before QUIC (T-400);
 //! - `roads` and `keep` (feature `quick`): the roads to the edge raced with
 //!   a stagger, the first that registers kept, and the node's connection
-//!   kept by a new race after each loss (T-400).
+//!   kept by a new race after each loss (T-400);
+//! - `funnel` (feature `quick`): a local HTTP service at the tunnel's name,
+//!   each request to TARGET (T-180), whose bodies `origin_stream` carries as
+//!   they come; [`chunks`]: HTTP/1.1's chunked coding as a stream;
+//!   [`token`]: the token of a named tunnel of the user's own account.
 
 pub mod api;
 pub mod capnp;
+pub mod chunks;
 pub mod configuration;
 pub mod connect;
 pub mod control;
@@ -52,6 +57,8 @@ pub mod control;
 pub mod edge;
 #[cfg(feature = "warp")]
 pub mod edge_warp;
+#[cfg(feature = "quick")]
+pub mod funnel;
 #[cfg(feature = "quick")]
 pub mod goaway;
 #[cfg(feature = "quick")]
@@ -65,6 +72,8 @@ pub mod origin;
 pub mod origin_h2;
 #[cfg(feature = "quick")]
 pub mod origin_quic;
+#[cfg(feature = "quick")]
+pub mod origin_stream;
 #[cfg(feature = "quick")]
 pub mod probe;
 #[cfg(feature = "quick")]
@@ -80,6 +89,7 @@ pub mod rpc_stream;
 pub mod serve;
 #[cfg(feature = "quick")]
 pub mod settings;
+pub mod token;
 #[cfg(feature = "quick")]
 pub mod visitor;
 

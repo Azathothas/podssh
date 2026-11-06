@@ -378,8 +378,17 @@ member of the net").
 - **Funnel** (T-180). `podssh funnel TARGET` publishes a local HTTP service
   at a public `https://` name through the quick tunnel that podssh makes:
   a random name with no account, or a named tunnel of the user's own
-  account through its token file. Where the quick tunnel's edge is out of
-  reach, OpenTunnel can carry it, with TLS that ends at the node (T-532).
+  account through its token file (`--tunnel-token-file FILE`). The node's
+  origin is TARGET for each path (`podssh_relay::quick::funnel`): each
+  request goes to a new connection of TARGET as HTTP/1.1 with
+  `Connection: close`, its body as it comes, in chunks where the visitor
+  named no length (`origin_stream`); the answer's body goes to the edge as
+  it comes, a chunked one decoded as a stream; a WebSocket passes through.
+  TARGET is `HOST:PORT`, `unix-connect:PATH` or `exec:CMD`, as `podssh pipe`
+  names them, so that a node in a cage serves a socket or a program. TLS
+  ends at Cloudflare's edge, which reads the traffic, and the node says so.
+  Where the quick tunnel's edge is out of reach, OpenTunnel can carry it,
+  with TLS that ends at the node (T-532).
 
 ## 6. Carriers and standard servers
 

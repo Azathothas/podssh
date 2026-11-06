@@ -317,6 +317,7 @@ mod operator;
 mod ping;
 mod pipe;
 mod play;
+mod funnel;
 mod relay;
 mod run;
 mod scp;
@@ -337,6 +338,7 @@ pub use copy::CP_FLAGS;
 pub use detach::DETACHED_FLAGS;
 pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
+pub use funnel::FUNNEL_FLAGS;
 pub use groups::GROUPS;
 pub use health::HEALTH_FLAGS;
 pub use job::JOB_FLAGS;
@@ -397,6 +399,8 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "exit", aliases: &["exit"], flags: EXIT_FLAGS, about: "a SOCKS5 and HTTP CONNECT proxy here, whose connections start at an exit node of your net" },
     Verb { name: "share", aliases: &["share"], flags: SHARE_FLAGS,
         about: "a running node's local services by name, for its net: add, rm and ls, each reached as node://NODE/NAME" },
+    Verb { name: "funnel", aliases: &["funnel"], flags: FUNNEL_FLAGS,
+        about: "a local HTTP service at a public https:// name, through a quick tunnel; TLS ends at Cloudflare's edge" },
     Verb { name: "chat", aliases: &["chat", "irc"], flags: CHAT_FLAGS,
         about: "messages and files with another podssh, end to end encrypted" },
     Verb { name: "cp", aliases: &["cp"], flags: CP_FLAGS,

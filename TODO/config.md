@@ -541,7 +541,7 @@ work.
 
 ## Premise
 
-Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:374-440`).
+Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:376-444`).
 `serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:91`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
@@ -564,9 +564,9 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
    a comment line. Never drop it silently.
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
-   (`crates/podssh-cli/src/flags.rs:376-454`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:248-274`), the manual's notes and examples, and
-   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-144`).
+   (`crates/podssh-cli/src/flags.rs:378-458`), the arguments, `usage_tail`
+   (`crates/podssh-cli/src/help.rs:248-275`), the manual's notes and examples, and
+   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-145`).
 
 ## Decision
 
@@ -624,8 +624,8 @@ output. Planted defect: copy the password field into a comment; the secret test 
 `crates/podssh-cli/src/config_import/mod.rs:171-175` and the options of
 `ansible_ssh_common_args` at
 `crates/podssh-cli/src/config_import/mod.rs:177-230`; the verb in the
-tables at `crates/podssh-cli/src/flags.rs:432-433`,
-`crates/podssh-cli/src/positionals.rs:236-241`,
+tables at `crates/podssh-cli/src/flags.rs:436-437`,
+`crates/podssh-cli/src/positionals.rs:241-246`,
 `crates/podssh-cli/src/tree.rs:330-336` and
 `crates/podssh-cli/src/dispatch.rs:190-191`.
 - `cargo test -p podssh-cli --test config_import`: 5 passed. The fixture

@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:374-440`).
+  row (`crates/podssh-cli/src/flags.rs:376-444`).
 - Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:107-247`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,12 +37,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:374-440`, two
-   required positionals (`crates/podssh-cli/src/positionals.rs:7-270`), a
-   `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:10-219`), a
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:376-444`, two
+   required positionals (`crates/podssh-cli/src/positionals.rs:7-275`), a
+   `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:10-221`), a
    dispatch arm, and `pipe` in `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:110-144`). No `--timeout` row: the
-   gate at `crates/podssh-cli/src/dispatch.rs:348-369` would require it.
+   (`crates/podssh-cli/tests/flag_table.rs:110-145`). No `--timeout` row: the
+   gate at `crates/podssh-cli/src/dispatch.rs:351-372` would require it.
 2. The grammar, in a new crates/podssh-cli/src/pipe/address.rs: `KIND:REST`.
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
    both sides exits 64. Invariant: both addresses are valid before anything
@@ -68,16 +68,16 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
-   (`crates/podssh-cli/src/man/notes.rs:32-69`), two examples
+   (`crates/podssh-cli/src/man/notes.rs:33-71`), two examples
    (`crates/podssh-cli/src/man/examples.rs:8-316`; its test at
    `crates/podssh-cli/src/man/examples.rs:439-465` learns the new variant),
    `docs/design.md:1106-1115`, `docs/STATUS.md`. Each file stays under 500
-   lines (`AGENTS.md:370-371`).
+   lines (`AGENTS.md:371-372`).
 
 ## Decision
 
 Recommendation: `exec:` splits the words itself and starts no shell, because
-podssh must not assume a shell (`AGENTS.md:336-337`), and the user can name one
+podssh must not assume a shell (`AGENTS.md:337-338`), and the user can name one
 (`exec:sh -c 'CMD'`). The alternative, a `system:` address through
 `/bin/sh -c` as in socat, lost: Windows and some images have no `/bin/sh`.
 
@@ -412,8 +412,8 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1149-1151`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:338-344`, `docs/architecture.md:284-301`,
-  `docs/target-environment.md:99-103`, `SECURITY.md:246-281`, `README.md:44-53`.
+  `AGENTS.md:339-345`, `docs/architecture.md:284-301`,
+  `docs/target-environment.md:99-103`, `SECURITY.md:258-293`, `README.md:44-53`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:433`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:338-344`, `docs/architecture.md:284-301` and
+allows: `AGENTS.md:339-345`, `docs/architecture.md:284-301` and
 `docs/target-environment.md:99-103` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -724,7 +724,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:244-254`); a client that calls
+  (`crates/podssh-cli/src/man/notes.rs:246-256`); a client that calls
   `connect()` itself needs a listener (`docs/design.md:1152-1155`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
@@ -844,7 +844,7 @@ The calls made where the Approach left a choice:
   (`crates/podssh-cli/src/man/examples.rs:319`). It has no
   `ServerAliveInterval`, so that its line stays within rustfmt's 120
   columns; the note of proxy asks for it
-  (`crates/podssh-cli/src/man/notes.rs:255`).
+  (`crates/podssh-cli/src/man/notes.rs:257`).
 - Form b runs with `--direct`, as `scripts/interop-pipe.sh` runs `ssh:`;
   forms a and c go through the stand-in relay.
 - The citations of `crates/podssh-cli/src/man/examples.rs` in
@@ -893,7 +893,7 @@ and sandhole. Read in the reports, not verified here.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1012,6 +1012,65 @@ waves are in Q101 of `TODO/PROGRESS.md`, and the module map is `PodUtils/podcrat
 Rule Q3 (`docs/decisions.md`, "The crates of PodUtils/podcrates") applies: from the import podssh
 makes fixes only, and once podssh takes the crate the work is done in PodUtils/podcrates, which
 podssh takes by the next tag; a test of the moved code then runs there.
+
+## Done
+
+2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t180`, `7da08fe`), then merged, built and
+tested by the main session, with three repairs: a binding of the HTTP/2 answer that had to be
+mutable (`origin_stream.rs`), `length_quic` returning `Option` for clippy's `result_unit_err`,
+and the notes of `funnel`, which named `--quick-tunnel`, a flag of `podssh node`.
+
+- The origin: `crates/podssh-relay/src/quick/funnel.rs`, `Funnel`, an `Origin` that serves each
+  path: each request to a new connection of TARGET (the caller's `Dial`) as HTTP/1.1 with
+  `Connection: close` (`Keep-Alive` dropped), an interim answer (`100 Continue`) dropped, the
+  answer's head to the edge, its body as it comes; a chunked answer decoded as a stream, its head
+  with no `Transfer-Encoding` and its end at the close; a WebSocket's head and its 101 untouched,
+  then the frames both ways; a TARGET that does not answer the dial a 502 in podssh's words and a
+  line. `TLS_LINE`, the line that the command says. Unit tests (`funnel_tests.rs`): the heads, a
+  chunked answer after a 100, a WebSocket's head kept, a dial that fails.
+- The chunked coding: `crates/podssh-relay/src/quick/chunks.rs`, sans-IO: `Chunks::feed` decodes
+  as the bytes come (extensions and trailers read and dropped, a size of 15 hex digits at most),
+  `encode` and `LAST` for a request's body. Unit tests: RFC 9112's form whole and a byte at a time,
+  the refusals, the encoder's chunks back.
+- The bodies as they come: `Origin::streams` (false by default, so the relay role of T-428 keeps
+  its whole bodies of 32 KiB at most) and `BodyHead` with `Asked::head_with`
+  (`crates/podssh-relay/src/quick/origin.rs`); `crates/podssh-relay/src/quick/origin_stream.rs`:
+  over HTTP/2 and over QUIC, the head with the visitor's length or `Transfer-Encoding: chunked`,
+  the body to TARGET as the edge gives it (each window back once the origin took its chunk), the
+  answer's head read beside the upload, with no bound while the body goes up and
+  `ANSWER_WAIT` after; `origin_h2` and `origin_quic` hand a streaming origin's request to it, and
+  share their answer (`answer_frame`, `edge_answer`, `body_to_edge`, `refuse`).
+- A named tunnel: `crates/podssh-relay/src/quick/token.rs` reads cloudflared's token (base64 of
+  `{"a","t","s"}`), with no word of the token in an error. Unit test of a token made here.
+ 
+- The command: `crates/podssh-cli/src/funnel.rs`, `podssh funnel TARGET [--tunnel-token-file FILE]
+  [--warp]`: TARGET as `podssh pipe` reads it (a bare `HOST:PORT` is TCP), `tcp:`, `unix-connect:`
+  or `exec:` alone, dialed for each request (`pipe::remote::tcp_dial`, `pipe::unix::connect`,
+  `pipe::local::exec`, a program's child waited for once its stream goes); the quick tunnel's
+  request, or the token's tunnel; the URL alone on stdout; "serving TARGET at URL until Ctrl-C" and
+  the line of TLS on stderr; the edge's roads, its two connections and its keeper as `podssh node
+  --quick-tunnel`'s (`node_quick::{edge_roads, arch, CONNECTIONS}`, now `pub(crate)`). The verb's
+  rows (`flags/funnel.rs`), its group ("The reverse road"), its parse, positional, usage and
+  dispatch, `tests/flag_table.rs`.
+- The test: `crates/podssh-relay/tests/quick_publish.rs`, through the stand-in edge of T-300 as
+  the Prove names it: Python's `http.server` over TCP and over a Unix socket, a GET answered in
+  chunks and decoded, a POST of 100 KiB with no length that comes back as its SHA-256 with
+  `Connection: close`, and a WebSocket echo through the funnel; "did not run" with no Python.
+  `cargo test -p podssh-relay --features quick,quic --test quick_publish`: 4 passed (Python 3 here);
+  with `quick_tunnel`, `quick_relay`, `quick_tunnel_quic` and the crate's library, and podssh-cli's
+  library, `flag_table` and `node_cut`: each passed; clippy and rustfmt clean. Planted:
+  `Funnel::streams` false: both of Python's tests fail (the node resets the POST's stream); put
+  back, they pass.
+- The manual (`crates/podssh-cli/src/man/notes_funnel.rs`), `docs/mesh.md` section 5,
+  `SECURITY.md` (what Cloudflare's edge sees), `AGENTS.md`'s list of the commands.
+
+The live run: a step of `.github/workflows/quick-tunnel-live.yml` publishes a server of the runner
+with `podssh funnel` and `curl`s the printed name, added at the merge; it waits for a run on GitHub
+Actions (Actions start no workflow for this account on 2026-11-06). From this host, the funnel got
+its name and said "TLS ends at Cloudflare's edge; Cloudflare can read this traffic.", and then exit
+69 with its reason, as the session's proxy resets each connection to port 7844 and UDP does not
+pass: the edge answered its 1033 at the name. Not made: an example of the manual
+(`man/examples.rs` is at 499 lines).
 
 # T-181: A `serial:` address for a local serial device
 
@@ -1164,7 +1223,7 @@ and with which limits.
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:475`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
-  privilege (`AGENTS.md:336-337`). The recipe uses the user's own `usbip` and
+  privilege (`AGENTS.md:337-338`). The recipe uses the user's own `usbip` and
   its privileges.
 
 ## Approach

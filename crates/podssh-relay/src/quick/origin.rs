@@ -44,6 +44,23 @@ pub trait Origin: Send + Sync {
     /// edge named (`CF-Connecting-IP`), if it named one. It must be called
     /// in a runtime: the origin serves it in a task of its own.
     fn connect(&self, visitor: Option<std::net::IpAddr>) -> DuplexStream;
+    /// Whether the origin takes a request's body as it comes, with no
+    /// bound: a funnel's TARGET, a web application, may take an upload of
+    /// any size (T-180). The relay role's bodies are small, and come whole
+    /// first ([`BODY_MAX`]).
+    fn streams(&self) -> bool {
+        false
+    }
+}
+
+/// How the head of a request says the length of its body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BodyHead {
+    /// `Content-Length`.
+    Length(usize),
+    /// `Transfer-Encoding: chunked`: a body whose length the visitor did
+    /// not name, which goes in chunks as it comes.
+    Chunked,
 }
 
 /// The visitor's address that the edge names in `CF-Connecting-IP`, one
@@ -135,6 +152,11 @@ impl Asked {
     /// request that is no upgrade. `Err` for a part that would break the
     /// head or be read two ways, which the edge's metadata does not rule out.
     pub fn head(&self, length: usize) -> Result<Vec<u8>, String> {
+        self.head_with(BodyHead::Length(length))
+    }
+
+    /// [`Asked::head`] with the body's length as `body` says it.
+    pub fn head_with(&self, body: BodyHead) -> Result<Vec<u8>, String> {
         if self.method.is_empty() || !self.method.bytes().all(is_tchar) {
             return Err("the method is not a token".into());
         }
@@ -165,7 +187,10 @@ impl Asked {
                 head.push_str(&format!("{name}: {value}\r\n"));
             }
         } else {
-            head.push_str(&format!("Content-Length: {length}\r\n"));
+            match body {
+                BodyHead::Length(length) => head.push_str(&format!("Content-Length: {length}\r\n")),
+                BodyHead::Chunked => head.push_str("Transfer-Encoding: chunked\r\n"),
+            }
         }
         head.push_str("\r\n");
         Ok(head.into_bytes())

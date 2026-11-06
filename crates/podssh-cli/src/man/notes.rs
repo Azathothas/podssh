@@ -19,6 +19,7 @@ use super::notes_ping::PING;
 use super::notes_pipe::PIPE;
 use super::notes_play::PLAY;
 // proxy's own, apart for the length of this file (T-431).
+use super::notes_funnel::FUNNEL;
 use super::notes_proxy::PROXY;
 use super::notes_relay::RELAY;
 use super::notes_run::RUN;
@@ -48,6 +49,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "net" => NET,
         "exit" => EXIT,
         "share" => SHARE,
+        "funnel" => FUNNEL,
         "chat" => CHAT,
         "relay" => RELAY,
         "doctor" => DOCTOR,

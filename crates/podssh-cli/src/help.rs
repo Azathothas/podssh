@@ -261,6 +261,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "node" => "[OPTIONS] NAME [TARGET] [ROUTE=TARGET]...",
         "exit" => "[OPTIONS] NAME --listen ADDR:PORT",
         "share" => "[OPTIONS] SUBCOMMAND [NAME=TARGET | NAME]",
+        "funnel" => "[OPTIONS] TARGET",
         "operator" => "[OPTIONS] NAME",
         "proxy" => "[OPTIONS] [--] HOST PORT | node://NAME[/ROUTE]",
         "health" => "[OPTIONS] [user@]host",

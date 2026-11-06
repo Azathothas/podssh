@@ -816,7 +816,7 @@ measured: a race needs two processes; the test below makes it certain.
    (`crates/podssh-ssh/src/hostkey.rs:352-376`). Else append.
 3. Hold the lock only for the read and the write, never across a prompt.
 4. When the file system refuses locks, append as today, with a verbose note
-   (a fallback that says so, `AGENTS.md:374`).
+   (a fallback that says so, `AGENTS.md:375`).
 
 ## Prove
 
@@ -1241,9 +1241,9 @@ and no player.
 4. Playback: a new verb `podssh play FILE`, with `--speed` and
    `--idle-limit`. Not `replay`: it is one edit from `relay`, and the
    suggestion step would mix them (`docs/cli.md:2025-2034`). Add it to `VERBS`
-   (`crates/podssh-cli/src/flags.rs:374-440`), to
+   (`crates/podssh-cli/src/flags.rs:376-444`), to
    `crates/podssh-cli/src/positionals.rs`, to dispatch, and to `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:110-144`).
+   (`crates/podssh-cli/tests/flag_table.rs:110-145`).
 5. Refuse a file whose header is not version 2. Skip unknown event types.
 6. Write the risks in the manual: the output can hold secrets (a printed
    key, a password that a remote program echoes); a recording sends control
@@ -1373,10 +1373,10 @@ runs: with no user database entry, OpenSSH's programs stop at once
 6. When the probe fails, refuse with the reason and the other ways: key
    files with `-i`, and the helper of T-228.
 7. In the same commit: the verb in `VERBS`
-   (`crates/podssh-cli/src/flags.rs:374-440`), in
+   (`crates/podssh-cli/src/flags.rs:376-444`), in
    `crates/podssh-cli/src/positionals.rs` and in `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:110-144`); `docs/cli.md`;
-   "Nothing listens" in `SECURITY.md:246-281`; `docs/STATUS.md`.
+   (`crates/podssh-cli/tests/flag_table.rs:110-145`); `docs/cli.md`;
+   "Nothing listens" in `SECURITY.md:258-293`; `docs/STATUS.md`.
 
 ## Decision
 

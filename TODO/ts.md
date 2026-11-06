@@ -382,7 +382,7 @@ WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:141-147`)
 
 Read, at `0b6f4b8`: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs`
 lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:46-57`), the rule at
-`docs/target-environment.md:93-96` and `SECURITY.md:158-166`. A URL with no port means 80 in podssh
+`docs/target-environment.md:93-96` and `SECURITY.md:170-178`. A URL with no port means 80 in podssh
 (`PodUtils/podssh:crates/podssh-ws/src/proxy.rs:114`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines
 39-41 at `0b6f4b8`).
 Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:145-146`).
@@ -399,7 +399,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:222-237`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:362-363`, `docs/tailscale.md:145-146` and
+4. Update `crates/podssh-cli/src/flags.rs:364-365`, `docs/tailscale.md:145-146` and
    `docs/STATUS.md:816` in the same commit.
 
 Added by T-102 (2026-10-10): the checks of each mode before the start already take `--ts-proxy`,
@@ -549,7 +549,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:39-40`, `docs/relay.md:387-389`)
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:816` and `crates/podssh-cli/src/man/notes.rs:400-432`.
+   `docs/tailscale.md`, `docs/STATUS.md:816` and `crates/podssh-cli/src/man/notes.rs:402-434`.
 
 ## Decision
 
@@ -801,7 +801,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:162`, `docs/tailscale.md:8-24` and
-   `crates/podssh-cli/src/man/notes.rs:400-432`.
+   `crates/podssh-cli/src/man/notes.rs:402-434`.
 
 ## Prove
 

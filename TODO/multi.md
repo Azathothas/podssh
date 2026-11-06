@@ -64,9 +64,9 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:374-440`,
-   `crates/podssh-cli/src/positionals.rs:7-270`, a `Parsed` variant,
-   `crates/podssh-cli/tests/flag_table.rs:110-144`, the notes, an example,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:376-444`,
+   `crates/podssh-cli/src/positionals.rs:7-275`, a `Parsed` variant,
+   `crates/podssh-cli/tests/flag_table.rs:110-145`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
@@ -525,7 +525,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:246-281` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:258-293` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 
@@ -904,7 +904,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:142`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:375-377`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:378-380`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:32-40`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -1180,7 +1180,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:282-290`,
   `crates/podssh-cli/src/ssh/hop.rs:106-117`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:359-365`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:360-366`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -1802,7 +1802,7 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:359-365`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:360-366`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:105-122`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:324-326`). The token type never shows itself
@@ -1812,7 +1812,7 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:27-30`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:123-143`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:421-465`.
+  `crates/podssh-cli/src/dispatch.rs:424-468`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
   status (`docs/cli.md:5379-5382`), which is not a failure of podssh.
 
@@ -1840,7 +1840,7 @@ a ticket, or a tool that asks an AI.
 6. podssh calls no AI service and no network address for this: the program
    decides what to do with the report.
 7. In the same commit: `docs/cli.md` (the hook), the notes of the manual,
-   `SECURITY.md:158-166` (what the report holds), `docs/STATUS.md`.
+   `SECURITY.md:170-178` (what the report holds), `docs/STATUS.md`.
 
 ## Decision
 
@@ -3522,7 +3522,7 @@ session on 2026-11-03.
   podssh-cli --test flag_table`: 9; `--lib session::`, 17; `--lib man`, 66; `--lib help`, 9.
 - Planted: `scripts/plants/t506-empty-silent.plant` (the line of an empty list never written):
   `sh scripts/plant-each.sh --here t506-empty-silent`: caught, the test of the empty list failed.
-- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:460-464`
+- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:463-467`
   (`TODO/cli.md`) and the citations of `docs/cli.md` were moved by hand; `cargo todo remap` from the
   tree before the draft confirmed them. rustfmt of `podssh-cli` (`exchange` of `session/client.rs`)
   and clippy of `podssh-cli` with `-D warnings`, all targets: clean.

@@ -152,6 +152,8 @@ pub enum Parsed {
     Exit(Box<crate::exit::ExitArgs>),
     /// `podssh share SUBCOMMAND [NAME=TARGET | NAME]` (T-433).
     Share(Box<crate::share::ShareArgs>),
+    /// `podssh funnel TARGET` (T-180).
+    Funnel(Box<crate::funnel::FunnelArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -252,6 +254,7 @@ impl Parsed {
             Parsed::Net(args) => !args.refused.is_empty(),
             Parsed::Exit(args) => !args.refused.is_empty(),
             Parsed::Share(args) => !args.refused.is_empty(),
+            Parsed::Funnel(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
             Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Pipe(args) => !args.refused.is_empty(),

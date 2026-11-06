@@ -56,11 +56,11 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:11-28`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:467-475`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:471-479`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:246-281`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:258-293`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1387-1388`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:366-367`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:368-369`,
 `crates/podssh-cli/src/ts.rs:181`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -4232,7 +4232,7 @@ that says why.
   public relays its default until the operator runs one. The row says nothing of the release
   binaries: "off in the release" is the default of `Cargo.toml` and the build of the workflow,
   which the study reads as the operator's policy. In a build without the feature, the iroh road
-  refuses with exit code 70 (`AGENTS.md:23-24`).
+  refuses with exit code 70 (`AGENTS.md:24-25`).
 - Read in the study (https://docs.iroh.computer/iroh-services/relays/public): the public relays
   are "suitable for development and hobby use only", they rate-limit, and "Only the latest stable
   release of iroh is officially supported".
@@ -5743,7 +5743,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:338-348`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:339-349`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:363-377`, `crates/podssh-relay/src/open.rs:33`),
@@ -6085,7 +6085,7 @@ and no notice.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
   operator (`docs/relay-operator.md:97-101`).
-- Read: the test targets of a session are the operator's list (`AGENTS.md:301-330`), which names
+- Read: the test targets of a session are the operator's list (`AGENTS.md:302-331`), which names
   none of the three.
 
 ## Approach
@@ -6164,7 +6164,7 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
 Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md`, lines 315-322 at `80a6407`;
 `docs/relay-operator.md:97-101` is item 1's word on the drops of reverse sockets. The test targets
-of `AGENTS.md:300-317` name the three forwarders now, from GitHub Actions only, with short runs
+of `AGENTS.md:301-318` name the three forwarders now, from GitHub Actions only, with short runs
 (Q56, the same day); the Premise read them before that ruling.
 
 ## Done
@@ -6241,7 +6241,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
   they allow `direct-tcpip` was not measured.
-- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:301-330`). The
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:302-331`). The
   box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
   (`scripts/box/proxy.py:6-16`).
 
@@ -6493,7 +6493,7 @@ cannot make it a road.
   `--via ss://...`, which puts the password in argv.
 - The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
   Its tests use servers that podssh did not write, never a public one: no public server is a test
-  target of the operator's (`AGENTS.md:301-330`).
+  target of the operator's (`AGENTS.md:302-331`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
 The draft's calls, 2026-11-01:

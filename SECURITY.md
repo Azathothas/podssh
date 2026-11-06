@@ -35,6 +35,18 @@ only after the key exchange. Thus the strict key exchange (the fix for
 Terrapin, CVE-2023-48795) is important when a relay is in the path. russh
 uses it.
 
+A funnel (`podssh funnel TARGET`, T-180) is the one road whose bytes are
+not podssh's own: a visitor's browser speaks HTTPS to Cloudflare's edge,
+where TLS ends, and the edge sends each request to the node, which writes it
+to TARGET as HTTP/1.1. So Cloudflare reads each request and each answer,
+whole; there is no end-to-end channel and no key, and anyone who learns the
+name reaches TARGET. podssh says so in its first lines ("TLS ends at
+Cloudflare's edge; Cloudflare can read this traffic."), and serves only the
+TARGET that the user named. podssh reads the heads of the requests and of
+the answers, never a body. The token of `--tunnel-token-file FILE` is the
+credential of a tunnel of the user's account: it is read from FILE alone,
+and goes in no argument, line or URL.
+
 Between two podssh ends (a node and its operator, on either road), each
 session runs the end-to-end channel (T-088): Noise XX above the resumable
 layer. The relay then sees the layer's records (offsets, acknowledgements,

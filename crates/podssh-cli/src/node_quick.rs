@@ -64,7 +64,7 @@ const DIAL_LIMIT: Duration = Duration::from_secs(8);
 /// allows this second connection for the quick tunnel's node alone (Q62,
 /// 2026-11-01). The drain of T-402 holds on each: an old connection serves
 /// its streams while the next one registers, for 90 s at most.
-const CONNECTIONS: u8 = 2;
+pub(crate) const CONNECTIONS: u8 = 2;
 
 /// Each check that needs no network, done.
 struct Ready {
@@ -179,7 +179,7 @@ fn channel_of(label: &str, key: file::Key, door: Door, err: &mut dyn Write) -> p
 }
 
 /// The system and the machine as cloudflared names them, Go's names.
-fn arch() -> String {
+pub(crate) fn arch() -> String {
     let os = match std::env::consts::OS {
         "macos" => "darwin",
         other => other,
@@ -361,7 +361,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
 /// last race first; each to the edge's regions in the order of the
 /// connection's index (T-402). The edge is asked for at each race, and its
 /// fixed names are said once a run, as `podssh node` has no -v (T-339).
-fn edge_roads(proxy: ProxyChoice, warp: WarpRoad, say: Say) -> Roads {
+pub(crate) fn edge_roads(proxy: ProxyChoice, warp: WarpRoad, say: Say) -> Roads {
     let over_quic = matches!(podssh_ws::dial::proxy_from_env(edge::REGIONS[0]), Ok(None));
     let warp_first = warp.first;
     let warp = Arc::new(Mutex::new(warp));

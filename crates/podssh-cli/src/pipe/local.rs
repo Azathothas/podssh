@@ -54,12 +54,12 @@ type Pair = (std::os::unix::net::UnixStream, std::os::unix::net::UnixStream);
 type Pair = ();
 
 #[cfg(unix)]
-pub(super) fn socketpair() -> io::Result<Pair> {
+pub(crate) fn socketpair() -> io::Result<Pair> {
     std::os::unix::net::UnixStream::pair()
 }
 
 #[cfg(not(unix))]
-pub(super) fn socketpair() -> io::Result<Pair> {
+pub(crate) fn socketpair() -> io::Result<Pair> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "no socketpair here"))
 }
 

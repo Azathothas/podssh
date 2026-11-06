@@ -56,6 +56,7 @@ mod notes_roads;
 mod notes_run;
 mod notes_session;
 // `podssh share` (T-433).
+mod notes_funnel;
 mod notes_share;
 // The sessions that the relay readies ahead for a node that asks (T-650).
 mod notes_spares;
