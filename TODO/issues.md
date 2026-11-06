@@ -224,9 +224,10 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597. Dependabot's #149 an
 | #154 | COORD-002: podssh took pod-dns and pod-services of v0.4.0 (to podcrates) | open | T-684 (the take at `72fb94d1`, written to the podcrates session as the protocol asks) |
 | #155 | `[gh action] requested`: the gate on `main` after the take of v0.4.0 | closed 2026-11-06: its run red (42214300946, `ea5d4117`) and repaired (`5c91c0b1`); its second run asked in #157 | T-684 (the static binary of the take, which the gate's step `release` built and checked) |
 | #156 | COORD-003: podssh moved each podcrates tag to v0.5.0 (to podcrates) | open | T-684 (the move at `486c001b`, written to the podcrates session) |
-| #157 | `[gh action] requested`: the gate on `main` after v0.5.0 and T-491 to T-498 | open | T-684 (the gate of the takes and of the drafts merged since `ea5d4117`) |
+| #157 | `[gh action] requested`: the gate on `main` after v0.5.0 and T-491 to T-498 | closed 2026-11-06: run 42248490766 at `8f21bf9a`, each step but `libs` passed; repaired at `db1e6307` | T-684 (the gate of the takes and of the drafts merged since `ea5d4117`) |
 | #158 | COORD-004: a second public Piping Server in pod-services, piping.onrender.com (to podcrates) | open | T-497 (blocked on it) |
 | #159 | COORD-005: Tailscale's main DERP fleet in pod-services, after tailcat's (to podcrates) | open | T-534 (its steps 2 to 4 wait on it) |
+| #160 | `[gh action] requested`: the gate on `main` after `db1e6307` | open | T-684 (the gate after its last repair) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
