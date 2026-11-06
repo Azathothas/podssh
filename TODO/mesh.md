@@ -10293,3 +10293,18 @@ sh scripts/interop-trojan.sh target/debug/podssh
 ```
 
 On a runner (`trojan-interop.yml`): a session through each server, and a wrong password named.
+
+## Correction
+
+2026-11-06, the releases read (through the mirror of GitHub's API of <https://web.pkgforge.dev/llms.txt>):
+- trojan-gfw `v1.16.0` publishes `trojan-1.16.0-linux-amd64.tar.xz` and its OpenPGP signature
+  `.asc`, by the key `FA4DE83F84B005C0AD147623A1DDD486533B0112`, and no checksum file. The archive's
+  SHA-256, computed here: `daad1ab6edd3f89066c5e1f42c6618b2f8cb59b7ba375dfb043d0c62c9e254ea`. Whose
+  key that is was not read from a second source.
+- trojan-go `v0.10.6` publishes `trojan-go-linux-amd64.zip` with neither a checksum nor a
+  signature. Its SHA-256, computed here: `764480722783a6d76ed8401f6d2f1d87d8df7e60bf261f69c67eb94b77e732af`.
+
+So the pins are what this host downloaded on that day, not the releases' own word, as for the
+NaiveProxy server of T-494; trojan-gfw's may also be checked by its signature once its key is
+read from the project's own page. The Approach takes these pins.
+
