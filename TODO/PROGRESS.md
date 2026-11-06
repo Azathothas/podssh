@@ -30,7 +30,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      and watch workflows and their scripts and data files, `docs/decisions.md` 2026-11-05). Frozen
      now (fixes only, each written as a COORD issue `(to podcrates)`): what the next releases import,
      as the `repo PodUtils/podssh` blocks of `crates/*/SOURCES` in podcrates list it.
-  4. **CI:** the runs of `a791553` to `eea8c63` are red on the two regressions of T-690 (the step
+  4. **CI, 2026-11-06:** the gate passed each job at `285b0562` (run 42254589426: Linux, macOS,
+     Windows, the release's static binary, `ts`, `tor`), after the takes of podcrates v0.4.0 and
+     v0.5.0 and the drafts of the day; Actions start no workflow for this account's pushes, so each
+     run is asked of the owner's agent (`docs/development.md`, "A run of GitHub Actions asked of the
+     owner's agent"). Before it:
+     the runs of `a791553` to `eea8c63` are red on the two regressions of T-690 (the step
      `ts`; the step `release`'s interop `resume.cut.up.sftp`) and on one-off failures (T-688). The run
      of `ccfef9e`, which repairs T-690, was running at the checkpoint: read it first. The daily
      `record-issues` is red: GitHub #107 (closed), the pull requests #149 and #150 and the COORD test

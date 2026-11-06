@@ -227,7 +227,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597. Dependabot's #149 an
 | #157 | `[gh action] requested`: the gate on `main` after v0.5.0 and T-491 to T-498 | closed 2026-11-06: run 42248490766 at `8f21bf9a`, each step but `libs` passed; repaired at `db1e6307` | T-684 (the gate of the takes and of the drafts merged since `ea5d4117`) |
 | #158 | COORD-004: a second public Piping Server in pod-services, piping.onrender.com (to podcrates) | open | T-497 (blocked on it) |
 | #159 | COORD-005: Tailscale's main DERP fleet in pod-services, after tailcat's (to podcrates) | open | T-534 (its steps 2 to 4 wait on it) |
-| #160 | `[gh action] requested`: the gate on `main` after `db1e6307` | open | T-684 (the gate after its last repair) |
+| #160 | `[gh action] requested`: the gate on `main` after `db1e6307` | closed 2026-11-06: the gate passed each job (run 42254589426, `285b0562`) | T-684 (the gate after the takes of v0.4.0 and v0.5.0, and the drafts of the day) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
