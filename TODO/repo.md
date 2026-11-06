@@ -5763,6 +5763,15 @@ tests the resolver, which goes to `pod-dns` of PodUtils/podcrates (Q101, wave 1,
 dial). Until podcrates imports the module, the repair is a fix in podssh; then podcrates ports it
 and the test moves with the code (Rule Q3, `docs/decisions.md`).
 
+2026-11-06, the log of the job (127272614830) read again: podssh wrote each of the 1,000,000 bytes,
+`shutdown` of the Unix socket's write half returned Ok ("the other side's write half shut down"),
+and the server had read every byte by 50 ms; yet its blocking `read` returned the end only at
+10,076 ms, when the test killed podssh (10,074 ms). So the half-close was made and not seen: the
+wait is in the delivery of the end on macOS, not in podssh's pump. The next step needs the macOS
+runner (Actions are off for this account on 2026-11-06: a push starts no workflow): the test run
+50 times there, with a second read of the server under a short timeout, to tell a lost wakeup of
+the reader from an end never queued.
+
 # T-689: `cargo test -p podssh-relay --test pair_code` overflows its stack on Rust 1.97 in a debug build
 
 **Source:** the podcrates session, 2026-11-05: its trial of `pod-tls` at `d4e186d`, with no patch
