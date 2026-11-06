@@ -91,3 +91,18 @@ fn a_refusal_names_the_second_proxy_and_the_target() {
     let e = refused(&via, "h.example:22", 403, "Forbidden".into(), "HTTP/1.1 403 Forbidden\r\n\r\n");
     assert_eq!(e.to_string(), "the proxy https://proxy.example:8443 refused CONNECT h.example:22: 403 Forbidden");
 }
+
+/// A page in answer to a CONNECT that carried credentials says what a
+/// probe-resistant proxy does (NaiveProxy's forwardproxy, T-494); with none
+/// sent, the page is the proxy's own refusal, and its words alone.
+#[test]
+fn a_page_for_a_connect_with_credentials_names_probe_resistance() {
+    let with = Via::parse("https://proxy.example").unwrap().with_credentials("user:secret\n").unwrap();
+    assert!(with.has_credentials());
+    let e = refused(&with, "h.example:22", 404, "Not Found".into(), "HTTP/2 404\r\n\r\n").to_string();
+    assert!(e.contains("404 Not Found; a proxy with probe resistance"), "{e}");
+    assert!(!e.contains("secret"), "{e}");
+    let without = Via::parse("https://proxy.example").unwrap();
+    let e = refused(&without, "h.example:22", 404, "Not Found".into(), "HTTP/2 404\r\n\r\n").to_string();
+    assert!(!e.contains("probe resistance"), "{e}");
+}

@@ -5438,7 +5438,7 @@ tested by the main session after the take of podcrates v0.4.0: it built and pass
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5453,7 +5453,7 @@ CONNECT whose credentials fail is answered as a web server answers, which `--via
   (klzgrad/naiveproxy's README); the fork serves the next handler where probe resistance is on
   and authentication failed, else a `407`, and pads only a request with the header
   (`klzgrad/forwardproxy:forwardproxy.go`, its branch `naive`).
-- `crates/podssh-ws/src/via/mod.rs:353` says "if status == 407": the words of a refusal explain
+- `PodUtils/podssh:crates/podssh-ws/src/via/mod.rs:353` said "if status == 407" at `e460411d`, before this entry: the words of a refusal explain
   a `407` alone.
 
 ## Approach
@@ -5484,6 +5484,31 @@ PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the 
 PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
 crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
 moved code then runs there.
+
+## Done
+
+2026-11-06. `crates/podssh-ws/src/via/mod.rs`'s `refused`: a CONNECT that carried credentials and got
+a status that is neither 2xx nor 407 says "a proxy with probe resistance answers so where its
+credentials do not match: check the credentials file"; with no credentials sent, the proxy's own
+words alone. Unit test `a_page_for_a_connect_with_credentials_names_probe_resistance`: `cargo test
+-p podssh-ws --lib via::`, 10 passed; planted, the words removed, it fails; put back, it passes.
+
+Measured on this host, natively, against the fork's own Caddy: the release v2.11.7-naive2's one
+archive `caddy-forwardproxy-naive.tar.xz` (it publishes no checksum; its SHA-256, read here on
+2026-11-06: `c273dc07dd79c5919f97639cbdcb559d40ce90475dbd8aac80641b0a8c8065ff`), `caddy v2.11.7` with
+`http.handlers.forward_proxy`, TLS from a CA of the run, `basic_auth`, `hide_ip`, `hide_via`, an
+`acl` that allows the loopback, and a file server behind it; the target a line like an SSH server's
+and an echo. `podssh proxy --via https://proxy.test:18443 --via-auth-file FILE 127.0.0.1 18522`:
+- without `probe_resistance`: the line and the echo came through; another password: `407 Proxy
+  Authentication Required; it asks for Basic, and it refused the user and password of the
+  credentials file (Basic)`, exit 77;
+- with `probe_resistance`: the line and the echo came through; another password: the server
+  answered as its web server does, `308 Permanent Redirect`, which podssh now says with the words
+  above, exit 69; no password in any line.
+No padding: the server talked to a client that sends none (step 3). The same run in
+`scripts/interop-via.sh`'s container waits for the build image (T-251, Q88): this host's containers
+reach no package mirror.
+
 
 # T-495: `-J upterm://SESSION@HOST`: a session of upterm's host as the first hop
 

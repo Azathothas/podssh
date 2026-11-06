@@ -348,9 +348,20 @@ impl Client {
 }
 
 /// The proxy's refusal of a CONNECT to `target`; a `407` says what it asks
-/// for, and whether credentials went with it.
+/// for, and whether credentials went with it. Another refusal of a CONNECT
+/// that carried credentials may be a probe-resistant proxy's (NaiveProxy's
+/// forwardproxy, T-494), which answers as its web server does where its
+/// credentials do not match, so as to look like no proxy at all.
 fn refused(via: &Via, target: &str, status: u16, reason: String, head: &str) -> DialError {
-    let reason = if status == 407 { explain(&reason, head, via.has_credentials()) } else { reason };
+    let reason = match status {
+        407 => explain(&reason, head, via.has_credentials()),
+        200..=299 => reason,
+        _ if via.has_credentials() => format!(
+            "{reason}; a proxy with probe resistance answers so where its credentials do not match: check the \
+             credentials file"
+        ),
+        _ => reason,
+    };
     DialError::ProxyRefused { proxy: via.shown(), target: target.to_string(), status, reason }
 }
 

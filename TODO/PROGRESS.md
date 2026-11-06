@@ -325,7 +325,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 648 entries: 84 open, 15 partial, 5 blocked, 544 done.
+`TODO/INDEX.md` holds 648 entries: 83 open, 15 partial, 5 blocked, 545 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -396,7 +396,7 @@ this order:
    T-459 (the funnel and a member that relays between two members are done; the status of the net, `ping` of a node and doctor's sections are done).
 4. The public carriers of Q65 (the Piping Server road from end to end is done; T-450 from the runs of `transit-live.yml`; the
    protocols of Q66 are done), XHTTP over HTTP/1.1 (Q67, done), then what the research of more services (done) filed: the protocols of
-   servers that a user runs (T-490, partial; Outline's servers are done; Shadowsocks 2022 is done; Trojan is done; then T-494, T-498 and T-693), upterm's door
+   servers that a user runs (T-490, partial; Outline's servers are done; Shadowsocks 2022 is done; Trojan is done; NaiveProxy's server is done; then T-498 (partial) and T-693), upterm's door
    (done) and a second Piping Server (T-497), T-496 and T-499 parked; then what the triage of the sweep of public relays
    (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's road (Q76; done 2026-11-03),
    and the manual's word on the public services that podssh uses and the ones it never names
