@@ -5521,7 +5521,7 @@ Each crate of `v0.1.0` is taken.
   `node_quick.rs`, whose `edge_roads` this session had made `pub(crate)` for `podssh funnel` and the
   patch reads `edge::regions()`); each podcrates dependency names `v0.4.0`; podssh-ws's resolver is
   pod-dns behind `resolve.rs`'s glue, each service of another party a read of pod-services, and the
-  workaround `crates/podssh-ws/src/dial/bare.rs` of T-690 gone (pod-proxy forwards vectored
+  workaround `PodUtils/podssh:crates/podssh-ws/src/dial/bare.rs` of T-690 gone (pod-proxy forwards vectored
   writes, podcrates T-065). Each command of the `.run` passed here but its last two: the record and
   `check-repo.py`; the checks and builds of the gate's features, `iroh,warp`, `tor` and `ts`;
   clippy; podssh-ws with `plain-ws` 308 passed, podssh-relay's targets 703, podssh-cli's library
