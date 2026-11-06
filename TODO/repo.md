@@ -4922,7 +4922,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 - Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
   after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
-  (`docs/cli.md:2096`) and "did not act on yet" (`docs/cli.md:1723`).
+  (`docs/cli.md:2120`) and "did not act on yet" (`docs/cli.md:1747`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
   (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame

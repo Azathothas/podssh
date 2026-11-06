@@ -10,7 +10,9 @@
 //! `podssh ssh warp://...` (T-352) is a road of the same kind, a provider's
 //! own tunnel from this host: WARP's, whose network reaches any host
 //! ([`warp`]), in a build with the feature `warp`. So is `tor://...`
-//! (T-353), through the Tor network ([`tor`]), with the feature `tor`.
+//! (T-353), through the Tor network ([`tor`]), with the feature `tor`. And
+//! `upterm://SESSION@HOST` (T-495): a session of upterm's host, as a guest of
+//! its uptermd reaches it by a WebSocket ([`upterm`]).
 
 mod aws;
 mod eice;
@@ -20,6 +22,7 @@ pub mod proxy;
 // The forwarders' road says its end the same way (T-369).
 pub(crate) mod told;
 pub mod tor;
+pub mod upterm;
 pub mod warp;
 
 use std::sync::Arc;
@@ -46,6 +49,8 @@ pub enum Road {
     Warp(warp::Target),
     /// Tor: any host and port, through an exit (T-353).
     Tor(tor::Target),
+    /// upterm: a session of upterm's host, through its uptermd (T-495).
+    Upterm(upterm::Target),
 }
 
 /// `iap://[user@]PROJECT/ZONE/INSTANCE[:PORT]` or
@@ -63,6 +68,9 @@ pub fn destination(text: &str) -> Result<Option<(Option<String>, Road)>, String>
     }
     if let Some((user, target)) = tor::destination(text)? {
         return Ok(Some((user, Road::Tor(target))));
+    }
+    if let Some((user, target)) = upterm::destination(text)? {
+        return Ok(Some((user, Road::Upterm(target))));
     }
     Ok(None)
 }
@@ -134,6 +142,7 @@ impl Road {
             },
             Road::Warp(target) => target.shown(),
             Road::Tor(target) => target.shown(),
+            Road::Upterm(target) => target.shown(),
         }
     }
 
@@ -145,6 +154,8 @@ impl Road {
             Road::Eice { target, .. } => target.address.to_string(),
             Road::Warp(target) => target.host.clone(),
             Road::Tor(target) => target.host.clone(),
+            // uptermd's own name: `known_hosts` keys it as `[HOST]:443`.
+            Road::Upterm(target) => target.server.host.clone(),
         }
     }
 
@@ -154,6 +165,7 @@ impl Road {
             Road::Eice { target, .. } => target.port,
             Road::Warp(target) => target.port,
             Road::Tor(target) => target.port,
+            Road::Upterm(target) => target.server.port,
         }
     }
 
@@ -164,6 +176,7 @@ impl Road {
             Road::Eice { .. } => "eice",
             Road::Warp(_) => "warp",
             Road::Tor(_) => "tor",
+            Road::Upterm(_) => "upterm",
         }
     }
 
@@ -214,6 +227,10 @@ pub(super) fn transport(road: &Road, r: &super::node::Ask<'_>, env: &Env, port: 
             target.port = port;
             Road::Tor(target)
         }
+        Road::Upterm(mut target) => {
+            target.server.port = port;
+            Road::Upterm(target)
+        }
     };
     let trust = match super::resolve::ca_file(r.args, env) {
         Some(file) => Trust::File(file.into()),
@@ -233,6 +250,7 @@ pub(super) async fn reach(road: &Road, trust: &Trust, log: &Arc<Log>) -> Result<
         Road::Eice { endpoint, target } => eice::reach(endpoint, target, trust, log).await,
         Road::Warp(target) => warp::reach(target, trust, log).await,
         Road::Tor(target) => tor::reach(target, trust, log).await,
+        Road::Upterm(target) => upterm::reach(target, trust, log).await,
     }
 }
 

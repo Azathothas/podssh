@@ -5492,7 +5492,7 @@ moved code then runs there.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5529,6 +5529,24 @@ tunnels: `crates/podssh-cli/src/ssh/jump.rs:100` says "The first hop's tunnel".
 4. No `podssh node` as an upterm host: it needs an SSH server in the node for uptermd's hop, and
    podssh's own nodes have roads on 443.
 
+## Decision
+
+2026-11-06 (the drafting agent). Item 1's default host, `uptermd.upterm.dev` when none is named, is
+not compiled in: since the migration to PodUtils/podcrates, a host of another party is
+pod-services' data, never a literal of podssh (`AGENTS.md`, "The migration to PodUtils/podcrates").
+`upterm://SESSION@HOST` names the server; a form with no host is refused with the words of the
+form. The community server as a default is asked of podcrates as a service of pod-services; once
+it is there, podssh reads it, as it reads the relay's. Lost: the literal, which the rule forbids;
+a default from an environment variable, which only moves the literal.
+
+The road is a fifth kind of `cloud::Road` (`crates/podssh-cli/src/ssh/cloud.rs`), beside WARP's and
+Tor's, as each is a provider's own tunnel from this host to a first hop: no new `Transport`, whose
+every `match` would change. Lost: a `Transport::Upterm`, the same road with an arm in each road's
+match. A first hop of upterm keeps uptermd's own name in `known_hosts` (`[HOST]:443`), where a cloud's
+VM is renamed to its tunnel's form, as upterm's README gives its `@cert-authority` line for that
+name. `upterm+ws://` reaches an uptermd of this host alone, for the tests and the interop, as the
+session's ID would cross the network in the clear.
+
 ## Prove
 
 ```sh
@@ -5542,6 +5560,57 @@ host's proxy: `podssh ssh -J upterm://SESSION@uptermd.test user@127.0.0.1 'echo 
 short run from GitHub Actions through `uptermd.upterm.dev`, with an upterm host on the runner
 (Q65). Planted: the certificate's authority not checked, and a stand-in of another authority is
 taken, so the test fails.
+
+## Done
+
+2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t495`, base `d55ef03c`, `f58eb5b5`), then
+merged, built and tested by the main session. One repair: the draft said exit 77 for a session that
+uptermd knows not, but `podssh ssh` exits 255 for any first hop that it does not reach, as OpenSSH
+does; `podssh proxy` gives the road's own code. The note, the test (which checks both) and the
+interop say so now.
+
+- `crates/podssh-ws/src/upterm.rs`: a guest's WebSocket to uptermd, as `upterm proxy wss://ID@HOST`
+  opens it (read in owenthereal/upterm's `ws/client.go`, `upterm/const.go` and
+  `server/wsproxy.go`): the upgrade of `/` with `Authorization: Basic` of `ID:` and
+  `Upterm-Client-Version: SSH-2.0-upterm-client-client`, the `Host` without the scheme's port as
+  upterm strips it; TLS for `wss://` with podssh's trust; then SSH in binary frames as a stream
+  (`forwarder::carry`, its Close at this side's end). uptermd's `400` and its words for a missing
+  header; its Close 1011 before any byte for a session that it cannot place, said as "it knows no
+  session ID" (`proxy`'s 77, `ssh`'s 255). Unit tests: the request's headers, the `Host` header, the
+  lines: `cargo test -p podssh-ws --lib`, 173 passed.
+- `crates/podssh-cli/src/ssh/cloud/upterm.rs`: `upterm://SESSION@HOST[:PORT]` (443 by default) and
+  `upterm+ws://SESSION@127.0.0.1:PORT` (this host alone) as `cloud::Road::Upterm`, its user the
+  session's ID; `reach` for `podssh ssh`, `open` for `podssh proxy`. `cloud.rs`: the road in each
+  match; `transport` keeps its checks (`--direct`, `-4`, `-6`, `HostName`). `jump.rs`: a first hop
+  of upterm keeps uptermd's own name in `known_hosts`. `cloud/proxy.rs`: `podssh proxy upterm://...`
+  for OpenSSH's `ProxyCommand`, its `SESSION@` no login. The six lists of roads of their own
+  (`chisel`, `shadowsocks`, `trojan`, `via`, `vless`, `wstunnel`'s `pipe.rs`) name `upterm://` and
+  `upterm+ws://`. Unit tests: the forms and their refusals: the CLI's library, 994 passed; clippy and rustfmt
+  clean.
+- The manual: the note of `podssh ssh` (`man/notes_ssh_more.rs`, as `notes_ssh.rs` is at 497 lines)
+  and of `podssh proxy` (`man/notes_proxy.rs`); `docs/cli.md`, `docs/mesh.md`.
+- The test: `crates/podssh-cli/tests/upterm_hop.rs`, a stand-in of uptermd written there (a WebSocket
+  that checks the two headers, 400 in uptermd's words, a Close 1011 for an unknown session, and the
+  harness's russh server inside as uptermd's SSH, which serves the next hop's `direct-tcpip`):
+  `podssh ssh -J upterm+ws://SESSION@127.0.0.1:PORT tester@127.0.0.1:SSHD greet` reaches the second
+  server of the harness, the one WebSocket's headers as upterm's guest sends them, uptermd's key
+  kept under `[127.0.0.1]:PORT`; an unknown session refused in uptermd's words (`ssh` 255, `proxy` 77); a
+  `known_hosts` line of another key for uptermd refused (255), the plant of the Prove (the hop's key
+  not checked); `podssh proxy` gives uptermd's version line; `upterm+ws://` to another host and a
+  form with no session refused (64): `cargo test -p podssh-cli --test upterm_hop`, 5 passed. Planted:
+  the credential without the `:` after the session: the stand-in's check of the header fails the
+  test; put back, it passes.
+- `scripts/interop-upterm.sh` with `.github/workflows/upterm-interop.yml`, and its 5 ids in
+  `scripts/interop-baseline.txt` (the harness `upterm`, floor 5): uptermd and `upterm host
+  --allow-forwarding=loopback --authorized-keys` of v0.41.0's release, each archive checked by the
+  SHA-256 of its `checksums.txt` (read 2026-11-06), sshd on the host's loopback; uptermd's
+  certificate checked under an `@cert-authority` line of its key, another authority refused (255),
+  an unknown session (255), and OpenSSH through `podssh proxy upterm+ws://...`. It waits for a
+  runner; `cargo test -p podssh-todo --test interop` read its ids: passed. Not run yet: uptermd's flags (`--hostname`, `--private-key`) and the host's
+  `--output json` field `sshCommand` are read in upterm's README, not run.
+- Not done: the live run through the community server from GitHub Actions (Q65), which needs its
+  name from pod-services first (the Decision); the plain squid as the host's proxy of the Prove,
+  as uptermd's WebSocket is on the loopback in the interop.
 
 # T-496: ntfy.sh, a meeting point of the pairing where a proxy refuses the WebSocket upgrade
 

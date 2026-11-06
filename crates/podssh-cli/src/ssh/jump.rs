@@ -98,7 +98,7 @@ struct Chain<'a> {
     /// The hops whose own chain is being read: one met again is a loop.
     path: Vec<String>,
     /// The first hop's tunnel: `cf://HOST` (T-347), `iap://` or `eice://`
-    /// (T-351).
+    /// (T-351), `upterm://` (T-495).
     tunnel: Option<Tunnel>,
 }
 
@@ -163,10 +163,13 @@ impl Chain<'_> {
             }
             let (mut hop, mut options) = self.hop(&target, filed)?;
             // A VM of a cloud's tunnel is named, and its key kept, as the
-            // tunnel names it.
+            // tunnel names it; uptermd keeps its own name, which its
+            // certificate's `@cert-authority` line matches (T-495).
             if let (true, Some(Tunnel::Cloud(road))) = (first, &self.tunnel) {
-                hop.host = road.shown();
-                options.destination.host = road.shown();
+                if !matches!(road, super::cloud::Road::Upterm(_)) {
+                    hop.host = road.shown();
+                    options.destination.host = road.shown();
+                }
             }
             self.hops.push(hop);
             self.options.push(options);

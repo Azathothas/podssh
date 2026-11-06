@@ -46,6 +46,9 @@ pub const PROXY: &[&str] = &[
      as podssh ssh does (see its notes): ssh -o ProxyCommand='podssh proxy warp://%h:%p' user@host.",
     "podssh proxy tor://HOST:PORT carries the pipe through the Tor network, in a build with the feature \
      tor, as podssh ssh does (see its notes): ssh -o ProxyCommand='podssh proxy tor://%h:%p' user@host.",
+    "podssh proxy upterm://SESSION@HOST carries uptermd's SSH of that session, as upterm's own proxy \
+     carries it, for OpenSSH's ProxyCommand: ssh -o ProxyCommand='podssh proxy upterm://ID@HOST' \
+     ID@HOST. The SSH client logs in as SESSION; podssh ssh upterm://SESSION@HOST does it in one.",
     "podssh proxy --forwarder TEMPLATES carries the pipe through other products' WebSocket forwarders and \
      Wisp servers, in order, with no relay, as podssh ssh does (see its notes); PODSSH_FORWARDER gives them \
      too. The end of stdin sends no Close (nor Wisp's CLOSE), as a close is no half-close: the target's \

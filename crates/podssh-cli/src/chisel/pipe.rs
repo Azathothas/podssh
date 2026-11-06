@@ -15,7 +15,7 @@ use crate::relay_settings::Refusal;
 use super::Road;
 
 /// The schemes of a target whose road is its own.
-const OWN_ROADS: &[&str] = &["cf://", "iap://", "eice://", "warp://", "tor://"];
+const OWN_ROADS: &[&str] = &["cf://", "iap://", "eice://", "warp://", "tor://", "upterm://", "upterm+ws://"];
 
 /// `--chisel` beside another road of `proxy`: a usage error.
 pub fn beside(args: &ProxyArgs) -> Result<(), Refusal> {

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**648 entries: 87 open, 14 partial, 4 blocked, 543 done.**
+**648 entries: 86 open, 14 partial, 4 blocked, 544 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 68 | 70 |
 | P2 | 22 | 6 | 1 | 255 | 284 |
-| P3 | 65 | 6 | 3 | 219 | 293 |
-| **All** | 87 | 14 | 4 | 543 | 648 |
+| P3 | 64 | 6 | 3 | 220 | 293 |
+| **All** | 86 | 14 | 4 | 544 | 648 |
 
 ## Entries
 
@@ -559,7 +559,7 @@ repository and CI).
 | [T-492](mesh.md) | P3 | M | M10 | feature | done | Shadowsocks 2022 (SIP022) for `--shadowsocks` |
 | [T-493](mesh.md) | P2 | M | M10 | feature | done | Shadowsocks in a WebSocket, as Outline's servers serve it, and `ssconf://` keys |
 | [T-494](mesh.md) | P3 | S | M10 | measurement | open | `--via` against NaiveProxy's server, and the words of a probe-resistant proxy |
-| [T-495](mesh.md) | P3 | M | M10 | feature | open | `-J upterm://SESSION@HOST`: a session of upterm's host as the first hop |
+| [T-495](mesh.md) | P3 | M | M10 | feature | done | `-J upterm://SESSION@HOST`: a session of upterm's host as the first hop |
 | [T-496](mesh.md) | P3 | S | M10 | feature | open | ntfy.sh, a meeting point of the pairing where a proxy refuses the WebSocket upgrade |
 | [T-497](mesh.md) | P3 | S | M10 | feature | open | A second public Piping Server, `piping.onrender.com` |
 | [T-498](mesh.md) | P3 | L | M10 | feature | open | frp's protocol: a podssh node behind the user's frps, and its visitor |

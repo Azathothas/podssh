@@ -1,0 +1,40 @@
+name: upterm interop
+
+# `-J upterm://` (T-495, the operator's ruling Q65), against upterm's own
+# uptermd and `upterm host` of a pinned release (checked by the SHA-256 of
+# its checksums.txt), in containers of the runner's Docker, with OpenSSH's
+# sshd on the host's loopback as the next hop: scripts/interop-upterm.sh.
+# Started by hand, and on a push that changes the road; it publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-ws/src/upterm.rs"
+      - "crates/podssh-cli/src/ssh/cloud/upterm.rs"
+      - "scripts/interop-upterm.sh"
+      - ".github/workflows/upterm-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: upterm's own uptermd and host
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 1500 sh scripts/interop-upterm.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > upterm.log 2>&1 || rc=$?
+          cat upterm.log
+          [ "$rc" = 0 ] || { echo "interop-upterm exited $rc"; exit 1; }

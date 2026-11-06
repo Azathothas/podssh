@@ -411,7 +411,8 @@ availability only ([carriers.md](carriers.md)):
   a meeting point of the pairing where a proxy refuses the WebSocket
   upgrade (T-496); a second public Piping Server, `piping.onrender.com`
   (T-497); and upterm's community server, a door on 443 to a machine that
-  runs upterm's own host (T-495).
+  runs upterm's own host (T-495: `podssh ssh -J upterm://SESSION@HOST
+  user@127.0.0.1`, uptermd named by the user).
 
 The triage of the operator's sweep of public relays (2026-11-02) found one
 more that fits: OpenTunnel, a blind TLS tunnel with no account, whose TLS

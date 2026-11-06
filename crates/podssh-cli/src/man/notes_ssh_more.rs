@@ -154,4 +154,18 @@ pub(super) const MORE: &[&str] = &[
      uploads (cp, sftp, and the local side of each forward) wait while a key waits for its echo, a \
      second at most. Each TCP socket that podssh dials keeps 16 KiB unsent at most, where the system \
      takes that option (Linux and macOS).",
+    "upterm://SESSION@HOST[:PORT] reaches a session of upterm's host (owenthereal/upterm) as its guests \
+     reach it: a WebSocket to the uptermd at HOST, port 443 by default, through HTTPS_PROXY when one is \
+     set, its TLS checked with podssh's trust, then SSH inside it as the user SESSION, the session's ID \
+     that its host shows, with your keys, which uptermd checks against the host's list. uptermd's host key \
+     is a certificate: known_hosts checks it under the @cert-authority line that upterm gives for its \
+     server, for the name [HOST]:443, as upterm's own client keys it. As the destination it is the \
+     session, the host's shared terminal. As the first hop of -J it carries the next hop in a direct-tcpip \
+     channel to the host's loopback, where upterm host lets a guest forward there (its forwarding allowed \
+     to loopback), so that the host's own sshd checks you end to end: podssh ssh -J \
+     upterm://SESSION@HOST user@127.0.0.1. A session that uptermd knows not is refused in its words (ssh's \
+     exit 255, as for any first hop not reached; podssh proxy's 77), and a host that lets no forward refuses \
+     the channel in its own. podssh names no uptermd: give \
+     the server's name, the community server's too. upterm+ws://SESSION@127.0.0.1:PORT reaches an uptermd \
+     of this host over ws://. -p gives the port; --direct, -4, -6 and HostName cannot go with it.",
 ];

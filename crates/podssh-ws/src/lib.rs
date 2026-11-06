@@ -92,6 +92,8 @@ pub mod tls_server;
 mod tls_wrap;
 // Trojan in TLS and in a WebSocket, to a server that the user runs (T-491).
 pub mod trojan;
+// A guest's WebSocket to uptermd, the first hop of `-J upterm://` (T-495).
+pub mod upterm;
 pub mod url;
 // A second proxy over TLS, HTTP/1.1's and HTTP/2's CONNECT (T-439).
 pub mod via;

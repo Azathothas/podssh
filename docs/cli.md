@@ -387,6 +387,30 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   place. Arti asks each line for the bridge's fingerprint, so a line with
   none is refused, Tor Browser's meek_lite line among them, and so is
   another transport (obfs4, snowflake), which would be another program.
+- **`upterm://SESSION@HOST[:PORT]` is a session of upterm's host, as its
+  guests reach it (T-495).** A WebSocket to the uptermd at HOST, port 443
+  by default, through `HTTPS_PROXY` when one is set, its TLS checked with
+  podssh's trust (`crates/podssh-ws/src/upterm.rs`): the upgrade of `/`
+  with `Authorization: Basic` of `SESSION:` and `Upterm-Client-Version:
+  SSH-2.0-upterm-client-client`, as `upterm proxy wss://SESSION@HOST`
+  sends them; then SSH inside it as the user SESSION, with the user's keys,
+  which uptermd checks against the host's list. uptermd's host key is a
+  certificate: `known_hosts` checks it under the `@cert-authority` line that
+  upterm's README gives for its server, for `[HOST]:443`, as upterm's client
+  keys it (the hop keeps that name, `crates/podssh-cli/src/ssh/jump.rs`). As
+  the destination it is the session, the host's shared terminal; as the
+  first hop of `-J` it carries the next hop in a `direct-tcpip` channel to
+  the host's loopback, where `upterm host --allow-forwarding=loopback`
+  lets it, so the host's own sshd checks the user end to end: `podssh ssh
+  -J upterm://SESSION@HOST user@127.0.0.1`. A session that uptermd knows
+  not: its Close 1011 after the upgrade, said with its reason (77); a
+  missing header, its `400` and words. podssh names no uptermd: the
+  community server is another party's service, which the user names
+  (`docs/decisions.md`, pod-services). `upterm+ws://SESSION@127.0.0.1:PORT`
+  is the same over `ws://`, to this host alone. `podssh proxy
+  upterm://SESSION@HOST` is uptermd's SSH for OpenSSH's `ProxyCommand`, as
+  `upterm proxy` gives it. No `podssh node` is an upterm host: it would need
+  an SSH server in the node, and podssh's own nodes have roads on 443.
 - **The direct road after the relay hosts** (T-363), as the road table of
   [design.md](design.md) gives it. When no relay host opened a session, and
   the user named no relay (`--relay-host`, `PODSSH_RELAY` or the settings

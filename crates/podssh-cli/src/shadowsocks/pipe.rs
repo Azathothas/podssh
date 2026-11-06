@@ -28,7 +28,7 @@ use crate::relay_settings::Refusal;
 pub const EARLY_WAIT: Duration = Duration::from_secs(3);
 
 /// The schemes of a destination whose road is its own.
-const OWN_ROADS: &[&str] = &["cf://", "iap://", "eice://", "warp://", "tor://"];
+const OWN_ROADS: &[&str] = &["cf://", "iap://", "eice://", "warp://", "tor://", "upterm://", "upterm+ws://"];
 
 /// `--shadowsocks` beside another road: a usage error.
 pub fn beside(args: &ProxyArgs) -> Result<(), Refusal> {

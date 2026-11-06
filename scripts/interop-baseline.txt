@@ -66,6 +66,7 @@ harness via via 11 scripts/interop-via.sh
 harness vless vless 15 scripts/interop-vless.sh
 harness wstunnel wstunnel 12 scripts/interop-wstunnel.sh
 harness chisel chisel 9 scripts/interop-chisel.sh
+harness upterm upterm 5 scripts/interop-upterm.sh
 harness outline outline 8 scripts/interop-outline.sh
 harness trojan trojan 7 scripts/interop-trojan.sh
 harness acme acme 8 scripts/interop-acme.sh
@@ -882,6 +883,12 @@ chisel.wrong-fingerprint pass
 chisel.denied pass
 chisel.hop pass
 chisel.secret pass
+# scripts/interop-upterm.sh
+upterm.version pass
+upterm.hop pass
+upterm.cert pass
+upterm.gone pass
+upterm.proxy pass
 # scripts/interop-outline.sh
 outline.version pass
 outline.banner pass

@@ -9,7 +9,9 @@
 //! The port is in the destination, and the relay's flags do not apply. On
 //! IAP the end of stdin ends the session after its bytes, as gcloud ends
 //! it, as IAP carries no half-close; on EICE receiving goes on, as on the
-//! relay. The end of the road is said in the cloud's own words.
+//! relay. The end of the road is said in the cloud's own words. With
+//! `upterm://SESSION@HOST` (T-495) it is uptermd's SSH, as `upterm proxy`
+//! carries it, for OpenSSH as its `ProxyCommand`.
 
 use std::future::Future;
 use std::io::Write;
@@ -44,7 +46,8 @@ pub fn run(args: &ProxyArgs, err: &mut dyn Write) -> Option<i32> {
         }
     };
     let relay_flag = args.relay_host.is_some() || args.relay_failover.is_some() || args.relay_addr.is_some();
-    let why = if user.is_some() {
+    // upterm's `SESSION@` names the session, not a login (T-495).
+    let why = if user.is_some() && !matches!(road, Road::Upterm(_)) {
         Some(format!("{text}: the SSH client logs in, so the destination takes no user here"))
     } else if args.port.is_some() {
         Some(format!("{text}: the port goes in the destination, as {}:PORT", road.shown()))
@@ -181,6 +184,18 @@ async fn pipe(road: &Road, trust: &Trust, err: &mut dyn Write) -> i32 {
                 }
             }
         }
+        // upterm (T-495): uptermd's SSH, for OpenSSH as its ProxyCommand, as
+        // `upterm proxy` gives it.
+        Road::Upterm(target) => match super::upterm::open(target, trust).await {
+            Ok(stream) => {
+                let (read, write) = tokio::io::split(stream);
+                End { read: Box::new(read), write: Box::new(write), child: None, last_word: true, ending: None }
+            }
+            Err((line, code)) => {
+                let _ = writeln!(err, "podssh: {line}");
+                return code;
+            }
+        },
         // Tor (T-353): the stream's end is the end of the pipe.
         Road::Tor(target) => {
             let say = |line: &str| podssh_ssh::err_line!("podssh: {line}");
