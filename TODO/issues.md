@@ -219,7 +219,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597. Dependabot's #149 an
 | #147 | `relay serve` routes a published name by its ClientHello, TLS at the node | closed 2026-11-05, its entry done | T-649 (the listener moved to `podssh-relay`; funnel at the edge is T-180) |
 | #148 | A pool of sessions opened ahead for each node | closed 2026-11-05, its entry done | T-650 (only for a node that asks, by its own flag) |
 | #151 | COORD-001: a test of the fallback channel | closed 2026-11-05, its entry partial | T-684 (the first message of the protocol of PodUtils' sessions, a test that the watcher sees it) |
-| #152 | `[gh action] requested`: the gate on `main` | open | T-684 (Actions start no workflow for this account on 2026-11-06; the owner's agent runs the commands; T-691's deny and T-451's piping.yml read the runs) |
+| #152 | `[gh action] requested`: the gate on `main` | closed 2026-11-06, the gate passed (run 42179347665, `78e78e4`) | T-684 (Actions start no workflow for this account on 2026-11-06; the owner's agent ran it; T-465's probe, T-451's test and T-691's pins in the gate) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
