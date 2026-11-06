@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**648 entries: 82 open, 16 partial, 5 blocked, 545 done.**
+**648 entries: 80 open, 16 partial, 5 blocked, 547 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 68 | 70 |
 | P2 | 21 | 7 | 1 | 255 | 284 |
-| P3 | 61 | 7 | 4 | 221 | 293 |
-| **All** | 82 | 16 | 5 | 545 | 648 |
+| P3 | 59 | 7 | 4 | 223 | 293 |
+| **All** | 80 | 16 | 5 | 547 | 648 |
 
 ## Entries
 
@@ -583,8 +583,8 @@ repository and CI).
 | [T-533](mesh.md) | P3 | S | M10 | docs | done | The manual says which public services podssh tries last, and which it never names |
 | [T-534](mesh.md) | P2 | M | M10 | feature | partial | Tailscale's main DERP fleet after tailcat's: a short test that it lets podssh in, then the fallback |
 | [T-535](mesh.md) | P2 | M | M10 | feature | open | The public Wisp servers that their operators run for that use, as forwarders after the demo server |
-| [T-536](mesh.md) | P3 | S | M10 | research | open | NetBird: whether its relays or its signal server carry a podssh session with no account |
-| [T-537](mesh.md) | P3 | S | M10 | research | open | Firezone: whether its relays or its portal carry a podssh session with no account |
+| [T-536](mesh.md) | P3 | S | M10 | research | done | NetBird: whether its relays or its signal server carry a podssh session with no account |
+| [T-537](mesh.md) | P3 | S | M10 | research | done | Firezone: whether its relays or its portal carry a podssh session with no account |
 | [T-538](mesh.md) | P3 | M | M10 | research | open | ZeroTier: whether its roots and its TCP relay on 443 carry a podssh session |
 | [T-539](mesh.md) | P3 | M | M10 | research | open | Tox: whether its TCP relays on 443 carry a podssh session between two keys |
 | [T-540](mesh.md) | P3 | M | M10 | research | open | Yggdrasil again, under Q77: a port of its links and routing, over its peers on 443 |

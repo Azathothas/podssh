@@ -929,6 +929,27 @@ Ruled out:
   ZeroTier One falls back to where it cannot use UDP, `204.80.128.1/443`
   in its source, which its document calls slow; a user may run one
   (pylon's `reflect` mode).
+  NetBird again, read on 2026-11-06 (T-536): its signal server, at
+  v0.82.0, registers any peer that names an id in the gRPC header
+  `x-wiretrustee-peer-id` and forwards an `EncryptedMessage` (two keys and
+  opaque `body` bytes) to the stream of the other id, with no check of an
+  account or a token in its code [W28]; it serves gRPC over TLS, port 443
+  by default with Let's Encrypt, and the same through a WebSocket at
+  `/ws-proxy/signal` [W29]. So the code of a signal server would pass a
+  pairing's messages between two keys of podssh. But a peer learns the
+  cloud's signal from the management server, after its login [W30], and
+  NetBird's terms ask for "the successful registration as well as the
+  set-up of a user administration account" for the use of its software
+  [W31]: NetBird's own signal is out, as its relays are. A user's own
+  NetBird signal is a server of the user's, which podssh's own relay role
+  serves already (Q63): no road is added.
+  Firezone again, read on 2026-11-06 (T-537): its control plane is a
+  WebSocket at `wss://api.firezone.dev` on 443, authenticated by a token,
+  which distributes the WireGuard keys and the TURN signaling; its relays
+  are STUN on UDP 3478 and TURN on UDP 49152 to 65535, by IP addresses of
+  a list with no names [W32]. No part answers on 443 with no account, and
+  its relays need UDP: out. A TURN server of the user's own is podssh's
+  TURN road already (`--turn`, Q93).
 - **Pub/sub networks** (the sweep [W1]; read on 2026-11-02). Bluesky's
   relays send each record to each consumer, and a record is written to a
   PDS by an account [W18]. ActivityPub's relays take a server's posts and
@@ -1468,6 +1489,23 @@ this page: a host's own page is cited from a search index or an archive.
   `anomalyco/opentunnel:spec/vectors/control.json` and the other vectors
   of `spec/vectors`, at v0.6.1, read on 2026-11-03 through
   forge.web.pkgforge.dev
+- [W28] `netbirdio/netbird:signal/server/signal.go` (`RegisterPeer`,
+  `forwardMessageToPeer`) and `shared/signal/proto/signalexchange.proto`,
+  `shared/signal/proto/constants.go` (`HeaderId`), at v0.82.0
+  (2026-10-29), read on 2026-11-06 through forge.web.pkgforge.dev
+- [W29] `netbirdio/netbird:signal/cmd/run.go` (the port, Let's Encrypt,
+  `wsproxy`) and `util/wsproxy/constants.go` (`/ws-proxy`, `/signal`), at
+  v0.82.0, read on 2026-11-06
+- [W30] https://docs.netbird.io/about-netbird/how-netbird-works ("Signal
+  Service", the client's login through an IdP or a setup key), and
+  `netbirdio/netbird:management/internals/server/config/config.go` (the
+  `Signal` host that the management server gives), read on 2026-11-06
+- [W31] https://netbird.io/terms, section 1 (registration and an account),
+  read on 2026-11-06 through read.web.pkgforge.dev
+- [W32] https://www.firezone.dev/kb/architecture/core-components (the
+  control plane, its token) and https://www.firezone.dev/kb/reference/ports
+  (the relays' ports and protocols), read on 2026-11-06 through
+  read.web.pkgforge.dev
 
 Read on 2026-11-02 through the services of web.pkgforge.dev (read, forge
 and search), for the entries of the rulings Q74, Q75, Q77, Q78 and Q82

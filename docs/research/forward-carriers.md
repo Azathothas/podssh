@@ -335,8 +335,8 @@ in the entry); "new" that the record does not hold it.
 | 18 | `anura.pro`: both legs, 0.913 MiB/s. | `docs/carriers.md:254-257`: Mercury Workshop's second host; its operator offers the demo alone. | known; out by T-535's Decision |
 | 19 | Wisp's aggregate with several WebSockets, 3.8 to 14.1 MiB/s at 8. | podssh's Wisp puts streams on one WebSocket (`crates/podssh-ws/src/wisp/mux.rs`), and a session is one stream. | not podssh's measure; no entry |
 | 20 | bore.pub up on 2026-11-04; 16 MiB at 1.07 MiB/s through WARP; the proxy refused its public port. | `docs/carriers.md:902-911`; T-569, Approach item 2. | confirms |
-| 21 | localtunnel: 16 MiB at 1.80 MiB/s; curl's fetch with no `Bypass-Tunnel-Reminder` got the file. | `docs/carriers.md:960`, T-568's Premise and its plant. | contradicts; Correction in T-568 |
-| 22 | tunnl.gg: a fetch cut at 520,192 bytes. | `docs/carriers.md:949-953`; T-567. | new (one sample); Correction in T-567 |
+| 21 | localtunnel: 16 MiB at 1.80 MiB/s; curl's fetch with no `Bypass-Tunnel-Reminder` got the file. | `docs/carriers.md:981`, T-568's Premise and its plant. | contradicts; Correction in T-568 |
+| 22 | tunnl.gg: a fetch cut at 520,192 bytes. | `docs/carriers.md:970-974`; T-567. | new (one sample); Correction in T-567 |
 | 23 | `cloudflared`'s quick tunnel: `530` 3 s after its URL. | podssh's own quick tunnel (T-300), `docs/carriers.md:572-598`. | one sample of another program; no entry |
 | 24 | hostc: 4.05 MiB/s; Tunnelmole, Sandhole's public server: no URL in one run. | None (Sandhole as a project of GitHub #18, the source of T-123: `TODO/serve.md:1240`). | new; T-624 |
 | 25 | libp2p's public bootstrap nodes refuse reservations. | T-579; `docs/carriers.md:871-872`. | new for T-579's step 1; Correction in T-579 |
