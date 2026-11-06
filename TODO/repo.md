@@ -5512,6 +5512,9 @@ Each crate of `v0.1.0` is taken.
   and builds of the gate's features, clippy (also `ts` and `tor`), podssh-ws 342 passed, podssh-relay
   669, podssh-cli 1,226, rustfmt.
 
+- 2026-11-06: the adoption of `pod-proxy` brought two regressions, repaired in T-690; the migration
+  session paused at `ccfef9e` (`TODO/PROGRESS.md`, the checkpoint of 2026-11-06).
+
 Next: then each crate of the next releases (`pod-tls` in `v0.2.0`,
 then `pod-proxy`, `pod-dns`, `pod-ws`).
 # T-685: The checks of the retired rules: the gate's `CC=/nonexistent` and its steps at a minimum Rust, edition 2021
