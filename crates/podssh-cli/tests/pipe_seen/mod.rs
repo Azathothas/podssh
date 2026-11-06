@@ -32,6 +32,11 @@ pub struct Seen {
     ended_ms: AtomicU64,
     answered_ms: AtomicU64,
     killed_ms: AtomicU64,
+    /// A clone of the server's socket, read once without waiting at the
+    /// limit: whether the end was queued and its reader not woken, or never
+    /// came (T-465).
+    #[cfg(unix)]
+    peer: std::sync::Mutex<Option<std::os::unix::net::UnixStream>>,
 }
 
 impl Default for Seen {
@@ -49,6 +54,8 @@ impl Default for Seen {
             ended_ms: zero(),
             answered_ms: zero(),
             killed_ms: zero(),
+            #[cfg(unix)]
+            peer: std::sync::Mutex::new(None),
         }
     }
 }
@@ -57,6 +64,28 @@ impl Seen {
     /// Keep the time of a step in `at`.
     fn mark(&self, at: &AtomicU64) {
         at.store(self.start.elapsed().as_millis() as u64 + 1, Ordering::SeqCst);
+    }
+
+    /// What a read of the server's socket finds now, without waiting.
+    #[cfg(unix)]
+    fn peer_now(&self) -> String {
+        let Some(peer) = self.peer.lock().unwrap().take() else {
+            return "no socket yet".into();
+        };
+        if let Err(e) = peer.set_nonblocking(true) {
+            return format!("not read: {e}");
+        }
+        match (&peer).read(&mut [0u8; 1]) {
+            Ok(0) => "the end is queued, and the server's read was not woken".into(),
+            Ok(_) => "a byte more is queued".into(),
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => "nothing is queued: the end never came".into(),
+            Err(e) => format!("the read failed: {e}"),
+        }
+    }
+
+    #[cfg(not(unix))]
+    fn peer_now(&self) -> String {
+        "not read on this system".into()
     }
 
     fn said(&self) -> String {
@@ -116,13 +145,18 @@ pub fn through_seen(address: &str, input: Vec<u8>, seen: &Arc<Seen>) -> (i32, St
     let deadline = Instant::now() + Duration::from_secs(10);
     while child.try_wait().unwrap().is_none() {
         if Instant::now() > deadline {
+            // Before the kill, which ends the server's input in any case.
+            let peer = seen.peer_now();
             seen.mark(&seen.killed_ms);
             let _ = child.kill();
             // What podssh said before its limit names where it waited.
             let said = child.wait_with_output().map(|o| String::from_utf8_lossy(&o.stderr).into_owned());
             // The server's steps after the kill, if any come.
             std::thread::sleep(Duration::from_millis(500));
-            panic!("{address}: no end within 10 s; {}; podssh said: {said:?}", seen.said());
+            panic!(
+                "{address}: no end within 10 s; {}; the server's socket at the limit: {peer}; podssh said: {said:?}",
+                seen.said()
+            );
         }
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -158,7 +192,13 @@ pub fn answer(mut stream: impl Read + Write, seen: &Seen) {
 #[cfg(unix)]
 pub fn digest_server(path: &std::path::Path, seen: Arc<Seen>) -> std::thread::JoinHandle<()> {
     let listener = std::os::unix::net::UnixListener::bind(path).expect("a socket of the test");
-    std::thread::spawn(move || answer(listener.accept().unwrap().0, &seen))
+    std::thread::spawn(move || {
+        let stream = listener.accept().unwrap().0;
+        *seen.peer.lock().unwrap() = stream.try_clone().ok();
+        answer(stream, &seen);
+        // The clone would hold the connection open past the server's close.
+        seen.peer.lock().unwrap().take();
+    })
 }
 
 /// The same server on an AF_UNIX socket of Windows, by WinSock.

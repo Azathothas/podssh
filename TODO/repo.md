@@ -5771,6 +5771,7 @@ wait is in the delivery of the end on macOS, not in podssh's pump. The next step
 runner (Actions are off for this account on 2026-11-06: a push starts no workflow): the test run
 50 times there, with a second read of the server under a short timeout, to tell a lost wakeup of
 the reader from an end never queued.
+The pipe's part is T-465's failure again; its words and their probe are written there.
 
 # T-689: `cargo test -p podssh-relay --test pair_code` overflows its stack on Rust 1.97 in a debug build
 

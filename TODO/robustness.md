@@ -1378,7 +1378,7 @@ that fails at random hides a defect, or teaches the reader to rerun.
 
 - The test (`crates/podssh-cli/tests/pipe.rs:101`) gives the bytes to podssh's stdin from a
   thread and waits 10 s for podssh to end; its server answers the digest once its input ends
-  (`crates/podssh-cli/tests/pipe_seen/mod.rs:136`).
+  (`crates/podssh-cli/tests/pipe_seen/mod.rs:170`).
 - The pump shuts the other side's write half down when its input ends
   (`crates/podssh-cli/src/pipe/pump.rs:94`), and reads more of the input that is ready at once
   without waiting (`crates/podssh-cli/src/pipe/pump.rs:163`).
@@ -1459,6 +1459,20 @@ the end on, in one process; podssh's `unix-connect` opens its socket as the prob
 (`crates/podssh-cli/src/pipe/unix.rs`). Left between them: a client in another process than its
 server, as podssh is the test's child, and the test's own server. It stays partial for a failure
 that says the time of each step.
+
+2026-11-06: the failure of T-688 on macOS (run 42035545363, `67c0768`) had the times: stdin closed
+at 50 ms, the server's last read at 50 ms with each byte, podssh said its shutdown was taken, and
+the server's input ended at 10,076 ms, after the kill at 10,074 ms. From outside, a lost wakeup of
+the server's blocked read (the end queued, its reader not woken until the kill woke it again) and
+an end never queued look alike. The test now keeps a clone of its server's socket
+(`crates/podssh-cli/tests/pipe_seen/mod.rs`) and, at its limit and before the kill, reads it once
+without waiting: "the end is queued, and the server's read was not woken" or "nothing is queued:
+the end never came". The server drops the clone once it answered, so that its close still reaches
+podssh. Planted here: the pump's shutdown skipped and its writer leaked (a drop of tokio's write
+half shuts it down too, so a skip alone passes): the test failed at 10 s with "nothing is queued:
+the end never came", the same times as macOS's; put back, `cargo test -p podssh-cli --test pipe`:
+10 passed. GitHub Actions start no workflow for this account on 2026-11-06, so the repeats on
+`macos-15` and `windows-2025` wait for a run; it stays partial for a failure that says which.
 
 # T-564: podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE`
 
