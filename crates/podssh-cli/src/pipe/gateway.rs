@@ -170,7 +170,8 @@ mod tests {
     #[test]
     fn a_dial_past_its_limit_is_504_and_a_proxy_s_407_is_no_407_of_ours() {
         let after = std::time::Duration::from_secs(20);
-        let timeout = DialError::Timeout { step: "connecting to a:1".into(), after };
+        let timeout =
+            DialError::Timeout { step: "connecting to a:1".into(), after, stage: podssh_ws::dial::Stage::Connect };
         assert_eq!(dial_status(Some(&timeout)), 504);
         let refused = |status| {
             let (proxy, target, reason) = ("p".to_string(), "a:1".to_string(), "r".to_string());

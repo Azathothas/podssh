@@ -1872,7 +1872,7 @@ use it as podssh's road: podssh speaks CONNECT and SOCKS5 to the host's own prox
 
 ## Premise
 
-- podssh's proxy kinds are HTTP CONNECT and SOCKS5 (`crates/podssh-ws/src/proxy.rs:9`), in
+- podssh's proxy kinds are HTTP CONNECT and SOCKS5 (`PodUtils/podssh:crates/podssh-ws/src/proxy.rs:9`), in
   cleartext to the proxy.
 
 ## Approach
@@ -4968,7 +4968,7 @@ CONNECT whose credentials fail is answered as a web server answers, which `--via
   (klzgrad/naiveproxy's README); the fork serves the next handler where probe resistance is on
   and authentication failed, else a `407`, and pads only a request with the header
   (`klzgrad/forwardproxy:forwardproxy.go`, its branch `naive`).
-- `crates/podssh-ws/src/via/mod.rs:348` says "if status == 407": the words of a refusal explain
+- `crates/podssh-ws/src/via/mod.rs:353` says "if status == 407": the words of a refusal explain
   a `407` alone.
 
 ## Approach
@@ -8831,7 +8831,7 @@ through an HTTP CONNECT proxy.
   its file crates/podssh-ws/src/turn/mod.rs, and its docs/poc.md: "proxy logs 2 CONNECTs").
   `AGENTS.md:280` says "Make one outbound connection", with five exceptions, none for this road.
 - podssh-ws holds the parts of TURN's long-term credential in pure Rust: `hmac`
-  (`crates/podssh-ws/Cargo.toml:20`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:37-38`);
+  (`crates/podssh-ws/Cargo.toml:24`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:41-42`);
   and a resolver order of its own (`crates/podssh-ws/src/resolve.rs:2` says "resolver works. In
   order"), as a Connect names an address, not a name.
 - No code of podssh names TURN: `crates/podssh-ws/src/forwarder/template.rs:65` says "a

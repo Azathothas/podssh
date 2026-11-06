@@ -61,7 +61,8 @@ mod tests {
         let after = Duration::from_secs(20);
         assert!(tls_failed(&ConnectError::Tls(TlsFailure::from("invalid peer certificate: UnknownIssuer"))));
         assert!(tls_failed(&ConnectError::Timeout { step: "the TLS handshake", after }));
-        let unreached = crate::DialError::Connect { target: "r:443".into(), detail: "refused".into(), cut: None };
+        let unreached =
+            crate::DialError::Connect { target: "r:443".into(), detail: "refused".into(), cut: None, kind: None };
         for other in [
             ConnectError::Dial(unreached),
             ConnectError::Refused { status: 403, body: "forward: missing or wrong token".into() },

@@ -70,7 +70,7 @@ pair (`crates/podssh-relay/src/cache.rs` lines 126-153 and 221-240 at `9811e0d`)
 8. Use the control host only (`tcp.ssh.relay.ajam.dev`, or one host that the user names). No failover
    to pool hosts until a measurement shows that they serve `/v1/*`.
 9. In the same commit: `docs/relay.md` (lines 192-214 at `3632dcb`), `docs/reverse.md` (lines 46-53 at
-   `3632dcb`), and the FILES section of the manual (`crates/podssh-cli/src/man/facts.rs:313`).
+   `3632dcb`), and the FILES section of the manual (`crates/podssh-cli/src/man/facts.rs:314`).
 
 ## Decision
 
@@ -179,7 +179,7 @@ verified here).
 
 1. crates/podssh-relay/src/reverse/node.rs: `node::run(config, handler)`; `handler.open(id)` gives a byte stream
    or a reason to reject. It uses the codecs of `podssh-transport` until T-082. Invariant: no protocol above
-   bytes (`docs/architecture.md:273-275`).
+   bytes (`docs/architecture.md:278-280`).
 2. One task owns the write half; sessions send `(id, bytes)` through one bounded channel, cut by
    `chunk_for_node`. Invariant: no frame without its id; none for an id not readied, or closed.
 3. On `open`: call the handler with a limit under 15 s
@@ -196,8 +196,8 @@ verified here).
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
 7. A clean stop (SIGTERM or Ctrl-C): `close {id}` with a reason for each session, a Close `1000`, then exit 0.
-8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:201`), which keeps loopback
-   off the proxy (`crates/podssh-ws/src/dial.rs:105-109`).
+8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:90`), which keeps loopback
+   off the proxy (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:105-109`).
 9. Record each rule in `docs/reverse.md`, and each measurement in `docs/STATUS.md`.
 10. The runner takes a `RelaySession` over any stream, not only TLS, so that the tests of podbox
     run it over a plain `ws://` session to the loopback (`podssh_ws::plain`, T-068).
@@ -757,7 +757,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    `crates/podssh-cli/src/doctor/relay_checks.rs:42-96` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-144`). New variables go in `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:313` there), examples in
+   (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:314` there), examples in
    `crates/podssh-cli/src/man/examples.rs:8-309`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
@@ -1876,7 +1876,7 @@ ends each token at once (`docs/relay.md:615-617`). A text frame from the operato
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`PodUtils/podssh:crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `PodUtils/podssh:crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
-issue's "rule 8" is rule 6 (`docs/architecture.md:318-323`), and its "section 2" sentence about an allowlist of
+issue's "rule 8" is rule 6 (`docs/architecture.md:323-328`), and its "section 2" sentence about an allowlist of
 keys is in section 7 (`docs/design.md:1387-1388`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
@@ -1895,7 +1895,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
 1. On the relay: an endpoint in place of `POST /v1/pair` that returns a signed grant naming the node, the
    principals that may use it (key fingerprints, T-087), an expiry and a nonce. The relay records the nonce as
    spent and refuses a second use. podssh caches the grant and sends it in a header or a 0600 file, never in
-   a URL (`docs/relay.md:461-463`, `docs/architecture.md:318-323`).
+   a URL (`docs/relay.md:461-463`, `docs/architecture.md:323-328`).
 2. On the client: keep the pair's tokens, and add a signed grant inside the operator leg, which the relay has
    authenticated. A text frame closes that leg with `1003`, so the grant needs a typed binary header at the
    start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The

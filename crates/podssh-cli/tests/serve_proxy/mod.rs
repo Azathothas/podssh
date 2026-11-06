@@ -122,6 +122,6 @@ fn a_proxy_that_cannot_be_read_stops_the_start_and_its_credentials_are_never_sai
     let out = ran_with(s.command(&words), &[("HTTPS_PROXY", url.as_str())]);
     let text = said(&out);
     assert_eq!(out.status.code(), Some(78), "{text}");
-    assert!(says_variable(&text, "the proxy of this host: HTTPS_PROXY: proxy scheme ftp://"), "{text}");
+    assert!(says_variable(&text, "the proxy of this host: HTTPS_PROXY: the proxy scheme ftp://"), "{text}");
     assert!(!text.contains("s3cret") && !text.contains("relayuser"), "{text}");
 }

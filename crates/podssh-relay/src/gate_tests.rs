@@ -19,7 +19,7 @@ fn relay(host: &str) -> Relay {
 
 /// A dial that the host refuses.
 fn refused_dial() -> OpenError {
-    let error = DialError::Connect { target: "a.example:443".into(), detail: "refused".into(), cut: None };
+    let error = DialError::Connect { target: "a.example:443".into(), detail: "refused".into(), cut: None, kind: None };
     OpenError::Connect { error: ConnectError::Dial(error), origin: Origin::Minted }
 }
 

@@ -1,7 +1,0 @@
-# T-641: STUN's codec trusts an attribute's length and cuts it at the end of
-# the message, so an attribute that runs past the message reads as one; the
-# test of what is no message must fail.
-ENTRY=T-641
-GROUP=resume
-EXPECT='test stun::tests::what_is_no_message_is_refused_before_a_byte_past_it_is_read \.\.\. FAILED'
-RUN='cargo test --locked -p podssh-ws --lib -- stun::tests::what_is_no_message_is_refused_before_a_byte_past_it_is_read'

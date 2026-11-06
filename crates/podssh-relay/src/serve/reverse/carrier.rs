@@ -132,7 +132,12 @@ impl Role {
                 (true, true) => return Ok(()),
                 (false, _) if started => {
                     let (target, detail) = (format!("the carrier {}", self.shown), "it ended before a node read it");
-                    return Err(ConnectError::Dial(DialError::Connect { target, detail: detail.into(), cut: None }));
+                    return Err(ConnectError::Dial(DialError::Connect {
+                        target,
+                        detail: detail.into(),
+                        cut: None,
+                        kind: None,
+                    }));
                 }
                 (false, _) => {
                     self.start_again()?;
@@ -176,7 +181,8 @@ impl Role {
             return Err(ConnectError::Refused { status: 410, body });
         };
         let target = format!("the carrier {}", self.shown);
-        let link = again().map_err(|detail| ConnectError::Dial(DialError::Connect { target, detail, cut: None }))?;
+        let link = again()
+            .map_err(|detail| ConnectError::Dial(DialError::Connect { target, detail, cut: None, kind: None }))?;
         self.attach_held(&mut held, link).map_err(ConnectError::Config)
     }
 

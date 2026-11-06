@@ -585,7 +585,7 @@ Read: `LegTarget::path` formats `/connect/{host}/{port}`, `/v1/node/{name}` and
 `github.com` and `podssh` (crates/podssh-transport/tests/endpoints.rs at `e8bbd4d` lines 70-85).
 
 Read: `WsClientConfig::validate` refuses whitespace and a query string that is not a connect knob,
-but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:71-90`).
+but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:79-98`).
 
 Read: the commands already check the forward path. `podssh_relay::relay::forward_path` calls
 `check_host`: letters, digits, `.`, `-` and `_`, no leading `-` or `.`, at most 253 characters

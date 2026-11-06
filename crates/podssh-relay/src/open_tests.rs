@@ -46,7 +46,8 @@ fn a_failure_after_the_connection_is_told_from_the_others() {
     assert!(after_connection(&connect(ConnectError::Tls("NotValidForName".into()))));
     assert!(after_connection(&refused(530, "error code: 1034")));
     assert!(after_connection(&OpenError::Token(TokenError::Failed { status: 409, detail: String::new() })));
-    let unreachable = DialError::Connect { target: "relay:443".into(), detail: "refused".into(), cut: None };
+    let unreachable =
+        DialError::Connect { target: "relay:443".into(), detail: "refused".into(), cut: None, kind: None };
     assert!(!after_connection(&connect(ConnectError::Dial(unreachable.clone()))));
     assert!(!after_connection(&OpenError::Token(TokenError::Connect(ConnectError::Dial(unreachable)))));
     assert!(!after_connection(&OpenError::Token(TokenError::RateLimited { retry_after: None })));

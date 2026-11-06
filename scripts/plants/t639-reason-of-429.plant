@@ -1,7 +1,0 @@
-# T-639: request::reason loses the phrase of 429, which reads "Error"
-# again, as the relay role's refusals of a full table did; the test of the
-# phrases must fail.
-ENTRY=T-639
-GROUP=cli-tests
-EXPECT='test http::request::tests::each_status_that_podssh_sends_has_its_phrase \.\.\. FAILED'
-RUN='cargo test --locked -p podssh-ws --lib http::request'

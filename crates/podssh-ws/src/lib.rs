@@ -1,6 +1,7 @@
 //! podssh-ws — reaching the relay: TCP (directly or through an HTTP CONNECT
-//! proxy), TLS with the pure-Rust crypto provider of `pod-tls`, and RFC 6455.
-//! With `--direct` on Linux, TCP can be Multipath TCP on request (`mptcp`).
+//! or SOCKS5 proxy, the dial of `pod-proxy` with podssh's settings: `dial`),
+//! TLS with the pure-Rust crypto provider of `pod-tls`, and RFC 6455. With
+//! `--direct` on Linux, TCP can be Multipath TCP on request (`mptcp`).
 //! A WebSocket that the user names is dialed with no token (`url`), and a
 //! server's side of the handshake answers a client of `podssh pipe
 //! ws-listen:` (`server`, T-368). A forwarder of another product carries a
@@ -39,8 +40,9 @@ mod close;
 pub mod cloudflare;
 // The pure-Rust crypto provider of pod-tls (feature `pure`).
 pub use pod_tls::crypto;
-// How a dial or a handshake ended, by the kind of its error (T-487).
-pub mod cut;
+// How a dial or a handshake ended, by the kind of its error (T-487), as
+// pod-proxy reads it.
+pub use pod_proxy::cut;
 pub mod dial;
 // Encrypted Client Hello, with the list of a name's HTTPS record, when the
 // user asks for it (T-642).
@@ -56,31 +58,32 @@ pub mod frame;
 pub mod h2_road;
 pub mod handshake;
 pub mod http;
-pub mod lowat;
+// TCP_NOTSENT_LOWAT on each dialed socket (T-661), as pod-proxy sets it.
+pub use pod_proxy::lowat;
 // The road of GCP's Identity-Aware Proxy for TCP (T-351).
 pub mod iap;
 // Tor's meek_lite, for a bridge of the Tor road (T-385).
 pub mod meek;
-pub mod mptcp;
+// Multipath TCP on the direct road (T-172), as pod-proxy dials it.
+pub use pod_proxy::mptcp;
 pub mod names;
 #[cfg(feature = "plain-ws")]
 pub mod plain;
-pub mod proxy;
-mod proxy_auth;
+// The proxy that a URL names (T-070), as pod-proxy parses it.
+pub use pod_proxy::proxy;
 // What meek_lite and WebTunnel share: a bridge's arguments, its URL, the
 // connection (T-385).
 pub mod pt;
-mod race;
 pub mod resolve;
 pub mod server;
 pub mod session;
 // A Shadowsocks server of the user's, in its AEAD form (T-373).
 pub mod shadowsocks;
-mod socks5;
 // The stores of trust that are not files, as pod-tls reads them.
 pub use pod_tls::stores;
-// STUN's messages, for doctor's line nat and the TURN road (T-641, T-621).
-pub mod stun;
+// STUN's messages, for doctor's line nat and the TURN road (T-641, T-621),
+// as pod-proxy codes them.
+pub use pod_proxy::stun;
 pub mod text;
 pub mod tls;
 pub mod tls_server;
@@ -98,7 +101,8 @@ pub mod webtunnel;
 mod wire;
 // Many TCP streams over one WebSocket, by the Wisp protocol (T-438).
 pub mod wisp;
-pub mod write_limit;
+// A write that makes no progress fails at its limit, as pod-proxy bounds it.
+pub use pod_proxy::write_limit;
 // wstunnel's protocol, to a server that the user runs (T-441).
 pub mod wstunnel;
 
@@ -110,8 +114,8 @@ pub use cut::{Cut, Missed, TlsFailure};
 pub use dial::{DialError, HttpProxy, Proxy, ProxyChoice, ProxyKind};
 pub use error::{SessionError, Verdict, WsError};
 pub use frame::Frame;
-pub use session::RelaySession;
 #[cfg(fuzzing)]
-pub use socks5::fuzz_exchange;
+pub use pod_proxy::fuzz_exchange;
+pub use session::RelaySession;
 pub use tls::Trust;
 pub use tls_wrap::tls_over;

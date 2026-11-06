@@ -5,6 +5,7 @@
 
 use std::time::Duration;
 
+use pod_core::Stage;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use zeroize::Zeroizing;
 
@@ -29,7 +30,11 @@ where
     let shown = via.shown();
     let head = tokio::time::timeout(timeout, exchange)
         .await
-        .map_err(|_| DialError::Timeout { step: format!("the CONNECT exchange with {shown}"), after: timeout })?
+        .map_err(|_| DialError::Timeout {
+            step: format!("the CONNECT exchange with {shown}"),
+            after: timeout,
+            stage: Stage::Proxy,
+        })?
         .map_err(|e| DialError::ProxyProtocol { proxy: shown.clone(), detail: e.to_string() })?;
     let (status, reason) =
         dial::parse_status_line(&head).map_err(|detail| DialError::ProxyProtocol { proxy: shown, detail })?;

@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::cut::Cut;
 use crate::dial::{self, DialError, ProxyChoice};
 use crate::error::{Verdict, WsError};
 use crate::frame::{self, Frame};
@@ -16,6 +17,13 @@ use crate::handshake;
 use crate::http;
 pub use crate::session::{RelaySession, RelayStream};
 use crate::tls::{self, Trust};
+
+// The GET over HTTPS: pod-proxy's client with podssh's settings.
+mod get;
+pub use get::{getter, https_get, https_get_accepting};
+
+#[cfg(test)]
+mod cut_tests;
 
 /// Default bound on connecting: proxy exchange, TCP, TLS and the upgrade.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);
@@ -148,6 +156,19 @@ impl std::fmt::Display for ConnectError {
 }
 
 impl std::error::Error for ConnectError {}
+
+impl ConnectError {
+    /// How the connection ended, where an error of I/O or a bound ended it:
+    /// the dial's, the handshake's, or the bound of a step.
+    pub fn cut(&self) -> Option<Cut> {
+        match self {
+            ConnectError::Dial(e) => e.cut(),
+            ConnectError::Tls(failure) => failure.cut,
+            ConnectError::Timeout { .. } => Some(Cut::TimedOut),
+            _ => None,
+        }
+    }
+}
 
 /// Whether the body of a refused upgrade is the relay's wording for a policy
 /// refusal (spec: "not in the ALLOW list"), which a fresh token does not
@@ -287,37 +308,6 @@ pub async fn https_post_json(
 ) -> Result<http::Response, ConnectError> {
     let headers = [("Content-Type", "application/json"), ("Accept", "application/json")];
     https_request("POST", host, port, path, &headers, body, 64 * 1024, trust, proxy, timeout).await
-}
-
-/// GET over HTTPS, through the same path as everything else (proxy, TLS
-/// verification, bounded waits). The body is capped at `max_body` bytes.
-pub async fn https_get(
-    host: &str,
-    port: u16,
-    path: &str,
-    max_body: usize,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    timeout: Duration,
-) -> Result<http::Response, ConnectError> {
-    https_request("GET", host, port, path, &[("Accept", "application/json")], b"", max_body, trust, proxy, timeout)
-        .await
-}
-
-/// GET over HTTPS as [`https_get`], with `accept` as the answer's type: a
-/// resolver's JSON API answers `application/dns-json` (T-339).
-#[allow(clippy::too_many_arguments)]
-pub async fn https_get_accepting(
-    host: &str,
-    port: u16,
-    path: &str,
-    accept: &str,
-    max_body: usize,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    timeout: Duration,
-) -> Result<http::Response, ConnectError> {
-    https_request("GET", host, port, path, &[("Accept", accept)], b"", max_body, trust, proxy, timeout).await
 }
 
 /// A request over HTTPS with a relay token in its `X-Relay-Token` header, as

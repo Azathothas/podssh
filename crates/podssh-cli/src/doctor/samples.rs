@@ -224,7 +224,11 @@ mod tests {
     /// ends the probe; a later one is a loss among the others.
     #[tokio::test(start_paused = true)]
     async fn the_tries_stop_at_a_first_timeout_and_count_each_later_failure() {
-        let timeout = || DialError::Timeout { step: "CONNECT".into(), after: Duration::from_secs(8) };
+        let timeout = || DialError::Timeout {
+            step: "CONNECT".into(),
+            after: Duration::from_secs(8),
+            stage: podssh_ws::dial::Stage::Proxy,
+        };
         let tried = sample(Duration::from_secs(8), |_| async { Err::<TcpStream, _>(timeout()) }).await;
         assert_eq!((tried.samples.tries, tried.samples.timed_out), (1, 1));
         let mut n = 0;
@@ -249,7 +253,8 @@ mod tests {
     /// words of Windows nor words that say "refused" decide it.
     #[tokio::test(start_paused = true)]
     async fn a_refusal_is_read_from_its_kind_never_its_words() {
-        let connect = |cut, detail: &str| DialError::Connect { target: "t:22".into(), detail: detail.into(), cut };
+        let connect =
+            |cut, detail: &str| DialError::Connect { target: "t:22".into(), detail: detail.into(), cut, kind: None };
         let windows = "No connection could be made because the target machine actively refused it. (os error 10061)";
         let mut n = 0;
         let tried = sample(Duration::from_secs(8), |_| {
@@ -278,7 +283,7 @@ mod tests {
                     return Err::<TcpStream, _>(DialError::ProxyProtocol { proxy: "p".into(), detail: "reset".into() });
                 }
                 tokio::time::sleep(bound).await;
-                Err(DialError::Timeout { step: "CONNECT".into(), after: bound })
+                Err(DialError::Timeout { step: "CONNECT".into(), after: bound, stage: podssh_ws::dial::Stage::Proxy })
             }
         })
         .await;

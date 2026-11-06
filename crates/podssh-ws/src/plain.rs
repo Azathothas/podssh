@@ -73,7 +73,7 @@ pub(crate) async fn loopback_tcp(host: &str, port: u16, timeout: Duration) -> Re
         .await
         .map_err(|_| ConnectError::Timeout { step: "the TCP connection", after: timeout })?
         .map_err(|e| {
-            let cut = Some(crate::cut::Cut::of(e.kind()));
-            ConnectError::Dial(DialError::Connect { target: addr.to_string(), detail: e.to_string(), cut })
+            let (cut, kind) = (Some(crate::cut::Cut::of(e.kind())), Some(e.kind()));
+            ConnectError::Dial(DialError::Connect { target: addr.to_string(), detail: e.to_string(), cut, kind })
         })
 }

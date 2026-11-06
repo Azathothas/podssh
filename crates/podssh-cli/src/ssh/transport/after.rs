@@ -107,7 +107,7 @@ async fn once(
     };
     let _ = tcp.set_nodelay(true);
     // A key waits behind 16 KiB unsent at most, where the kernel takes it (T-661).
-    if let Err(why) = podssh_ssh::pace::lowat::set(&tcp) {
+    if let Err(why) = podssh_ssh::pace::lowat::set(&tcp, podssh_ssh::pace::lowat::LOWAT) {
         log.verbose(&format!("TCP_NOTSENT_LOWAT: {why}; the send buffer stays the kernel's"));
     }
     let mut stream = podssh_ws::write_limit::WriteLimit::new(tcp, podssh_ws::client::WRITE_TIMEOUT);

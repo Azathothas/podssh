@@ -140,7 +140,7 @@ pub async fn session(config: &WsClientConfig, token: &str, port: u16) -> Result<
     }
     let host = config.endpoint.host.as_str();
     let failed = |detail: String| {
-        ConnectError::Dial(DialError::Connect { target: format!("UDP {host}:{port}"), detail, cut: None })
+        ConnectError::Dial(DialError::Connect { target: format!("UDP {host}:{port}"), detail, cut: None, kind: None })
     };
     let roots = podssh_ws::tls::roots_for(&config.trust).map_err(|e| failed(e.to_string()))?;
     let tls = tls(&roots).map_err(failed)?;

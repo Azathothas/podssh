@@ -27,11 +27,11 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 
 Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/frame.rs:144`); HTTP heads and chunked bodies
-(`crates/podssh-ws/src/http.rs:125`, line 183 at `e892b0f`); the upgrade answer
+(`PodUtils/podssh:crates/podssh-ws/src/http.rs:125`, line 183 at `e892b0f`); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:195`); proxy URLs
-(`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
+(`PodUtils/podssh:crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
 (`crates/podssh-ws/src/dial.rs`, lines 178 and 334 at `22c3b88`); since T-070 (2026-10-11), a
-SOCKS5 proxy's answers (`crates/podssh-ws/src/socks5.rs:156`); close
+SOCKS5 proxy's answers (`PodUtils/podssh:crates/podssh-ws/src/socks5.rs:156`); close
 reasons (`crates/podssh-ws/src/close.rs:20`); PEM bundles
 (`PodUtils/podssh:crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:146`, `crates/podssh-relay/src/pool.rs:157`);
@@ -525,8 +525,8 @@ Read, the bounds today:
 - A frame: 262144 bytes (`crates/podssh-ws/src/frame.rs:30`, refused at lines
   180-194). A message in fragments: 16 MiB
   (`crates/podssh-ws/src/session.rs:36`, checked at lines 240-242 at `23b5d82`).
-- A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:13`), for the
-  proxy (`crates/podssh-ws/src/dial.rs:25`) and for the upgrade
+- A response head: 16 KiB for HTTP (`PodUtils/podssh:crates/podssh-ws/src/http.rs:13`), for the
+  proxy (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:25`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:144`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:41`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:47`).
@@ -534,7 +534,7 @@ Read, the bounds today:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:36-39`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:24`).
-- Time: `crates/podssh-ws/src/client.rs:21-35`,
+- Time: `crates/podssh-ws/src/client.rs:29-43`,
   `crates/podssh-relay/src/open.rs:33-37`, `crates/podssh-ssh/src/session.rs:22`.
 - No limit: a `known_hosts` file was read whole (`crates/podssh-ssh/src/known_hosts.rs`,
   lines 186-192 at `72ca309`); the IRC buffer (T-096).
@@ -596,10 +596,10 @@ fail.
 - The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:221-223`). The check
   after it (`crates/podssh-ws/src/frame.rs:229-231`) cannot fire: a shorter length is at most 65535.
 - The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
-  `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
+  `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:46`). `MAX_HANDSHAKE_RESPONSE`
   (`crates/podssh-ws/src/handshake.rs:144`) bounds `handshake::handshake`, which no command calls.
 - The steps of the connection wait `CONNECT_TIMEOUT` each (`crates/podssh-relay/src/open.rs:33`).
-  `DEFAULT_TIMEOUT` (`crates/podssh-ws/src/client.rs:21`) is a default for an embedder, which no
+  `DEFAULT_TIMEOUT` (`crates/podssh-ws/src/client.rs:29`) is a default for an embedder, which no
   command of podssh takes.
 - The IRC buffer has a bound since T-096: 8192 bytes for a line
   (`crates/podssh-core/src/irc/framing.rs:52`).
@@ -627,7 +627,7 @@ fail.
 2026-10-11. `docs/architecture.md`, "Limits": each bound of memory and of time, with its value,
 its constant and file, and what podssh does past it; the relay's forward path, russh's queue of
 a channel and the replay buffers of M6 among them. The upgrade's bound has a name,
-`UPGRADE_HEAD` (`crates/podssh-ws/src/client.rs:38`); `known_hosts` has a bound of 16 MiB, in
+`UPGRADE_HEAD` (`crates/podssh-ws/src/client.rs:46`); `known_hosts` has a bound of 16 MiB, in
 both of its reads (`crates/podssh-ssh/src/known_hosts.rs:25`); the pool's request takes a stream
 (`pool::request`), so that a test can serve it. `scripts/interop-limits.sh` measures a session
 whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
@@ -848,7 +848,7 @@ Read:
   (`crates/podssh-ssh/src/options.rs:390`, enforced at
   `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:22`); a write, 60 s, and liveness, three
-  times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
+  times 10 s (`crates/podssh-ws/src/client.rs:39-43`).
 - The gate's container gets no added capability
   (`.github/workflows/build.yml:69-80`).
 

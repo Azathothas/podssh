@@ -141,8 +141,10 @@ async fn get_direct(
     if resolver.http2 {
         return h2::get_over_kept(config, tcp, ip, target, accept, MAX_ANSWER).await;
     }
-    let mut stream =
-        tokio_rustls::TlsConnector::from(config.clone()).connect(name, tcp).await.map_err(|e| Missed::tls(&e))?;
+    let mut stream = tokio_rustls::TlsConnector::from(config.clone())
+        .connect(name, tcp)
+        .await
+        .map_err(|e| Missed::tls(&e, tls::context().words()))?;
     http::exchange(&mut stream, "GET", ip, target, &[("Accept", accept)], b"", MAX_ANSWER)
         .await
         .map_err(|e| Missed::words(e.to_string()))

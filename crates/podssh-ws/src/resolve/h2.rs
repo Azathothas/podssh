@@ -55,7 +55,7 @@ where
     let tls = tokio_rustls::TlsConnector::from(config_h2(config))
         .connect(server, stream)
         .await
-        .map_err(|e| Missed::tls(&e))?;
+        .map_err(|e| Missed::tls(&e, crate::tls::context().words()))?;
     if tls.get_ref().1.alpn_protocol() != Some(b"h2") {
         return Err(Missed::words("the resolver did not take HTTP/2"));
     }

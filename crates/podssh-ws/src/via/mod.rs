@@ -21,6 +21,7 @@ use std::time::Duration;
 
 use base64::Engine as _;
 use bytes::Bytes;
+use pod_core::Stage;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
@@ -321,7 +322,11 @@ impl Client {
         let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
         tokio::time::timeout(limit, connector.connect(name, tcp))
             .await
-            .map_err(|_| DialError::Timeout { step: format!("the TLS handshake with {shown}"), after: limit })?
+            .map_err(|_| DialError::Timeout {
+                step: format!("the TLS handshake with {shown}"),
+                after: limit,
+                stage: Stage::Proxy,
+            })?
             .map_err(|e| {
                 // A server with no protocol in common ends the handshake with
                 // this alert (rustls's and Go's do), where others choose none.
@@ -353,7 +358,7 @@ fn refused(via: &Via, target: &str, status: u16, reason: String, head: &str) -> 
 /// podssh gave. `head` is a response's head, its first line the status.
 pub(crate) fn explain(reason: &str, head: &str, sent: bool) -> String {
     let reason = if reason.trim().is_empty() { "Proxy Authentication Required" } else { reason };
-    let asks = crate::proxy_auth::schemes(head);
+    let asks = pod_proxy::proxy_auth::schemes(head);
     let list = match asks.as_slice() {
         [] => String::new(),
         [one] => one.clone(),

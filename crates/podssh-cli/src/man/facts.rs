@@ -47,12 +47,13 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     (
         &["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"],
         "The proxy for each connection: an HTTP CONNECT proxy, as http://[USER:PASSWORD@]HOST:PORT (port \
-      80 when none is given), or a SOCKS5 proxy, as socks5:// or socks5h://[USER:PASSWORD@]HOST:PORT \
-      (port 1080), with the user and password of RFC 1929. The first one that is set is used, in this \
-      order. podssh sends host names to the proxy, for SOCKS5 too, so it needs no DNS; a SOCKS5 proxy \
-      that takes no names gets one more try with an address. It never shows the proxy's credentials. \
-      SOCKS4 is refused. The iroh road and podssh ts take either kind, and send the host names to \
-      both.",
+      80 when none is given), with Basic, or Digest when the proxy asks for it; or a SOCKS5 proxy, as \
+      socks5:// or socks5h://[USER:PASSWORD@]HOST:PORT (port 1080), with the user and password of RFC \
+      1929. The first one that is set is used, in this order. podssh sends host names to an HTTP proxy \
+      and to a socks5h:// proxy, so it needs no DNS; to a socks5:// proxy it sends the address that it \
+      resolves, as curl does: write socks5h:// where this host has no DNS. A SOCKS5 proxy that takes no \
+      names gets one more try with an address. It never shows the proxy's credentials. SOCKS4 is \
+      refused. The iroh road and podssh ts take either kind, and send the host names to both.",
     ),
     (
         &["http_proxy", "HTTP_PROXY"],

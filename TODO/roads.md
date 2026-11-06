@@ -44,7 +44,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    for `ts`. The default build and the releases stay without the feature.
 2. The endpoint: the `Minimal` preset, no pkarr or DNS discovery, and the
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
-   (`crates/podssh-ws/src/dial.rs:98-123`), so `ALL_PROXY` and `NO_PROXY` act
+   (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:98-123`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
    (`docs/design.md:1185`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
@@ -187,7 +187,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:366-367`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1115`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:164-494`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-301`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-301`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:319-473`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:320-474`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1357,7 +1357,7 @@ on TCP, and registers with Cap'n Proto RPC. Read: the measured proxy allows
 and the sandbox refuses UDP (`docs/target-environment.md:23`). If the edge
 needs port 7844, a cage cannot publish a tunnel. A client in a cage can still
 reach the tunnel's name on port 443 with `podssh-ws`
-(`crates/podssh-ws/src/client.rs:160-184`).
+(`crates/podssh-ws/src/client.rs:181-205`).
 
 ## Approach
 
@@ -1420,7 +1420,7 @@ that the section names.
 quick tunnel uses QUIC alone unless the user names `--protocol http2`: cloudflared sets `quic`
 for it, and a protocol that the user names has no fallback (`docs/design.md:287-291`). And the
 client in a cage is the road of T-264, `crates/podssh-ws/src/cloudflare.rs`, whose upgrade is
-cloudflared's; the cited `crates/podssh-ws/src/client.rs:160-184` is the relay's upgrade, with
+cloudflared's; the cited `crates/podssh-ws/src/client.rs:181-205` is the relay's upgrade, with
 its token header.
 
 ## Done
@@ -1464,7 +1464,7 @@ Cloudflare Access. From a cage, podssh cannot reach it: the client is
 ## Premise
 
 Read: podssh's WebSocket client sends its credential in one fixed header,
-`X-Relay-Token` (`crates/podssh-ws/src/client.rs:160-184`,
+`X-Relay-Token` (`crates/podssh-ws/src/client.rs:181-205`,
 `crates/podssh-ws/src/handshake.rs:3`), through `HTTPS_PROXY`, with podssh's
 own TLS provider; the measured proxy allows `CONNECT` to port 443
 (`docs/target-environment.md:21`). Not verified here (to read in the source
@@ -2502,11 +2502,15 @@ The test asks for an MPTCP socket where the kernel refuses it, and gets plain
 TCP with the same result; a planted dial that fails instead fails the test.
 The `grep` shows the recorded result.
 
+## Correction
+
+The test target `mptcp` of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs it, with its names. Its plant `t172-no-fallback` moved there too: `PodUtils/podcrates:scripts/plants/proxy-mptcp-no-fallback.plant`.
+
 ## Done
 
 2026-10-12 (a draft; the main session builds and runs it). With
 `PODSSH_MPTCP=yes`, `--direct` with no proxy asks Linux for Multipath TCP.
-- `crates/podssh-ws/src/mptcp.rs`: the probe (the switch of
+- `PodUtils/podssh:crates/podssh-ws/src/mptcp.rs`: the probe (the switch of
   `/proc/sys/net/mptcp/enabled` at 1, on Linux only), the socket of
   `IPPROTO_MPTCP` through `libc` (now a dependency of podssh-ws on Linux
   alone, which compiles no C), the fallback to plain TCP with its reason,
@@ -3042,7 +3046,7 @@ proxy only, so podssh refuses the setting for the iroh road before anything bind
 2. Else carry a patch of `iroh-relay` that adds SOCKS5 to `dial_url_proxy`, as
    `vendor/tailscale-rs` is carried with its patches in `vendor/patches/`, or ask upstream
    (n0-computer/iroh) for it. Write the choice in `## Decision`.
-3. Remove the refusal; the manual's VARIABLES (`crates/podssh-cli/src/man/facts.rs:47-56`) and
+3. Remove the refusal; the manual's VARIABLES (`crates/podssh-cli/src/man/facts.rs:47-57`) and
    `docs/architecture.md` say that the iroh road takes SOCKS5 too.
 
 ## Decision
@@ -3062,7 +3066,7 @@ What lost:
 - A patch of iroh too, for its HTTPS probe of the relays: reqwest's feature `socks` gives the probe
   SOCKS5 with no code, from the same patched manifest.
 - The dial of `podssh_ws::socks5` inside iroh-relay: a published crate with a path to podssh's
-  crates would tie both. The patch's module sends the bytes that `crates/podssh-ws/src/socks5.rs`
+  crates would tie both. The patch's module sends the bytes that `PodUtils/podssh:crates/podssh-ws/src/socks5.rs`
   sends: the name with the address type 3 for `socks5://` too (T-070's decision), RFC 1929, the
   reply read to its end, and on reply 8 one more connection with an address from the dial's
   resolver, which is podssh's own (`crates/podssh-iroh/src/resolve.rs`).
@@ -3082,7 +3086,7 @@ export CARGO_BUILD_JOBS=4
 cargo test -p podssh-iroh --features test-relay --test proxy_env
 ```
 
-A stand-in SOCKS5 proxy on the loopback, as in `crates/podssh-ws/tests/socks5.rs`, is the only
+A stand-in SOCKS5 proxy on the loopback, as in `PodUtils/podssh:crates/podssh-ws/tests/socks5.rs`, is the only
 way to iroh's relay server on the loopback, which it reaches by name: the endpoint goes online
 through it, and the stand-in saw the relay's name with the address type 3. Planted defect: the
 refusal restored, and the test fails.
@@ -4705,7 +4709,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:318-323`; `docs/design.md:66`), and
+- Read: credentials never go in URLs (`docs/architecture.md:323-328`; `docs/design.md:66`), and
   `docs/decisions.md:85` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -5600,7 +5604,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:286-290`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:291-295`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
    `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
@@ -5745,7 +5749,7 @@ does not depend on them.
   20 s (`crates/podssh-cli/src/ssh/transport.rs:363-377`, `crates/podssh-relay/src/open.rs:33`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
-  can leave (`crates/podssh-cli/src/doctor/net.rs:192-199`, `:201-293`).
+  can leave (`crates/podssh-cli/src/doctor/net.rs:193-200`, `:202-294`).
 - Read: `cp`, `each`, `job`, `health`, `containers`, `ping` and the `ssh:` address of `pipe` reach
   their server through the same function as `podssh ssh`
   (`crates/podssh-cli/src/ssh/transport.rs:169-173`; `crates/podssh-cli/src/cp/link.rs`,
@@ -5907,10 +5911,10 @@ relay's path and token.
   path is `/connect/<host>/<port>` (`:154-167`); a run has one road, of five kinds
   (`crates/podssh-cli/src/ssh/resolve.rs:23-76`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
-  (`crates/podssh-ws/src/client.rs:66-105`, `:160-184`); a token goes only to the deployment that
+  (`crates/podssh-ws/src/client.rs:74-113`, `:181-205`); a token goes only to the deployment that
   minted it (`docs/decisions.md:97`).
 - Read: a SOCKS5 proxy that the user names in `ALL_PROXY` carries each road already (T-070;
-  `crates/podssh-ws/src/socks5.rs:1-7`): podssh takes a third party's proxy that the user chooses.
+  `PodUtils/podssh:crates/podssh-ws/src/socks5.rs:1-7`): podssh takes a third party's proxy that the user chooses.
 
 ## Approach
 
@@ -6228,11 +6232,11 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
-  and then a reset: `TODO/ws.md:1172` says "gets 200, then a reset". A proxy that waits for TLS
+  and then a reset: `TODO/ws.md:1184` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
   port 443 answers (`docs/STATUS.md:189`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
-  (`crates/podssh-cli/src/doctor/net.rs:201-262`).
+  (`crates/podssh-cli/src/doctor/net.rs:202-263`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
@@ -6355,11 +6359,11 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
   `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-76`).
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:231-236`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
-  (`crates/podssh-ws/src/client.rs:186-214`), with no ALPN and no client certificate
+  (`crates/podssh-ws/src/client.rs:207-235`), with no ALPN and no client certificate
   (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:325-328`).
 - Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
   `SSL_CERT_FILE` (`docs/target-environment.md:61-70`), and reset SSH on port 443
-  (`TODO/ws.md:1170-1173`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
+  (`TODO/ws.md:1182-1185`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
   proxy's CA.
 - Read in GitHub #61 (a tester's report, which the tester's own run did not reproduce):
   `mx1.vpnjantit.com:443` and `ee2.vpnjantit.com:443` answer TLS, then SSH.
@@ -6452,10 +6456,10 @@ cannot make it a road.
   a server dials an arbitrary target.
 - Read: podssh-ws has AES-GCM, ChaCha20-Poly1305 and HKDF of RustCrypto
   (`PodUtils/podssh:crates/podssh-ws/Cargo.toml:16-21`), and a SOCKS5 tunnel that names its target to a proxy
-  (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
+  (`PodUtils/podssh:crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:318-323`); an `ss://` URI holds the password.
+  (`docs/architecture.md:323-328`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
@@ -7271,7 +7275,7 @@ start and at each reconnect, and a client meets that wait as a refusal.
 - Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs`, line 316 at `a09f40e`);
   QUIC's limit (`crates/podssh-relay/src/quick/quic.rs:32`) and the edge's dial limit
   (`crates/podssh-relay/src/quick/edge.rs:31`).
-- Read: podssh already races relay hosts with a stagger (`crates/podssh-ws/src/race.rs`).
+- Read: podssh already races relay hosts with a stagger (`PodUtils/podssh:crates/podssh-ws/src/race.rs`).
 - Read in cfrs's issues: the edge answers a QUIC packet of a reserved version with a Version
   Negotiation of 27 bytes (cfrs #11, #12), a probe that takes one round trip.
 
@@ -7346,7 +7350,7 @@ Live: `quick-tunnel-live.yml` on the commit, with UDP to 7844 dropped, then TCP 
 
 ## Correction
 
-Read on 2026-11-01: `crates/podssh-ws/src/race.rs` races the addresses of one name over TCP (RFC
+Read on 2026-11-01: `PodUtils/podssh:crates/podssh-ws/src/race.rs` races the addresses of one name over TCP (RFC
 8305), and returns a `TcpStream`; the staggered race of relay hosts, generic over its attempts, is
 `crates/podssh-relay/src/failover.rs` (`failover::race`, `STAGGER` of 2 s). The work reuses that
 one (the Decision, item 1).
@@ -9083,7 +9087,7 @@ banner where a hop holds the body: the form needs a test of the way and a fallba
 
 ## Premise
 
-- `TODO/roads.md:3221` says "An answer down ends 20 ms after nothing more came": T-319's answers
+- `TODO/roads.md:3225` says "An answer down ends 20 ms after nothing more came": T-319's answers
   end so that a hop which holds them holds little, and none of its forms streams an answer while
   its request's body is open.
 - `crates/podssh-cli/src/doctor/stream/mod.rs:2` says "passes as it comes or is held until its
@@ -9373,7 +9377,7 @@ that is closed.
 Read at `2042200`:
 
 - The section is opened at `crates/podssh-cli/src/doctor/mod.rs:219`; its network part is
-  `crates/podssh-cli/src/doctor/net.rs:164`.
+  `crates/podssh-cli/src/doctor/net.rs:165`.
 - The two lines of UDP that exist each ask one server: `crates/podssh-cli/src/doctor/quick.rs:55`
   (`UDP out`, the quick tunnel's edge) and `crates/podssh-cli/src/doctor/iroh.rs:34` (`iroh UDP out`); a bind
   that fails is a fact, not a failure (`crates/podssh-cli/src/doctor/iroh.rs:23`), by the rule of
@@ -9410,7 +9414,7 @@ whole signal).
 
 2026-11-05 (the drafting agent), within that call:
 
-- The STUN codec is a module of podssh-ws, `podssh_ws::stun` (`crates/podssh-ws/src/stun.rs`), pure
+- The STUN codec is a module of podssh-ws, `podssh_ws::stun` (`PodUtils/podssh:crates/podssh-ws/src/stun.rs`), pure
   Rust and with no I/O, where T-621's step 2 puts its TURN module: TURN builds its attributes and
   MESSAGE-INTEGRITY on its reader. Lost: podssh-core, which holds sans-IO protocols too, but where the
   TURN road would not be; a codec inside `doctor`, which T-621 could not share.
@@ -9453,11 +9457,15 @@ transaction id and a stranger's datagram are skipped; offline, the count of unkn
 `python scripts/check-repo.py` names the new socket. Planted: the two questions on two sockets, and the
 stand-ins' test of one mapping reads two.
 
+## Correction
+
+The tests `stun` of the library of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs them, with their names. Its plant `t641-length-trusted` moved there too: `PodUtils/podcrates:scripts/plants/proxy-stun-length-trusted.plant`.
+
 ## Done
 
 2026-11-05, merged from its draft (`dfa734e`).
 
-- `crates/podssh-ws/src/stun.rs`: STUN's codec (a Binding Request, a Binding success as a server writes
+- `PodUtils/podssh:crates/podssh-ws/src/stun.rs`: STUN's codec (a Binding Request, a Binding success as a server writes
   it, a message read with the cookie, the length and each attribute's length checked before its value,
   `XOR-MAPPED-ADDRESS` then `MAPPED-ADDRESS`, `ERROR-CODE`), with `stun_tests.rs`: RFC 5769's three
   vectors (2.1, 2.2, 2.3; their bytes compared with the RFC's text, fetched through the services of

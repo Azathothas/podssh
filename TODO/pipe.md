@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:273-275`).
+   pump does not know the road (`docs/architecture.md:278-280`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:362-372` does;
    open with `crates/podssh-relay/src/open.rs:212-298`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1149-1151`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:280-286`, `docs/architecture.md:276-293`,
+  `AGENTS.md:280-286`, `docs/architecture.md:281-298`,
   `docs/target-environment.md:99-103`, `SECURITY.md:246-281`, `README.md:44-53`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:433`). The box refuses each `bind`, AF_UNIX too
@@ -430,7 +430,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1149-1151`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:46-300`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:46-301`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:280-286`, `docs/architecture.md:276-293` and
+allows: `AGENTS.md:280-286`, `docs/architecture.md:281-298` and
 `docs/target-environment.md:99-103` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -974,7 +974,7 @@ request's head as HTTP/2 headers, and takes the response's head the same way
 (`crates/podssh-relay/src/quick/headers.rs`), so podssh writes and reads HTTP/1.1 heads to
 TARGET; the bodies pass as bytes. The alternative that lost: WebSocket upgrades alone, which
 serve almost no web application. A chunked body is decoded as a stream, as
-`crates/podssh-ws/src/http.rs:184` decodes a whole body in memory.
+`PodUtils/podssh:crates/podssh-ws/src/http.rs:184` decodes a whole body in memory.
 
 The new Approach, in place of the one above:
 
@@ -1354,7 +1354,7 @@ the request's target, would be the proxy that such a program points at.
 ## Premise
 
 - Read: podssh-ws reads HTTP responses only: one request of its own and the response to it
-  (`crates/podssh-ws/src/http.rs:1-3`), with `read_response` and `parse_head`, which reads a
+  (`PodUtils/podssh:crates/podssh-ws/src/http.rs:1-3`), with `read_response` and `parse_head`, which reads a
   status line (`:90-135`). Nothing reads a request.
 - Read: no kind of `pipe` answers HTTP (`crates/podssh-cli/src/pipe/address.rs:75-97`); two kinds
   listen, and one side at most (`:59-73`, `:121-123`).
@@ -1364,7 +1364,7 @@ the request's target, would be the proxy that such a program points at.
   takes one client by default, and with `--keep-listening` each client in turn, 8 at once at most,
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
-  loopback or AF_UNIX by default (`docs/decisions.md:75`; `docs/architecture.md:276-285`); the
+  loopback or AF_UNIX by default (`docs/decisions.md:75`; `docs/architecture.md:281-290`); the
   gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:98-122`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
@@ -1486,7 +1486,7 @@ The rest reads as cited. Nothing in the Approach changes.
   first line names the value of `HTTPS_PROXY`. The other side is a template of `%h:%p`
   (`relay:`, `tcp:`, `ssh:`), checked with a target before anything starts; `%h:%p` beside
   another side is refused (64).
-- The reader of requests, `podssh_ws::http::request` (`crates/podssh-ws/src/http/request.rs`):
+- The reader of requests, `podssh_ws::http::request` (`PodUtils/podssh:crates/podssh-ws/src/http/request.rs`):
   the head within 16 KiB (431), a bare LF taken, a bare CR, a space before a colon, a folded line
   and a control byte refused (400), another version 505; `connect_target` checks `HOST:PORT` and
   `[IPV6]:PORT` with `check_target`; `refusal` writes a status with its words on one line, and
@@ -1550,10 +1550,10 @@ user who needs `websocat` must bring it, and a cage may not run it.
   relay is reached by `relay:HOST:PORT`, whose path is the relay's forward path (`:139-145`), and
   `tcp:HOST:PORT` carries bytes in the clear to any host that the user names (`:27-28`).
 - Read: the endpoint of the client is a host, a port and a path
-  (`crates/podssh-ws/src/client.rs:40-47`); `validate` refuses a query other than the relay's
-  knobs, as a query goes into the logs of proxies (`:66-105`); `connect` takes a token and sends it
-  in `X-Relay-Token` (`:160-184`); the name of the certificate has no bypass (`:55-57`); the upgrade
-  is generic over its stream (`:216-222`).
+  (`crates/podssh-ws/src/client.rs:48-55`); `validate` refuses a query other than the relay's
+  knobs, as a query goes into the logs of proxies (`:74-113`); `connect` takes a token and sends it
+  in `X-Relay-Token` (`:181-205`); the name of the certificate has no bypass (`:63-65`); the upgrade
+  is generic over its stream (`:237-243`).
 - Read: the token never goes in a URL, and the request has no query
   (`crates/podssh-ws/src/handshake.rs:1-8`); `accept_key` gives the server's value (`:82`), tested
   on the vector of RFC 6455 (`crates/podssh-ws/tests/rfc6455.rs:259`).
@@ -1853,9 +1853,9 @@ Read at `2042200`:
 - `crates/podssh-cli/src/pipe/ws_listen.rs:76` reads the head and checks it with
   `crates/podssh-ws/src/server.rs:52`, which refuses a request with no upgrade at `:83`, which says
   "this is a WebSocket: Upgrade: websocket and Connection: Upgrade".
-- The answer's writer always writes text: `crates/podssh-ws/src/http/request.rs:286` says
+- The answer's writer always writes text: `PodUtils/podssh:crates/podssh-ws/src/http/request.rs:286` says
   "Content-Type: text/plain; charset=utf-8".
-- Its reason phrases: `crates/podssh-ws/src/http/request.rs:244-267` has no arm for 404, 409, 411, 413
+- Its reason phrases: `PodUtils/podssh:crates/podssh-ws/src/http/request.rs:244-267` has no arm for 404, 409, 411, 413
   or 429, so each reads "Error"; the relay role sends four of them through it (`404` in
   `crates/podssh-relay/src/serve/reverse/mod.rs:104`, `409` and `429` in
   `crates/podssh-relay/src/serve/reverse/mod.rs:207-211`, `413` in
@@ -1954,6 +1954,8 @@ of the cover are a module of the same target, `crates/podssh-cli/tests/pipe_ws/c
 `--test pipe_ws` runs; the walk's own tests are `crates/podssh-cli/src/pipe/cover_tests.rs`
 (`--lib pipe::cover`). The issue's `server.rs:52` for the version's refusal is the line after it; the
 Premise's line is right.
+
+The tests `http::request` of the library of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs them, with their names. Its plant `t639-reason-of-429` moved there too: `PodUtils/podcrates:scripts/plants/proxy-reason-of-429.plant`.
 
 ## Done
 

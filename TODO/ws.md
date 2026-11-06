@@ -521,7 +521,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:171-178`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`PodUtils/podssh:crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
-(`crates/podssh-ws/src/dial.rs:133-141`).
+(`PodUtils/podssh:crates/podssh-ws/src/dial.rs:133-141`).
 
 ## Approach
 
@@ -715,19 +715,19 @@ socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
 once (`crates/podssh-relay/src/open.rs:79`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:467`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
-`crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
+`crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `PodUtils/podssh:crates/podssh-ws/tests/dial.rs`, lines
 50-58.
 
 ## Approach
 
 1. A proxy type with two forms, HTTP and SOCKS5, in `dial.rs`; `ProxyChoice::Via` takes it
-   (`crates/podssh-ws/src/dial.rs:31-40`). Parse `socks5://` and `socks5h://` with an optional
-   `user:password@`, decoded as for HTTP (now `crates/podssh-ws/src/proxy.rs:177-195`).
+   (`crates/podssh-ws/src/dial.rs:34-43`). Parse `socks5://` and `socks5h://` with an optional
+   `user:password@`, decoded as for HTTP (now `PodUtils/podssh:crates/podssh-ws/src/proxy.rs:177-195`).
 2. The SOCKS5 exchange (RFC 1928): offer the method 0x00, and 0x02 only with credentials; the
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
-   host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:6-9`). Read exactly the
+   host name, so the client needs no DNS (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:6-9`). Read exactly the
    length of the reply: the bytes after it belong to TLS, as `read_head_exact` keeps them
-   (`:297-320`). Bound each step.
+   (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:297-320`). Bound each step.
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
@@ -735,11 +735,11 @@ once (`crates/podssh-relay/src/open.rs:79`) and gives exit 78 in `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs:463-476`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (now
-   `crates/podssh-ws/src/proxy.rs:70-75`).
+   `PodUtils/podssh:crates/podssh-ws/src/proxy.rs:70-75`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:201-254`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:202-255`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
-7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:47-56`),
+7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:47-57`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
 
 ## Decision
@@ -771,20 +771,24 @@ cargo test -p podssh-cli --test doctor
 sh scripts/dev.sh check   # interop: through the SOCKS5 server of OpenSSH (ssh -D)
 ```
 
-A stand-in on 127.0.0.1, as in `crates/podssh-ws/tests/dial.rs:128-150`, checks the bytes: the
+A stand-in on 127.0.0.1, as in `PodUtils/podssh:crates/podssh-ws/tests/dial.rs:128-150`, checks the bytes: the
 greeting, the user and password, and a CONNECT with the address type 3 and the relay's name. In
 the gate, the SOCKS5 server of OpenSSH (`ssh -N -D 127.0.0.1:PORT` to the test server) carries a
 session to the stand-in relay, and a password in the proxy URL never appears in the output.
 Planted defect: send the address (type 1); the stand-in refuses it, and the test fails.
 
+## Correction
+
+The test target `dial` of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs it, with its names. There `socks5://` resolves the name in podssh and sends the address, as curl does, and `socks5h://` sends the name (`PodUtils/podcrates:crates/pod-proxy/README.md`, the changes for podssh).
+
 ## Done
 
 2026-10-11, in the commit that closes this entry.
-- `Proxy` (`crates/podssh-ws/src/proxy.rs`) has two kinds: HTTP CONNECT (`http://`, or a bare
+- `Proxy` (`PodUtils/podssh:crates/podssh-ws/src/proxy.rs`) has two kinds: HTTP CONNECT (`http://`, or a bare
   `host:port`; port 80) and SOCKS5 (`socks5://` and `socks5h://`; port 1080); `HttpProxy` is its
   old name. The user and the password are split before they are decoded, so an escaped `:` stays
   in the user; for SOCKS5 each has 1 to 255 bytes. `socks4` and `socks4a` are refused by name.
-- `crates/podssh-ws/src/socks5.rs`: the greeting offers 0x00, and 0x02 only with credentials;
+- `PodUtils/podssh:crates/podssh-ws/src/socks5.rs`: the greeting offers 0x00, and 0x02 only with credentials;
   RFC 1929; CONNECT with the address type 3 and the name, so this host needs no DNS; the reply
   read to exactly its end; on reply 8, one more try with an address that podssh resolves in its
   own order; each step within the dial's limit. A refused password, or no method that podssh
@@ -837,7 +841,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:111-119`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:431-439`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:421-429`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -945,6 +949,10 @@ cargo test -p podssh-ws --test dial_race --test dial
 The dial connects to the second address within 3 s; a planted attempt delay
 of 600 s (each address in turn, as before) waits for the silent address and
 fails.
+
+## Correction
+
+The test targets `dial_race` and `dial` of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs them, with their names.
 
 ## Done
 
@@ -1122,6 +1130,10 @@ of another block, a name never in a block. The Tailscale fork reads the
 list for the node, and must agree case for case. Planted: the CIDR test
 removed from the matcher; the tests fail.
 
+## Correction
+
+The test target `dial` of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs it, with its names.
+
 ## Done
 
 2026-10-30. A block `ADDR/BITS`, IPv4 or IPv6, matches each address inside
@@ -1263,6 +1275,10 @@ cargo test -p podssh-ws --test dial_pinned
 A unit test: a pin to 127.0.0.1 gives no proxy; a pin to 203.0.113.5 keeps
 the proxy. Planted: the pin not read; the first test fails.
 
+## Correction
+
+The test target `dial_pinned` of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs it, with its names. The pins come from the resolver of the dial (`crates/podssh-ws/src/dial.rs`, `Resolver`).
+
 ## Done
 
 2026-10-30. `proxy_from_vars` takes a name whose pins are all loopback
@@ -1328,6 +1344,10 @@ Against a stand-in proxy that answers `407` with `Proxy-Authenticate: NTLM`
 and `Negotiate`, the message names both and says that podssh sends Basic
 only. Planted: the header not read; the test fails.
 
+## Correction
+
+The test target `dial` of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs it, with its names. The words of a `407` are pod-proxy's: they name each scheme, what podssh sent, and that podssh supports Basic and Digest only; a Digest challenge gets its answer.
+
 ## Done
 
 2026-10-30. On a `407`, the reason names each scheme of the
@@ -1336,7 +1356,7 @@ header and a comma inside a quoted parameter included, and says what podssh
 can give: with a proxy that takes no Basic, that podssh sends Basic only;
 with Basic and no user in the URL, how to give one; with Basic and the
 URL's user and password sent, that the proxy refused them
-(`crates/podssh-ws/src/proxy_auth.rs`, from `connect_via` in
+(`PodUtils/podssh:crates/podssh-ws/src/proxy_auth.rs`, from `connect_via` in
 `crates/podssh-ws/src/dial.rs`). `doctor`'s CONNECT lines print the same
 error.
 
@@ -1938,7 +1958,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
   first bundle that reads (`crates/podssh-ws/src/tls.rs` lines 180-200 at `59b67e6`). An explicit
   file (`--ca-file`, `SSL_CERT_FILE`) is used alone and never widened
   (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:35-36`).
-- Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:134` says "TLS
+- Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:142` says "TLS
   with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
   kept rustls's words. doctor adds a hint for the
   clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`), and its test
@@ -1961,7 +1981,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
    `CertificateError::UnknownIssuer`, and its text as the fallback): the issuer is not trusted
    here; a proxy that re-signs TLS needs its CA, in `--ca-file FILE` or `SSL_CERT_FILE` (which
    replace the store) or in `podssh-ca.pem` next to the binary (which adds to it). Each command
-   gets it with the error's text (`crates/podssh-ws/src/client.rs:237`,
+   gets it with the error's text (`crates/podssh-ws/src/client.rs:258`,
    `PodUtils/podssh:crates/podssh-ws/src/tls.rs:151`), and doctor too. T-345 adds the clock's errors to the same
    function.
 2. Windows: the stores `ROOT` and `CA` of the current user and of the machine, read through
@@ -2138,7 +2158,7 @@ Decided in the work (2026-10-31):
   run's address old, behind DNS over HTTPS; no window, which would keep a stale address before
   DNS over HTTPS for good.
 - **A dial hands over to the next source.** `resolve` gave the addresses of one source; now the
-  dialer (`crates/podssh-ws/src/race.rs`) asks the sources after the cache when none of its
+  dialer (`PodUtils/podssh:crates/podssh-ws/src/race.rs`) asks the sources after the cache when none of its
   addresses connects within 4 s (`SOURCE_WAIT`), and DNS over HTTPS ends 4 s before the dial's
   limit when an old address waits. The system resolver's answer, a pin and an IP literal hand
   over to nothing, as before. Lost: the cache's addresses alone, which would put a stale address
@@ -2179,7 +2199,7 @@ Decided in the work (2026-10-31):
   wins where the resolver is slow; a fresh address of the cache needs no network, so it is
   asked within a step once glibc's resolver gives up (Inferred: 5 s, twice, by default).
 - **Files under 500 lines**: the race of addresses moved from `dial.rs` to
-  `crates/podssh-ws/src/race.rs`, doctor's DNS checks from `net.rs` to
+  `PodUtils/podssh:crates/podssh-ws/src/race.rs`, doctor's DNS checks from `net.rs` to
   `crates/podssh-cli/src/doctor/names.rs`, and the tests of `resolve.rs` to
   `crates/podssh-ws/src/resolve/tests.rs`; `podssh_ws::dial::interleave` and `connect_direct` stay
   where their callers find them.
@@ -2218,7 +2238,7 @@ test of the order fails.
   (`crates/podssh-ws/src/resolve/order.rs`); `resolve_from` resumes after a source, and `Found`
   names the source and whether another follows. The dialer races each source's addresses, hands
   over after 4 s when another follows, and keeps the source of each connection
-  (`crates/podssh-ws/src/race.rs`, `crates/podssh-ws/src/resolve/memory.rs`). The wire form is
+  (`PodUtils/podssh:crates/podssh-ws/src/race.rs`, `crates/podssh-ws/src/resolve/memory.rs`). The wire form is
   `crates/podssh-ws/src/resolve/wire.rs`: the query, its base64url, and the decoder of A, AAAA
   and SRV. `DOH_RESOLVERS` gives each resolver's forms, Quad9's two after the four; `doh_ask`
   names the form that answered, and `doh_srv` takes the wire form too.
@@ -2282,13 +2302,13 @@ test of the order fails.
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:326`).
+(`docs/architecture.md:331`).
 
 ## Premise
 
 - Read: doctor's hint (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`) and its tests
   (`:366-369`).
-- Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:134` says "TLS
+- Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:142` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `PodUtils/podssh:crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
 - Read: rustls 0.23.46 (`Cargo.lock:4807-4808`) has the errors `Expired`, `ExpiredContext`,
@@ -2306,7 +2326,7 @@ and each other command print rustls's words alone. An error should tell what to 
    failed with one of the four time errors (their text as the fallback) gets the clock's hint,
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
-   (`crates/podssh-ws/src/client.rs:237`), `tls::connect_over` (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:151`)
+   (`crates/podssh-ws/src/client.rs:258`), `tls::connect_over` (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:151`)
    and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:180-183`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
@@ -2402,16 +2422,16 @@ host has.
 ## Premise
 
 - Read: through a proxy, `doctor` asks for the relay's host and for `github.com` on ports 443 and
-  22, each by name (`crates/podssh-cli/src/doctor/net.rs:20-23`, `:201-262`), and
-  `crates/podssh-cli/src/doctor/net.rs:149` says "podssh asks it to CONNECT by name, so no DNS is
+  22, each by name (`crates/podssh-cli/src/doctor/net.rs:20-23`, `:202-263`), and
+  `crates/podssh-cli/src/doctor/net.rs:143` says "podssh asks it to CONNECT by name, so no DNS is
   needed".
 - Read: the dialer gives a proxy the relay's name and never an address, and a pin of the relay's
   name to an address that is not the loopback keeps the name for the proxy
-  (`crates/podssh-ws/src/dial.rs:6-9`, `:125-131`); a CONNECT names the host as it was given
-  (`:255-264`). So no road of the release binaries asks a proxy for an address, but `--direct`,
+  (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:6-9`, `:125-131`); a CONNECT names the host as it was given
+  (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:255-264`). So no road of the release binaries asks a proxy for an address, but `--direct`,
   `pipe tcp:` and a target of `-R`, each to an address that the user gives.
 - Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
-  address literals (`crates/podssh-cli/src/doctor/net.rs:305-376`;
+  address literals (`crates/podssh-cli/src/doctor/net.rs:306-377`;
   `crates/podssh-ws/src/resolve.rs:26-31`), each checked by TLS for its address
   (`crates/podssh-ws/src/resolve.rs:173-183`).
 - Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,
@@ -2749,7 +2769,7 @@ refused it.
 - Read: no other lookup of DNS over HTTPS goes through a proxy. `doh_lookup` dials each
   resolver's address directly (`crates/podssh-ws/src/resolve.rs:317`), as the source of the
   resolver's order (`crates/podssh-ws/src/resolve/order.rs:124`), which the dialer runs only
-  with no proxy (`crates/podssh-ws/src/dial.rs:235`, `:239`; `crates/podssh-ws/src/race.rs:51`);
+  with no proxy (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:235`, `:239`; `PodUtils/podssh:crates/podssh-ws/src/race.rs:51`);
   doctor's line asks `doh_ask`, the same direct way
   (`crates/podssh-cli/src/doctor/names.rs:101`). So "other lookups of DoH fail the same way" does
   not hold: the change is `doh_srv`'s alone.
@@ -2815,7 +2835,7 @@ met.
   error, a reset or a timeout, is then in the system's words alone, which differ on Windows (os
   error 10054).
 - Read: with no proxy, `doctor` reaches `github.com` by TCP on port 22 alone
-  (`crates/podssh-cli/src/doctor/net.rs:162-186`, `:267-293`), and makes TLS only where a road
+  (`crates/podssh-cli/src/doctor/net.rs:163-187`, `:268-294`), and makes TLS only where a road
   needs it: each relay host, each resolver by its address, each DERP server
   (`crates/podssh-cli/src/doctor/derp.rs:14-41`) and, in a build with iroh, n0's relays
   (`crates/podssh-cli/src/doctor/iroh.rs:1-6`). Each failure is a line of its own, and no
@@ -2823,7 +2843,7 @@ met.
   for `github.com` on port 443 by CONNECT, with no TLS
   (`crates/podssh-cli/src/doctor/net.rs` lines 198-243 at `38f424c`), and a reference probe is
   `ok` with what it met
-  (`crates/podssh-cli/src/doctor/net.rs:250-255`).
+  (`crates/podssh-cli/src/doctor/net.rs:251-256`).
 - Read: T-366 tells a proxy that takes names from one that takes addresses
   (`crates/podssh-cli/src/doctor/address.rs:1-9`); it does not look at TLS with no proxy, nor at
   the name of the handshake, which is this case.
@@ -2926,14 +2946,14 @@ fails.
 2026-11-03, drafted by an agent and merged here; the results are the merge's. The Premise holds
 at the cited lines, read at `38f424c`.
 
-- `crates/podssh-ws/src/cut.rs` (new): `Cut` and `Cut::of`, `TlsFailure` (its words, its cut)
+- `PodUtils/podssh:crates/podssh-ws/src/cut.rs` (new): `Cut` and `Cut::of`, `TlsFailure` (its words, its cut)
   and `TlsFailure::of`, `DialError::cut` and `ConnectError::cut`. Unit tests: each kind (Windows'
   10054 on Windows), a certificate's refusal with no cut, and `tls_over` against a far end in
   memory that resets after the ClientHello, closes with nothing, or stays silent to the bound.
   `crates/podssh-ws/src/lib.rs`: the module, and `Cut` and `TlsFailure` at the root.
 - `crates/podssh-ws/src/client.rs`: `ConnectError::Tls(TlsFailure)`; `crates/podssh-ws/src/tls_wrap.rs`
   keeps the cut. `crates/podssh-ws/src/dial.rs`: `DialError::Connect` has `cut`, which
-  `crates/podssh-ws/src/race.rs` (the last attempt's kind, and a source's wait as a timeout) and
+  `PodUtils/podssh:crates/podssh-ws/src/race.rs` (the last attempt's kind, and a source's wait as a timeout) and
   `crates/podssh-ws/src/plain.rs` fill. `crates/podssh-ws/tests/doh_wire.rs` reads the words of a
   `TlsFailure`.
 - `crates/podssh-relay/src/health.rs`: `HealthError::Connect(ConnectError)`.
@@ -3035,7 +3055,7 @@ resolvers and n0's relays as roads. `resolve.rs` had 478 lines: the asking of on
 
 2026-11-03.
 
-- `crates/podssh-ws/src/cut.rs`: `Missed`, the words of a failure and its cut; the resolver's
+- `PodUtils/podssh:crates/podssh-ws/src/cut.rs`: `Missed`, the words of a failure and its cut; the resolver's
   asking (`resolve/direct.rs`, `doh_ask_kept`), the TLS of the resolvers over HTTP/2
   (`resolve/h2.rs`, `get_over_kept`) and n0's `/ping` (`podssh-iroh`'s `relays::ping_kept`) keep
   it; `doh_ask` and `ping` give the same words as before.

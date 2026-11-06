@@ -65,9 +65,9 @@ russh <-> tunnel <-> TLS to the second proxy (ALPN h2, http/1.1) <-> CONNECT HOS
   answer's head is read a byte at a time, as for the host's proxy, so that
   the target's first bytes stay. Basic credentials come from a private file
   (`--via-auth-file`), and a `407` names the schemes that the proxy asks
-  for. The cleartext path to the host's proxy, `crates/podssh-ws/src/proxy.rs`
-  with its two kinds, is unchanged: the second proxy is a road, not a kind
-  of the host's proxy.
+  for. The cleartext path to the host's proxy, the `Proxy` of `pod-proxy`
+  (`PodUtils/podcrates:crates/pod-proxy/src/proxy.rs`) with its two kinds,
+  is unchanged: the second proxy is a road, not a kind of the host's proxy.
 - `--vless FILE` (T-440, the operator's ruling Q66) uses VLESS servers that
   the user runs (Xray-core, shoes) in place of the relay:
 
@@ -108,15 +108,20 @@ russh <-> pipe <-> WebSocket GET /PREFIX/events, Sec-WebSocket-Protocol: v1, aut
 
 **The way to the relay.** `podssh-relay` gives an ordered list of relay
 hosts: the default host and up to three hosts of the pool, or the list that
-the user gives. For each host, `podssh-ws` connects:
+the user gives. For each host, `podssh-ws` connects with the dial of
+`pod-proxy` (PodUtils/podcrates), in podssh's settings
+(`crates/podssh-ws/src/dial.rs`):
 
 1. Through `HTTPS_PROXY` when it is set: `CONNECT` with the host name, so
    the proxy resolves the name. The proxy can be HTTP (`http://`) or SOCKS5
-   (`socks5://`, `socks5h://`; T-070): podssh sends the host name to a
-   SOCKS5 proxy too (address type 3), with the user and password of RFC
-   1929 when the URL has them, reads its reply to exactly its length, and
-   tries once more with an address that it resolves itself when the proxy
-   takes no names (reply 8). A SOCKS5 refusal is read as the HTTP case of
+   (`socks5://`, `socks5h://`; T-070). podssh sends the host name to a
+   `socks5h://` proxy (address type 3); to a `socks5://` proxy it sends the
+   address that its own resolver gives, as curl does, so a host with no DNS
+   writes `socks5h://`. It gives the user and password of RFC 1929 when the
+   URL has them, reads the reply to exactly its length, and tries once more
+   with an address that it resolves itself when the proxy takes no names
+   (reply 8). An HTTP proxy that answers `407` with a Digest challenge gets
+   the Digest answer on a new connection. A SOCKS5 refusal is read as the HTTP case of
    the same meaning, 403 for its rules, 407 for its authentication and 502
    for the rest, so the failover and the exit codes are the same. SOCKS4,
    which has no authentication, is refused. The iroh road takes a SOCKS5
@@ -347,9 +352,9 @@ session whose output nobody reads.
 | A frame from the relay | 262144 bytes | `FORWARD_MAX_FRAME`, `crates/podssh-ws/src/frame.rs` | Known from the frame's header, before its payload: the session ends with a Close 1002, "frame length N exceeds the forward cap of 262144". `podssh ssh` then exits 255, `podssh proxy` 69 |
 | A message in fragments | 16 MiB | `MAX_MESSAGE`, `crates/podssh-ws/src/session.rs` | The fragment that would pass it is not kept: a Close 1009, "a fragmented message exceeded 16777216 bytes", and the same exit codes |
 | The head of the relay's answer to the upgrade | 16 KiB | `UPGRADE_HEAD`, `crates/podssh-ws/src/client.rs` | "the WebSocket upgrade failed: no end of the response headers within 16 KiB", and the next relay host; with none left, `podssh ssh` exits 255, `podssh proxy` 69 |
-| The head of an HTTPS answer: a token's mint, the pool, a pair's call | 16 KiB | `MAX_HEAD`, `crates/podssh-ws/src/http.rs` | "no end of the response headers within 16 KiB"; a mint that fails so moves to the next relay host |
-| The body of an HTTPS answer | The caller's: 64 KiB for a mint, 256 KiB for the pool, 4096 bytes of a refused upgrade | `crates/podssh-ws/src/http.rs`, and each caller | "the response body is larger than allowed": from the length before the body, from the chunks, or from the bytes before the close. A refused upgrade is then named by its status line alone |
-| The head of a proxy's answer to CONNECT | 16 KiB | `MAX_PROXY_RESPONSE`, `crates/podssh-ws/src/dial.rs` | "the proxy PROXY did not answer as its protocol says: no end of headers within 16384 bytes", and the next relay host |
+| The head of an HTTPS answer: a token's mint, the pool, a pair's call | 16 KiB | `MAX_HEAD`, `PodUtils/podcrates:crates/pod-proxy/src/http.rs` | "no end of the response headers within 16 KiB"; a mint that fails so moves to the next relay host |
+| The body of an HTTPS answer | The caller's: 64 KiB for a mint, 256 KiB for the pool, 4096 bytes of a refused upgrade | `PodUtils/podcrates:crates/pod-proxy/src/http.rs`, and each caller | "the response body is larger than allowed": from the length before the body, from the chunks, or from the bytes before the close. A refused upgrade is then named by its status line alone |
+| The head of a proxy's answer to CONNECT | 16 KiB | `MAX_PROXY_RESPONSE`, `PodUtils/podcrates:crates/pod-proxy/src/connect.rs` | "the proxy PROXY did not answer as its protocol says: no end of headers within 16384 bytes", and the next relay host |
 | The pool, `/relays.json` | 256 KiB | `MAX_BODY`, `crates/podssh-relay/src/pool.rs` | The refresh after a mint fails with no word: the cached pool, or the default relay's seed, stays |
 | A file of the cache: a token, the pool, the addresses | 64 KiB | `MAX_FILE`, `crates/podssh-relay/src/cache.rs` | Not read, as a file that the cache makes again: the token is minted again, the pool is fetched at the next mint, and the next session's address is kept |
 | The addresses kept for each relay host; the hosts | 4; 32 | `PER_HOST`, `HOSTS`, `crates/podssh-relay/src/addresses.rs` | The host's oldest address goes; the host that carried no session for the longest goes |

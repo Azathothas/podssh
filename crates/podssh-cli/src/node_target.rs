@@ -101,11 +101,13 @@ mod tests {
             target: "x:2222".into(),
             detail: "Connection refused".into(),
             cut: Some(podssh_ws::Cut::Refused),
+            kind: None,
         };
         let alone = "TARGET x: could not connect to x:2222: Connection refused";
         assert_eq!(failed("x", &route("192.0.2.7"), true, &refused), alone);
         assert_eq!(failed("x", &route("127.0.0.1"), false, &refused), alone);
-        let late = DialError::Timeout { step: "the TCP connection".into(), after: std::time::Duration::from_secs(8) };
+        let (step, after) = ("the TCP connection".into(), std::time::Duration::from_secs(8));
+        let late = DialError::Timeout { step, after, stage: podssh_ws::dial::Stage::Connect };
         assert!(!failed("x", &route("127.0.0.1"), true, &late).contains("sshd"));
         for host in ["127.0.0.1", "localhost", "::1"] {
             let looked = failed("x", &route(host), true, &refused);

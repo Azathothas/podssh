@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:228-235` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5589-5590`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5606-5607`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -1507,8 +1507,8 @@ Read:
   that timer in `flush_or_timeout`; with `None`, the timer never fires, so
   only the write can end the wait.
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
-  (`crates/podssh-ws/src/client.rs:34-35`, given to the session at
-  `crates/podssh-ws/src/client.rs:183`), and `write` applies it
+  (`crates/podssh-ws/src/client.rs:42-43`, given to the session at
+  `crates/podssh-ws/src/client.rs:204`), and `write` applies it
   (`crates/podssh-ws/src/session.rs:420-427`). Then the copy task stops
   (`crates/podssh-ssh/src/relay_stream.rs:216-232`), the next ping meets the
   same limit and ends the read task (`crates/podssh-ws/src/session.rs:329-332`,
@@ -1516,7 +1516,7 @@ Read:
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
   (`crates/podssh-cli/src/ssh/transport.rs`, lines 99-101 at `cafcdb4`,
-  `crates/podssh-ws/src/dial.rs:241-243`).
+  `PodUtils/podssh:crates/podssh-ws/src/dial.rs:241-243`).
 - russh takes SSH window credit before it writes, so a remote program that
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.
@@ -1537,7 +1537,7 @@ Read:
    124 (the time limit): change the code, as below.
 2. Preferred change: wrap the direct stream in a writer that fails a write
    that makes no progress for 60 s, with the constant of the relay leg
-   (`crates/podssh-ws/src/client.rs:34-35`). Only
+   (`crates/podssh-ws/src/client.rs:42-43`). Only
    `crates/podssh-cli/src/ssh/transport.rs:303-347` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
@@ -3741,7 +3741,7 @@ name to give. OpenSSH on the same host connects.
   (`crates/podssh-cli/src/ssh/jump.rs:235-236`). Each verb of the report resolves its destination
   there, so one change serves all eleven.
 - Read: the manual says that podssh never reads the user database
-  (`crates/podssh-cli/src/man/facts.rs:201-204`); the reason is in
+  (`crates/podssh-cli/src/man/facts.rs:202-205`); the reason is in
   `docs/target-environment.md:37-44`: on hosts with no passwd entry, OpenSSH's tools exit 255 ("No
   user exists for uid 0"), so podssh takes the name from the environment. The rule is no row of
   `docs/decisions.md`; T-222 (on hold) says the same of the shell of `podssh serve`.
@@ -4040,8 +4040,8 @@ road gives 64 before anything connects.
   not the relay's.
 - Read: on the direct road, the destination is checked for an empty name and a first `-` alone
   (`crates/podssh-cli/src/ssh/hop.rs:79-87`), then at the dial for a blank, a control character,
-  `/`, `?`, `#` and `@` (`crates/podssh-ws/src/dial.rs:346-354`, from
-  `crates/podssh-ws/src/dial.rs:225`), which ends with "invalid destination" and 255. Inferred: the
+  `/`, `?`, `#` and `@` (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:346-354`, from
+  `PodUtils/podssh:crates/podssh-ws/src/dial.rs:225`), which ends with "invalid destination" and 255. Inferred: the
   report's `a/b` with `--direct` is that refusal, which its table counts as a dial; `a$b` and `a!b`
   reach the proxy.
 - Read: OpenSSH 10.0p2 refuses a destination that holds one of the characters of its
@@ -4411,7 +4411,7 @@ kind of host that podssh is for.
 
 ## Premise
 
-- `crates/podssh-ws/src/write_limit.rs:37` arms the limit only when a write of the inner stream
+- `PodUtils/podssh:crates/podssh-ws/src/write_limit.rs:37` arms the limit only when a write of the inner stream
   waits (`Poll::Pending`); a write that SSH never makes arms nothing.
 - `scripts/stall-forward.py` stops reading from the client after 65536 bytes, with a small
   receive buffer, and passes the server's bytes back.
@@ -4440,7 +4440,7 @@ progress", as on the gate's runners. Planted: the new limit removed: it fails at
 
 ## Correction
 
-2026-11-05. The write limit (`crates/podssh-ws/src/write_limit.rs`) goes to `pod-proxy` of
+2026-11-05. The write limit (`PodUtils/podssh:crates/podssh-ws/src/write_limit.rs`) goes to `pod-proxy` of
 PodUtils/podcrates (Q101, wave 1, the next to be taken). Until podssh takes it, the repair stays a
 fix of podssh's file, and podcrates ports it once it has imported the module (Rule Q3,
 `docs/decisions.md`); after, the repair is made in PodUtils/podcrates.
@@ -4654,7 +4654,7 @@ wins the rest back.
 - The patch `vendor/patches/russh/0002-window-target.patch` (`Handler::window_target`, asked at
   each data message); `crates/podssh-ssh/src/pace/` (the target, the measures of rate and round
   trip, the keys and the senders' turn, the drains); `TCP_NOTSENT_LOWAT` of 16 KiB on each TCP
-  socket that podssh dials (`crates/podssh-ws/src/lowat.rs`, moved there at the merge from
+  socket that podssh dials (`PodUtils/podssh:crates/podssh-ws/src/lowat.rs`, moved there at the merge from
   podssh-ssh, so the relay's and a proxy's sockets take it beside the direct road's); `podssh ping
   --under-load` marks its keys and their echoes (T-660's keys were not a user's to the pace).
 - `cargo test -p podssh-ssh --lib`: 329 passed (the pace 36); `cargo test --manifest-path

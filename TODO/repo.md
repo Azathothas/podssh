@@ -1369,7 +1369,7 @@ Read:
 
 - `scripts/gate.sh` lines 55-166 at `528bb64` have no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:347`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:337`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   crates/podssh-transport/src/socket.rs at `e8bbd4d` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -2177,7 +2177,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:276-293` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:281-298` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:99-103`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -2192,7 +2192,7 @@ Measured with grep over `git ls-files 'crates/*'`: three files hold a
 listener or a bind. `crates/podssh-cli/src/doctor/unix.rs` line 151 at `48a8744` and line 226 at `22c3b88`
 are the bind probes of `doctor`, which close at once and never listen
 (`crates/podssh-cli/src/doctor/mod.rs` lines 15-16 at `48a8744`). The test servers are in
-`crates/podssh-ws/tests/dial.rs:129` and
+`PodUtils/podssh:crates/podssh-ws/tests/dial.rs:129` and
 `PodUtils/podssh:crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
 that skips comments and test modules is
@@ -2262,7 +2262,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:276-293`,
+- The documents already state the rule as ruled (`docs/architecture.md:281-298`,
   `docs/target-environment.md:99-103`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32
@@ -5502,6 +5502,15 @@ Each crate of `v0.1.0` is taken.
   targets with each feature: 623 passed; `-p podssh-ssh --test no_rsa_private_op`: 2 passed;
   podssh-cli's library and 14 targets: 1,113 passed; rustfmt. The static check of the binary is the
   gate's step `release`, in CI.
+
+- `pod-proxy` (`v0.3.0`): podssh-ws's proxies (HTTP CONNECT, SOCKS5, their auth), MPTCP, the race,
+  the cut, the low-water mark, the write limit, STUN and the GET client are pod-proxy; `dial.rs` and
+  `http.rs` stay as glue that maps podssh's `ProxyChoice` and resolver ranks to pod-proxy's settings.
+  A change of behaviour: `socks5://` now resolves the name in podssh and sends the address (curl's
+  rule); `socks5h://` sends the name; the iroh road and `podssh ts` keep their own SOCKS5, which
+  still sends the name. Each command of the trial passed: the record, `check-repo.py`, the checks
+  and builds of the gate's features, clippy (also `ts` and `tor`), podssh-ws 342 passed, podssh-relay
+  669, podssh-cli 1,226, rustfmt.
 
 Next: then each crate of the next releases (`pod-tls` in `v0.2.0`,
 then `pod-proxy`, `pod-dns`, `pod-ws`).

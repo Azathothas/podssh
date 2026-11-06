@@ -67,8 +67,8 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:362-372`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
    refuses `V6:PORT`: `2001:db8::1:22` is itself an address. Reuse the rule of
-   `split_host_port` (`crates/podssh-ws/src/dial.rs:356-375`).
-5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:336-343`),
+   `split_host_port` (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:356-375`).
+5. Messages use `podssh_ws::dial::authority` (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:336-343`),
    not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:180`,
    `crates/podssh-cli/src/proxy.rs:250`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does
@@ -591,7 +591,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 
 1. One reader in `crates/podssh-cli/src/non_interactive.rs`, with the variable
    lookup passed in, as `proxy_from_vars` does
-   (`crates/podssh-ws/src/dial.rs:109-123`): the flag, else a `PODSSH_TIMEOUT`
+   (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:109-123`): the flag, else a `PODSSH_TIMEOUT`
    that is not empty, else nothing. It returns the text and its source.
 2. Call it at both gate sites: `crates/podssh-cli/src/dispatch.rs:348-369` and
    `crates/podssh-cli/src/ts.rs:56-65`. Parse with `parse_timeout`
@@ -600,7 +600,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-301`),
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:71-84`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says

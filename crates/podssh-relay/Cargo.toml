@@ -10,8 +10,8 @@ publish.workspace = true
 # A library other projects (podvm) use; its crates move to PodUtils/podcrates
 # (T-684).
 [dependencies]
-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
-pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0" }
+pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0" }
 podssh-ws = { path = "../podssh-ws" }
 tokio = { workspace = true }
 serde = { workspace = true }

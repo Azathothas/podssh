@@ -26,7 +26,10 @@ fn the_variables_are_read_as_the_client_reads_them() {
     assert_eq!((proxy.to_string(), from, bypass), ("lower.test:8080".to_string(), "https_proxy", None));
     let socks = egress_of(&[("ALL_PROXY", "socks5h://socks.test"), ("NO_PROXY", "10.0.0.0/8,.corp")]).unwrap();
     let Egress::Proxy { proxy, bypass, from } = &socks else { panic!("{socks:?}") };
-    assert_eq!((proxy.kind, *from, bypass.as_deref()), (ProxyKind::Socks5, "ALL_PROXY", Some("10.0.0.0/8,.corp")));
+    assert_eq!(
+        (proxy.kind, *from, bypass.as_deref()),
+        (ProxyKind::Socks5 { remote_dns: true }, "ALL_PROXY", Some("10.0.0.0/8,.corp"))
+    );
     // A proxy that cannot be read stops the start, and its words name the
     // variable, never the credentials of the URL.
     let bad = egress_of(&[("HTTPS_PROXY", made_up("ftp", "proxy.example").as_str())]).unwrap_err();
@@ -70,10 +73,12 @@ fn a_proxys_fault_is_said_to_the_client_with_its_status_and_never_its_place() {
         said(ProxyKind::Http, &refused),
         "the proxy of the relay's host refused CONNECT 140.82.112.3:22: 403 Forbidden"
     );
-    assert!(said(ProxyKind::Socks5, &refused).contains("refused SOCKS5 CONNECT 140.82.112.3:22: 403"));
+    assert!(
+        said(ProxyKind::Socks5 { remote_dns: true }, &refused).contains("refused SOCKS5 CONNECT 140.82.112.3:22: 403")
+    );
     let unreachable = DialError::ProxyUnreachable { proxy: "10.9.8.7:3128".into(), detail: "refused".into() };
-    let timeout =
-        DialError::Timeout { step: "the CONNECT exchange with 10.9.8.7:3128".into(), after: Duration::from_secs(8) };
+    let step = "the CONNECT exchange with 10.9.8.7:3128".into();
+    let timeout = DialError::Timeout { step, after: Duration::from_secs(8), stage: pod_core::Stage::Proxy };
     let garbled = DialError::ProxyProtocol { proxy: "10.9.8.7:3128".into(), detail: "not HTTP".into() };
     for fault in [refused, unreachable, timeout, garbled] {
         let words = said(ProxyKind::Http, &fault);

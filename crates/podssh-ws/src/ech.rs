@@ -9,12 +9,13 @@
 //! a proxy no resolver of podssh's makes otherwise (the call of T-642's
 //! Decision, for the operator to confirm under Q86). The list is read from
 //! the resolvers of DNS over HTTPS through the same proxy
-//! ([`crate::resolve::https`]), once for each name and TTL.
+//! ([`crate::resolve::https`]), once for each name and TTL. The dial is
+//! podssh's ([`crate::dial::dialer`]).
 
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use pod_core::{BoxFuture, Class, Connected, Dial, Failure, Stage, Target};
+use pod_core::{BoxFuture, Target};
 use tokio::time::Instant;
 
 use crate::client::{ConnectError, RelayStream};
@@ -70,40 +71,22 @@ pub async fn open(
     alpn: &[&[u8]],
 ) -> Result<(RelayStream, Option<SocketAddr>), ConnectError> {
     let target = Target::new(host, port);
-    let way = Way(proxy);
-    let route = pod_tls::ech::Route { target: &target, server_name, trust, dial: &way, records: &way, limit, alpn };
+    // The dial's error goes as the cause, so that the road gives it back as
+    // it was ([`tls::connect_error`]).
+    let dial = crate::dial::dialer(proxy, false);
+    let records = Records(proxy.clone());
+    let route =
+        pod_tls::ech::Route { target: &target, server_name, trust, dial: &dial, records: &records, limit, alpn };
     pod_tls::ech::open(tls::context(), &route).await.map_err(|e| tls::connect_error(e, limit))
 }
 
-/// podssh's way out of a connection: the dial of each road, direct or
-/// through `proxy`, and the read of a name's HTTPS record through it.
-struct Way<'a>(&'a ProxyChoice);
+/// The read of a name's HTTPS record through podssh's way out: the
+/// resolvers of DNS over HTTPS, through the proxy of the road.
+#[derive(Debug, Clone)]
+pub struct Records(pub ProxyChoice);
 
-impl Dial for Way<'_> {
-    fn label(&self) -> String {
-        match self.0 {
-            ProxyChoice::FromEnvironment => "the proxy of the environment".into(),
-            ProxyChoice::Direct => "direct".into(),
-            ProxyChoice::Via(proxy) => proxy.to_string(),
-        }
-    }
-
-    /// The error of the dial goes as the cause, so that the road gives it
-    /// back as it was ([`tls::connect_error`]).
-    fn dial<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
-        Box::pin(async move {
-            let limit = deadline.saturating_duration_since(Instant::now());
-            let tcp = crate::dial::dial(&target.host(), target.port(), self.0, limit)
-                .await
-                .map_err(|e| Failure::caused(Stage::Connect, Class::Unavailable, e.to_string(), e))?;
-            let (peer, local) = (tcp.peer_addr().ok(), tcp.local_addr().ok());
-            Ok(Connected { io: Box::new(tcp), peer, local })
-        })
-    }
-}
-
-impl pod_tls::ech::Records for Way<'_> {
+impl pod_tls::ech::Records for Records {
     fn ech_list<'a>(&'a self, name: &'a str, deadline: Instant) -> BoxFuture<'a, Result<Option<Published>, String>> {
-        Box::pin(crate::resolve::https::doh_https(name, self.0, deadline))
+        Box::pin(crate::resolve::https::doh_https(name, &self.0, deadline))
     }
 }

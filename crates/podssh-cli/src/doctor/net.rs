@@ -139,16 +139,17 @@ fn proxy_setting(report: &mut Report<'_>, relay_host: &str) {
         }
         (Some((name, raw)), Ok(Some(proxy))) => {
             let credentials = if has_credentials(&raw) { " with credentials (not shown)" } else { "" };
-            let kind = match proxy.kind {
-                dial::ProxyKind::Http => "",
-                dial::ProxyKind::Socks5 => "the SOCKS5 proxy ",
-            };
-            report.ok(
-                "proxy",
-                format!(
-                    "{name} names {kind}{proxy}{credentials}; podssh asks it to CONNECT by name, so no DNS is needed"
+            let (kind, how) = match proxy.kind {
+                dial::ProxyKind::Http => ("", "podssh asks it to CONNECT by name, so no DNS is needed"),
+                dial::ProxyKind::Socks5 { remote_dns: true } => {
+                    ("the SOCKS5 proxy ", "podssh asks it to CONNECT by name, so no DNS is needed")
+                }
+                dial::ProxyKind::Socks5 { remote_dns: false } => (
+                    "the SOCKS5 proxy ",
+                    "podssh resolves the name and asks it to CONNECT to the address (socks5h:// sends the name)",
                 ),
-            );
+            };
+            report.ok("proxy", format!("{name} names {kind}{proxy}{credentials}; {how}"));
         }
     }
 }

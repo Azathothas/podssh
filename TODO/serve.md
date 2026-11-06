@@ -190,7 +190,7 @@ tells the user nothing.
   a reason with `ChannelOpenFailure::Other`.
 - Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs`, lines 196-242 at `927eb24` (a time
   limit; `HTTPS_PROXY` when it is set) and
-  `crates/podssh-ws/src/dial.rs:105-112` (loopback never through a proxy).
+  `PodUtils/podssh:crates/podssh-ws/src/dial.rs:105-112` (loopback never through a proxy).
   The client copies a forward with half-close in
   `crates/podssh-ssh/src/forward.rs:39-110`.
 - Read: in the measured sandbox, `connect()` to loopback failed with `EACCES`
@@ -214,7 +214,7 @@ tells the user nothing.
 
 Pitfalls: `direct-streamlocal@openssh.com` (AF_UNIX) stays refused here; T-040
 is the client side. A host name that `check_name` refuses
-(`crates/podssh-ws/src/dial.rs:345-354`) gets that reason, not a generic one.
+(`PodUtils/podssh:crates/podssh-ws/src/dial.rs:345-354`) gets that reason, not a generic one.
 
 ## Prove
 
@@ -1330,7 +1330,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:280-286`, `docs/architecture.md:276-293`).
+  (`AGENTS.md:280-286`, `docs/architecture.md:281-298`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, listens once on each, and closes them at once
@@ -1356,7 +1356,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:280-286` and `docs/architecture.md:276-293`, which then name this
+   `AGENTS.md:280-286` and `docs/architecture.md:281-298`, which then name this
    exception and the ruling.
 
 ## Prove
@@ -1435,7 +1435,7 @@ no reason (`docs/target-environment.md:88-89`).
    (`crates/podssh-cli/src/doctor/host.rs:11-28`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:46-300`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:46-301`, `docs/cli.md`.
 
 ## Decision
 

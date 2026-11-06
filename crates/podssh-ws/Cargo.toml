@@ -10,8 +10,12 @@ publish.workspace = true
 [dependencies]
 # TLS: the trust, the configurations, the pure-Rust crypto provider, the
 # server's side and Encrypted Client Hello, with podssh's settings (tls.rs).
-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", features = ["pure", "rsa", "ech"] }
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0" }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0", features = ["pure", "rsa", "ech"] }
+# The dial, the proxies, the race of addresses, Multipath TCP, the HTTP/1.1
+# heads, the GET client (sealed with ECH where asked) and STUN's codec, with
+# podssh's settings (dial.rs).
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0", features = ["ech"] }
 tokio = { workspace = true }
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }
@@ -37,14 +41,9 @@ serde_json = { workspace = true }
 md5 = { version = "0.8", default-features = false }
 sha1 = { version = "0.11", default-features = false }
 
-# The socket of Multipath TCP (T-172), which Linux alone makes: the socket
-# call with IPPROTO_MPTCP, and getsockopt. libc compiles no C.
+# The clocks of a host that slept (wake.rs): CLOCK_BOOTTIME beside
+# CLOCK_MONOTONIC, which Linux alone has. libc compiles no C.
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { workspace = true }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-# TCP_NOTSENT_LOWAT on each dialed socket (T-661, lowat.rs), which macOS has
-# too. libc compiles no C.
 libc = { workspace = true }
 
 [features]
@@ -54,7 +53,7 @@ libc = { workspace = true }
 plain-ws = []
 
 [dev-dependencies]
-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", features = ["screen"] }
+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0", features = ["screen"] }
 # The doctor is async because it may be asked to perform a handshake, and
 # the plants that assert `????` rather than `ok` have to drive it as a caller
 # would. `macros` is what makes `#[tokio::test]` exist.
@@ -81,7 +80,7 @@ unicode-width = { workspace = true }
 # tests/properties.rs).
 proptest = { workspace = true }
 
-# cargo-fuzz builds with `--cfg fuzzing` (`fuzz/`), under which the SOCKS5
-# exchange, private here, is reachable by the fuzzer.
+# cargo-fuzz builds with `--cfg fuzzing` (`fuzz/`), under which pod-proxy's
+# SOCKS5 exchange, private there, is reachable by the fuzzer.
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }

@@ -134,7 +134,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`docs/relay.md:530-531`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:102-119`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:182-208` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:294-305`); `https_request` takes headers (lines
+token header (`PodUtils/podssh:crates/podssh-ws/src/client.rs:294-305`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -207,7 +207,7 @@ status' with no NAME, the relay's own state, is not implemented yet"), `relay in
 `relay trace github.com 22` 64 ("one word too many"), as a subcommand took one NAME; `--timeout`
 is an unknown flag (64). `spec` is T-060's and done (step 3), and the tests of `spec` read
 `--document`, so the stand-in needs no `/llms-full.txt`. `https_with_token` already sends a token
-in a header (`crates/podssh-ws/src/client.rs:323-345`), for the pairing calls. On the live relay,
+in a header (`crates/podssh-ws/src/client.rs:313-335`), for the pairing calls. On the live relay,
 2026-10-11: `/trace` alone answers without a token with the caller's address, city, coordinates
 and network; a target trace answers `target` with `ok`, `road`, `dialed`, `address_family`,
 `connect_ms`, `first_byte_ms`, `bytes_seen`, `verdict` and `banner`, or `error` alone for a
@@ -284,7 +284,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:349-362`) and in `docs/relay.md:107-152`.
+   manual (`crates/podssh-cli/src/man/facts.rs:350-363`) and in `docs/relay.md:107-152`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -792,7 +792,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:116-291`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:183-222`); the variable to VARIABLES and the modes to THE
-   RELAY (`crates/podssh-cli/src/man/facts.rs:46-300`, 170-183); both to `docs/relay.md:107-152`.
+   RELAY (`crates/podssh-cli/src/man/facts.rs:46-301`, 170-183); both to `docs/relay.md:107-152`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
 
@@ -910,11 +910,11 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    (`crates/podssh-relay/src/cache.rs:429-446`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
-   (`crates/podssh-ws/src/dial.rs:109-123`), so that the tests can set it.
+   (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:109-123`), so that the tests can set it.
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
-6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:211-225`,
+6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:212-226`,
    `crates/podssh-cli/src/man/data.rs:171-179`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
    notes (`crates/podssh-cli/src/man/notes.rs:253-337`).
@@ -2560,6 +2560,10 @@ cargo test -p podssh-ws --test http
 cargo test -p podssh-relay
 ```
 
+## Correction
+
+The test target `http` of `podssh-ws` moved to `pod-proxy` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-proxy --all-features` there runs it, with its names.
+
 ## Done
 
 2026-11-01: `podssh_ws::http::Response::header_text` makes a header one line, with no control
@@ -3822,7 +3826,7 @@ changes with the edge", which is not true of the role: it has no edge and gives 
   (`crates/podssh-cli/src/relay_diag_text.rs:58-63`); the
   pool's line says "the edge that answered" when the document names no edge, whatever its scores
   (`crates/podssh-cli/src/relay_diag_text.rs`, lines 70-76 at `366f511`).
-- Read: T-610's Done, `TODO/relay.md:3124-3125` says "once they are done, the line names the rank
+- Read: T-610's Done, `TODO/relay.md:3128-3129` says "once they are done, the line names the rank
   too"; T-606 (`e892246`) and T-607 (`11295ef`) were done after T-610 (`2516f32`), and the line
   did not change.
 - Read: the manual's note of `relay info` names `relay status` and `ping` alone
@@ -4805,7 +4809,7 @@ Read at `2042200`:
 - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB
   (`crates/podssh-cli/src/shadowsocks/subscription.rs:19`), a day kept (`:21`), 20 s (`:23`), three
   redirects (`:25`), `https://` alone (`:48`), through `podssh_ws::client::https_get`
-  (`crates/podssh-ws/src/client.rs:294`), kept by `crates/podssh-relay/src/cache.rs:155`.
+  (`PodUtils/podssh:crates/podssh-ws/src/client.rs:294`), kept by `crates/podssh-relay/src/cache.rs:155`.
 
 ## Approach
 

@@ -13,6 +13,7 @@ use std::time::Duration;
 use bytes::Bytes;
 use h2::client::SendRequest;
 use h2::{Reason, RecvStream, SendStream};
+use pod_core::Stage;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::Via;
@@ -47,7 +48,11 @@ where
     let shown = via.shown();
     let (sender, connection) = tokio::time::timeout(timeout, builder.handshake::<_, Bytes>(tls))
         .await
-        .map_err(|_| DialError::Timeout { step: format!("HTTP/2's handshake with {shown}"), after: timeout })?
+        .map_err(|_| DialError::Timeout {
+            step: format!("HTTP/2's handshake with {shown}"),
+            after: timeout,
+            stage: Stage::Proxy,
+        })?
         .map_err(|e| DialError::ProxyProtocol { proxy: shown, detail: format!("HTTP/2: {e}") })?;
     tokio::spawn(async move {
         let _ = connection.await;
@@ -73,7 +78,7 @@ pub(super) async fn connect(
     let step = format!("the CONNECT of {target} with {}", via.shown());
     let (response, send) = tokio::time::timeout(timeout, asked)
         .await
-        .map_err(|_| Failed::Answer(DialError::Timeout { step, after: timeout }))??;
+        .map_err(|_| Failed::Answer(DialError::Timeout { step, after: timeout, stage: Stage::Proxy }))??;
     let status = response.status();
     if !status.is_success() {
         let head = head(&response);

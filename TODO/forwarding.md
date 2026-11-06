@@ -40,7 +40,7 @@ server listens, and the client connects out for each connection.
   does not override it (`crates/podssh-ssh/src/handler.rs` lines 44-88 at
   `8d668b7`).
 - Read: `dial` goes through `HTTPS_PROXY`, but never for a loopback target
-  (`crates/podssh-ws/src/dial.rs:105-112`,
+  (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:105-112`,
   `crates/podssh-ws/src/dial.rs`, lines 196-242 at `927eb24`). On the measured sandbox, a direct
   connection to loopback is refused (`docs/target-environment.md:22`).
 - Read: a refused `tcpip-forward` gets SSH_MSG_REQUEST_FAILURE, which has no

@@ -18,9 +18,11 @@ fn each_end_of_a_connection_is_what_it_met() {
     assert_eq!(met(&tls(None)), Met::Other, "a certificate's refusal");
     let late = ConnectError::Timeout { step: "the TLS handshake", after: Duration::from_secs(10) };
     assert_eq!(met(&late), Met::TimedOut);
-    let dial = DialError::Timeout { step: "connecting to r:443".into(), after: Duration::from_secs(10) };
+    let step = "connecting to r:443".into();
+    let dial = DialError::Timeout { step, after: Duration::from_secs(10), stage: podssh_ws::dial::Stage::Connect };
     assert_eq!(met(&ConnectError::Dial(dial)), Met::TimedOut);
-    let refused = DialError::Connect { target: "r:443".into(), detail: "refused".into(), cut: Some(Cut::Refused) };
+    let refused =
+        DialError::Connect { target: "r:443".into(), detail: "refused".into(), cut: Some(Cut::Refused), kind: None };
     assert_eq!(met(&ConnectError::Dial(refused)), Met::Other, "a port that says no is no reset of TLS");
     assert_eq!(met(&ConnectError::Refused { status: 403, body: String::new() }), Met::Other);
 }
