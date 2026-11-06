@@ -5737,7 +5737,7 @@ the same job.
 
 ## Premise
 
-- Read: `crates/podssh-cli/tests/pipe_seen/mod.rs:125` fails with "no end within 10 s".
+- Read: `crates/podssh-cli/tests/pipe_seen/mod.rs:156` fails with "no end within 10 s".
 - Read: `crates/podssh-ws/tests/doh_wire.rs:160` and `crates/podssh-ws/tests/doh_wire.rs:199`
   expect a connect or a TLS refusal, and got a timeout of the resolver.
 
