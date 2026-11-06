@@ -28,7 +28,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   3. **Frozen now (fixes only, each fix written as a COORD issue `(to podcrates)`):** `podssh-ws`'s
      `resolve.rs`, `resolve/` and the tests `doh_h2.rs`, `doh_names.rs`, `doh_wire.rs`, `live_doh.rs`
      (`pod-dns`); and each place of other parties' services in podcrates'
-     `docs/research/services/podssh.md` (`pod-services`, `docs/decisions.md` 2026-11-05: the lists of
+     `PodUtils/podcrates:docs/research/services/podssh.md` (`pod-services`, `docs/decisions.md` 2026-11-05: the lists of
      hosts, the probes, the live and watch workflows and their scripts and data files). The
      authoritative list is the `repo PodUtils/podssh` blocks of `crates/*/SOURCES` in podcrates.
   4. **CI:** the runs of `a791553` to `eea8c63` are red on the two regressions of T-690 (the step
