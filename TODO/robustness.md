@@ -1646,6 +1646,10 @@ Partial, 2026-11-04: step 1. The echo's timeout now panics with the role's event
 times, 8 at once, and its whole binary 32 times, 8 at once: each passed. It stays partial for the
 next failure's words.
 
+2026-11-06, at `ebcdb9d` on Rust 1.99.1: the crate's whole suite with
+`serve,plain-ws,quick,pair,grant,piping,code`, 6 runs in a row: each passed, 962 tests a run. Not
+reproduced; it stays partial for the next failure's words.
+
 # T-640: A service's lines reach the journal at one priority, so `journalctl -p warning` shows none of them
 
 **Source:** GitHub #138 (Nemo-010, 2026-11-04); the operator's ruling Q100.
