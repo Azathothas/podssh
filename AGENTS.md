@@ -146,7 +146,7 @@ PodUtils/podcrates on its release day (T-684). A session of podssh's own work:
 ### Talk with the other sessions of PodUtils
 
 The owner's protocol for each session of PodUtils (2026-11-06; PodUtils/podcrates
-`docs/session-protocol.md` at `add9941`). A session of podssh can run with no messages to the other
+`docs/session-protocol.md` at `54427f6`). A session of podssh can run with no messages to the other
 sessions; GitHub issues are then the channel, and each session watches them.
 
 1. At the start of each session, get the watcher of the organization from PodUtils/podcrates at a
@@ -157,7 +157,7 @@ sessions; GitHub issues are then the channel, and each session watches them.
    mkdir -p .work/podcrates-agent
    for f in watch-org.sh org-issues.py; do
      curl -qfsSL -o ".work/podcrates-agent/$f" \
-       "https://raw.githubusercontent.com/PodUtils/podcrates/06c1f84fdf9b007a330672624b1f8a76a7372812/scripts/agent/$f"
+       "https://raw.githubusercontent.com/PodUtils/podcrates/54427f6677b17cc96638f0fafc44b615e467fb4f/scripts/agent/$f"
    done
    sh .work/podcrates-agent/watch-org.sh 90 .work/agent podssh
    ```
