@@ -5709,8 +5709,9 @@ It packs and builds each crate that is let out; then the first tag publishes the
 
 ## Blocker
 
-The owner: the ruling that podssh publishes, the list of crates and their reserved names (in the
-owner's queue on 2026-11-05: `podssh-ssh`, `podssh-irc`, `podssh-probe`).
+The owner (ruling of 2026-11-06, `docs/decisions.md`): podssh stays a beta until the owner calls it
+stable, and only then does a session ask the owner again whether podssh may publish to crates.io,
+which crates and under which names. Until then the switch stays false.
 
 # T-688: Three tests failed once on CI's macOS runner at `67c0768`: the pipe's end of input on a Unix socket, and two of `doh_wire` timed out resolving
 
@@ -5767,7 +5768,7 @@ of podcrates.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5799,4 +5800,9 @@ It passes on 1.97 and on the build image's Rust.
 exchange) of PodUtils/podcrates (Q101, waves 3 and 2). Until podcrates imports it, the repair is a
 fix in podssh (the stack of the test, a thread with a stack of its own, is podssh's), and podcrates
 ports it (Rule Q3, `docs/decisions.md`).
+
+## Done
+
+2026-11-06. Closed as moot by the owner's ruling (`docs/decisions.md`, 2026-11-06): the workspace
+builds on Rust 1.99, the gate's, where `pair_code` passes; 1.97 is no target.
 

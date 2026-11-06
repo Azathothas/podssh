@@ -49,8 +49,11 @@ entry keeps its proof in the entry; this page keeps no history (git does).
      `podssh-ws`'s `resolve.rs`, `resolve/` and its tests `doh_h2.rs`, `doh_names.rs`, `doh_wire.rs`,
      `live_doh.rs` take fixes only (each told to the podcrates session); next `pod-dns` and `pod-ws`, then the waves of Q101. An
      open entry whose code is in such a module has a `## Correction` of 2026-11-05 that names the
-     crate. Blocked: T-687 (Q102, the owner). Asked: Q103 (the facade for podvm, T-085) and Q104 (the
-     version of the next release, T-446). podbox is podvm.
+     crate. Settled 2026-11-06 (`docs/decisions.md`): no release and no beta until the migration is
+     done, podssh stays beta until the owner calls it stable, crates.io is asked again after that
+     (T-687, T-446); podvm takes the facade from `pod-relay` (T-085); T-689 is moot; a standing yes for
+     COORD issues. The migration session applies podcrates' patches; a session of podssh's own work
+     leaves T-684 to it. podbox is podvm.
   8. **Whatever is necessary, statically compiled (2026-11-05, the operator):** C, zig and the newest
      stable Rust in each crate (rule 4 of `AGENTS.md`); T-685 retired the checks of the old rules. An
      entry that says "no C" or "pure Rust" for a crate has a `## Correction` that reads it so.
@@ -280,7 +283,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 644 entries: 97 open, 11 partial, 4 blocked, 532 done.
+`TODO/INDEX.md` holds 644 entries: 96 open, 11 partial, 4 blocked, 533 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -294,13 +297,13 @@ then take the next one. Each session runs unattended until the goal of
 says: merge `pod-tls`, then take `pod-proxy`, `pod-dns` and `pod-ws` as the podcrates session hands
 each over (Rule Q3 of `docs/decisions.md`: from the import, podssh changes that code for fixes only;
 after podssh takes the crate, the work is done in PodUtils/podcrates). With it, the defects T-688 and
-T-689, tests that fail on one platform or one toolchain, before any other work. T-687 waits for the
-owner (Q102). Where a `## Correction` of 2026-11-05 says that the code of an entry is in a crate that
+T-688, tests that fail on one platform, before any other work. T-687 waits for the owner (stable,
+then a new question). Where a `## Correction` of 2026-11-05 says that the code of an entry is in a crate that
 podssh has taken (`pod-tls` once merged, `pod-term`, `pod-todo`, `pod-identity`), that change is made
 in PodUtils/podcrates, or asked there as an issue; the part of the entry that uses the crate stays
 podssh's (T-111's serve, for one). A crate that podssh has not taken yet is changed here, as before,
-and carried by the import. T-085's second half waits for Q103, and T-446's version and its
-criterion of a client of `v1.0.0` for Q104; their first parts go on.
+and carried by the import. T-085 keeps its two boxes only (Q103: the facade goes with `pod-relay`).
+T-446 waits: no beta and no release until the migration is done (Q104).
 
 **After M3 and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: done.
@@ -444,30 +447,9 @@ ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 sta
 T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
 inputs alone.
 
-**Q104 (2026-11-05): what is the number of the next release, and what takes the place of the
-criterion "a client of `v1.0.0` works unchanged"?** T-446's Decision says `1.1.0` "breaks none of
-`1.0.0`", and M10's exit criteria (`docs/ROADMAP.md`) ask that the forward road, the reverse road and
-`doctor` of a client of `v1.0.0` work unchanged through `podssh relay serve`. The operator ruled on
-2026-11-05 that there is no compatibility with released binaries for now, no bridge release and no
-test against one (`docs/decisions.md`). Recommendation: keep `v1.1.0` as the number, since only the
-operator's agents ran `v1.0.x`; replace the criterion by the same three checks run with the binary of
-the release itself against the role of the same commit, and write the break in the release notes.
-Blocks the last part of T-446 (the entry stays `partial`; its betas go on).
-
-**Q103 (2026-11-05): does podvm take the blocking facade from `pod-relay` in the place of a pin of
-podssh's revision?** T-085's second half asks a test in this repository of the facade for podvm, and
-the operator's action "pin the facade in podvm" waits for the release. `podssh-relay`'s `blocking/`
-goes to `pod-relay` of PodUtils/podcrates (Q101, wave 2), which podvm can take by a tag, as podssh does.
-Recommendation: yes. The test of two clients at once then goes with the facade into `pod-relay`, T-085
-keeps only the two boxes (its first half), and the operator action is dropped when podvm takes the crate.
-Until the operator rules, T-085's second half does not start; the entry stays `open` for its first half.
-
-**Q102 (2026-11-05): may podssh publish crates to crates.io, which, and under which names?**
-`publish.yml` is ready with its switch off (T-686). Blocks T-687: no crate can go as it is (the
-vendored patches of russh and ssh-key, the git tags of podcrates, the names in the owner's queue).
-Recommendation: keep the switch off until podssh's library crates are the crates of podcrates; then
-publish the binary alone as `podssh` (`cargo install podssh`), with russh's and ssh-key's patches
-upstream or as crates of their own.
+**Q102, Q103, Q104 (2026-11-05): settled by the owner on 2026-11-06** (`docs/decisions.md`): no
+release and no beta until the migration is done, podssh stays beta until the owner calls it stable,
+and crates.io is asked again only then (Q102, Q104); podvm takes the facade from `pod-relay` (Q103).
 
 **Q101 (2026-11-05): the crates of PodUtils/podcrates, agreed with podnet's session.** The operator
 moves podssh to PodUtils/podssh (T-683) and puts the shared crates in PodUtils/podcrates (T-684);
@@ -723,7 +705,7 @@ After the release:
 - A run of T-004 and T-005 in a real sandbox, with the brief of
   `scripts/sandbox-check.sh`.
 - Pinning the facade of `podssh-relay` in podvm, formerly podbox (T-081, T-085): replaced by podvm taking
-  `pod-relay`'s feature `blocking` by a tag, if the operator rules so (Q103).
+  `pod-relay`'s feature `blocking` by a tag (Q103, ruled 2026-11-06).
 
 As the operator of the default relay, at any time and with no entry waiting: the notes of
 `docs/relay-operator.md`, each of which podssh's own relay role does since Q63 (2026-11-02).

@@ -128,6 +128,22 @@ the next entries.
   on its branch as "WIP T-NNN: ...", write its state in the table, and
   later resume it, or start a new agent on that branch.
 
+### The migration to PodUtils/podcrates
+
+The migration session (not a session of podssh's own work) takes each shared crate of
+PodUtils/podcrates on its release day (T-684). A session of podssh's own work:
+
+- changes a module that is being imported into podcrates for fixes only, and tells the podcrates
+  session of each fix (`TODO/PROGRESS.md`, state item 7, lists the frozen files);
+- does no work in a module that podssh took: that work is done in PodUtils/podcrates under its
+  `AGENTS.md`, or asked there as an issue (Rule Q3, `docs/decisions.md`); an open entry whose code
+  moved says so in a `## Correction`;
+- adds no hardcoded host of another party: those lists go to `pod-services`;
+- when it must reach the sessions of podcrates or podnet and no message can go, opens a
+  `COORD-NNN: subject (to READER)` issue in PodUtils/podssh and amends its body (a standing yes,
+  2026-11-06), and reads theirs through the read-only mirror (podcrates `docs/maintenance.md`,
+  "Talk between sessions").
+
 ### When you need a decision
 
 - Look in [docs/decisions.md](docs/decisions.md) and in the entry's
@@ -147,6 +163,9 @@ the next entries.
 
 ### Releases
 
+- **No release and no beta until the migration to PodUtils/podcrates is done (the owner,
+  2026-11-06; T-684).** podssh stays a beta until the owner calls it stable; crates.io is asked
+  again only after that (T-687). The rules below hold again when the migration is done.
 - **Move fast until podssh is stable (Q88, 2026-11-03).** A release or a
   beta goes out when the gate is green at its commit, the release workflow
   passed by hand on it, and `scripts/release-short.sh BINARY --net` passed
