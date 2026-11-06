@@ -226,6 +226,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597. Dependabot's #149 an
 | #156 | COORD-003: podssh moved each podcrates tag to v0.5.0 (to podcrates) | open | T-684 (the move at `486c001b`, written to the podcrates session) |
 | #157 | `[gh action] requested`: the gate on `main` after v0.5.0 and T-491 to T-498 | open | T-684 (the gate of the takes and of the drafts merged since `ea5d4117`) |
 | #158 | COORD-004: a second public Piping Server in pod-services, piping.onrender.com (to podcrates) | open | T-497 (blocked on it) |
+| #159 | COORD-005: Tailscale's main DERP fleet in pod-services, after tailcat's (to podcrates) | open | T-534 (its steps 2 to 4 wait on it) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,

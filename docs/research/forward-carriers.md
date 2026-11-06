@@ -319,7 +319,7 @@ in the entry); "new" that the record does not hold it.
 | 2 | One POST whose body is the way up and whose answer is the way down carries SSH where no hop holds a body; the same hangs where one does. | XHTTP's stream-one inside VLESS (`crates/podssh-ws/src/vless/xhttp.rs:10-11`); the HTTP road's split and serial forms for hops that hold bodies (T-319); no raw form. | new; T-622 |
 | 3 | The discriminator: a response byte before the request's body ends. | `doctor`'s stream probe measures whether a request's body passes as it comes (`crates/podssh-cli/src/doctor/stream/mod.rs:1-3`, T-325). | known |
 | 4 | A carrier that buffers passes a bulk test and hangs a session. | The Piping road's numbered pieces after 15 s (`crates/podssh-relay/src/piping/flow.rs:21-24`); T-319's forms. | known |
-| 5 | TURN with RFC 6062 to a coturn carries SSH, directly and through a CONNECT proxy, on two connections. | No TURN client in podssh; `docs/carriers.md:364`, `docs/carriers.md:736-740`, `docs/carriers.md:911-912`. | new; T-621 |
+| 5 | TURN with RFC 6062 to a coturn carries SSH, directly and through a CONNECT proxy, on two connections. | No TURN client in podssh; `docs/carriers.md:364`, `docs/carriers.md:736-740`, `docs/carriers.md:914-915`. | new; T-621 |
 | 6 | Cloudflare's Realtime TURN and LiveKit's public TURN refuse a TCP allocation (`508`). | `docs/carriers.md:364` and `docs/carriers.md:739`: no RFC 6062 at Cloudflare. | confirms (LiveKit's is new; both need an account) |
 | 7 | `ppng.io`: streams, both ways, binary; about 0.12 to 0.20 MiB/s for one transfer, 0.59 for four; one of 4 MiB moved nothing. | `docs/carriers.md:619`: "Limits: not published, and not determined"; T-437's live runs carried 64 KiB each way. | new (a rate); T-625 |
 | 8 | `ppng.io:8443` not reached from that egress. | `docs/carriers.md:600-601` names the Rust server on 8443; the road uses 443 (`crates/podssh-relay/src/piping/server.rs:22`). | confirms |
@@ -328,20 +328,20 @@ in the entry); "new" that the record does not hold it.
 | 11 | A Piping Server 0.18.0 on a company's cluster streams, 3.10 MiB/s at 8 MiB. | None; no operator offers it to others. | new, not used (Q79; T-497's rule of a public server) |
 | 12 | "A POST that arrives before the GET ... close both". | `docs/carriers.md:622-625`, either order; T-437's Done. | the archive's own tool contradicts it; podssh's record stands |
 | 13 | smee.io: a POST in, server-sent events out, 441 ms, 143.9 KiB/s, both ways. | None. | new; T-623 |
-| 14 | One half-duplex service, one HTTP relay with a key, one read-only hub. | The class of HTTP Relay's demo (`docs/carriers.md:857-862`). | new, out for the reason of each; no entry |
+| 14 | One half-duplex service, one HTTP relay with a key, one read-only hub. | The class of HTTP Relay's demo (`docs/carriers.md:860-865`). | new, out for the reason of each; no entry |
 | 15 | 21 of 71 Wisp servers of web proxies' lists carry both legs to port 22. | `docs/carriers.md:238-253`; T-535's Decision. | confirms the class; no candidate for T-535 |
 | 16 | 11 Wisp servers refuse port 22 with 0x48 and carry port 80. | podssh says 0x48 in words (`crates/podssh-ws/src/wisp/packet.rs:120`); `docs/carriers.md:228-231`: "whether it does was not read". | new (some deployments add the rule); confirms that the first version's port-80 verdict was its harness's |
 | 17 | The demo server: both legs; 486 kB/s after its upgrade. | `docs/carriers.md:226-227`; the word's note (`crates/podssh-ws/src/forwarder/builtin.rs:43`). | confirms; T-625 measures it through podssh |
 | 18 | `anura.pro`: both legs, 0.913 MiB/s. | `docs/carriers.md:254-257`: Mercury Workshop's second host; its operator offers the demo alone. | known; out by T-535's Decision |
 | 19 | Wisp's aggregate with several WebSockets, 3.8 to 14.1 MiB/s at 8. | podssh's Wisp puts streams on one WebSocket (`crates/podssh-ws/src/wisp/mux.rs`), and a session is one stream. | not podssh's measure; no entry |
-| 20 | bore.pub up on 2026-11-04; 16 MiB at 1.07 MiB/s through WARP; the proxy refused its public port. | `docs/carriers.md:899-908`; T-569, Approach item 2. | confirms |
-| 21 | localtunnel: 16 MiB at 1.80 MiB/s; curl's fetch with no `Bypass-Tunnel-Reminder` got the file. | `docs/carriers.md:957`, T-568's Premise and its plant. | contradicts; Correction in T-568 |
-| 22 | tunnl.gg: a fetch cut at 520,192 bytes. | `docs/carriers.md:946-950`; T-567. | new (one sample); Correction in T-567 |
+| 20 | bore.pub up on 2026-11-04; 16 MiB at 1.07 MiB/s through WARP; the proxy refused its public port. | `docs/carriers.md:902-911`; T-569, Approach item 2. | confirms |
+| 21 | localtunnel: 16 MiB at 1.80 MiB/s; curl's fetch with no `Bypass-Tunnel-Reminder` got the file. | `docs/carriers.md:960`, T-568's Premise and its plant. | contradicts; Correction in T-568 |
+| 22 | tunnl.gg: a fetch cut at 520,192 bytes. | `docs/carriers.md:949-953`; T-567. | new (one sample); Correction in T-567 |
 | 23 | `cloudflared`'s quick tunnel: `530` 3 s after its URL. | podssh's own quick tunnel (T-300), `docs/carriers.md:572-598`. | one sample of another program; no entry |
 | 24 | hostc: 4.05 MiB/s; Tunnelmole, Sandhole's public server: no URL in one run. | None (Sandhole as a project of GitHub #18, the source of T-123: `TODO/serve.md:1240`). | new; T-624 |
-| 25 | libp2p's public bootstrap nodes refuse reservations. | T-579; `docs/carriers.md:868-869`. | new for T-579's step 1; Correction in T-579 |
+| 25 | libp2p's public bootstrap nodes refuse reservations. | T-579; `docs/carriers.md:871-872`. | new for T-579's step 1; Correction in T-579 |
 | 26 | Nym, cjdns, I2P: peer addressing only. | None; Q77 gives each overlay network a research entry. | new; T-626 (the reverse road needs no dial) |
-| 27 | Non-443 services: croc, NATS and MQTT, bore's control port. | `docs/carriers.md:870-873`, `docs/carriers.md:899-908`, `docs/carriers.md:919`; T-541. | confirms |
+| 27 | Non-443 services: croc, NATS and MQTT, bore's control port. | `docs/carriers.md:873-876`, `docs/carriers.md:902-911`, `docs/carriers.md:922`; T-541. | confirms |
 | 28 | The hostname sweep: no carrier. | The sweep of 2026-11-02 and its rule (Q79). | nothing for podssh |
 | 29 | A Nostr harness of eight relays, with no result. | T-545, step 1 (a start condition: T-086). | no data |
 

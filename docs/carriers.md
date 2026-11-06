@@ -748,6 +748,9 @@ The candidates, ranked:
     with incoming WebSocket messages counted 20 to 1 [R26]. The Worker
     lives outside podssh; since Q63 (2026-11-02) a pair relay of the
     user's own is podssh's relay role, on a host of the user's (T-427).
+On 2026-11-06 the first server of each of the 28 regions relayed podssh's own DERP link (its key and its program
+name) with 64 KiB each way, but `derp24b` (hnl), reset during TLS on the test's host: the main fleet lets podssh
+in (T-534, `crates/podssh-relay/tests/derp_main_live.rs`).
 
 Meeting points carry signals only. As carriers of bytes, they are shared
 services with small messages and rate limits.

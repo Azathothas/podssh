@@ -6214,7 +6214,7 @@ sh scripts/plant-each.sh --here t551-copy-race-skipped
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -6294,6 +6294,24 @@ PodUtils/podcrates (T-684; the waves are in Q101 of `TODO/PROGRESS.md`, and the 
 PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
 crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
 moved code then runs there.
+
+## Done
+
+Partial, 2026-11-06. Step 1, the test: `crates/podssh-relay/tests/derp_main_live.rs`, ignored and run
+by hand with `PODSSH_DERP_MAP_FILE` naming Tailscale's default map (pod-services' service
+`tailscale-derp-map`, `https://login.tailscale.com/derpmap/default`, read that day: 28 regions); for
+the first server of each region in the order of the ids, DERP's handshake with a random key and
+podssh's program name, then a node and a client of one process exchange 64 KiB each way through
+that server alone (`Dialer::with_servers`, so no fallback to tailcat's measures another). Run from
+this cloud session's host through its proxy (Q74's short run): **27 of 28 relayed**, each with its
+bytes whole; `derp24b.tailscale.com` (hnl) was reset during TLS, which this host's proxy may do.
+The unit test of the map's reading passed. So the main fleet lets podssh in, and step 2 applies.
+
+Step 2 puts a list of another party's hosts in the binary, which is pod-services' data since the
+migration (`AGENTS.md`, "The migration to PodUtils/podcrates"): asked of podcrates in COORD-005
+(GitHub #159). Steps 2 to 4 wait for a tag that holds it; the run from GitHub Actions waits for a
+run that this account can start.
+
 
 # T-535: The public Wisp servers that their operators run for that use, as forwarders after the demo server
 
@@ -6391,8 +6409,8 @@ port 443 over a WebSocket.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:914` says "NetBird's relays, 67 over a WebSocket on TCP 443," and
-  `docs/carriers.md:917` says "so each peer needs an account": a relay admits a peer with a token
+- `docs/carriers.md:917` says "NetBird's relays, 67 over a WebSocket on TCP 443," and
+  `docs/carriers.md:920` says "so each peer needs an account": a relay admits a peer with a token
   of NetBird's management server alone.
 - `crates/podssh-iroh/src/probe.rs:1` says "Whether this host's UDP goes out and comes back
   (T-359). A sandbox can": podssh probes UDP before it takes it.
@@ -6443,7 +6461,7 @@ it a research entry, for a host with TCP to 443 alone or where UDP passes.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:918` says "Firezone's relays are TURN on UDP, behind an account".
+- `docs/carriers.md:921` says "Firezone's relays are TURN on UDP, behind an account".
 
 ## Approach
 
@@ -6488,8 +6506,8 @@ account, and carry a session, was not read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:918-919` says "ZeroTier's roots use UDP 9993", and
-  `docs/carriers.md:925-926` says "ZeroTier Inc. runs a TCP relay that ZeroTier One falls back
+- `docs/carriers.md:921-922` says "ZeroTier's roots use UDP 9993", and
+  `docs/carriers.md:928-929` says "ZeroTier Inc. runs a TCP relay that ZeroTier One falls back
   to where it cannot use UDP": an IP literal on port 443, which its document calls slow.
 
 ## Approach
@@ -6537,8 +6555,8 @@ read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:920-921` says "Tox's TCP relays try port 443 first", and
-  `docs/carriers.md:922` says "but they speak Tox's own handshake, not TLS".
+- `docs/carriers.md:923-924` says "Tox's TCP relays try port 443 first", and
+  `docs/carriers.md:925` says "but they speak Tox's own handshake, not TLS".
 
 ## Approach
 
@@ -6585,8 +6603,8 @@ two public peers on 443, and at what cost.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:848` says "Of its 365 entries, 20 are", and `docs/carriers.md:852` says "No
-  Rust crate implements the network"; `docs/carriers.md:855-856` says "Out, as the roads of
+- `docs/carriers.md:851` says "Of its 365 entries, 20 are", and `docs/carriers.md:855` says "No
+  Rust crate implements the network"; `docs/carriers.md:858-859` says "Out, as the roads of
   podssh's own nodes on 443 carry the same pairs".
 
 ## Approach
@@ -6634,7 +6652,7 @@ whether its rooms carry a podssh session, was not read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:919` says "croc's relay uses TCP 9009".
+- `docs/carriers.md:922` says "croc's relay uses TCP 9009".
 
 ## Approach
 
@@ -6679,7 +6697,7 @@ any part of it answers over TCP on 443, was not read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:919-920` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+- `docs/carriers.md:922-923` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
   or other ports".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved": podssh probes UDP before a road over it.
@@ -6727,7 +6745,7 @@ a host with 443 alone, or only what HyperDHT gives (T-542), was not read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:919-920` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+- `docs/carriers.md:922-923` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
   or other ports".
 
 ## Approach
@@ -6765,7 +6783,7 @@ from a host with 443 alone, or where UDP passes, was not read.
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:919-920` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+- `docs/carriers.md:922-923` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
   or other ports".
 
 ## Approach
@@ -6804,11 +6822,11 @@ events become a meeting point of the pairing, tried unasked after podssh's own.
 
 - `docs/decisions.md:33` says "Nostr's ephemeral events and the trackers become meeting points of
   the pairing, in the same order".
-- `docs/carriers.md:760` says "relays need not store ephemeral events (kinds 20000 to 29999)";
-  `docs/carriers.md:763` says "has BIP-340 signatures", of the pure-Rust `k256`, where the
+- `docs/carriers.md:763` says "relays need not store ephemeral events (kinds 20000 to 29999)";
+  `docs/carriers.md:766` says "has BIP-340 signatures", of the pure-Rust `k256`, where the
   `nostr` crate needs a C library.
-- `docs/carriers.md:765` says "Each relay has its own operator and its own policy", and
-  `docs/carriers.md:766` says "which its NIP-11 document gives".
+- `docs/carriers.md:768` says "Each relay has its own operator and its own policy", and
+  `docs/carriers.md:769` says "which its NIP-11 document gives".
 - `TODO/reverse.md:1202` says "The meeting point: magic-wormhole's mailbox": T-086's exchange
   runs over a mailbox that stores and forwards the messages of two sides.
 
@@ -6882,7 +6900,7 @@ node's roads, from a host with 443 alone, was not read.
 
 - `docs/decisions.md:33` says "Nostr's ephemeral events and the trackers become meeting points of
   the pairing, in the same order".
-- `docs/carriers.md:941-942` says "a tracker gives a peer list, or passes WebRTC's offers between
+- `docs/carriers.md:944-945` says "a tracker gives a peer list, or passes WebRTC's offers between
   the peers of one torrent".
 
 ## Approach
@@ -6932,12 +6950,12 @@ read in part; which of them carries a message from one podssh end to another wit
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:930-931` says "relays send each record to each consumer, and a record is
-  written to a PDS by an account"; `docs/carriers.md:931` says "ActivityPub's relays take a
-  server's posts"; `docs/carriers.md:934` says "takes a message from a member alone" (the Waku
-  Network); `docs/carriers.md:938` says "an inbox that a wallet's signature registered" (XMTP);
-  `docs/carriers.md:938-939` says "The Farcaster hubs of the sweep were gone".
-- `docs/carriers.md:870` says "none is reachable on 443 in practice" (the public MQTT brokers).
+- `docs/carriers.md:933-934` says "relays send each record to each consumer, and a record is
+  written to a PDS by an account"; `docs/carriers.md:934` says "ActivityPub's relays take a
+  server's posts"; `docs/carriers.md:937` says "takes a message from a member alone" (the Waku
+  Network); `docs/carriers.md:941` says "an inbox that a wallet's signature registered" (XMTP);
+  `docs/carriers.md:941-942` says "The Farcaster hubs of the sweep were gone".
+- `docs/carriers.md:873` says "none is reachable on 443 in practice" (the public MQTT brokers).
 
 ## Approach
 
@@ -6977,9 +6995,9 @@ service that needs no account and carries bytes is a last fallback, whatever its
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:885-887` says "Pinggy's leg need not be raw SSH, as it takes SSH inside TLS
+- `docs/carriers.md:888-890` says "Pinggy's leg need not be raw SSH, as it takes SSH inside TLS
   on ports 443 and 7878, also through an HTTP proxy, and gives TLS tunnels on 443 that it routes
-  by SNI", and `docs/carriers.md:891-892` says "Pinggy's free tunnels end at 60 minutes".
+  by SNI", and `docs/carriers.md:894-895` says "Pinggy's free tunnels end at 60 minutes".
 - `crates/podssh-ssh/src/remote.rs:4` says "podssh joins it to the forward's target": podssh's
   SSH client asks a remote forward and takes its `forwarded-tcpip` channels (`-R`).
 - `crates/podssh-ws/src/tls_server.rs:1` says "TLS for a server of podssh's": the node can end a
@@ -7065,8 +7083,8 @@ not wait for TLS. podssh does not use it; Q78 makes it a last fallback, whatever
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:887-888` says "Serveo documents private SSH forwarding by alias with no
-  account, over raw SSH on 22 or 443", and `docs/carriers.md:892` says "Serveo's anonymous TCP at
+- `docs/carriers.md:890-891` says "Serveo documents private SSH forwarding by alias with no
+  account, over raw SSH on 22 or 443", and `docs/carriers.md:895` says "Serveo's anonymous TCP at
   10 minutes".
 - `crates/podssh-ssh/src/remote.rs:4` says "podssh joins it to the forward's target", and
   `crates/podssh-cli/src/ssh/jump.rs:100` says "The first hop's tunnel": the remote forward and the
@@ -7118,9 +7136,9 @@ with no listener; behind this tunnel it would give the node a road where its egr
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:896` says "which names no port, so SSH on port 22 (Inferred)", and
-  `docs/carriers.md:896-897` says "a free domain carries HTTP alone, changes after a few hours
-  and has a speed limit"; `docs/carriers.md:898` says "443 ends at its edge, which sends plain
+- `docs/carriers.md:899` says "which names no port, so SSH on port 22 (Inferred)", and
+  `docs/carriers.md:899-900` says "a free domain carries HTTP alone, changes after a few hours
+  and has a speed limit"; `docs/carriers.md:901` says "443 ends at its edge, which sends plain
   HTTP down the tunnel".
 - `crates/podssh-relay/src/serve/behind.rs:1` says "The relay role behind a node's quick tunnel
   (T-428): the role's routes as"; `crates/podssh-ssh/src/remote.rs:4` says "podssh joins it to
@@ -7179,8 +7197,8 @@ a client that knows the node's key could know its name. podssh does not use it.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:954` says "derived from your SSH key", with no account and with a key
-  required; `docs/carriers.md:948` says "on port 22 in their own commands" of the SSH tunnel
+- `docs/carriers.md:957` says "derived from your SSH key", with no account and with a key
+  required; `docs/carriers.md:951` says "on port 22 in their own commands" of the SSH tunnel
   providers of the sweep.
 
 ## Approach
@@ -7225,8 +7243,8 @@ shape of localhost.run's tunnel; podssh does not use it.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:948` says "on port 22 in their own commands", and
-  `docs/carriers.md:950` says "gives HTTPS URLs alone".
+- `docs/carriers.md:951` says "on port 22 in their own commands", and
+  `docs/carriers.md:953` says "gives HTTPS URLs alone".
 
 ## Approach
 
@@ -7279,8 +7297,8 @@ visitor's HTTP. A client in a cage reaches the name on 443. podssh does not use 
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:956` says "a port and a URL, then opens raw TCP to that port", and
-  `docs/carriers.md:957` says "request meets a reminder page unless it carries the header".
+- `docs/carriers.md:959` says "a port and a URL, then opens raw TCP to that port", and
+  `docs/carriers.md:960` says "request meets a reminder page unless it carries the header".
 - `crates/podssh-relay/src/serve/behind.rs:1` says "The relay role behind a node's quick tunnel
   (T-428): the role's routes as".
 
@@ -7310,7 +7328,7 @@ client meets the reminder page (the test names it).
 
 ## Correction
 
-2026-11-04 (the drafting agent). `docs/carriers.md:957` says "request meets a reminder page unless
+2026-11-04 (the drafting agent). `docs/carriers.md:960` says "request meets a reminder page unless
 it carries the header", which the operator's archive `ff-relay` of 2026-11-04 contradicts for one
 client (`docs/research/forward-carriers.md`, section 3.6): through `loca.lt`, curl fetched a file of
 16 MiB of random bytes with no `Bypass-Tunnel-Reminder` and got `200` and exactly 16,777,216
@@ -7349,8 +7367,8 @@ forwarders (Q56) where a proxy allows 443 alone. podssh does not use it.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:903-904` says "JSON messages ended by a zero byte on the control port 7835",
-  and `docs/carriers.md:900-901` says "isn't meant for long-lived connections".
+- `docs/carriers.md:906-907` says "JSON messages ended by a zero byte on the control port 7835",
+  and `docs/carriers.md:903-904` says "isn't meant for long-lived connections".
 
 ## Approach
 
@@ -7392,8 +7410,8 @@ that restarts makes the node register again. Live, short, through bore.pub (T-54
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:946-947` says "a public SSH jump and forwarding server with no account", and
-  `docs/carriers.md:948` says "on port 22 in their own commands".
+- `docs/carriers.md:949-950` says "a public SSH jump and forwarding server with no account", and
+  `docs/carriers.md:951` says "on port 22 in their own commands".
 - `crates/podssh-cli/src/ssh/jump.rs:100` says "The first hop's tunnel".
 
 ## Approach
@@ -7435,9 +7453,9 @@ TCP. T-442 left them out; Q78 makes them a last fallback.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:833-834` says "87 of the pool's 100 relays use port 22067 and only 8 use 443,
-  each as an IP literal", and `docs/carriers.md:835-836` says "session mode is raw TCP while the
-  protocol mode needs client certificates"; `docs/carriers.md:842` says "session mode cannot
+- `docs/carriers.md:836-837` says "87 of the pool's 100 relays use port 22067 and only 8 use 443,
+  each as an IP literal", and `docs/carriers.md:838-839` says "session mode is raw TCP while the
+  protocol mode needs client certificates"; `docs/carriers.md:845` says "session mode cannot
   start as TLS does".
 - `crates/podssh-ws/src/tls_server.rs:1` says "TLS for a server of podssh's": a certificate of
   podssh's own, whose digest would be the node's device ID.
@@ -7667,7 +7685,7 @@ last fallback whatever its terms, after `ppng.io` and T-497's `piping.onrender.c
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:962` says "The last runs on serv00, whose terms forbid to", of
+- `docs/carriers.md:965` says "The last runs on serv00, whose terms forbid to", of
   `p.kokoro.serv00.net`.
 - `PodUtils/podssh:crates/podssh-relay/src/piping/server.rs:10` says "pub const DEFAULT_HOST: &str =".
 
@@ -7699,7 +7717,7 @@ T-497 is done: the road has public servers in order.
 
 2026-11-04 (the drafting agent), from the operator's archive `ff-relay` of 2026-11-04
 (`docs/research/forward-carriers.md`, section 3.3). The archive reached serv00's Piping Server at
-the name with `www.` before the Premise's (`docs/carriers.md:962` says "The last runs on serv00,
+the name with `www.` before the Premise's (`docs/carriers.md:965` says "The last runs on serv00,
 whose terms forbid to"), and read that it completes transfers and holds a streamed body until its
 end (Read in its docs/carriers.md, "Pairing carriers", and its results/http-relay-hunt.json). So
 step 1's "whether it streams" has the archive's answer, no: the road there runs in numbered pieces,
@@ -7733,8 +7751,8 @@ fallback.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:859` says "each request is a whole message", and
-  `docs/carriers.md:860` says "answered 503 on 2026-11-02".
+- `docs/carriers.md:862` says "each request is a whole message", and
+  `docs/carriers.md:863` says "answered 503 on 2026-11-02".
 - `docs/carriers.md:644-645` says "makes the client ask for numbered pieces".
 
 ## Approach
@@ -7825,8 +7843,8 @@ WebTunnel in its own process. podssh's Tor road dials out alone.
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms", and
   `docs/decisions.md:49` says "Q60: the Tor road's live test may reach the public Tor network".
-- `docs/carriers.md:876-877` says "the purpose fits, but Tor's TLS fails through a proxy that
-  re-terminates TLS", and `docs/carriers.md:881-882` says "Both reasons changed on 2026-11-01:
+- `docs/carriers.md:879-880` says "the purpose fits, but Tor's TLS fails through a proxy that
+  re-terminates TLS", and `docs/carriers.md:884-885` says "Both reasons changed on 2026-11-01:
   T-385 runs meek_lite and WebTunnel in podssh's own process".
 - `crates/podssh-tor/src/lib.rs:8` says "Bridges (T-385) take their first hops in place of the
   directory's".
@@ -7892,7 +7910,7 @@ on 443, and at what cost, was not read.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:868-869` says "Kubo's defaults are 2 minutes and 128 KiB in each direction".
+- `docs/carriers.md:871-872` says "Kubo's defaults are 2 minutes and 128 KiB in each direction".
 
 ## Approach
 
@@ -7941,9 +7959,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1164-1165` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1166` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1160` says "UDP alone, which the
+- `docs/carriers.md:1167-1168` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1169` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1163` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over
@@ -8009,9 +8027,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1171-1172` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1174-1175` says "as the server never answers a command";
-  `docs/carriers.md:1177` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1174-1175` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1177-1178` says "as the server never answers a command";
+  `docs/carriers.md:1180` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 
@@ -9478,7 +9496,7 @@ through an HTTP CONNECT proxy.
 - `docs/decisions.md:47` says "Q66: standard protocols, so that a server that a user runs is a
   road".
 - `docs/carriers.md:364` says "no TCP relaying, no RFC 6062", of Cloudflare's TURN, and
-  `docs/carriers.md:911` says "OpenRelay, Metered's TURN", which needs an account: no public TURN
+  `docs/carriers.md:914` says "OpenRelay, Metered's TURN", which needs an account: no public TURN
   server with no account offers TCP allocations, so this road is for a server that the user runs.
   The archive's patch says the same of Cloudflare's Realtime TURN and LiveKit's public TURN: each
   answers a TCP allocation with `508` (Read in its comment; not measured here).
