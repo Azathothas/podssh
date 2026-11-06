@@ -70,6 +70,52 @@ pub async fn connect_to(node: &Node, server: &Server) -> Result<Conn, String> {
     Conn::start(server.clone(), io, setup).await
 }
 
+/// How long a node looks for its home among Tailscale's main fleet, after
+/// tailcat's four: in a cage where each probe waits its 5 s, 91 servers
+/// would hold the node for minutes before it says that none answered.
+pub const MAIN_SEARCH: Duration = Duration::from_secs(60);
+
+/// The node's home: the first of `servers` whose probe answers and whose
+/// DERP handshake under `secret` completes, with that connection; and why
+/// each one before it did not. A server that answers its probe and closes
+/// after the client's info, as a derper with `--verify-clients` closes on
+/// a key that it does not know, sends the node on to the next one. The
+/// servers of the main fleet are tried for [`MAIN_SEARCH`] at most.
+pub async fn home<P, F>(
+    secret: &Arc<Secret>,
+    dial: &Dial,
+    say: &Say,
+    servers: &[Server],
+    probe: P,
+) -> (Option<(Server, Conn)>, Vec<String>)
+where
+    P: Fn(&Server) -> F,
+    F: Future<Output = Result<(), String>>,
+{
+    let mut missed = Vec::new();
+    let mut main_since: Option<tokio::time::Instant> = None;
+    for (at, server) in servers.iter().enumerate() {
+        if server.fleet_name() == Some(super::servers::MAIN_FLEET) {
+            let since = *main_since.get_or_insert_with(tokio::time::Instant::now);
+            if since.elapsed() > MAIN_SEARCH {
+                let left = servers.len() - at;
+                missed.push(format!("{left} servers of the main fleet not tried within {} s", MAIN_SEARCH.as_secs()));
+                break;
+            }
+        }
+        if let Err(why) = probe(server).await {
+            missed.push(why);
+            continue;
+        }
+        let node = Node { secret: secret.clone(), server: server.clone(), dial: dial.clone(), say: say.clone() };
+        match connect(&node).await {
+            Ok(conn) => return (Some((server.clone(), conn)), missed),
+            Err(why) => missed.push(format!("{server} answered its probe, then its handshake failed: {why}")),
+        }
+    }
+    (None, missed)
+}
+
 /// Serve the sessions of each link of `node`, for ever, with a keeper of
 /// its own; a new session's target comes from `open`, and the replay
 /// buffers of all sessions stay within `budget` bytes.

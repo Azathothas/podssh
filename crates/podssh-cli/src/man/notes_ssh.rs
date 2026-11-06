@@ -298,7 +298,7 @@ const FIRST: &[&str] = &[
      the node's TARGET. Each resume races them again, and -v says which road answered first.",
     "[user@]derp:TICKET[/ROUTE] reaches a node of the DERP road (see podssh node --derp), in each build: \
      the ticket's server first, then, when the list of --derp-server, PODSSH_DERP_SERVER or Tailscale's \
-     tailcat fleet holds that server, the rest of the list in its order, where a node whose home went \
+     fleets (tailcat's, then the main fleet unless PODSSH_DERP_MAIN=no) holds that server, the rest of the list in its order, where a node whose home went \
      away calls the next server home. This client's key on the servers is new for each run; the \
      end-to-end channel runs to the node's key that the ticket names, and the node lets this client's \
      key (see --client-key) in by its allowlist, so --no-e2e is refused (64). The host key is recorded \

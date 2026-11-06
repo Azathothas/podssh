@@ -182,8 +182,11 @@ pub(crate) async fn online(
 ) -> Result<Online, Refusal> {
     let unreachable = Fault::RelayUnreachable.code();
     let proxy = ProxyChoice::FromEnvironment;
-    let (home, missed) = servers::home(servers, trust, &proxy).await;
-    let Some(home) = home else {
+    let (secret, dial) = (Arc::new(Secret::of_node(identity)), dial::tls(trust.clone(), proxy.clone()));
+    let probe = |server: &Server| servers::answers(server.clone(), trust.clone(), proxy.clone());
+    // The first server that answers and lets the node's key in (T-534).
+    let (found, missed) = derp::far::home(&secret, &dial, &say, servers, probe).await;
+    let Some((home, first)) = found else {
         let message = format!(
             "no DERP server answered {} ({}); podssh doctor checks the way to them, and --opentunnel serves the \
              node through OpenTunnel instead",
@@ -195,11 +198,7 @@ pub(crate) async fn online(
     for why in &missed {
         say(format!("a DERP server did not answer: {why}"));
     }
-    let secret = Arc::new(Secret::of_node(identity));
-    let node = Node { secret, server: home.clone(), dial: dial::tls(trust.clone(), proxy), say };
-    let first = far::connect(&node)
-        .await
-        .map_err(|why| Refusal { message: format!("the DERP server {home}: {why}"), code: unreachable })?;
+    let node = Node { secret, server: home.clone(), dial, say };
     let ticket = Ticket { node: identity.public(), derp: first.key(), server: home };
     Ok(Online { node, first, ticket, servers: servers.to_vec(), tell: Default::default() })
 }
@@ -231,7 +230,7 @@ impl Online {
         let say = node.say.clone();
         let moved: far::Moved = Arc::new(move |server: &Server| {
             let now = Ticket { server: server.clone(), ..ticket.clone() };
-            say(format!("the home moved to the DERP server {server}; the ticket is now {now}"));
+            say(format!("the home moved to the DERP server {server}{}; the ticket is now {now}", server.fleet_note()));
             tell.derp(&now);
         });
         far::serve_roaming(node, Roam { servers, moved }, Some(first), settings, budget, open, keeper).await;
@@ -350,7 +349,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         let _ = writeln!(
             err,
             "podssh node: {label}: {why}; so the node serves the DERP road unasked, through Tailscale's tailcat fleet \
-             or the servers of {}, by the operator's ruling Q50 ({FALLBACK_ENV}=no turns it off)",
+             then its main fleet, or the servers of {}, by the operator's rulings Q50 and Q74 ({FALLBACK_ENV}=no \
+             turns it off)",
             servers::ENV
         );
     }
@@ -374,7 +374,12 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     if let Some(note) = &note {
         let _ = writeln!(err, "podssh node: {label}: {note}");
     }
-    let _ = writeln!(err, "podssh node: {label}: home {}, the first DERP server whose probe answered", road.home());
+    let _ = writeln!(
+        err,
+        "podssh node: {label}: home {}, the first DERP server that answered{}",
+        road.home(),
+        road.home().fleet_note()
+    );
     let _ = writeln!(err, "podssh node: {label}: ticket {}", road.ticket);
     if let Door::Allow(allow) = &door {
         let _ = writeln!(err, "podssh node: {label}: {}", crate::channel::who_may(Some(allow.as_path())));

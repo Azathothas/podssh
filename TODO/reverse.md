@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:5501`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:5506`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:644-647`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:247-257`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:415`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:5497-5501`).
+`podssh proxy` sysexits (`docs/cli.md:5502-5506`).
 
 ## Approach
 
@@ -2616,7 +2616,7 @@ documents works; the form that a user expects is missing.
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
   which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:150`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
-  (`crates/podssh-cli/src/man/notes_pair.rs:317-319`), and `pipe` takes `node:NAME`
+  (`crates/podssh-cli/src/man/notes_pair.rs:319-321`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
   byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:392`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
@@ -4635,8 +4635,8 @@ which `piping.yml` installs, and the second's API and edge are Cloudflare's alon
   (`PodUtils/podssh:crates/podssh-relay/src/identity/file.rs:97` says "Place::Ephemeral => Ok(Key { identity:
   make(entropy)?, path: None, made: true }),"), and it is the iroh road's endpoint
   (`crates/podssh-cli/src/node_iroh.rs:272` says "secret: Some(key.secret.clone()),") and the DERP road's
-  key at its server (`crates/podssh-cli/src/node_derp.rs:198` says "let secret =
-  Arc::new(Secret::of_node(identity));"): a new key is a new ticket. A quick tunnel's name is new at each
+  key at its server (`crates/podssh-cli/src/node_derp.rs:185` says "let (secret, dial) =
+  (Arc::new(Secret::of_node(identity)), dial::tls(trust.clone(), proxy.clone()));"): a new key is a new ticket. A quick tunnel's name is new at each
   request (`crates/podssh-cli/src/node_quick.rs:4` says "The name is new each run"), which the node made
   at each start before (`crates/podssh-cli/src/node_quick.rs:248` says "asked = api::request(&trust,
   &proxy, &*say) => asked,"). Both pass as parts of the run (Decision, items 2 and 3).

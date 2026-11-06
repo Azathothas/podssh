@@ -13,7 +13,7 @@
 #![allow(dead_code)]
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crypto_box::aead::Aead;
@@ -85,6 +85,9 @@ pub struct StandIn {
     pub overflowed: AtomicUsize,
     /// The connections that completed DERP's handshake.
     pub logins: AtomicUsize,
+    /// Close each connection after the client's info, as derper with
+    /// `--verify-clients` closes on a key that it does not know.
+    pub refuses: AtomicBool,
 }
 
 impl StandIn {
@@ -101,6 +104,7 @@ impl StandIn {
             dropped: AtomicUsize::new(0),
             overflowed: AtomicUsize::new(0),
             logins: AtomicUsize::new(0),
+            refuses: AtomicBool::new(false),
         })
     }
 
@@ -153,7 +157,7 @@ impl StandIn {
             return;
         }
         let Some((0x02, info)) = next(&mut reader, &mut ws, &mut stream).await else { return };
-        if info.len() < 32 + 24 + 16 {
+        if info.len() < 32 + 24 + 16 || self.refuses.load(Ordering::SeqCst) {
             return;
         }
         let mut key = [0u8; 32];

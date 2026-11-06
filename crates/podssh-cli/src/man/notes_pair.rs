@@ -170,10 +170,12 @@ pub(super) const NODE: &[&str] = &[
     "With --derp, the node serves TARGET over the DERP road, in each build: DERP's packets over a \
      WebSocket at wss://SERVER/derp, through HTTPS_PROXY, to Tailscale's free servers for tailcat \
      (tc301a.ipn.dev to tc304a.ipn.dev, which need no account and are rate-limited, and which Tailscale \
-     may withdraw at any time; podssh names no server of Tailscale's main fleet, which serves Tailscale's \
-     own clients: see the public services in the notes of podssh ssh), or to the servers of \
+     may withdraw at any time), then to Tailscale's main fleet, which serves Tailscale's own clients and \
+     which PODSSH_DERP_MAIN=no leaves out (see the public services in the notes of podssh ssh), or to the \
+     servers of \
      --derp-server or PODSSH_DERP_SERVER, under the resumable layer with an adapter that sends again what \
-     a server drops. The node's home is the first server whose /derp/probe answers within 5 s, and its \
+     a server drops. The node's home is the first server whose /derp/probe answers within 5 s and whose \
+     DERP handshake takes the node's key (a server that closes after it goes on to the next), and its \
      key there is derived from the node's key, so its ticket (derp:...), which it prints on stderr, stays \
      while its home does; after 3 failed connections in a row to its home, the node calls the next server \
      of its list home that takes a connection, and prints the new ticket. A client dials the ticket with \

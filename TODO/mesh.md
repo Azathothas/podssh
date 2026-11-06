@@ -6266,7 +6266,7 @@ sh scripts/plant-each.sh --here t551-copy-race-skipped
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6278,8 +6278,8 @@ that they let podssh in.
 ## Premise
 
 - `docs/decisions.md:36` says "Q74: Tailscale's main DERP fleet, after tailcat's".
-- `crates/podssh-relay/src/derp/servers.rs:20` says "The servers of tailcat's map, in the order
-  of its regions: New York,", and `crates/podssh-relay/src/derp/servers.rs:106` says "pub fn
+- `crates/podssh-relay/src/derp/servers.rs:22` says "The servers of tailcat's map, in the order
+  of its regions: New York,", and `crates/podssh-relay/src/derp/servers.rs:185` says "pub fn
   for_client(home: &Server) -> Vec<Server> {": a client tries the ticket's server, then the
   rest of tailcat's four.
 - `docs/carriers.md:485` says "88 servers in 28 regions in Tailscale's map, 85 of which
@@ -6349,7 +6349,7 @@ moved code then runs there.
 
 ## Done
 
-Partial, 2026-11-06. Step 1, the test: `crates/podssh-relay/tests/derp_main_live.rs`, ignored and run
+2026-11-06. Step 1, the test: `crates/podssh-relay/tests/derp_main_live.rs`, ignored and run
 by hand with `PODSSH_DERP_MAP_FILE` naming Tailscale's default map (pod-services' service
 `tailscale-derp-map`, `https://login.tailscale.com/derpmap/default`, read that day: 28 regions); for
 the first server of each region in the order of the ids, DERP's handshake with a random key and
@@ -6361,8 +6361,42 @@ The unit test of the map's reading passed. So the main fleet lets podssh in, and
 
 Step 2 puts a list of another party's hosts in the binary, which is pod-services' data since the
 migration (`AGENTS.md`, "The migration to PodUtils/podcrates"): asked of podcrates in COORD-005
-(GitHub #159). Steps 2 to 4 wait for a tag that holds it; the run from GitHub Actions waits for a
-run that this account can start.
+(GitHub #159), delivered in podcrates `v0.6.0` as the service `tailscale-derp` (91 servers of 28
+regions, read on 2026-11-06, each endpoint named `CODE-N`).
+
+Done, 2026-11-06, at podcrates `v0.6.0`: steps 2 to 4.
+
+- `crates/podssh-relay/src/derp/servers.rs`: `main_fleet()` (the first of each region in the order
+  of the regions' ids, then the others), `fleet_with`, `fleet()` and `from_environment` with the
+  main fleet after tailcat's four unless `PODSSH_DERP_MAIN=no` (`main_wanted`; another word is
+  refused), `Server::fleet_name` and `fleet_note`.
+- `crates/podssh-relay/src/derp/far.rs`: `home`, the first server whose probe answers and whose
+  handshake completes, so a server that closes after the client's info (derper's
+  `--verify-clients`) sends the node to the next; the main fleet is searched for 60 s at most
+  (`MAIN_SEARCH`), as 91 probes of 5 s in a cage would hold the node for minutes.
+- The CLI: `node_derp.rs` finds its home with `far::home`, and its lines name the home's fleet,
+  at the start and at each move, and the unasked road's line names both fleets and Q74;
+  `ssh/derp.rs` refuses a bad `PODSSH_DERP_MAIN` (78); `doctor`'s section `derp` keeps a line for
+  each of tailcat's four, then one line for the main fleet (the first that answers within 20 s,
+  the misses before it, three shown), and its home line names the fleet. The manual: the row of
+  `PODSSH_DERP_MAIN` (`facts/roads.rs`), and the notes of the DERP road, of `derp:` and of the public
+  services (`notes_pair.rs`, `notes_ssh.rs`, `notes_public.rs`); `docs/cli.md`.
+- Tests: `derp::servers` (the order, a client's order for a home of the main fleet, the fleet's
+  words, `PODSSH_DERP_MAIN`); `a_server_that_closes_after_the_client_s_info_sends_the_node_to_the_next`
+  (`crates/podssh-relay/tests/derp_link.rs`, the stand-in with `refuses`, as derper's
+  `--verify-clients` closes).
+
+Measured: `cargo test -p podssh-relay --features derp --lib derp::servers` and `--test derp_link`,
+each passed; planted, the main fleet before tailcat's fails the test of the order, and a home that
+stops at a failed handshake fails the stand-in test. Live, short (Q74): `derp_live`, home
+`tc301a.ipn.dev` in 1.4 s; `podssh doctor` from this host: tailcat's four answered, and
+`Tailscale's main fleet derp1f.tailscale.com answered /derp/probe in 198 ms`. `derp_main_live` now
+reads the list that podssh uses (pod-services) when no map is named, and asks that most regions
+relay; run so from this host, 27 of the 28 regions' first servers relayed 64 KiB each way
+(`derp24b.tailscale.com`, hnl, reset during TLS again). The run from GitHub Actions of step 1: `.github/workflows/derp-main-live.yml`, by hand,
+asked of the owner's agent with the next gate (`docs/development.md`, "A run of GitHub Actions asked
+of the owner's agent"). `cargo test -p podssh-cli` (2,015 passed), `cargo test -p podssh-relay
+--features derp,piping` (534 passed), and clippy as the gate runs it.
 
 
 # T-535: The public Wisp servers that their operators run for that use, as forwarders after the demo server
@@ -8457,7 +8491,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:279-289`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:281-291`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -8811,8 +8845,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:288-289`), and needs the net's role exit, signed by
-  its owner (`:286-287`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:290-291`), and needs the net's role exit, signed by
+  its owner (`:288-289`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:111`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

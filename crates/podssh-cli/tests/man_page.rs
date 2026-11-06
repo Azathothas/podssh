@@ -274,7 +274,8 @@ fn the_iroh_relays_are_in_the_manual_of_a_build_with_the_feature() {
 
 /// The manual says which public services podssh tries last, that each is a
 /// third party that nobody vouches for, which it never names, and that it
-/// never uses a domain that looks taken over (T-533; Q74, Q75, Q78, Q79).
+/// never uses a domain that looks taken over (T-533; Q74, Q75, Q78, Q79);
+/// Tailscale's main DERP fleet after tailcat's since T-534.
 /// The text is read with its lines joined, as the page wraps them.
 #[test]
 fn the_manual_says_which_public_services_podssh_tries_and_which_it_never_names() {
@@ -285,7 +286,8 @@ fn the_manual_says_which_public_services_podssh_tries_and_which_it_never_names()
     for text in [
         "The public services that podssh tries when you named no server of their kind",
         "Each is a third party that nobody vouches for",
-        "no server of Tailscale's main DERP fleet, which serves Tailscale's own clients",
+        "then Tailscale's main DERP fleet, which serves Tailscale's own clients",
+        "PODSSH_DERP_MAIN=no keeps to tailcat's",
         "no Wisp server of a web proxy's list and no public proxy node of an aggregator's list",
         "podssh never uses, and never names, a domain that looks taken over",
     ] {
@@ -293,5 +295,7 @@ fn the_manual_says_which_public_services_podssh_tries_and_which_it_never_names()
     }
     let (rc, node, err) = podssh(&["man", "node", "--no-pager"], None);
     assert_eq!(rc, 0, "{err}");
-    assert!(joined(&node).contains("podssh names no server of Tailscale's main fleet"), "the notes of node");
+    let node = joined(&node);
+    assert!(node.contains("then to Tailscale's main fleet, which serves Tailscale's own clients"), "the notes of node");
+    assert!(!node.contains("podssh names no server of Tailscale's main fleet"), "the notes of node");
 }

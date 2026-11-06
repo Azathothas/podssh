@@ -8,7 +8,8 @@
 //! the ticket's server alone finds nothing (T-379). The tests marked
 //! `ignore` run against Tailscale's derper, which `scripts/interop-derp.sh`
 //! starts in Podman. A planted adapter that never sends a segment again
-//! fails the test with drops.
+//! fails the test with drops. A server that closes after the client's info
+//! sends a node to the next server of its list (T-534).
 
 #![cfg(feature = "derp")]
 
@@ -294,4 +295,35 @@ async fn through_derper_a_session_of_the_layer_echoes_two_mib() {
     let (dial, server) = derper();
     let notes = echo_session(dial, server, None).await;
     assert!(!notes.iter().any(|n| matches!(n, Note::Lost { .. })), "no link was lost: {notes:?}");
+}
+
+/// A server that answers its probe and closes after the client's info, as
+/// derper with `--verify-clients` closes on a key that it does not know
+/// (T-534), sends the node on to the next server of its list, which it
+/// calls home. Planted: the stand-in that refuses is the only server, and
+/// the node has no home.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_server_that_closes_after_the_client_s_info_sends_the_node_to_the_next() {
+    let (strict, open) = (StandIn::new(0), StandIn::new(0));
+    strict.refuses.store(true, Ordering::SeqCst);
+    let (at_strict, at_open) = (Server::new("strict.test", 443).unwrap(), Server::new("open.test", 443).unwrap());
+    let dial: Dial = {
+        let (strict, open) = (strict.clone(), open.clone());
+        Arc::new(move |server: &Server| -> Dialing {
+            let io = if server.host == "strict.test" { strict.connect() } else { open.connect() };
+            Box::pin(async move { Ok(io) })
+        })
+    };
+    let secret = Arc::new(Secret::random(&mut OsEntropy).unwrap());
+    let answers = |_: &Server| async { Ok(()) };
+    let list = [at_strict.clone(), at_open.clone()];
+    let (home, missed) = road::far::home(&secret, &dial, &say("node"), &list, answers).await;
+    let (server, conn) = home.expect("a home after the strict server");
+    assert_eq!(server, at_open);
+    assert_eq!((strict.logins.load(Ordering::SeqCst), open.logins.load(Ordering::SeqCst)), (0, 1));
+    assert_eq!(missed.len(), 1, "{missed:?}");
+    assert!(missed[0].starts_with("strict.test answered its probe, then its handshake failed"), "{missed:?}");
+    drop(conn);
+    let (none, missed) = road::far::home(&secret, &dial, &say("node"), &list[..1], answers).await;
+    assert!(none.is_none() && missed.len() == 1, "the strict server alone is no home");
 }

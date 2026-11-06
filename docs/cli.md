@@ -2996,7 +2996,9 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
 - The section `derp` (T-379) asks `/derp/probe` of each DERP server of the
   list (`PODSSH_DERP_SERVER`, else Tailscale's tailcat fleet), in order,
   through the proxy, 5 s at most each, as `node --derp` finds its home: a
-  line for each server, `FAIL` for one that does not answer, as it is a
+  line for each server; then of Tailscale's main fleet, unless
+  `PODSSH_DERP_MAIN=no` (T-534), in order until one answers, in one line
+  that names it and the misses before it; `FAIL` for one that does not answer, as it is a
   fallback that does not work here, and `DERP home server`, the first that
   answered.
 - `--json` writes the same report as one JSON object, when every check has
@@ -4212,10 +4214,13 @@ commands. The rules behind them:
   far end that speaks wins, again at each resume. `--iroh-ticket` with
   another destination is a usage error (64).
 - **`node --derp` serves the DERP road** (T-379), in each build: DERP over a
-  WebSocket through `HTTPS_PROXY` to Tailscale's servers for tailcat, or to
+  WebSocket through `HTTPS_PROXY` to Tailscale's servers for tailcat, then
+  to Tailscale's main fleet unless `PODSSH_DERP_MAIN=no` (T-534, Q74), or to
   those of `--derp-server` or `PODSSH_DERP_SERVER`, under the resumable
   layer ([design.md](design.md), section 8). The home is the first server
-  whose `/derp/probe` answers; the node's key there is derived from its
+  whose `/derp/probe` answers and whose handshake takes the node's key (a
+  server that closes after the client's info sends it to the next); the
+  node's line names the home's fleet; the node's key there is derived from its
   identity, so the ticket (`derp:...`, on stderr) stays while the home does.
   After 3 failed connections in a row to its home, the node calls the next
   server of its list home that takes one, and prints the new ticket. A DERP

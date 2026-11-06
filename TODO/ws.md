@@ -2849,7 +2849,7 @@ met.
 - Read: with no proxy, `doctor` reaches `github.com` by TCP on port 22 alone
   (`crates/podssh-cli/src/doctor/net.rs:163-187`, `:268-294`), and makes TLS only where a road
   needs it: each relay host, each resolver by its address, each DERP server
-  (`crates/podssh-cli/src/doctor/derp.rs:14-41`) and, in a build with iroh, n0's relays
+  (`crates/podssh-cli/src/doctor/derp.rs:16-54`) and, in a build with iroh, n0's relays
   (`crates/podssh-cli/src/doctor/iroh.rs:1-6`). Each failure is a line of its own, and no
   handshake is made with a name that no road needs, as a reference. Through a proxy, `doctor` asks
   for `github.com` on port 443 by CONNECT, with no TLS

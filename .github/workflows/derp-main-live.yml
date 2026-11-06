@@ -1,0 +1,34 @@
+name: derp main live
+
+# Whether Tailscale's main DERP fleet lets podssh in (T-534, the operator's
+# ruling Q74), from GitHub Actions: for the first server of each region of
+# the list that podssh uses (pod-services' `tailscale-derp`), DERP's
+# handshake with a random key and podssh's name, then 64 KiB each way
+# between a node and a client of one process through that server alone. A
+# short run, by hand only. Most regions must relay, or the fleet leaves the
+# list. No credential: each key is new for the run.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: derp-main-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: build the test
+        run: cargo test --locked -p podssh-relay --features derp --test derp_main_live --no-run
+      - name: the first server of each region, one after another
+        run: |
+          timeout 1500 cargo test --locked -p podssh-relay --features derp --test derp_main_live -- \
+            --ignored --nocapture

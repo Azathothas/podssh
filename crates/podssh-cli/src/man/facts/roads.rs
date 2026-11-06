@@ -14,10 +14,18 @@
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
     (
         &["PODSSH_DERP_SERVER"],
-        "The DERP servers of the DERP road in place of Tailscale's tailcat fleet, as --derp-server: \
+        "The DERP servers of the DERP road in place of Tailscale's fleets, as --derp-server: \
           HOST[:PORT], separated by commas, in order; the port is 443 when none is named. The flag wins; a bad \
           value is a configuration error (78). podssh node --derp calls the first whose /derp/probe answers \
           home, and podssh ssh tries the rest after a ticket's server when the list holds that server.",
+    ),
+    (
+        &["PODSSH_DERP_MAIN"],
+        "no: the DERP road keeps to Tailscale's four servers for tailcat. Unset, empty or yes: Tailscale's main \
+          DERP fleet follows them, one server of each region first, in the order of the regions, then the \
+          others (the operator's ruling Q74; its servers are pod-services' list, read on its date); a node \
+          calls the first that answers home, and a client tries them after a ticket's server of either fleet. \
+          Another word is a configuration error (78). With PODSSH_DERP_SERVER or --derp-server it says nothing.",
     ),
     (
         &["PODSSH_DERP"],

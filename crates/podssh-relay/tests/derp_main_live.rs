@@ -1,5 +1,6 @@
 //! Whether Tailscale's main DERP fleet lets podssh in (T-534, Q74), live and
-//! short: for the first server of each region of the map that
+//! short: for the first server of each region of the list that podssh
+//! uses (the service `tailscale-derp` of pod-services), or of the map that
 //! `PODSSH_DERP_MAP_FILE` names (Tailscale's default map, read on the test's
 //! day from the service `tailscale-derp-map` of pod-services), DERP's
 //! handshake with a random key and podssh's name, then a node and a client
@@ -8,10 +9,10 @@
 //! relays; each result is a line, for the record. Ignored, and run by hand:
 //!
 //! ```sh
-//! curl -fsS https://login.tailscale.com/derpmap/default > map.json
-//! PODSSH_DERP_MAP_FILE=map.json cargo test -p podssh-relay --features derp \
-//!   --test derp_main_live -- --ignored --nocapture
+//! cargo test -p podssh-relay --features derp --test derp_main_live -- --ignored --nocapture
 //! ```
+//!
+//! `.github/workflows/derp-main-live.yml` runs it from GitHub Actions.
 
 #![cfg(feature = "derp")]
 
@@ -91,15 +92,24 @@ async fn relays(server: Server) -> Result<String, String> {
     Ok(format!("relayed 64 KiB each way, round trip {rtt:?}"))
 }
 
+/// The first server of each region of the list that podssh uses: the
+/// endpoints of `tailscale-derp` named `CODE-1`.
+fn first_of_each_region_in_the_list() -> Vec<(String, String)> {
+    let service = pod_services::get("tailscale-derp").expect("pod-services holds tailscale-derp");
+    let firsts = service.endpoints().iter().filter(|e| e.name().ends_with("-1"));
+    firsts.map(|e| (e.role().unwrap_or(e.name()).to_string(), e.host().to_string())).collect()
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "live: Tailscale's main DERP fleet, a short run of each region's first server (Q74)"]
 async fn each_region_s_first_server_of_the_main_fleet_is_tried_with_podssh_s_key() {
-    let Ok(path) = std::env::var("PODSSH_DERP_MAP_FILE") else {
-        eprintln!("did not run: PODSSH_DERP_MAP_FILE names no map");
-        return;
+    let firsts = match std::env::var("PODSSH_DERP_MAP_FILE") {
+        Ok(path) => {
+            let map: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).expect("a DERP map");
+            first_of_each_region(&map)
+        }
+        Err(_) => first_of_each_region_in_the_list(),
     };
-    let map: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).expect("a DERP map");
-    let firsts = first_of_each_region(&map);
     assert!(!firsts.is_empty(), "the map has no region");
     let mut relayed = 0;
     for (code, host) in &firsts {
@@ -114,6 +124,8 @@ async fn each_region_s_first_server_of_the_main_fleet_is_tried_with_podssh_s_key
         }
     }
     eprintln!("result: {relayed} of {} regions' first servers relayed podssh", firsts.len());
+    // Most must relay: a fleet that refuses podssh leaves the list (Q74).
+    assert!(relayed * 2 > firsts.len(), "{relayed} of {} relayed", firsts.len());
 }
 
 #[test]

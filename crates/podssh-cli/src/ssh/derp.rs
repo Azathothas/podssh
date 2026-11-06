@@ -80,12 +80,14 @@ pub fn shown(ticket: &Ticket) -> String {
 }
 
 /// The servers to try after a ticket's: `--derp-server`, else
-/// `PODSSH_DERP_SERVER`, else tailcat's fleet. A bad flag is a usage error
-/// (64), a bad variable a configuration error (78), as for the relay.
+/// `PODSSH_DERP_SERVER`, else tailcat's fleet, then the main fleet unless
+/// `PODSSH_DERP_MAIN` says no. A bad flag is a usage error (64), a bad
+/// variable a configuration error (78), as for the relay.
 pub(crate) fn servers(flag: Option<&str>) -> Result<Vec<Server>, Refusal> {
     match servers::from_environment(flag) {
         Ok((list, _)) => Ok(list),
         Err(why) if flag.is_some() => Err(Refusal::usage(format!("--derp-server: {why}"))),
+        Err(why) if why.starts_with(servers::MAIN_ENV) => Err(Refusal::config(why)),
         Err(why) => Err(Refusal::config(format!("{}: {why}", servers::ENV))),
     }
 }
