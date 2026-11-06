@@ -1279,6 +1279,30 @@ relays) have no way to meet, even when a third member that both reach could carr
 3. The end-to-end channel and the resumable layer stay above, so that the member that relays
    sees only bytes it cannot read.
 
+## Decision
+
+2026-11-06. The two ends meet at a member's relay role by the node's key, which the net's document
+holds, so that no road is needed first to hand a token over:
+
+1. The node, at its start, makes a pair at each member of its net with the role `relay` and a host
+   (`Member::relay`), at most three, the pair's own relay aside, by its key (the pair's `maker`,
+   T-630), and keeps a node socket on each, with the one keeper of its sessions, so that a session
+   made on one resumes on another, as the Piping Server road shares it (T-437).
+2. The role answers `POST /v1/leg/<KEY>` (KEY the maker's key in hex) with the proof of `--mint`
+   (key, challenge, signature; `serve::keys::prove`) of a key that its mint admits: the name of the
+   live pair whose maker is KEY, and a token of one leg of it that the role registers itself, as a
+   node registers one (T-615), so that the client's upgrade of `/v1/connect/<name>` takes it once. A
+   KEY with no pair is a `404` in the role's words; an unproven key a `403`.
+3. The client of `node://NAME`, NAME a member of the net, races that leg at each relay member
+   beside its other roads, and each resume races them again.
+4. The end-to-end channel and the resumable layer stay above: the member that relays sees bytes it
+   cannot read, and the node's allowlist still decides who gets in.
+
+Lost: the node's own tokens of one leg handed to the client (they need a road first, which is what
+the two ends lack); a pair name derived from the key (a name in use, and the role's name of a pair
+is its own); one pair at the member shared with the client's stored pair file (the client holds
+the default relay's tokens only).
+
 ## Prove
 
 ```sh
@@ -9082,7 +9106,7 @@ say of it, need podssh's own number.
   of 4 MiB that moved no byte (results/http-piping.json); through the demo server, one stream on
   port 80 moved 5,054,472 bytes in its window, 903 ms of it the upgrade
   (results/wisp-throughput.json).
-- T-437's live run measured no rate: `TODO/mesh.md:1736` says "carried 64 KiB each way each time
+- T-437's live run measured no rate: `TODO/mesh.md:1760` says "carried 64 KiB each way each time
   (about 4 s)".
 
 ## Approach
