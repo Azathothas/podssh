@@ -5865,3 +5865,54 @@ in a row; without it, exit 70 at write 0 on each try. `cargo test -p podssh-ws -
 342 passed; `cargo test -p podssh-ts --test config`: 8 passed; clippy with `ts`, rustfmt. The gate's
 step `release` in the build image runs in CI on the push (Q88).
 
+
+# T-691: Dependabot's updates of 2026-11-06: taiki-e/install-action 2.89.1 and aes 0.9.4
+
+**Source:** PodUtils/podssh#149 (`taiki-e/install-action` v2.88.1 to v2.89.1, the actions group)
+and #150 (aes 0.9.3 to 0.9.4, the minor and patch group), Dependabot, 2026-11-06; the operator's
+ruling of 2026-10-30 (`docs/decisions.md`): a session repairs what an update breaks, and commits
+the update with the repair.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Two updates wait as pull requests, and the daily `record-issues` is red until their numbers are in
+the record.
+
+## Premise
+
+- Read: `.github/workflows/deny.yml:27`, `fuzz.yml:32` and `release.yml:441` pin
+  `taiki-e/install-action` at `68a389c` (v2.88.1); the pull request moves deny's and fuzz's only.
+- Read: `Cargo.lock` holds aes 0.9.3, which `aes-gcm` 0.11.1 and `pkcs5` 0.8.1 take (the keys
+  that russh and ssh-key read, and pod-tls's certificates).
+- Inferred: Dependabot closes each pull request once `main` holds its version, as T-597's were.
+
+## Approach
+
+1. The three pins of `install-action` move together to `682ce6c` (v2.89.1), release's too, so
+   that no workflow keeps the old one.
+2. `cargo update -p aes@0.9.3 --precise 0.9.4`, then the tests of the crates that read keys and
+   certificates.
+3. `cargo todo remap Cargo.lock`; `docs/STATUS.md` records the versions.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh -p podssh-relay
+cargo deny --locked check
+```
+
+Each passes on aes 0.9.4; deny's and fuzz's jobs pass in CI on the push.
+
+## Done
+
+2026-11-06: the three pins of `taiki-e/install-action` are `682ce6c` (v2.89.1), release's too;
+the lock holds aes 0.9.4. `cargo test -p podssh-ssh -p podssh-relay`: each target passed (exit 0).
+`cargo todo remap Cargo.lock` found four citations of the lock that were stale before this change
+(noq, ssh-key, rustls-native-certs, rustls), moved by hand to their packages' lines. cargo-deny is
+not on this host: deny's job runs it in CI on the push.

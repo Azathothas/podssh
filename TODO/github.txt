@@ -112,7 +112,7 @@
 104 issue closed
 105 issue closed
 106 issue closed
-107 issue open
+107 issue closed
 108 issue closed
 109 issue closed
 110 issue closed
@@ -154,3 +154,6 @@
 146 issue closed
 147 issue closed
 148 issue closed
+149 pull open
+150 pull open
+151 issue closed

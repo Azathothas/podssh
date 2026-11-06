@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**645 entries: 96 open, 11 partial, 4 blocked, 534 done.**
+**646 entries: 96 open, 11 partial, 4 blocked, 535 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 67 | 69 |
 | P2 | 26 | 5 | 1 | 252 | 284 |
-| P3 | 70 | 4 | 3 | 214 | 291 |
-| **All** | 96 | 11 | 4 | 534 | 645 |
+| P3 | 70 | 4 | 3 | 215 | 292 |
+| **All** | 96 | 11 | 4 | 535 | 646 |
 
 ## Entries
 
@@ -721,3 +721,4 @@ repository and CI).
 | [T-688](repo.md) | P2 | S | M10 | defect | open | Three tests failed once on CI's macOS runner at `67c0768`: the pipe's end of input on a Unix socket, and two of `doh_wire` timed out resolving |
 | [T-689](repo.md) | P2 | S | M10 | defect | done | `cargo test -p podssh-relay --test pair_code` overflows its stack on Rust 1.97 in a debug build |
 | [T-690](repo.md) | P1 | S | M10 | defect | done | Two regressions of the adoption of `pod-proxy`: an upload through a relay that cuts lost each answer, and `podssh ts` got `socks5://` for its SOCKS5 proxy |
+| [T-691](repo.md) | P3 | S | none | chore | done | Dependabot's updates of 2026-11-06: taiki-e/install-action 2.89.1 and aes 0.9.4 |

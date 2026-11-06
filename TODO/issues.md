@@ -127,14 +127,15 @@ corrects a claim that the code does not support.
 
 ## Requests after the triage (#51 on)
 
-#37 to #50, #52, #53, #57, #58, #64 to #68, #77, #78 to #82, #119, #120, #122 and #123 are pull requests;
+#37 to #50, #52, #53, #57, #58, #64 to #68, #77, #78 to #82, #119, #120, #122, #123, #149 and #150 are pull requests;
 Dependabot's #44 to #47, updates of a major version, are T-330, but #47 (aes-gcm 0.11), which is
 T-333 (done on 2026-10-31, after the ruling of Q48); Dependabot's #57 and #64
 to #68 are T-355, and so is #77 (pageant 0.2.5 in `fuzz/Cargo.lock`, as in the
 root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of 2026-11-01
 (the tailscale image, the minor and patch group, rand 0.10, sha2 0.11 and hmac 0.13) are T-386;
 Dependabot's #119, #120, #122 and #123 of 2026-11-02 (Python 3.15 for the box's proxy, the build
-image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
+image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597. Dependabot's #149 and #150 of 2026-11-06
+(taiki-e/install-action 2.89.1 and aes 0.9.4) are T-691.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
@@ -179,7 +180,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #104 | A target that ends the connection right after the login reads as a refused session | closed 2026-11-02, its entry done (`772275c`) | T-464 (the words "Disconnected" and "Channel send error" are russh's, not the server's) |
 | #105 | `cp -r` says a skip twice, and exits 66 for a skip | closed 2026-11-03, its entry done (`a383ce9`) | T-476 (the line said twice is the first failure of the tree, not the last skip) |
 | #106 | The fallback to other products' forwarders should be asked for: 20.8 s against 0.14 s on a dead target, and the target goes to three services | closed 2026-11-03, its entry done (`b32ecef`) | T-509 (the fallback follows the relay's answer about the target too, a 502 or a refusal by policy, which no forwarder mends; the default of off is the operator's to rule, as Q56 set it on) |
-| #107 | WARP's road opens on TLS to the edge, and proves no packet through the tunnel | open | T-560 |
+| #107 | WARP's road opens on TLS to the edge, and proves no packet through the tunnel | closed 2026-11-03, its entry done | T-560 |
 | #108 | WARP's road dials one constant address, not the API's peers | closed 2026-11-03, its entry done (`c5299c2`) | T-561 |
 | #109 | WARP's registration has one API name and no second route | closed 2026-11-03, its entry done (`cde307f`) | T-562 (the second name goes in once a live run shows it is the same API) |
 | #110 | The relay's record forgets a host that opens, and keys each road's verdict by the host | closed 2026-11-03, its entry done (`7abebd2`) | T-563 |
@@ -217,6 +218,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #146 | A node socket's data queue is one line for all its sessions | closed 2026-11-04 (`4ae2284`), its entry done | T-648 (the role's own socket in the same change) |
 | #147 | `relay serve` routes a published name by its ClientHello, TLS at the node | closed 2026-11-05, its entry done | T-649 (the listener moved to `podssh-relay`; funnel at the edge is T-180) |
 | #148 | A pool of sessions opened ahead for each node | closed 2026-11-05, its entry done | T-650 (only for a node that asks, by its own flag) |
+| #151 | COORD-001: a test of the fallback channel | closed 2026-11-05, its entry partial | T-684 (the first message of the protocol of PodUtils' sessions, a test that the watcher sees it) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
