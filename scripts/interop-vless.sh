@@ -20,7 +20,8 @@
 # The checks: a session over each transport of Xray-core, and over a
 # WebSocket, packet-up and stream-one of shoes; sshd's banner through
 # `podssh proxy`; another ID, said as the server's refusal (the plant of
-# T-440, on the command line); a server of HTTP/1.1 alone refused for XHTTP;
+# T-440, on the command line); a server of HTTP/1.1 alone, over packet-up on
+# two connections, and its refusal of stream-one (T-456);
 # behind nginx, the upgrade refused with the words that name XHTTP, and a
 # session over packet-up; a session through the host's proxy; and the lines
 # of `podssh doctor --vless`. Each prints a line of scripts/interop-lib.sh;
@@ -314,6 +315,7 @@ links xray-stream-up "$ID" "xray.test:$XRAY_XH" 'type=xhttp&path=%2Fxh&mode=stre
 links xray-stream-one "$ID" "xray.test:$XRAY_XH" 'type=xhttp&path=%2Fxh&mode=stream-one'
 links xray-auto "$ID" "xray.test:$XRAY_XH" 'type=xhttp&path=%2Fxh'
 links xray-http1 "$ID" "xray.test:$XRAY_H1" 'type=xhttp&path=%2Fxh'
+links xray-http1-one "$ID" "xray.test:$XRAY_H1" 'type=xhttp&path=%2Fxh&mode=stream-one'
 links xray-other "$(cat "$W/other-id")" "xray.test:$XRAY_WS" 'type=ws&path=%2Fws'
 links shoes-ws "$ID" "shoes.test:$SHOES_WS" 'type=ws&path=%2Fws'
 links shoes-packet-up "$ID" "shoes.test:$SHOES_XH" 'type=xhttp&path=%2Fxh&mode=packet-up'
@@ -367,11 +369,16 @@ rc=$?
     ok vless.xray.wrong-id "another ID: Xray-core's refusal is said (exit 255)" ||
     bad vless.xray.wrong-id "another ID: exit $rc" "$W/xray-other.err"
 
-session xray-http1
+# A server of HTTP/1.1 alone carries packet-up on two connections (Q67,
+# T-456), and refuses stream-one with its words.
+carried xray-http1 'XHTTP packet-up over HTTP/1.1 on two connections' &&
+    ok vless.xray.http1 "a session to Xray-core of HTTP/1.1 alone over packet-up on two connections" ||
+    bad vless.xray.http1 "a session to a server of HTTP/1.1 alone" "$W/xray-http1.err"
+session xray-http1-one
 rc=$?
-[ "$rc" = 255 ] && grep -q 'did not choose HTTP/2 by ALPN' "$W/xray-http1.err" &&
-    ok vless.xray.http1 "a server of HTTP/1.1 alone is refused for XHTTP with its words (exit 255)" ||
-    bad vless.xray.http1 "a server of HTTP/1.1 alone: exit $rc" "$W/xray-http1.err"
+[ "$rc" = 255 ] && grep -q 'stream-one cannot go over HTTP/1.1' "$W/xray-http1-one.err" &&
+    ok vless.xray.http1-one "stream-one to a server of HTTP/1.1 alone is refused with its words (exit 255)" ||
+    bad vless.xray.http1-one "stream-one to a server of HTTP/1.1 alone: exit $rc" "$W/xray-http1-one.err"
 
 carried shoes-ws 'a WebSocket' && ok vless.shoes.ws "a session to shoes over a WebSocket" ||
     bad vless.shoes.ws "a session to shoes over a WebSocket" "$W/shoes-ws.err"

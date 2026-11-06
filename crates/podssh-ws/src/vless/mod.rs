@@ -2,8 +2,9 @@
 //! Xray-core's or another that speaks its protocol (shoes, sing-box), takes
 //! the target from a short header and dials it, so that it is a road in place
 //! of the relay. The stream goes over a WebSocket (`ws`), or over XHTTP's
-//! plain HTTP requests on HTTP/2 (`xhttp`), which pass where a proxy or a
-//! front end refuses the WebSocket upgrade. TLS is podssh's, checked for the
+//! plain HTTP requests on HTTP/2 (`xhttp`), or on HTTP/1.1 and two
+//! connections where HTTP/2 is refused (`h1_modes`, Q67), which pass where a
+//! proxy or a front end refuses the WebSocket upgrade. TLS is podssh's, checked for the
 //! link's name, through `HTTPS_PROXY` when it is set, as each road dials.
 //!
 //! The link and its ID come from a private file ([`link`]); the request and
@@ -13,6 +14,8 @@
 //! short silence, as `--shadowsocks` does.
 
 mod extra;
+mod h1;
+mod h1_modes;
 mod header;
 pub mod link;
 mod packet;
@@ -64,7 +67,7 @@ pub enum VlessError {
     /// An HTTP answer refused it: the upgrade's or XHTTP's status, and what
     /// it refused.
     Refused { status: u16, why: String },
-    /// HTTP/1.1, where XHTTP needs HTTP/2.
+    /// HTTP/1.1, where XHTTP's mode needs HTTP/2: stream-one.
     Http1(String),
     /// The server ended the session before VLESS's answer.
     Ended,
@@ -107,7 +110,8 @@ impl From<header::AnswerError> for VlessError {
 /// A session to the target.
 pub struct Opened {
     pub stream: Box<dyn Duplex>,
-    /// What carried it: "a WebSocket", "XHTTP packet-up over HTTP/2".
+    /// What carried it: "a WebSocket", "XHTTP packet-up over HTTP/2", "XHTTP
+    /// packet-up over HTTP/1.1 on two connections".
     pub how: String,
     /// VLESS's answer came within the wait.
     pub answered: bool,

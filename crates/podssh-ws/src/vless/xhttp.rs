@@ -16,9 +16,11 @@
 //!
 //! A streamed upload says `Content-Type: application/grpc` unless the link's
 //! `extra` says `noGRPCHeader`, as Xray-core's client does, so that a CDN
-//! does not hold it. HTTP/1.1 is refused: its split modes need a second
-//! connection, which this road does not open, and Go's server reads a whole
-//! body before it answers on HTTP/1.1, which stream-one cannot wait for.
+//! does not hold it. Where the server, or a front end that ends TLS on the
+//! way, takes no HTTP/2, packet-up and stream-up go over HTTP/1.1 on two
+//! connections to the same server ([`super::h1_modes`], the ruling Q67);
+//! stream-one cannot, as Go's server reads a whole body before it answers on
+//! HTTP/1.1.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -43,44 +45,81 @@ pub(super) async fn open(
     first: Vec<u8>,
     dial: &Dial<'_>,
 ) -> Result<(Box<dyn Duplex>, String), VlessError> {
-    let (sender, over) = connection(server, dial).await?;
-    let how = format!("XHTTP {} over {over}", mode.name());
-    let limit = dial.timeout;
+    let (sender, over) = match connection(server, dial).await? {
+        Spoken::H2(sender, over) => (sender, over),
+        Spoken::H1(conn) => return super::h1_modes::open(server, mode, first, dial, conn).await,
+    };
+    // With no TLS, no ALPN says what the server speaks: HTTP/2 with prior
+    // knowledge that fails at its first requests is tried over HTTP/1.1. A
+    // refusal by status is the server's word, and stands.
+    let again = (!server.tls).then(|| first.clone());
+    match h2_modes(server, mode, sender, first, dial.timeout).await {
+        Ok(stream) => Ok((stream, format!("XHTTP {} over {over}", mode.name()))),
+        Err(VlessError::Carry(_)) if again.is_some() => {
+            let conn = super::h1::Again::of(server, dial).connect().await?;
+            super::h1_modes::open(server, mode, again.unwrap_or_default(), dial, conn).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+async fn h2_modes(
+    server: &Server,
+    mode: Mode,
+    sender: SendRequest<Bytes>,
+    first: Vec<u8>,
+    limit: Duration,
+) -> Result<Box<dyn Duplex>, VlessError> {
     let stream: Box<dyn Duplex> = match mode {
         Mode::StreamOne => Box::new(stream_one(server, sender, first, limit).await?),
         Mode::StreamUp => Box::new(stream_up(server, sender, first, limit).await?),
         Mode::PacketUp | Mode::Auto => Box::new(super::packet::open(server, sender, first, limit).await?),
     };
-    Ok((stream, how))
+    Ok(stream)
+}
+
+/// What the server took on the first connection.
+enum Spoken {
+    /// HTTP/2: its handle, and the words of what carried it.
+    H2(SendRequest<Bytes>, &'static str),
+    /// HTTP/1.1, as TLS chose no `h2`: the connection, kept for the GET.
+    H1(super::h1::Conn),
 }
 
 /// TCP through the host's proxy, TLS with the link's ALPN, and HTTP/2's
-/// handshake; the connection runs in a task while a handle or a stream of
-/// it lasts.
-async fn connection(server: &Server, dial: &Dial<'_>) -> Result<(SendRequest<Bytes>, &'static str), VlessError> {
+/// handshake where the server chose `h2`; the connection runs in a task
+/// while a handle or a stream of it lasts. A server that chose no `h2`
+/// keeps the connection for HTTP/1.1 (Q67).
+async fn connection(server: &Server, dial: &Dial<'_>) -> Result<Spoken, VlessError> {
     let tcp = crate::dial::dial(&server.host, server.port, dial.proxy, dial.timeout).await.map_err(VlessError::Dial)?;
     if !server.tls {
-        return Ok((handshake(tcp, dial.timeout).await?, "HTTP/2 with no TLS"));
+        return Ok(Spoken::H2(handshake(tcp, dial.timeout).await?, "HTTP/2 with no TLS"));
     }
-    let config = crate::tls::config_for(dial.trust).map_err(|e| VlessError::Carry(e.to_string()))?;
+    let tls = tls(server, dial.trust, dial.timeout, server.alpn.clone(), tcp).await?;
+    if tls.get_ref().1.alpn_protocol() != Some(b"h2".as_slice()) {
+        return Ok(Spoken::H1(tokio::io::BufReader::new(Box::new(tls))));
+    }
+    Ok(Spoken::H2(handshake(tls, dial.timeout).await?, "HTTP/2"))
+}
+
+/// TLS for the link's name over `tcp`, offering `alpn`, within `limit`.
+pub(super) async fn tls(
+    server: &Server,
+    trust: &crate::tls::Trust,
+    limit: Duration,
+    alpn: Vec<Vec<u8>>,
+    tcp: tokio::net::TcpStream,
+) -> Result<tokio_rustls::client::TlsStream<tokio::net::TcpStream>, VlessError> {
+    let config = crate::tls::config_for(trust).map_err(|e| VlessError::Carry(e.to_string()))?;
     let mut config = (*config).clone();
-    config.alpn_protocols = server.alpn.clone();
+    config.alpn_protocols = alpn;
     let name = rustls_pki_types::ServerName::try_from(server.sni.clone())
         .map_err(|e| VlessError::Carry(format!("{:?} is not a server name: {e}", server.sni)))?;
     let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
-    let secs = dial.timeout.as_secs();
-    let tls = tokio::time::timeout(dial.timeout, connector.connect(name, tcp))
+    tokio::time::timeout(limit, connector.connect(name, tcp))
         .await
-        .map_err(|_| VlessError::Carry(format!("no TLS handshake within {secs} s")))?
-        .map_err(|e| VlessError::Carry(format!("TLS: {}", crate::tls::handshake_failure(&e))))?;
-    if tls.get_ref().1.alpn_protocol() != Some(b"h2".as_slice()) {
-        return Err(VlessError::Http1(
-            "it did not choose HTTP/2 by ALPN (h2): XHTTP over HTTP/1.1 needs a second connection, which this road \
-             does not open; serve h2, or type=ws"
-                .into(),
-        ));
-    }
-    Ok((handshake(tls, dial.timeout).await?, "HTTP/2"))
+        .map_err(|_| VlessError::Carry(format!("no TLS handshake within {} s", limit.as_secs())))?
+        .map_err(|e| VlessError::Carry(format!("TLS: {}", crate::tls::handshake_failure(&e))))
 }
 
 async fn handshake<S>(io: S, limit: Duration) -> Result<SendRequest<Bytes>, VlessError>

@@ -441,7 +441,8 @@ through the egress of the node at its other end, with no proxy between.
 
 The standard protocols of Q66, so that a server that the user runs is a
 road with no relay: HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and
-HTTP/2 (T-439); VLESS over a WebSocket and over XHTTP (T-440); wstunnel's
+HTTP/2 (T-439); VLESS over a WebSocket and over XHTTP (T-440; over HTTP/1.1
+on two connections, T-456); wstunnel's
 protocol (T-441); and those that T-442 found: chisel (T-490), Trojan
 (T-491), Shadowsocks 2022 (T-492), Outline's Shadowsocks in a WebSocket
 (T-493), NaiveProxy's server through `--via` (T-494), frp for the reverse

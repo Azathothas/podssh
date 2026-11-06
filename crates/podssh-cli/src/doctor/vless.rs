@@ -3,7 +3,9 @@
 //! a run dials, then a session to GitHub's SSH port, whose host key must be
 //! one that GitHub publishes, as the relay's forward check identifies the
 //! server, never by its banner. Each line names the transport that carried
-//! it, so that the user learns which one passes here.
+//! it, so that the user learns which one passes here; a mode of XHTTP that
+//! went over HTTP/1.1, where HTTP/2 was refused, says its second connection
+//! (Q67).
 
 use podssh_ws::dial::{self, ProxyChoice};
 use podssh_ws::vless::{self, Dial};

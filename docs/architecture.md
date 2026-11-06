@@ -77,6 +77,9 @@ russh <-> VLESS (request, answer) <-> a WebSocket, or XHTTP on HTTP/2 <-> TLS to
                                                                           `- TCP, or HTTPS_PROXY then CONNECT
 ```
 
+  Where the server refused HTTP/2, XHTTP goes over HTTP/1.1 on two
+  connections to it: the GET on one, the upload on a second (Q67, T-456).
+
   `podssh-ws` (`crates/podssh-ws/src/vless/`) reads the share link, sends
   VLESS's request (the user's ID, then the target) as the stream's first
   bytes, and reads the server's answer, which comes with the target's first

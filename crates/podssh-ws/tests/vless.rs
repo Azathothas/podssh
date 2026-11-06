@@ -2,7 +2,8 @@
 //! a WebSocket, and over XHTTP's three modes on h2's own HTTP/2 server. A
 //! session carries the target's version line and an echo; another ID is said
 //! as the server's refusal; a refused upgrade names XHTTP as the way past it;
-//! a server of HTTP/1.1 alone is refused for XHTTP; a pipe takes a stream
+//! a server of HTTP/1.1 alone carries packet-up and stream-up on two
+//! connections and refuses stream-one (T-456, Q67); a pipe takes a stream
 //! whose target waits for its client; and the host's own proxy carries the
 //! TCP. The runs against Xray-core and shoes are `scripts/interop-vless.sh`.
 
@@ -15,7 +16,7 @@ use podssh_ws::vless::{self, Dial, Mode, Opened, Server, Transport, VlessError};
 use podssh_ws::{Proxy, ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use vless_support::{pins, root_file, target, ws_server, xhttp_server, BANNER, ID, NAME};
+use vless_support::{pins, root_file, target, ws_server, xhttp1_server, xhttp_server, BANNER, CLOSE_AFTER, ID, NAME};
 
 const LIMIT: Duration = Duration::from_secs(20);
 
@@ -124,10 +125,51 @@ async fn a_refused_upgrade_a_wrong_path_and_http1_are_said() {
     let (xh, _) = xhttp_server(&[b"h2"]).await;
     let e = open(&server(xh, "type=xhttp&path=%2Fother", ID), aim, &root, direct.clone(), false).await.err();
     assert!(matches!(e, Some(VlessError::Refused { status: 404, .. })), "{:?}", e.map(|e| e.line("x", "y")));
-    let (h1, _) = xhttp_server(&[b"http/1.1"]).await;
-    let e = open(&server(h1, "type=xhttp&path=%2Fxh", ID), aim, &root, direct, false).await.err().unwrap();
+    // stream-one alone stays refused on HTTP/1.1 (Q67): its body never ends.
+    let (h1, _) = xhttp1_server(true).await;
+    let link = server(h1, "type=xhttp&path=%2Fxh&mode=stream-one", ID);
+    let e = open(&link, aim, &root, direct, false).await.err().unwrap();
     let line = e.line("s", "t");
-    assert!(matches!(e, VlessError::Http1(_)) && line.contains("did not choose HTTP/2"), "{line}");
+    assert!(matches!(e, VlessError::Http1(_)) && line.contains("stream-one cannot go over HTTP/1.1"), "{line}");
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
+/// A server of HTTP/1.1 alone (Q67, T-456): packet-up and stream-up carry the
+/// session on two connections, the GET's and the upload's, over TLS that
+/// chose `http/1.1` and over HTTP/2 with prior knowledge that the server
+/// refused, with no TLS; a kept connection that the server closes after
+/// [`CLOSE_AFTER`] packets is dialed again. With no second connection (the
+/// planted defect: the POSTs on the GET's connection) the GET holds it, and
+/// no packet is answered.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn http1_alone_carries_packet_up_and_stream_up_on_two_connections() {
+    pins();
+    let (root, aim) = (root_file("http1"), target(true).await);
+    for tls in [true, false] {
+        let (h1, seen) = xhttp1_server(tls).await;
+        let security = if tls { "tls" } else { "none" };
+        for (mode, how) in [
+            ("packet-up", "XHTTP packet-up over HTTP/1.1 on two connections"),
+            ("stream-up", "XHTTP stream-up over HTTP/1.1 on two connections"),
+            ("auto", "XHTTP packet-up over HTTP/1.1 on two connections"),
+        ] {
+            let query = format!("type=xhttp&path=%2Fxh&mode={mode}&security={security}");
+            let link = Server::parse(&format!("vless://{ID}@{NAME}:{h1}?{query}")).unwrap();
+            let mut opened = open(&link, aim, &root, ProxyChoice::Direct, false)
+                .await
+                .unwrap_or_else(|e| panic!("{mode}, TLS {tls}: {}", e.line("xhttp", "target")));
+            assert_eq!(opened.how, how, "TLS {tls}");
+            // Large enough for more packets than a kept connection takes.
+            let big = vec![7u8; 2_500_000];
+            carries(&mut opened, &big).await;
+        }
+        let requests = seen.requests.lock().unwrap().clone();
+        let packets = requests.iter().filter(|(m, p, _, _)| m == "POST" && p.matches('/').count() == 3).count();
+        assert!(packets > CLOSE_AFTER, "packet-up's POSTs past a closed connection: {packets}");
+        let gets = requests.iter().filter(|(m, ..)| m == "GET").count();
+        let connections = seen.connections.load(std::sync::atomic::Ordering::SeqCst);
+        assert!(connections > gets, "a connection of its own for the uploads: {connections} for {gets} GETs");
+    }
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 

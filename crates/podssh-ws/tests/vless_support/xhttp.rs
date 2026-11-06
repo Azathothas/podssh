@@ -19,14 +19,14 @@ use super::{dial, parse_request, Seen};
 
 /// The upload of a session of packet-up or stream-up.
 pub struct Upload {
-    tx: mpsc::UnboundedSender<Vec<u8>>,
-    rx: Option<mpsc::UnboundedReceiver<Vec<u8>>>,
-    next: u64,
-    held: BTreeMap<u64, Vec<u8>>,
+    pub(super) tx: mpsc::UnboundedSender<Vec<u8>>,
+    pub(super) rx: Option<mpsc::UnboundedReceiver<Vec<u8>>>,
+    pub(super) next: u64,
+    pub(super) held: BTreeMap<u64, Vec<u8>>,
 }
 
 /// The session of `id`, made by whichever of its requests came first.
-fn upsert<'a>(map: &'a mut HashMap<String, Upload>, id: &str) -> &'a mut Upload {
+pub(super) fn upsert<'a>(map: &'a mut HashMap<String, Upload>, id: &str) -> &'a mut Upload {
     map.entry(id.to_string()).or_insert_with(|| {
         let (tx, rx) = mpsc::unbounded_channel();
         Upload { tx, rx: Some(rx), next: 0, held: BTreeMap::new() }
@@ -37,8 +37,7 @@ fn upsert<'a>(map: &'a mut HashMap<String, Upload>, id: &str) -> &'a mut Upload 
 pub type Sessions = Arc<Mutex<HashMap<String, Upload>>>;
 
 /// The length of `x_padding` in `Referer`'s query.
-fn padding(request: &http::Request<RecvStream>) -> usize {
-    let referer = request.headers().get("referer").and_then(|v| v.to_str().ok()).unwrap_or_default();
+pub(super) fn padding_of(referer: &str) -> usize {
     referer.split_once("x_padding=").map_or(0, |(_, x)| x.split('&').next().unwrap_or_default().len())
 }
 
@@ -55,7 +54,7 @@ pub async fn handle(
 ) {
     let (method, path) = (request.method().to_string(), request.uri().path().to_string());
     let host = request.uri().authority().map(|a| a.to_string()).unwrap_or_default();
-    let pad = padding(&request);
+    let pad = padding_of(request.headers().get("referer").and_then(|v| v.to_str().ok()).unwrap_or_default());
     seen.requests.lock().unwrap().push((method.clone(), path.clone(), host, pad));
     if !(100..=1000).contains(&pad) {
         status(&mut respond, 400, true);

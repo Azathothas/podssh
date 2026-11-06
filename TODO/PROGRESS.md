@@ -245,7 +245,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   On 2026-11-06 one draft was made, unbuilt, by an agent of this cloud session: T-434
   (`worktree-agent-a28220759deade9a5`, branch `draft-t434`, `09dbd12`), merged and closed the same
-  day; its worktree and branch are gone.
+  day; its worktree and branch are gone. Then T-456 (`draft-t456`, `34d1459`), merged and closed the
+  same day; and T-180 (`draft-t180`, `7da08fe`), waiting to be merged.
 
   On 2026-11-04 an eighth round was drafted, unbuilt, one commit for each entry, each branch pushed
   as `draft/worktree-agent-*`: T-435 (`093970b`, merged and closed, `57faf83`); T-617 (`1cbdc10`,
@@ -321,7 +322,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 646 entries: 93 open, 12 partial, 4 blocked, 537 done.
+`TODO/INDEX.md` holds 646 entries: 92 open, 12 partial, 4 blocked, 538 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -391,7 +392,7 @@ this order:
 3. Exit, routes, share and funnel (the exit, `doctor --exit`, the net's routes and `podssh share` are done):
    T-180, then T-459 (a member that relays between two members is done; the status of the net, `ping` of a node and doctor's sections are done).
 4. The public carriers of Q65 (the Piping Server road from end to end is done; T-450 from the runs of `transit-live.yml`; the
-   protocols of Q66 are done), XHTTP over HTTP/1.1 (T-456, Q67), then what the research of more services (done) filed: the protocols of
+   protocols of Q66 are done), XHTTP over HTTP/1.1 (Q67, done), then what the research of more services (done) filed: the protocols of
    servers that a user runs (T-490 and T-493, then T-491, T-492, T-494 and T-498), upterm's door
    (T-495) and a second Piping Server (T-497), T-496 and T-499 parked; then what the triage of the sweep of public relays
    (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's road (Q76; done 2026-11-03),

@@ -847,6 +847,7 @@ vless.xray.packet-up pass
 vless.xray.banner pass
 vless.xray.wrong-id pass
 vless.xray.http1 pass
+vless.xray.http1-one pass
 vless.shoes.ws pass
 vless.shoes.packet-up pass
 vless.shoes.stream-one pass

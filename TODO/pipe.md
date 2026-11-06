@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:278-280`).
+   pump does not know the road (`docs/architecture.md:281-283`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:362-372` does;
    open with `crates/podssh-relay/src/open.rs:212-298`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:5376`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:5383`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:339-443` a typed error, so that 77 is not
    guessed from a message.
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1149-1151`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:338-344`, `docs/architecture.md:281-298`,
+  `AGENTS.md:338-344`, `docs/architecture.md:284-301`,
   `docs/target-environment.md:99-103`, `SECURITY.md:246-281`, `README.md:44-53`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:433`). The box refuses each `bind`, AF_UNIX too
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:338-344`, `docs/architecture.md:281-298` and
+allows: `AGENTS.md:338-344`, `docs/architecture.md:284-301` and
 `docs/target-environment.md:99-103` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:695-699`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:5503-5505`). After the attach, send the window size again.
+   (`docs/cli.md:5510-5512`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-491` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-138`), `docs/design.md:695-699`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -1364,7 +1364,7 @@ the request's target, would be the proxy that such a program points at.
   takes one client by default, and with `--keep-listening` each client in turn, 8 at once at most,
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
-  loopback or AF_UNIX by default (`docs/decisions.md:75`; `docs/architecture.md:281-290`); the
+  loopback or AF_UNIX by default (`docs/decisions.md:75`; `docs/architecture.md:284-293`); the
   gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:98-122`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target

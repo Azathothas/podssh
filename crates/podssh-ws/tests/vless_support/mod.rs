@@ -26,6 +26,10 @@ pub mod cert {
 
 // The XHTTP stand-in's handler of each request.
 mod xhttp;
+// The XHTTP stand-in of HTTP/1.1, on the same table of sessions (T-456).
+mod xhttp1;
+
+pub use xhttp1::CLOSE_AFTER;
 
 pub const NAME: &str = "vless.test";
 pub const BANNER: &[u8] = b"SSH-2.0-stand-in\r\n";
@@ -39,6 +43,8 @@ const ID_BYTES: [u8; 16] = [0x55, 0x0e, 0x84, 0x00, 0xe2, 0x9b, 0x41, 0xd4, 0xa7
 pub struct Seen {
     pub requests: Mutex<Vec<(String, String, String, usize)>>,
     pub targets: Mutex<Vec<String>>,
+    /// The connections that the HTTP/1.1 stand-in took.
+    pub connections: std::sync::atomic::AtomicUsize,
 }
 
 pub fn pins() {
@@ -211,6 +217,29 @@ pub async fn xhttp_server(alpn: &[&[u8]]) -> (u16, Arc<Seen>) {
                 while let Some(Ok((request, respond))) = connection.accept().await {
                     tokio::spawn(xhttp::handle(request, respond, seen.clone(), sessions.clone()));
                 }
+            });
+        }
+    });
+    (port, seen)
+}
+
+/// A VLESS server over XHTTP at `/xh/` that speaks HTTP/1.1 alone, as
+/// Xray-core's with `alpn` `http/1.1`: over TLS for [`NAME`] that offers
+/// `http/1.1` alone, or with no TLS when `tls` is false.
+pub async fn xhttp1_server(tls: bool) -> (u16, Arc<Seen>) {
+    let (acceptor, listener) = (acceptor(&[b"http/1.1"]), TcpListener::bind("127.0.0.1:0").await.unwrap());
+    let port = listener.local_addr().unwrap().port();
+    let (seen, sessions): (Arc<Seen>, xhttp::Sessions) = (Arc::default(), Arc::default());
+    let kept = seen.clone();
+    tokio::spawn(async move {
+        while let Ok((tcp, _)) = listener.accept().await {
+            let (acceptor, seen, sessions) = (acceptor.clone(), kept.clone(), sessions.clone());
+            tokio::spawn(async move {
+                if !tls {
+                    return xhttp1::serve(tcp, seen, sessions).await;
+                }
+                let Ok(tls) = acceptor.accept(tcp).await else { return };
+                xhttp1::serve(tls, seen, sessions).await;
             });
         }
     });

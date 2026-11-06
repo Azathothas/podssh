@@ -1319,10 +1319,17 @@ server as `ssh` does, `proxy` and `doctor`, which checks each:
   each chunk up, one at a time, at most 1,000,000 bytes each; `stream-up`: the
   same GET, and one streamed POST up; `stream-one`: one POST to the path,
   its body up and its answer down. A streamed upload says
-  `Content-Type: application/grpc`. A server that chooses HTTP/1.1 is
-  refused (`proxy` exits 78, and `ssh` 255, as for each first hop that it
-  does not reach): its split modes need a second connection, which this road
-  does not open (Q67, T-456).
+  `Content-Type: application/grpc`. A server, or a front end that ends TLS
+  on the way, that chooses HTTP/1.1 (or refuses HTTP/2 with no TLS) gets
+  packet-up and stream-up over HTTP/1.1 on two connections to it (Q67,
+  T-456): the GET on the first, its body streamed as it comes (chunked,
+  by its length, or to the connection's end), and on a second connection,
+  opened only then, the POSTs of packet-up with their lengths, one at a time
+  on a kept connection that is dialed again when the server closes it, or
+  stream-up's one chunked POST; `-v` and `doctor` say "on two connections".
+  `stream-one` is refused there (`proxy` exits 78, and `ssh` 255, as for
+  each first hop that it does not reach): Go's server reads a request's
+  whole body before it answers on HTTP/1.1.
 - The link's `extra` (JSON of `xhttpSettings`) gives `headers`,
   `xPaddingBytes`, `noGRPCHeader`, `scMaxEachPostBytes` and `mode`; a key that
   only paces or pools Xray-core's own client is passed over, and each other
@@ -1343,8 +1350,8 @@ server as `ssh` does, `proxy` and `doctor`, which checks each:
   carried it and the time of VLESS's answer, then GitHub's published host
   key on `github.com:22` through it.
 
-Tested against stand-ins on the loopback, h2's own server for XHTTP
-(`crates/podssh-ws/tests/vless.rs`), and against Xray-core and shoes in
+Tested against stand-ins on the loopback, h2's own server for XHTTP and
+a stand-in of HTTP/1.1 alone (`crates/podssh-ws/tests/vless.rs`), and against Xray-core and shoes in
 containers, through a plain squid as the host's proxy and behind nginx,
 which does not pass the upgrade (`scripts/interop-vless.sh`,
 `.github/workflows/vless-interop.yml`).

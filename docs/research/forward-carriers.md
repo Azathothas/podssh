@@ -402,7 +402,7 @@ and httpstream/forward.rs (78 lines: the session, the bytes up in chunks of
   `https://` template that `crates/podssh-ws/src/forwarder/template.rs:198`
   tests); the same shape inside XHTTP's stream-one, over HTTP/2 alone, as
   Go's server reads a whole body before it answers on HTTP/1.1
-  (`crates/podssh-ws/src/vless/xhttp.rs:19-21`); the HTTP road of podssh's
+  (`crates/podssh-ws/src/vless/xhttp.rs:21-23`); the HTTP road of podssh's
   relay role for hops that refuse the upgrade and hold bodies (T-319); and
   chunked HTTP/1.1 in the Piping Server road
   (`crates/podssh-relay/src/piping/http1.rs`).

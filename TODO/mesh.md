@@ -3939,7 +3939,7 @@ What the merge repaired (2026-11-03):
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3950,8 +3950,9 @@ carry the upload and the download on two connections at once: a second connectio
 
 ## Premise
 
-- `crates/podssh-ws/src/vless/xhttp.rs:19-21` says why HTTP/1.1 is refused, and
-  `crates/podssh-ws/src/vless/xhttp.rs:76-82` refuses a server that did not choose `h2` by ALPN.
+- `PodUtils/podssh:crates/podssh-ws/src/vless/xhttp.rs:19-21` said why HTTP/1.1 was refused, and
+  `PodUtils/podssh:crates/podssh-ws/src/vless/xhttp.rs:76-82` refused a server that did not choose `h2`
+  by ALPN, as of `8d9f043`, before this entry.
 - Q44 (`docs/decisions.md`) allows the second connection of the split HTTP road alone.
 
 ## Approach
@@ -3987,6 +3988,51 @@ module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`
 PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
 crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
 moved code then runs there.
+
+2026-11-06. `vless/` is not imported yet (no `repo PodUtils/podssh` block of podcrates names it), so
+this entry is still podssh's work. The Premise holds: the refusal was `xhttp.rs`'s
+`VlessError::Http1` after a TLS handshake that chose no `h2`.
+
+## Done
+
+2026-11-06. Drafted by a drafting agent, unbuilt (`draft-t456`, `34d1459`), then merged, built and
+tested by the main session: it built and passed with no repair.
+
+- `crates/podssh-ws/src/vless/xhttp.rs`: the first connection says what the server took
+  (`Spoken::H2` or `Spoken::H1`, a TLS that chose no `h2`); with no TLS, HTTP/2 with prior knowledge
+  that fails at its first requests (a failure of the connection, not a refusal by status) is tried
+  again over HTTP/1.1 on a new connection; the TLS step is `xhttp::tls`, which both use.
+- `crates/podssh-ws/src/vless/h1.rs` (new): a request's head as `xhttp::request` makes it (padding,
+  `User-Agent`, the link's headers, gRPC's type on a streamed upload) with `Host` once and the
+  body's framing; a response's head (a `100` passed over, 64 KiB at most) and its body as a stream:
+  by its length, in chunks decoded as they come with the trailer read so that a kept connection's
+  next answer starts clean, or to the end; a chunk of a streamed request; `Again`, the owned
+  settings of a dial, so that the uploads' task dials again. Unit tests: a chunked body and the
+  next answer after its trailer, a length, a close, an early end, an answer that is not HTTP; a
+  streamed body's chunks.
+- `crates/podssh-ws/src/vless/h1_modes.rs` (new): packet-up (the GET on the first connection, its
+  body piped to the read half; the POSTs of `PATH/SESSION/SEQ` with their lengths on a second
+  connection, one at a time, each answer and its body read; a connection that the server closed,
+  or that `Connection: close` ended, dialed again once for the next POST), stream-up (the same GET,
+  and one chunked POST on the second connection, its answer read after its last chunk), and
+  stream-one refused (`VlessError::Http1`, exit 78) with its reason. `how` is "XHTTP MODE over
+  HTTP/1.1 on two connections", which `-v` and `doctor --vless` print
+  (`crates/podssh-cli/src/doctor/vless.rs`).
+- The test: `crates/podssh-ws/tests/vless.rs`, `http1_alone_carries_packet_up_and_stream_up_on_two_connections`,
+  against a stand-in of HTTP/1.1 alone (`tests/vless_support/xhttp1.rs`, on the same table of
+  sessions as the HTTP/2 one), over TLS that offers `http/1.1` alone and with no TLS (the client's
+  HTTP/2 refused first): packet-up, stream-up and auto carry 2,500,000 bytes each way; the stand-in
+  closes a kept connection after 3 packets, and more connections than GETs show the second one.
+  `a_refused_upgrade_a_wrong_path_and_http1_are_said` now asserts stream-one's refusal on the same
+  stand-in. `cargo test -p podssh-ws --test vless`: 7 passed (13 s); the crate with `plain-ws`: 346
+  passed; clippy and rustfmt clean. Planted: no second connection opened (the POSTs have no
+  connection): the test fails ("planted: no second connection"); put back, it passes.
+- `scripts/interop-vless.sh`: Xray-core's port with `alpn` `http/1.1` carries a session over
+  packet-up on two connections (`vless.xray.http1`, which checked its refusal before), and refuses
+  stream-one with its words (`vless.xray.http1-one`, new; `scripts/interop-baseline.txt`). Its run
+  waits for the checks of the release (Q88): Xray-core is not on this host.
+- The manual (`crates/podssh-cli/src/man/notes_vless.rs`), `docs/cli.md`, `docs/architecture.md`
+  and `docs/mesh.md` say the road over HTTP/1.1 and its second connection.
 
 # T-457: The relay role dials its targets through the host's `HTTPS_PROXY`
 

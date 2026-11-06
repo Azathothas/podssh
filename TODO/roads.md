@@ -4709,7 +4709,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:323-328`; `docs/design.md:66`), and
+- Read: credentials never go in URLs (`docs/architecture.md:326-331`; `docs/design.md:66`), and
   `docs/decisions.md:85` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -5604,7 +5604,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:291-295`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:294-298`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
    `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
@@ -6459,7 +6459,7 @@ cannot make it a road.
   (`PodUtils/podssh:crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:323-328`); an `ss://` URI holds the password.
+  (`docs/architecture.md:326-331`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
@@ -9095,7 +9095,7 @@ banner where a hop holds the body: the form needs a test of the way and a fallba
   (T-325).
 - `crates/podssh-ws/src/vless/xhttp.rs:10` says "stream-one: one POST to the path, its body up and
   its answer down": podssh speaks the form inside XHTTP to Xray-core, over HTTP/2 alone, as
-  `crates/podssh-ws/src/vless/xhttp.rs:19-21` says why HTTP/1.1 is refused there.
+  `crates/podssh-ws/src/vless/xhttp.rs:21-23` says why stream-one is refused on HTTP/1.1 (T-456).
 - The archive found no public server of the form: one relay of that shape on a public name wants
   a key (Read in its results/http-relay-hunt.json), and its own relay is a test of about 130 lines
   on the loopback. A server of the form that a user has is podssh's relay role.
