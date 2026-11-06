@@ -939,6 +939,7 @@ The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;
 | `unreleased`: aes 0.9.4 in the lock, `taiki-e/install-action` v2.89.1 in each workflow (T-691, Dependabot's #149 and #150, 2026-11-06: `cargo test -p podssh-ssh -p podssh-relay`, exit 0) | **Works.** | `cargo test -p podssh-ssh -p podssh-relay` |
 | `unreleased`: `pipe`'s test of `unix-connect` reads its server's socket once at its limit, before the kill (T-465, T-688, 2026-11-06: planted, the pump's shutdown skipped and its writer leaked, fails at 10 s with "nothing is queued: the end never came"; put back, 10 passed) | **Partial.** The failure of macOS and Windows will say whether the end was queued and its reader not woken, or never came. | `cargo test -p podssh-cli --test pipe` |
 | `unreleased`: `podssh node` and `podssh ssh node://` meet on the Piping Server road behind a relay that refuses each upgrade, unasked, and resume after the server's restart (T-451, 2026-11-06: piping-server-rust v0.18.0 on the loopback; 2 passed, 4 runs; planted, the probe that reads each refusal as the relay's, fails it) | **Works.** | `PODSSH_TEST_PIPING_RUST=PATH cargo test -p podssh-cli --test node_piping` |
+| `unreleased`: the transit road through Least Authority's relay meets at once (T-450, 2026-11-06, from this host: 20 runs in a row, each met, 3.3 s to 5.9 s a run) | **Partial.** The runs on a runner wait for GitHub Actions. | `cargo test -p podssh-relay --test transit -- --ignored` |
 
 ## Other TCP protocols, measured
 

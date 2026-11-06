@@ -3252,7 +3252,7 @@ checked before they reach a shell.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3293,6 +3293,13 @@ module map is `PodUtils/podcrates:docs/design.md`). Rule Q3 (`docs/decisions.md`
 PodUtils/podcrates") applies: from the import podssh makes fixes only, and once podssh takes the
 crate the work is done in PodUtils/podcrates, which podssh takes by the next tag; a test of the
 moved code then runs there.
+
+## Done
+
+Partial, 2026-11-06, at `1eb6a8b` from this cloud session's host: `cargo test -p podssh-relay --test
+transit -- --ignored`, 20 runs in a row, each met (2 passed a run, 3.3 s to 5.9 s). Not reproduced; the
+runs of `transit-live.yml` on GitHub Actions wait, as Actions start no workflow for this account on
+2026-11-06 (GitHub #152). It stays partial for the runs on a runner, or the next run that meets nobody.
 
 # T-451: The Piping Server road from end to end: `podssh node` and `ssh node://` behind a proxy that refuses the upgrade
 
