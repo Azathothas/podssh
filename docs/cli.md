@@ -5931,8 +5931,9 @@ Tailscale's `ping`, `status` and `netcheck` for the net of `podssh net`.
   WebSocket opened and closed with no line said, so that it pairs nothing;
   each mailbox of `PODSSH_PAIR_MAILBOX` (magic-wormhole's, then Least
   Authority's), its welcome read and podssh's application bound, no
-  nameplate claimed; and the Piping Server of `PODSSH_PIPING` (`ppng.io`),
-  asked its `/version`, which waits for no sender. A variable's `no` asks
+  nameplate claimed; and each Piping Server of `PODSSH_PIPING` (`ppng.io`,
+  then `piping.onrender.com`), asked its `/version`, which waits for no
+  sender. A variable's `no` asks
   none of its carrier (`????`), a value that its road refuses is `FAIL`. The
   Wisp demo server is a forwarder: the line `fallback` names it, and
   `--forwarder wisp` asks it.

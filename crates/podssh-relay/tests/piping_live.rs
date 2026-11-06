@@ -47,7 +47,7 @@ async fn a_session_through_ppng_io_carries_64_kib_each_way() {
     let http = || Http::new(server.clone(), dial::tls(Trust::Default, ProxyChoice::FromEnvironment));
     let say = |who: &'static str| -> road::Say { Arc::new(move |line: String| eprintln!("{who}: {line}")) };
     let settings = Settings { features: road::FEATURES, ..Settings::default() };
-    let node = Node { secret: Arc::new(secret()), http: Arc::new(http()), say: say("node") };
+    let node = Node { secret: Arc::new(secret()), http: Arc::new(http()), fallbacks: Vec::new(), say: say("node") };
     let keeper = Arc::new(Keeper::new(settings.resume_deadline));
     let serving = tokio::spawn(road::far::serve_kept(node, settings, 64 << 20, echo, keeper));
     let dialer = Dialer::new(secret(), http(), say("client"));

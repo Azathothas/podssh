@@ -27,6 +27,8 @@
 pub mod client;
 pub mod dial;
 pub mod exchange;
+#[cfg(test)]
+mod exchange_tests;
 pub mod far;
 pub mod flow;
 pub mod http1;

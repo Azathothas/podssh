@@ -116,7 +116,7 @@ pub const DOCTOR_NET: &str = "The section carriers asks each public carrier that
      relay of PODSSH_TRANSIT (Least Authority's by default), whose WebSocket opens and closes with no line said, so \
      it pairs nothing; each mailbox of PODSSH_PAIR_MAILBOX (magic-wormhole's and Least Authority's by default), \
      which says its welcome and is bound to podssh's application, no nameplate claimed; and the Piping Server of \
-     PODSSH_PIPING (ppng.io by default), asked its /version. A variable's no asks none of its carrier, ????; a \
+     PODSSH_PIPING (ppng.io, then piping.onrender.com, by default), each asked its /version. A variable's no asks none of its carrier, ????; a \
      value that its road refuses is a FAIL. The Wisp demo server is a forwarder, which the line fallback names. \
      The section net says the net held, read with no connection (FAIL for a file that does not read, or a net \
      that ended), then asks /health of each member with the role relay, at most 8, at the host that the net's \

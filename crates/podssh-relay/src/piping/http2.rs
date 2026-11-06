@@ -116,6 +116,18 @@ pub async fn get(
     path: &str,
     wait: Option<Duration>,
 ) -> Result<RecvStream, Failed> {
+    get_sized(send, server, path, wait).await.map(|(body, _)| body)
+}
+
+/// [`get`], and the length that the answer's `Content-Length` gives, which
+/// a whole body must have: a front that cuts a transfer can end the stream
+/// cleanly, short (T-497, `piping.onrender.com`).
+pub async fn get_sized(
+    send: SendRequest<Bytes>,
+    server: &Server,
+    path: &str,
+    wait: Option<Duration>,
+) -> Result<(RecvStream, Option<u64>), Failed> {
     let request = request(server, http::Method::GET, path, None)?;
     let mut send = send.ready().await.map_err(lost)?;
     let (answer, _) = send.send_request(request, true).map_err(lost)?;
@@ -125,11 +137,13 @@ pub async fn get(
     }
     .map_err(lost)?;
     let status = answer.status().as_u16();
+    let length = answer.headers().get(http::header::CONTENT_LENGTH);
+    let length = length.and_then(|v| v.to_str().ok()).and_then(|v| v.trim().parse::<u64>().ok());
     let body = answer.into_body();
     if status != 200 {
         return Err(Failed::status(status, text(body).await));
     }
-    Ok(body)
+    Ok((body, length))
 }
 
 /// A POST of `body` to `path`, and the whole text of its answer, both within

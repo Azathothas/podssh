@@ -16,12 +16,17 @@ use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use super::exchange::{delivered, Failed, Http};
+use super::exchange::{delivered_whole, Failed, Http};
 use super::flow::{check_mark, Link, Opening, HELLO_LIMIT, PIPE};
 use super::paths::{Ends, MARK_BYTES};
 
 /// The most bytes of a piece.
 pub const PIECE: usize = 64 * 1024;
+/// The most bytes of a piece that a server sends, where pod-services says
+/// that it holds a body to its end: `piping.onrender.com` cut 2 of 4
+/// transfers of 16 KiB and 32 KiB, and none of 20 of 4 KiB and 8 KiB
+/// (T-497, 2026-11-06), so a piece there is small.
+pub const SMALL_PIECE: usize = 8 * 1024;
 /// How long a POST of a piece may wait for its receiver.
 const POST_WAIT: Duration = Duration::from_secs(60);
 /// How long a GET may wait for the next piece: the far end's heartbeat sends
@@ -44,7 +49,7 @@ pub async fn open(http: Arc<Http>, ends: &Ends) -> Result<Link, Opening> {
     let first = async {
         let sending = async {
             let text = http.post(&send, &ends.mine, HELLO_LIMIT).await?;
-            delivered(&text).map_err(Failed::lost)
+            delivered_whole(&text).map_err(Failed::lost)
         };
         let receiving = receive(&http, &recv, HELLO_LIMIT);
         let ((), got) = tokio::try_join!(sending, receiving).map_err(Opening::from)?;
@@ -84,7 +89,8 @@ fn carry(http: Arc<Http>, send: String, recv: String) -> Link {
         let (mut from_layer, mut to_layer) = tokio::io::split(far);
         // True when the layer ended its bytes.
         let up = async {
-            let mut buf = vec![0u8; PIECE];
+            let size = if http.server().holds_bodies() { SMALL_PIECE } else { PIECE };
+            let mut buf = vec![0u8; size];
             for n in 1u64.. {
                 let read = match from_layer.read(&mut buf).await {
                     Ok(0) => return true,
@@ -92,7 +98,7 @@ fn carry(http: Arc<Http>, send: String, recv: String) -> Link {
                     Err(_) => return false,
                 };
                 let sent = http.post(&piece(&http, &send, n), &buf[..read], POST_WAIT).await;
-                if sent.map_err(|failed| failed.to_string()).and_then(|text| delivered(&text)).is_err() {
+                if sent.map_err(|failed| failed.to_string()).and_then(|text| delivered_whole(&text)).is_err() {
                     return false;
                 }
             }

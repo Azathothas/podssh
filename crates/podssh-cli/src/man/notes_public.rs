@@ -8,7 +8,7 @@ pub const PUBLIC: &str =
     "The public services that podssh tries when you named no server of their kind, each after podssh's \
      own roads and by the operator's rulings: on the forward road, the four forwarders above, wisp last; \
      on the reverse road, Tailscale's DERP servers for tailcat, Least Authority's transit relay, ppng.io \
-     and n0's server of pkarr (see podssh node). Each is a third party that nobody vouches for: its \
+     then piping.onrender.com, and n0's server of pkarr (see podssh node). Each is a third party that nobody vouches for: its \
      operator sees the target or the two ends, the sizes and the times, may log them, and may stop \
      serving podssh at any time; the host key of SSH, and on the reverse road the end-to-end channel, \
      keep the bytes from it. podssh names no other public server of their kinds: no server of \

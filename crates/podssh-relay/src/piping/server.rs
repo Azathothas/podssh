@@ -30,6 +30,14 @@ pub struct Server {
     pub prefix: String,
 }
 
+/// The public servers of the road, in the order of pod-services: `ppng.io`
+/// first, then each other of kind `piping`, each tried once the one before
+/// failed (T-497).
+pub fn public() -> Vec<Server> {
+    let servers = pod_services::of_kind("piping").filter_map(|service| service.endpoint("server"));
+    servers.map(|e| Server { host: e.host().to_ascii_lowercase(), port: e.port(), prefix: String::new() }).collect()
+}
+
 impl Default for Server {
     fn default() -> Server {
         Server { host: default_host().to_string(), port: default_endpoint().port(), prefix: String::new() }
@@ -67,6 +75,19 @@ impl Server {
             (PORT, true) => format!("[{}]", self.host),
             (port, _) => podssh_ws::dial::authority(&self.host, port),
         }
+    }
+
+    /// Whether pod-services measured that this server holds a request's
+    /// body until its end (its fact `streams-request-body` is false): its
+    /// links go in numbered pieces from the first, with no wait for a
+    /// streamed one that cannot flow.
+    pub fn holds_bodies(&self) -> bool {
+        pod_services::of_kind("piping").any(|service| {
+            service.bool("streams-request-body") == Some(false)
+                && service
+                    .endpoint("server")
+                    .is_some_and(|e| e.host().eq_ignore_ascii_case(&self.host) && e.port() == self.port)
+        })
     }
 
     /// The path of `word` on this server.
@@ -114,6 +135,17 @@ mod tests {
         assert_eq!(Server::parse("https://ppng.io/"), Ok(server.clone()));
         assert_eq!(server.authority(), "ppng.io");
         assert_eq!(server.path("abc"), "/abc");
+    }
+
+    #[test]
+    fn the_public_servers_are_ppng_io_then_onrender_which_holds_bodies() {
+        let public = public();
+        let shown: Vec<String> = public.iter().map(Server::to_string).collect();
+        assert_eq!(shown[..2], ["https://ppng.io".to_string(), "https://piping.onrender.com".to_string()]);
+        assert_eq!(public[0], Server::default());
+        assert!(!public[0].holds_bodies());
+        assert!(public[1].holds_bodies(), "pod-services measured that it holds a body to its end");
+        assert!(!Server::parse("https://piping.onrender.com:8443").unwrap().holds_bodies());
     }
 
     #[test]

@@ -36,7 +36,7 @@ const VERSION_MOST: usize = 256;
 pub(super) struct Plan {
     transit: Result<Option<WsUrl>, String>,
     mailboxes: Result<Option<Vec<WsUrl>>, String>,
-    piping: Result<Option<Server>, String>,
+    piping: Result<Option<Vec<Server>>, String>,
 }
 
 /// The words of a variable that turn a carrier off.
@@ -57,7 +57,7 @@ pub(super) fn plan(transit_value: Option<&str>, mailbox_value: Option<&str>, pip
     };
     let piping = match crate::piping_road::want_from(piping_value) {
         Ok(Want::Off) => Ok(None),
-        Ok(Want::Unasked(server) | Want::Asked(server)) => Ok(Some(server)),
+        Ok(Want::Unasked(servers) | Want::Asked(servers)) => Ok(Some(servers)),
         Err(refusal) => Err(refusal.message),
     };
     Plan { transit, mailboxes, piping }
@@ -99,8 +99,11 @@ pub(super) async fn check(report: &mut Report<'_>, trust: &Trust) {
             mailbox_line(report, url, trust).await;
         }
     }
-    if let Ok(Some(server)) = &plan.piping {
-        piping_line(report, server, trust).await;
+    // Each server of the road, as a node may wait at any (T-497).
+    if let Ok(Some(servers)) = &plan.piping {
+        for server in servers {
+            piping_line(report, server, trust).await;
+        }
     }
 }
 
@@ -182,7 +185,7 @@ mod tests {
         let public = podssh_relay::code::public_mailboxes().into_iter().map(|url| WsUrl::parse(&url).unwrap().shown());
         let public: Vec<String> = public.collect();
         assert_eq!(shown, public);
-        assert_eq!(all.piping, Ok(Some(Server::default())));
+        assert_eq!(all.piping, Ok(Some(podssh_relay::piping::server::public())));
         let none = plan(Some("no"), Some("No"), Some("off"));
         assert_eq!(none.transit, Ok(None), "{none:?}");
         assert_eq!(none.mailboxes, Ok(None), "{none:?}");

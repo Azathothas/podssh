@@ -2616,7 +2616,7 @@ documents works; the form that a user expects is missing.
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
   which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:150`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
-  (`crates/podssh-cli/src/man/notes_pair.rs:316-318`), and `pipe` takes `node:NAME`
+  (`crates/podssh-cli/src/man/notes_pair.rs:317-319`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
   byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:392`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
@@ -4641,7 +4641,7 @@ which `piping.yml` installs, and the second's API and edge are Cloudflare's alon
   at each start before (`crates/podssh-cli/src/node_quick.rs:248` says "asked = api::request(&trust,
   &proxy, &*say) => asked,"). Both pass as parts of the run (Decision, items 2 and 3).
 - The Approach's "the road's own connection is made again" needs nothing more on two roads: the Piping
-  Server's door comes from the pair's secret (`crates/podssh-cli/src/node_piping.rs:232` says "let secret
+  Server's door comes from the pair's secret (`crates/podssh-cli/src/node_piping.rs:233` says "let secret
   = Arc::new(Secret::of_pair(&pair.name, pair.connect_token()));"), and the OpenTunnel road's route is in
   its record of the cache (`crates/podssh-relay/src/opentunnel/record.rs:47` says "pub route: String,"),
   save a tunnel that no directory took (Decision, item 6).

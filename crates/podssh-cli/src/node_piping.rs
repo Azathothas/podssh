@@ -62,9 +62,9 @@ fn unfit(args: &NodeArgs) -> Option<&'static str> {
 /// pair's road decides on the unasked one once it checked TARGET
 /// ([`unasked`]), and says each refusal.
 pub fn run(args: &NodeArgs, err: &mut dyn Write) -> Option<i32> {
-    let server = match piping_road::want() {
+    let servers = match piping_road::want() {
         Ok(Want::Off | Want::Unasked(_)) => return None,
-        Ok(Want::Asked(server)) => server,
+        Ok(Want::Asked(servers)) => servers,
         Err(refusal) => return Some(refusal.report("node", err)),
     };
     if let Some(why) = unfit(args) {
@@ -90,14 +90,14 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> Option<i32> {
     // A run of --restart beats from this runtime, while it polls (T-394).
     crate::detach::beat::keep(runtime.handle());
     // On the heap: Windows gives the main thread 1 MiB of stack.
-    let mut code = runtime.block_on(Box::pin(serve(ready, server.clone(), None, None, err)));
+    let mut code = runtime.block_on(Box::pin(serve(ready, servers.clone(), None, None, err)));
     // An upgrade whose binary did not start: this one serves its sessions
     // again, from a new start of the road (T-679).
     while code == crate::node_upgrade::AGAIN {
         let again =
             pair_of(args, &label).and_then(|(pair, stored)| prepare(args, label.clone(), pair, stored, trust.clone()));
         code = match again {
-            Ok(ready) => runtime.block_on(Box::pin(serve(ready, server.clone(), None, None, err))),
+            Ok(ready) => runtime.block_on(Box::pin(serve(ready, servers.clone(), None, None, err))),
             Err(refusal) => refusal.report("node", err),
         };
     }
@@ -133,14 +133,14 @@ pub(crate) struct Ready {
 }
 
 /// The unasked road of a node of the pair's road whose TARGET passed its
-/// check (Q65): the server, and why the probe found the upgrade refused on
+/// check (Q65): the servers, and why the probe found the upgrade refused on
 /// the way; `None` when the relay answered, or no probe could tell, or the
 /// road is off.
-pub(crate) async fn unasked(pair: &Pair, trust: &Trust) -> Option<(Server, String)> {
-    let Ok(Want::Unasked(server)) = piping_road::want() else { return None };
+pub(crate) async fn unasked(pair: &Pair, trust: &Trust) -> Option<(Vec<Server>, String)> {
+    let Ok(Want::Unasked(servers)) = piping_road::want() else { return None };
     let proxy = ProxyChoice::FromEnvironment;
     match probe::upgrade(&pair.relay, &pair.name, trust, &proxy, PROBE_LIMIT).await {
-        Probe::Refused(why) => Some((server, why)),
+        Probe::Refused(why) => Some((servers, why)),
         Probe::Passes | Probe::Unknown(_) => None,
     }
 }
@@ -166,7 +166,7 @@ fn settings() -> Settings {
 /// line of a TARGET that the caller checked already.
 pub(crate) async fn serve(
     ready: Ready,
-    server: Server,
+    servers: Vec<Server>,
     refused: Option<String>,
     checked: Option<String>,
     err: &mut dyn Write,
@@ -187,9 +187,10 @@ pub(crate) async fn serve(
             crate::detach::on_line("node", &line);
         })
     };
+    let through = servers.iter().map(Server::to_string).collect::<Vec<_>>().join(", then ");
     let roads = match &refused {
-        Some(_) => format!("the Piping Server road through {server}"),
-        None => format!("the pair's road through {} and the Piping Server road through {server}", pair.relay.host),
+        Some(_) => format!("the Piping Server road through {through}"),
+        None => format!("the pair's road through {} and the Piping Server road through {through}", pair.relay.host),
     };
     let (mode, expires) = (crate::node_flags::layer_mode(), crate::pairs::utc(pair.expires_ms));
     let _ = writeln!(
@@ -244,8 +245,7 @@ pub(crate) async fn serve(
         let _ = stopped.wait_for(|stop| *stop).await;
     };
     let door_road = async {
-        let http = Arc::new(piping_road::http(&server, &trust));
-        let node = piping::Node { secret, http, say: say.clone() };
+        let node = piping_road::node(secret, &servers, &trust, say.clone());
         tokio::select! {
             () = Box::pin(piping::far::serve_kept(node, settings(), budget, open, keeper.clone())) => {}
             () = until_stopped(stopped.clone()) => {}

@@ -11,6 +11,12 @@
 //! most, as the operator's ruling Q44 allows a road that a refused upgrade
 //! chose; a second client waits for the first link's end. Over HTTP/2 the
 //! door and each link are streams of one connection.
+//!
+//! With the public servers (T-497), the door is at the first server that
+//! answers: a server whose door fails sends it to the next, and after a
+//! refresh with no link at a later server it goes back to the first, where
+//! a client knocks first. A door that waits keeps a free service of Render
+//! awake, as each refresh is a request.
 
 use std::collections::VecDeque;
 use std::future::Future;
@@ -49,7 +55,11 @@ const SEEN_FOR: Duration = Duration::from_secs(120);
 pub struct Node {
     /// The pair's key, which names the door and the links.
     pub secret: Arc<Secret>,
+    /// The first server, where the node waits while it answers.
     pub http: Arc<Http>,
+    /// The servers after it, in order: the node's door moves to the next
+    /// when the one before fails, never to two at once (T-497).
+    pub fallbacks: Vec<Arc<Http>>,
     pub say: Say,
 }
 
@@ -74,20 +84,25 @@ where
             }
         });
     }
-    let server = node.http.server().clone();
-    let door = server.path(&node.secret.door());
-    (node.say)(format!("waiting for clients at the Piping Server {server}"));
+    let servers: Vec<Arc<Http>> = std::iter::once(node.http.clone()).chain(node.fallbacks.iter().cloned()).collect();
+    // Each server's links that run: a door goes back to the first server
+    // only when none runs at the one that it leaves.
+    let running: Vec<Arc<()>> = servers.iter().map(|_| Arc::new(())).collect();
+    let mut at = 0;
+    (node.say)(format!("waiting for clients at the Piping Server {}", servers[at].server()));
     let mut failed: u32 = 0;
     // Over HTTP/1.1, the one link that may run, which the door waits for.
     let one_link = Arc::new(Semaphore::new(1));
     let mut seen: VecDeque<(Instant, LinkId)> = VecDeque::new();
     loop {
-        let mut held = match node.http.proto() {
+        let http = servers[at].clone();
+        let door = http.server().path(&node.secret.door());
+        let mut held = match http.proto() {
             Some(Proto::H1) => one_link.clone().acquire_owned().await.ok(),
             _ => None,
         };
         let asked = Instant::now();
-        match node.http.get_all(&door, Some(DOOR_REFRESH), HELLO_MAX).await {
+        match http.get_all(&door, Some(DOOR_REFRESH), HELLO_MAX).await {
             Ok(hello) => {
                 failed = 0;
                 match node.secret.read_hello(&hello) {
@@ -98,13 +113,13 @@ where
                         }
                         seen.push_back((Instant::now(), id));
                         // The door's first GET tells the protocol.
-                        if held.is_none() && node.http.proto() == Some(Proto::H1) {
+                        if held.is_none() && http.proto() == Some(Proto::H1) {
                             held = one_link.clone().try_acquire_owned().ok();
                         }
-                        let (http, secret, say) = (node.http.clone(), node.secret.clone(), node.say.clone());
+                        let (secret, say, live) = (node.secret.clone(), node.say.clone(), running[at].clone());
                         let (keeper, open) = (keeper.clone(), open.clone());
                         tokio::spawn(async move {
-                            let _held: Option<OwnedSemaphorePermit> = held;
+                            let _held: (Option<OwnedSemaphorePermit>, Arc<()>) = (held, live);
                             let ends = Ends::node(&secret, &id);
                             let Some(link) = open_link(http, &ends, mode, id, &say).await else { return };
                             layer::serve(link, Role::NODE, settings, &keeper, budget, open).await;
@@ -113,14 +128,35 @@ where
                     Err(why) => (node.say)(format!("a hello at the door that is not this pair's: {why}")),
                 }
             }
-            // The refresh: no client in the last minutes.
-            Err(why) if why.waited => {}
+            // The refresh: no client in the last minutes. A door at a later
+            // server goes back to the first, which a client tries first.
+            Err(why) if why.waited => {
+                if at > 0 && Arc::strong_count(&running[at]) == 1 {
+                    at = 0;
+                    (node.say)(format!("waiting for clients at the Piping Server {} again", servers[at].server()));
+                }
+            }
             Err(_) if asked.elapsed() >= QUIET => failed = 0,
+            // Another receiver holds the door: this pair's node before a
+            // restart, which goes away.
+            Err(why) if at + 1 < servers.len() && why.status != Some(400) => {
+                (node.say)(format!(
+                    "the door at {}: {why}; waiting at {} instead",
+                    http.server(),
+                    servers[at + 1].server()
+                ));
+                // Its links fail as its door did, and resume at the next.
+                http.close().await;
+                at += 1;
+            }
             Err(why) => {
                 failed = failed.saturating_add(1);
                 let wait = crate::open::backoff(failed);
-                (node.say)(format!("the door at {server}: {why}; asking again in {} ms", wait.as_millis()));
+                (node.say)(format!("the door at {}: {why}; asking again in {} ms", http.server(), wait.as_millis()));
                 tokio::time::sleep(wait).await;
+                if why.status != Some(400) {
+                    at = 0;
+                }
             }
         }
     }

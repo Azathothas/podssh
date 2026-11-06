@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**648 entries: 78 open, 16 partial, 5 blocked, 549 done.**
+**648 entries: 78 open, 16 partial, 4 blocked, 550 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 68 | 70 |
 | P2 | 21 | 7 | 1 | 255 | 284 |
-| P3 | 57 | 7 | 4 | 225 | 293 |
-| **All** | 78 | 16 | 5 | 549 | 648 |
+| P3 | 57 | 7 | 3 | 226 | 293 |
+| **All** | 78 | 16 | 4 | 550 | 648 |
 
 ## Entries
 
@@ -561,7 +561,7 @@ repository and CI).
 | [T-494](mesh.md) | P3 | S | M10 | measurement | done | `--via` against NaiveProxy's server, and the words of a probe-resistant proxy |
 | [T-495](mesh.md) | P3 | M | M10 | feature | done | `-J upterm://SESSION@HOST`: a session of upterm's host as the first hop |
 | [T-496](mesh.md) | P3 | S | M10 | feature | open | ntfy.sh, a meeting point of the pairing where a proxy refuses the WebSocket upgrade |
-| [T-497](mesh.md) | P3 | S | M10 | feature | blocked | A second public Piping Server, `piping.onrender.com` |
+| [T-497](mesh.md) | P3 | S | M10 | feature | done | A second public Piping Server, `piping.onrender.com` |
 | [T-498](mesh.md) | P3 | L | M10 | feature | partial | frp's protocol: a podssh node behind the user's frps, and its visitor |
 | [T-499](mesh.md) | P3 | M | M10 | feature | open | IETF's connect-tcp, once it is an RFC |
 | [T-500](ssh.md) | P1 | S | none | defect | done | A destination with no user name is refused when `USER`, `LOGNAME` and `USERNAME` are unset, where OpenSSH reads the user database |

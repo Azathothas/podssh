@@ -41,10 +41,12 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
         "The Piping Server road of a pair (podssh node NAME, podssh ssh node://NAME), for a proxy that refuses \
           the WebSocket upgrade: a POST and a GET of plain HTTPS for each way of a link, on paths that the pair's \
           secret gives, under the resumable layer and the end-to-end channel. Unset or empty: the fallback that \
-          the operator's ruling Q65 allows, through https://ppng.io: a node serves it alone once a probe at its \
+          the operator's ruling Q65 allows, through https://ppng.io, then https://piping.onrender.com where \
+          ppng.io fails (a node waits at the first that answers, and a client that meets no node at one tries \
+          the next): a node serves it alone once a probe at its \
           start finds the upgrade to the relay refused on the way, and a client tries it once the pair's road \
-          found the same. no: no such road. yes, or https://HOST[:PORT][/PREFIX] of another Piping Server: the \
-          road as asked, which a node serves beside the pair's road and a client races 250 ms after it; with \
+          found the same. no: no such road. yes (the same servers), or https://HOST[:PORT][/PREFIX] of a Piping \
+          Server (that server alone): the road as asked, which a node serves beside the pair's road and a client races 250 ms after it; with \
           --plain, --no-e2e or a udp: TARGET the node refuses it (64). Another word is a configuration error \
           (78).",
     ),

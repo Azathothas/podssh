@@ -317,10 +317,10 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     // a probe finds the upgrade refused on the way, the node serves it alone.
     // Not with --plain, --no-e2e or UDP, which it cannot carry.
     if let (false, false, Some(_)) = (udp, plain, &key) {
-        if let Some((server, why)) = crate::node_piping::unasked(&pair, &trust).await {
+        if let Some((servers, why)) = crate::node_piping::unasked(&pair, &trust).await {
             let Some(key) = key else { return Fault::SessionFault.code() };
             let ready = crate::node_piping::Ready { label, pair, stored, targets, roost, key, allow, trust };
-            return Box::pin(crate::node_piping::serve(ready, server, Some(why), Some(target), err)).await;
+            return Box::pin(crate::node_piping::serve(ready, servers, Some(why), Some(target), err)).await;
         }
     }
     let me = key.as_ref().map(|key| key.identity.public());

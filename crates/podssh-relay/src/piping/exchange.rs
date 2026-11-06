@@ -83,6 +83,24 @@ pub fn delivered(text: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// [`delivered`], for a body of known length that its receiver reads whole
+/// (a hello, a numbered piece): piping-server-rust 0.18.0 says "halfway
+/// disconnected" to a sender whose receiver took the whole body and closed,
+/// which for such a body is a delivery; a receiver that got less fails its
+/// own read, and the layer sends again what it did not acknowledge.
+pub fn delivered_whole(text: &str) -> Result<(), String> {
+    if text.contains("halfway") && !text.contains("[ERROR]") {
+        return Ok(());
+    }
+    // An answer that ends after the transfer began and before it ended: a
+    // front cut the transfer (`piping.onrender.com`, T-497), and the
+    // receiver may hold part of the body.
+    if text.contains("Start sending") && !text.contains("Sent successfully") {
+        return Err("the server's answer ended before its receiver took the whole body".into());
+    }
+    delivered(text)
+}
+
 /// A server's words for a line: one line, 200 characters at most.
 fn shown(text: &str) -> String {
     podssh_ws::text::one_line(text.trim()).chars().take(200).collect()
@@ -277,8 +295,14 @@ impl Http {
         loop {
             match self.conn(reuse).await? {
                 Conn::H2(send) => {
-                    let mut body = Body::H2(http2::get(send, &self.server, path, wait).await?);
-                    return all(&mut body, cap).await.map_err(Failed::lost);
+                    let (body, length) = http2::get_sized(send, &self.server, path, wait).await?;
+                    let got = all(&mut Body::H2(body), cap).await.map_err(Failed::lost)?;
+                    return match length {
+                        Some(length) if length != got.len() as u64 => {
+                            Err(Failed::lost(format!("a body of {} bytes of its {length}: cut short", got.len())))
+                        }
+                        _ => Ok(got),
+                    };
                 }
                 Conn::H1 { kept, reused } => match self.h1_get_all(kept, path, wait, cap).await {
                     Err(tried) if reused && tried.stale => reuse = false,

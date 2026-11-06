@@ -1,15 +1,17 @@
 //! `PODSSH_PIPING` (T-437): the Piping Server road of a pair, for a proxy
 //! that refuses the WebSocket upgrade. Unset or empty, the road is the
-//! fallback that the operator's ruling Q65 allows, through `https://ppng.io`:
+//! fallback that the operator's ruling Q65 allows, through `https://ppng.io`
+//! and then each other public server of pod-services (T-497):
 //! a node serves it once its probe finds the upgrade refused on the way, and
 //! `podssh ssh node://NAME` tries it once the pair's road found the same.
-//! `no` turns it off; `yes`, or a server's `https://` URL, asks for it, and
-//! then a node serves it beside the pair's road and a client races it.
+//! `no` turns it off; `yes` (the public servers), or a server's `https://`
+//! URL (that server alone), asks for it, and then a node serves it beside
+//! the pair's road and a client races it.
 
 use std::sync::Arc;
 
 use podssh_relay::pair::OperatorPart;
-use podssh_relay::piping::{dial, Dialer, Http, Secret, Server};
+use podssh_relay::piping::{dial, server, Dialer, Http, Node, Say, Secret, Server};
 use podssh_ssh::Log;
 use podssh_ws::{ProxyChoice, Trust};
 
@@ -23,10 +25,10 @@ pub const ENV: &str = "PODSSH_PIPING";
 pub enum Want {
     /// No road through a Piping Server.
     Off,
-    /// The fallback of Q65, through this server.
-    Unasked(Server),
-    /// The road, through this server, as the user asked.
-    Asked(Server),
+    /// The fallback of Q65, through these servers, in order.
+    Unasked(Vec<Server>),
+    /// The road, through these servers, as the user asked.
+    Asked(Vec<Server>),
 }
 
 /// [`Want`], by [`ENV`].
@@ -34,27 +36,27 @@ pub fn want() -> Result<Want, Refusal> {
     want_from(std::env::var(ENV).ok().as_deref())
 }
 
-/// Unset or empty: the fallback; no: off; yes: asked, through `ppng.io`; a
-/// server's URL: asked, through it. Another word is a setting that cannot be
+/// Unset or empty: the fallback; no: off; yes: asked, through the public
+/// servers; a server's URL: asked, through it alone. Another word is a setting that cannot be
 /// used (78).
 pub fn want_from(value: Option<&str>) -> Result<Want, Refusal> {
     let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
-        return Ok(Want::Unasked(Server::default()));
+        return Ok(Want::Unasked(server::public()));
     };
     match value.to_ascii_lowercase().as_str() {
         "no" | "off" | "false" | "0" => Ok(Want::Off),
-        "yes" | "on" | "true" | "1" => Ok(Want::Asked(Server::default())),
+        "yes" | "on" | "true" | "1" => Ok(Want::Asked(server::public())),
         _ => Server::parse(value)
-            .map(Want::Asked)
+            .map(|server| Want::Asked(vec![server]))
             .map_err(|why| Refusal::config(format!("{ENV}: {why}; it takes no, yes or https://HOST[:PORT][/PREFIX]"))),
     }
 }
 
-/// The road of one run of `podssh ssh node://NAME`: its server, whether the
+/// The road of one run of `podssh ssh node://NAME`: its servers, whether the
 /// user asked for it, and whether a road found the upgrade refused already.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Race {
-    pub server: Server,
+    pub servers: Vec<Server>,
     pub asked: bool,
     pub refused: bool,
 }
@@ -70,8 +72,8 @@ impl Race {
 pub fn race() -> Result<Option<Race>, Refusal> {
     Ok(match want()? {
         Want::Off => None,
-        Want::Unasked(server) => Some(Race { server, asked: false, refused: false }),
-        Want::Asked(server) => Some(Race { server, asked: true, refused: false }),
+        Want::Unasked(servers) => Some(Race { servers, asked: false, refused: false }),
+        Want::Asked(servers) => Some(Race { servers, asked: true, refused: false }),
     })
 }
 
@@ -80,14 +82,23 @@ pub fn http(server: &Server, trust: &Trust) -> Http {
     Http::new(server.clone(), dial::tls(trust.clone(), ProxyChoice::FromEnvironment))
 }
 
-/// A dialer of the node of the pair of `part`, through `race`'s server; its
+/// A dialer of the node of the pair of `part`, through `race`'s servers; its
 /// lines go to `-v` under `shown`.
 pub fn dialer(part: &OperatorPart, race: &Race, trust: &Trust, log: &Arc<Log>, shown: &str) -> Dialer {
     let say: podssh_relay::piping::Say = {
         let (log, shown) = (log.clone(), shown.to_string());
         Arc::new(move |line: String| log.verbose(&format!("{shown}: {line}")))
     };
-    Dialer::new(Secret::of_pair(&part.name, part.connect_token()), http(&race.server, trust), say)
+    let https = race.servers.iter().map(|server| http(server, trust)).collect();
+    Dialer::with_servers(Secret::of_pair(&part.name, part.connect_token()), https, say)
+}
+
+/// The node of the road at `servers`, in order: the first that answers
+/// holds its door.
+pub fn node(secret: Arc<Secret>, servers: &[Server], trust: &Trust, say: Say) -> Node {
+    let mut https = servers.iter().map(|server| Arc::new(http(server, trust)));
+    let first = https.next().unwrap_or_else(|| Arc::new(http(&Server::default(), trust)));
+    Node { secret, http: first, fallbacks: https.collect(), say }
 }
 
 #[cfg(test)]
@@ -97,14 +108,18 @@ mod tests {
     #[test]
     fn podssh_piping_is_the_fallback_unset_off_with_no_and_asked_with_yes_or_a_url() {
         for unset in [None, Some(""), Some("  ")] {
-            assert_eq!(want_from(unset).unwrap(), Want::Unasked(Server::default()), "{unset:?}");
+            assert_eq!(want_from(unset).unwrap(), Want::Unasked(server::public()), "{unset:?}");
         }
         for off in ["no", "OFF", "0", "false"] {
             assert_eq!(want_from(Some(off)).unwrap(), Want::Off, "{off}");
         }
-        assert_eq!(want_from(Some("Yes")).unwrap(), Want::Asked(Server::default()));
+        assert_eq!(want_from(Some("Yes")).unwrap(), Want::Asked(server::public()));
+        assert_eq!(server::public()[0], Server::default(), "ppng.io first");
+        assert!(server::public().len() >= 2, "a second public server after it (T-497)");
+        // A server that the user names is kept alone, a public one too.
         let own = want_from(Some("https://pipe.example:8443/p")).unwrap();
-        assert_eq!(own, Want::Asked(Server::parse("https://pipe.example:8443/p").unwrap()));
+        assert_eq!(own, Want::Asked(vec![Server::parse("https://pipe.example:8443/p").unwrap()]));
+        assert_eq!(want_from(Some("https://ppng.io")).unwrap(), Want::Asked(vec![Server::default()]));
         for bad in ["maybe", "http://ppng.io", "https://ppng.io/?n=2"] {
             let refused = want_from(Some(bad)).unwrap_err();
             assert_eq!(refused.code, 78, "{bad}");
@@ -114,9 +129,9 @@ mod tests {
 
     #[test]
     fn a_race_keeps_its_server_once_a_road_found_the_upgrade_refused() {
-        let race = Race { server: Server::default(), asked: false, refused: false };
+        let race = Race { servers: server::public(), asked: false, refused: false };
         let refused = race.refused();
         assert!(refused.refused && !refused.asked);
-        assert_eq!(refused.server, race.server);
+        assert_eq!(refused.servers, race.servers);
     }
 }

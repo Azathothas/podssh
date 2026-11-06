@@ -588,6 +588,12 @@ The candidates, ranked:
      volume of traffic" [S9]; whether this one is on the free tier was not
      read, and no terms of its own were found. So it is the second server,
      tried when the first failed, with short live runs.
+   - Measured on 2026-11-06 (T-497, `curl` from the session's host): its
+     front holds a streamed body to its end, and cuts a transfer that takes
+     a moment: a POST of 64 KiB was answered up to "Start sending" and its
+     GET got 45,012 bytes over HTTP/1.1; 16 KiB and 32 KiB were cut 2 times
+     of 4 each, 4 KiB and 8 KiB none of 20. The road sends 8 KiB pieces
+     there, and carried 64 KiB each way in 47 s.
    - Limits: 200 requests in flight; no SLA. Built, pure Rust. Effort: S.
    - Risks: nodes with an open egress only; the protocol is not published,
      and T-339 watches its pin.
