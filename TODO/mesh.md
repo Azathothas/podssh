@@ -6762,7 +6762,7 @@ library linked statically": a C library may carry the work if its size and its l
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6793,6 +6793,18 @@ cargo todo check
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where Cabal adds a part.
 
+## Done
+
+Drafted 2026-11-06 by a drafting agent (no build; a research entry): At the merge the main session ran `cargo todo remap docs/carriers.md` and `cargo todo check`: the record agrees; its sources renumbered past T-536's. Read through the services of <https://web.pkgforge.dev/llms.txt>,
+not connected to any server: cabal-core 16.0.3's `package.json`, `swarm.js` and `bootstrap_nodes.js`;
+`hyperswarm-web` 2.2.0's `index.js`; `hyperswarm-proxy`'s `server.js`; the A records of its default
+gateways. Verdict in `docs/carriers.md` ("Overlay networks of other projects", [W33] to [W35]): Cabal's
+swarm is HyperDHT's with its own bootstrap nodes on UDP (T-542 decides it); its browser road, a
+`hyperswarm-proxy` on `wss://hyperswarm.mauve.moe` with no account, ends each incoming connection
+and drops its own clients from the peers, on hyperswarm 2.x's older network, so two ends behind it
+never meet; its WebRTC signal servers are gone or on free tiers, and WebRTC needs UDP or TURN. Cabal
+adds no road and no meeting point: no feature entry is filed.
+
 # T-544: Hyphanet: whether a podssh end can use it with no node of its own
 
 **Source:** the operator's ruling Q77 (2026-11-02).
@@ -6800,7 +6812,7 @@ The verdict and its sources in `docs/carriers.md`; a feature entry filed where C
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6830,6 +6842,18 @@ cargo todo check
 ```
 
 The verdict and its sources in `docs/carriers.md`; a feature entry filed where Hyphanet passes.
+
+## Done
+
+Drafted 2026-11-06 by a drafting agent (no build; a research entry): At the merge the main session ran `cargo todo remap docs/carriers.md` and `cargo todo check`: the record agrees; its sources renumbered past T-536's. Read through the services of <https://web.pkgforge.dev/llms.txt>,
+not connected to any server: hyphanet.org's documentation and about pages; fred's `FCPServer.java`,
+`SimpleToadletServer.java` and `UdpSocketHandler.java` on `next`. Verdict in `docs/carriers.md`
+("Overlay networks of other projects", [W36]): a node is fred, a Java program that rule 3 forbids
+podssh to start; its peers speak over UDP; FCP (9481) and FProxy (8888) bind the loopback by
+default, FProxy's public gateway mode is off by default, and no public gateway is listed. A podssh end
+with no node of its own has nothing to speak to: out, as a carrier and as a meeting point, so no
+feature entry is filed. Not read: the opennet seed nodes' file (its path in `java_installer` answered
+404), which the verdict does not need.
 
 # T-545: Nostr's ephemeral events as a meeting point of the pairing by a short code
 
@@ -6928,7 +6952,7 @@ node's roads, from a host with 443 alone, was not read.
 
 - `docs/decisions.md:33` says "Nostr's ephemeral events and the trackers become meeting points of
   the pairing, in the same order".
-- `docs/carriers.md:965-966` says "a tracker gives a peer list, or passes WebRTC's offers between
+- `docs/carriers.md:991-992` says "a tracker gives a peer list, or passes WebRTC's offers between
   the peers of one torrent".
 
 ## Approach
@@ -6978,11 +7002,11 @@ read in part; which of them carries a message from one podssh end to another wit
 ## Premise
 
 - `docs/decisions.md:33` says "Q77: use the fallbacks that exist".
-- `docs/carriers.md:954-955` says "relays send each record to each consumer, and a record is
-  written to a PDS by an account"; `docs/carriers.md:955` says "ActivityPub's relays take a
-  server's posts"; `docs/carriers.md:958` says "takes a message from a member alone" (the Waku
-  Network); `docs/carriers.md:962` says "an inbox that a wallet's signature registered" (XMTP);
-  `docs/carriers.md:962-963` says "The Farcaster hubs of the sweep were gone".
+- `docs/carriers.md:980-981` says "relays send each record to each consumer, and a record is
+  written to a PDS by an account"; `docs/carriers.md:981` says "ActivityPub's relays take a
+  server's posts"; `docs/carriers.md:984` says "takes a message from a member alone" (the Waku
+  Network); `docs/carriers.md:988` says "an inbox that a wallet's signature registered" (XMTP);
+  `docs/carriers.md:988-989` says "The Farcaster hubs of the sweep were gone".
 - `docs/carriers.md:873` says "none is reachable on 443 in practice" (the public MQTT brokers).
 
 ## Approach
@@ -7225,8 +7249,8 @@ a client that knows the node's key could know its name. podssh does not use it.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:978` says "derived from your SSH key", with no account and with a key
-  required; `docs/carriers.md:972` says "on port 22 in their own commands" of the SSH tunnel
+- `docs/carriers.md:1004` says "derived from your SSH key", with no account and with a key
+  required; `docs/carriers.md:998` says "on port 22 in their own commands" of the SSH tunnel
   providers of the sweep.
 
 ## Approach
@@ -7271,8 +7295,8 @@ shape of localhost.run's tunnel; podssh does not use it.
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:972` says "on port 22 in their own commands", and
-  `docs/carriers.md:974` says "gives HTTPS URLs alone".
+- `docs/carriers.md:998` says "on port 22 in their own commands", and
+  `docs/carriers.md:1000` says "gives HTTPS URLs alone".
 
 ## Approach
 
@@ -7325,8 +7349,8 @@ visitor's HTTP. A client in a cage reaches the name on 443. podssh does not use 
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:980` says "a port and a URL, then opens raw TCP to that port", and
-  `docs/carriers.md:981` says "request meets a reminder page unless it carries the header".
+- `docs/carriers.md:1006` says "a port and a URL, then opens raw TCP to that port", and
+  `docs/carriers.md:1007` says "request meets a reminder page unless it carries the header".
 - `crates/podssh-relay/src/serve/behind.rs:1` says "The relay role behind a node's quick tunnel
   (T-428): the role's routes as".
 
@@ -7356,7 +7380,7 @@ client meets the reminder page (the test names it).
 
 ## Correction
 
-2026-11-04 (the drafting agent). `docs/carriers.md:981` says "request meets a reminder page unless
+2026-11-04 (the drafting agent). `docs/carriers.md:1007` says "request meets a reminder page unless
 it carries the header", which the operator's archive `ff-relay` of 2026-11-04 contradicts for one
 client (`docs/research/forward-carriers.md`, section 3.6): through `loca.lt`, curl fetched a file of
 16 MiB of random bytes with no `Bypass-Tunnel-Reminder` and got `200` and exactly 16,777,216
@@ -7438,8 +7462,8 @@ that restarts makes the node register again. Live, short, through bore.pub (T-54
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:970-971` says "a public SSH jump and forwarding server with no account", and
-  `docs/carriers.md:972` says "on port 22 in their own commands".
+- `docs/carriers.md:996-997` says "a public SSH jump and forwarding server with no account", and
+  `docs/carriers.md:998` says "on port 22 in their own commands".
 - `crates/podssh-cli/src/ssh/jump.rs:100` says "The first hop's tunnel".
 
 ## Approach
@@ -7713,7 +7737,7 @@ last fallback whatever its terms, after `ppng.io` and T-497's `piping.onrender.c
 ## Premise
 
 - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
-- `docs/carriers.md:986` says "The last runs on serv00, whose terms forbid to", of
+- `docs/carriers.md:1012` says "The last runs on serv00, whose terms forbid to", of
   `p.kokoro.serv00.net`.
 - `PodUtils/podssh:crates/podssh-relay/src/piping/server.rs:10` says "pub const DEFAULT_HOST: &str =".
 
@@ -7745,7 +7769,7 @@ T-497 is done: the road has public servers in order.
 
 2026-11-04 (the drafting agent), from the operator's archive `ff-relay` of 2026-11-04
 (`docs/research/forward-carriers.md`, section 3.3). The archive reached serv00's Piping Server at
-the name with `www.` before the Premise's (`docs/carriers.md:986` says "The last runs on serv00,
+the name with `www.` before the Premise's (`docs/carriers.md:1012` says "The last runs on serv00,
 whose terms forbid to"), and read that it completes transfers and holds a streamed body until its
 end (Read in its docs/carriers.md, "Pairing carriers", and its results/http-relay-hunt.json). So
 step 1's "whether it streams" has the archive's answer, no: the road there runs in numbered pieces,
@@ -7987,9 +8011,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1188-1189` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1190` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1184` says "UDP alone, which the
+- `docs/carriers.md:1214-1215` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1216` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1210` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over
@@ -8055,9 +8079,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:28` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1195-1196` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1198-1199` says "as the server never answers a command";
-  `docs/carriers.md:1201` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1221-1222` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1224-1225` says "as the server never answers a command";
+  `docs/carriers.md:1227` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:45` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 

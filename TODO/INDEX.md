@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**648 entries: 80 open, 16 partial, 5 blocked, 547 done.**
+**648 entries: 78 open, 16 partial, 5 blocked, 549 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 68 | 70 |
 | P2 | 21 | 7 | 1 | 255 | 284 |
-| P3 | 59 | 7 | 4 | 223 | 293 |
-| **All** | 80 | 16 | 5 | 547 | 648 |
+| P3 | 57 | 7 | 4 | 225 | 293 |
+| **All** | 78 | 16 | 5 | 549 | 648 |
 
 ## Entries
 
@@ -590,8 +590,8 @@ repository and CI).
 | [T-540](mesh.md) | P3 | M | M10 | research | open | Yggdrasil again, under Q77: a port of its links and routing, over its peers on 443 |
 | [T-541](mesh.md) | P3 | S | M10 | research | open | croc: whether a public croc relay carries a podssh session from a host with 443 alone |
 | [T-542](mesh.md) | P3 | M | M10 | research | open | HyperDHT: whether Holepunch's DHT and its relays reach a podssh end by its key |
-| [T-543](mesh.md) | P3 | S | M10 | research | open | Cabal: whether it adds a carrier or a meeting point beyond HyperDHT |
-| [T-544](mesh.md) | P3 | S | M10 | research | open | Hyphanet: whether a podssh end can use it with no node of its own |
+| [T-543](mesh.md) | P3 | S | M10 | research | done | Cabal: whether it adds a carrier or a meeting point beyond HyperDHT |
+| [T-544](mesh.md) | P3 | S | M10 | research | done | Hyphanet: whether a podssh end can use it with no node of its own |
 | [T-545](mesh.md) | P3 | M | M10 | feature | open | Nostr's ephemeral events as a meeting point of the pairing by a short code |
 | [T-546](mesh.md) | P3 | S | M10 | research | open | Trackers as meeting points: whether a BitTorrent or WebTorrent tracker passes the pairing's messages |
 | [T-547](mesh.md) | P3 | M | M10 | research | open | The pub/sub networks and the public MQTT brokers, as carriers or meeting points |

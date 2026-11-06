@@ -950,6 +950,32 @@ Ruled out:
   a list with no names [W32]. No part answers on 443 with no account, and
   its relays need UDP: out. A TURN server of the user's own is podssh's
   TURN road already (`--turn`, Q93).
+  Cabal, read on 2026-11-06 (T-543) [W33]: cabal-core 16.0.3 joins a
+  cabal's swarm with hyperswarm 4 over HyperDHT, from a bootstrap list of
+  its own (eight nodes, UDP ports 49737, 10001 and 41337), so its swarm is
+  HyperDHT's (T-542) with other bootstrap nodes. Its browser build swaps
+  hyperswarm for `hyperswarm-web` 2.2.0 [W34], whose default proxy is
+  `wss://hyperswarm.mauve.moe` (its name resolved on 2026-11-06; not
+  connected to): a WebSocket on 443, with no account, to a
+  `hyperswarm-proxy` server, which joins the client's topics on hyperswarm
+  2.x's network, older than Cabal's own, dials the peers that it finds there
+  and pipes each one to the client, ends each incoming connection
+  (`handleIncoming`), and drops its own addresses from the peers [W35]. So
+  two ends behind it never meet through it, and an end behind it reaches
+  only a peer that takes a connection from the proxy's host (Inferred from
+  that source). Its WebRTC signal servers are a name that no longer
+  resolves (`signal.dat-web.eu`, NXDOMAIN on 2026-11-06) and two on
+  hosting of free tiers, and WebRTC's bytes need UDP or a TURN server of
+  their own. Cabal adds no road and no meeting point beyond HyperDHT's.
+  Hyphanet, read on 2026-11-06 (T-544) [W36]: a node is fred, a Java
+  program (rule 3 forbids podssh to start one), whose peers speak over UDP
+  (its node reference holds `physical.udp`, and its transport is
+  `UdpSocketHandler`); FCP (port 9481) and FProxy (port 8888) bind the
+  loopback by default, and FProxy's `publicGatewayMode` is off by default;
+  neither page lists a public gateway. So a podssh end with no node of its
+  own has nothing to speak to, and an end with UDP still needs a node: out,
+  as a carrier and as a meeting point. A request crosses many peers'
+  stores, so its latency is far over the pairing's (Inferred).
 - **Pub/sub networks** (the sweep [W1]; read on 2026-11-02). Bluesky's
   relays send each record to each consumer, and a record is written to a
   PDS by an account [W18]. ActivityPub's relays take a server's posts and
@@ -1506,6 +1532,20 @@ this page: a host's own page is cited from a search index or an archive.
   control plane, its token) and https://www.firezone.dev/kb/reference/ports
   (the relays' ports and protocols), read on 2026-11-06 through
   read.web.pkgforge.dev
+- [W33] `cabal-club/cabal-core:package.json`, `swarm.js` and
+  `bootstrap_nodes.js`, on its default branch, read on 2026-11-06 through
+  fetch.web.pkgforge.dev
+- [W34] `RangerMauve/hyperswarm-web:index.js`, `package.json` and
+  `README.md`, read the same day
+- [W35] `RangerMauve/hyperswarm-proxy:server.js` and
+  `RangerMauve/hyperswarm-proxy-ws:README.md`, read the same day; the names
+  of the gateways looked up through domain.web.pkgforge.dev
+- [W36] https://www.hyphanet.org/pages/documentation.html and
+  https://www.hyphanet.org/pages/about.html (through read.web.pkgforge.dev);
+  `hyphanet/fred:src/freenet/clients/fcp/FCPServer.java`,
+  `src/freenet/clients/http/SimpleToadletServer.java` and
+  `src/freenet/io/comm/UdpSocketHandler.java` on its branch `next`, read on
+  2026-11-06
 
 Read on 2026-11-02 through the services of web.pkgforge.dev (read, forge
 and search), for the entries of the rulings Q74, Q75, Q77, Q78 and Q82
