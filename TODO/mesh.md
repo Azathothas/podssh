@@ -5682,7 +5682,7 @@ which podssh takes by the next tag; a test of the moved code then runs there.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -5719,6 +5719,13 @@ cargo test -p podssh-relay --features piping --test piping_live -- --ignored
 Two of nwtgck's servers on the loopback, the first stopped: the node and the client meet at the
 second. Live, short runs through both public servers (Q65). Planted: the client's bound at the
 first server removed, and the test waits past its limit.
+
+## Blocker
+
+PodUtils/podcrates: `piping.onrender.com` is a host of another party, which podssh no longer compiles
+in (`AGENTS.md`, "The migration to PodUtils/podcrates"): it is asked as a service of pod-services in
+COORD-004 (GitHub #158, 2026-11-06). Once a tag of podcrates holds it, podssh takes the tag and does
+the Approach.
 
 ## Correction
 
