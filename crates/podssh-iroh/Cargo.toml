@@ -56,7 +56,7 @@ iroh-dns = { version = ">=1.4.1, <1.5", default-features = false }
 # The DNS packet of a record with podssh's `_podssh` names beside iroh's
 # `_iroh` (T-445), which iroh-dns builds for one name alone: the
 # simple-dns that iroh-dns builds and reads with, so no crate is added.
-simple-dns = "0.12"
+simple-dns = "0.13"
 # The versions of iroh's relay protocol, which the question of a refused
 # version offers (T-348), and, with the feature `test-relay` only, iroh's
 # relay server: the iroh-relay that iroh builds, so no crate is added.
